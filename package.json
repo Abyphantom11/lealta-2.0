@@ -1,0 +1,40 @@
+{
+  "name": "lealta-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "ts-node prisma/seed.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@auth/prisma-adapter": "latest",
+    "@emotion/is-prop-valid": "^1.3.1",
+    "@prisma/client": "^6.14.0",
+    "bcryptjs": "latest",
+    "framer-motion": "^11.0.0",
+    "lucide-react": "latest",
+    "next": "^14.2.5",
+    "next-auth": "latest",
+    "prisma": "^6.14.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tesseract.js": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "latest",
+    "@types/node": "^24.3.0",
+    "@types/react": "^18.2.0",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "ts-node": "latest",
+    "typescript": "latest"
+  }
+}
