@@ -1,54 +1,71 @@
-# 🎯 Lealta MVP - Sistema de Captación y Control de Clientes
+# 🎯 Lealta MVP - Sistema Híbrido Web + Desktop
 
 ## Descripción
 
-**Lealta** es un sistema integral de captación y control de clientes diseñado específicamente para bares, restaurantes y discotecas. Implementa el concepto "registra antes del consumo, captura antes del cobro" para maximizar la captación de datos y fidelización de clientes.
+**Lealta** es un sistema integral de captación y control de clientes con **arquitectura híbrida**: 
+- **Web App** para clientes (portal público)
+- **Desktop App** para staff/admin (aplicación nativa con Electron)
 
-## 🏗️ Arquitectura
+Implementa el concepto "registra antes del consumo, captura antes del cobro" para maximizar la captación de datos y fidelización de clientes.
 
-**Single-tenant MVP** escalable a multi-tenant. Stack moderno con Next.js 14, Prisma ORM, PostgreSQL y autenticación NextAuth.
+## 🏗️ Arquitectura Híbrida
 
-### Flujo Principal
-1. **Cliente** escanea QR → Portal premium → Registro obligatorio (cédula, datos personales)
-2. **Staff** antes de cobrar → Sube foto del ticket → OCR extrae productos/total → Crea consumo
-3. **Admin** gestiona portal, menú y promociones
-4. **SuperAdmin** ve analytics completos y gestión multi-negocio
+### 📱 **Web App (Clientes)**
+- Portal público accesible vía browser
+- Responsive, mobile-first
+- Sin instalación requerida
+- URL: `https://tu-dominio.com/portal`
+
+### 🖥️ **Desktop App (Staff/Admin/SuperAdmin)**
+- Aplicación nativa de escritorio (Electron)
+- Misma base de código Next.js
+- Mejor UX para operaciones intensivas
+- Funciona offline con sincronización
+- Menús nativos y atajos de teclado
+- Notificaciones del sistema
 
 ## 🚀 Quick Start
 
-### 1. Clonar e Instalar
+### 🌐 **Modo Web (Desarrollo)**
 ```bash
-git clone https://github.com/tu-usuario/lealta-mvp.git
-cd lealta-mvp
+git clone https://github.com/Abyphantom11/lealta-2.0.git
+cd lealta-2.0
 npm install
-```
-
-### 2. Configurar Base de Datos
-```bash
-# Configurar variables de entorno
 cp .env.example .env
-
-# Editar .env con tu configuración:
-# DATABASE_URL="postgresql://username:password@localhost:5432/lealta_db"
-# NEXTAUTH_SECRET="your-secret-key-here"
-# NEXTAUTH_URL="http://localhost:3000"
-
-# Sincronizar esquema con la base de datos
-npm run db:push
-
-# Poblar datos iniciales (opcional)
-npm run db:seed
-```
-
-### 3. Ejecutar en Desarrollo
-```bash
+# Editar .env con tu configuración
 npm run dev
+# Abre http://localhost:3001
 ```
 
-### 4. Build para Producción
+### 🖥️ **Modo Desktop (Desarrollo)**
+```bash
+# En una terminal:
+npm run dev
+
+# En otra terminal:
+npm run electron
+# O para desarrollo completo:
+npm run electron-dev
+```
+
+### 📦 **Build para Producción**
+
+#### Web App
 ```bash
 npm run build
 npm start
+```
+
+#### Desktop App
+```bash
+# Build completo con instalador
+npm run dist
+
+# Solo empaquetado (sin instalador)
+npm run pack
+
+# Multi-plataforma
+npm run dist-all
 ```
 
 ## 🎯 URLs de Acceso

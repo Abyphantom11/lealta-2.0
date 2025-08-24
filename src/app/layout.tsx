@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { ElectronProvider } from "../components/ElectronProvider";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -24,9 +25,11 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={inter.className}>
-        <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-800">
-          {children}
-        </div>
+        <ElectronProvider>
+          <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-800">
+            {children}
+          </div>
+        </ElectronProvider>
       </body>
     </html>
   );

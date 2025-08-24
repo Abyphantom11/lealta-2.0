@@ -1,16 +1,25 @@
 {
   "name": "lealta-mvp",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
+  "main": "electron/main.js",
+  "homepage": "./",
   "scripts": {
-    "dev": "next dev -p 3000",
+    "dev": "next dev -p 3001",
     "build": "next build",
-    "start": "next start -p 3000",
+    "start": "next start -p 3001",
+    "export": "next export",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "ts-node prisma/seed.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "next lint"
+    "lint": "next lint",
+    "electron": "electron .",
+    "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3001 && cross-env NODE_ENV=development electron .\"",
+    "electron-build": "npm run build && npm run export && electron-builder",
+    "dist": "npm run build && npm run export && electron-builder --publish=never",
+    "dist-all": "npm run build && npm run export && electron-builder -mwl",
+    "pack": "npm run build && npm run export && electron-builder --dir"
   },
   "dependencies": {
     "@auth/prisma-adapter": "latest",
@@ -32,9 +41,43 @@
     "@types/node": "^24.3.0",
     "@types/react": "^18.2.0",
     "autoprefixer": "^10.4.21",
+    "concurrently": "^9.2.0",
+    "cross-env": "^10.0.0",
+    "electron": "^37.3.1",
+    "electron-builder": "^26.0.12",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "ts-node": "latest",
-    "typescript": "latest"
+    "typescript": "latest",
+    "wait-on": "^8.0.4"
+  },
+  "build": {
+    "appId": "com.lealta.mvp",
+    "productName": "Lealta MVP",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*",
+      "electron/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.business",
+      "target": "dmg"
+    },
+    "win": {
+      "target": "nsis",
+      "publisherName": "Lealta Systems"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Office"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

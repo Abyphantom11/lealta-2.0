@@ -1,22 +1,52 @@
+'use client';
+
 import Link from 'next/link';
-import { Star, Users, ShoppingBag, BarChart3 } from 'lucide-react';
+import { Star, Users, ShoppingBag, BarChart3, Monitor, Globe } from 'lucide-react';
+import { PlatformAware, useElectron } from '../components/ElectronProvider';
+import { DesktopTitleBar } from '../components/DesktopUI';
 
 export default function HomePage() {
+  const { isElectron } = useElectron();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-800">
+      {/* Desktop Title Bar - Only shown in Electron */}
+      <DesktopTitleBar />
+      
       <div className="container mx-auto px-4 py-16">
         {/* Hero Section */}
         <div className="text-center mb-16">
           <div className="w-24 h-24 mx-auto mb-8 bg-gradient-to-r from-primary-600 to-purple-600 rounded-full flex items-center justify-center">
-            <Star className="w-12 h-12 text-white" />
+            {isElectron ? <Monitor className="w-12 h-12 text-white" /> : <Star className="w-12 h-12 text-white" />}
           </div>
           <h1 className="text-5xl font-bold text-white mb-6">
             Bienvenido a <span className="gradient-primary bg-clip-text text-transparent">Lealta</span>
           </h1>
-          <p className="text-xl text-dark-400 mb-12 max-w-2xl mx-auto">
-            Sistema integral de captación y control de clientes para bares, restaurantes y discotecas.
-            Registra antes del consumo, captura antes del cobro.
-          </p>
+          
+          <PlatformAware
+            desktop={
+              <p className="text-xl text-dark-400 mb-12 max-w-2xl mx-auto">
+                <span className="inline-flex items-center px-3 py-1 bg-primary-600/20 text-primary-400 rounded-full text-sm mb-4">
+                  <Monitor className="w-4 h-4 mr-2" />
+                  Aplicación de Escritorio
+                </span>
+                <br />
+                Sistema integral de gestión para personal administrativo.
+                Gestiona clientes, consumos y analytics desde tu escritorio.
+              </p>
+            }
+            web={
+              <p className="text-xl text-dark-400 mb-12 max-w-2xl mx-auto">
+                <span className="inline-flex items-center px-3 py-1 bg-emerald-600/20 text-emerald-400 rounded-full text-sm mb-4">
+                  <Globe className="w-4 h-4 mr-2" />
+                  Plataforma Web
+                </span>
+                <br />
+                Sistema integral de captación y control de clientes para bares, restaurantes y discotecas.
+                Registra antes del consumo, captura antes del cobro.
+              </p>
+            }
+          />
         </div>
 
         {/* Access Cards */}
