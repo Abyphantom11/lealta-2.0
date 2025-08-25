@@ -31,8 +31,8 @@ export function useElectron() {
           const versionInfo = await window.electronAPI.getVersion();
           setPlatform(platformInfo);
           setVersion(versionInfo);
-        } catch (error) {
-          console.log('Error getting Electron info:', error);
+        } catch {
+          // Error getting Electron info - silent fallback
         }
       }
     };
@@ -69,7 +69,8 @@ export function ElectronProvider({ children }: Readonly<{ children: React.ReactN
             window.location.href = '/superadmin';
             break;
           default:
-            console.log('Unknown menu action:', action);
+            // Unknown menu action - silent fallback
+            break;
         }
       });
 

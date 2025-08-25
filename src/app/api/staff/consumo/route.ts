@@ -106,9 +106,9 @@ export async function POST(request: NextRequest) {
     let total = 0;
 
     try {
-      console.log('Performing OCR on:', filepath);
+      // Performing OCR on uploaded image
       const { data: { text } } = await Tesseract.recognize(filepath, 'spa', {
-        logger: m => console.log(m)
+        logger: () => {} // Silent OCR processing
       });
       
       ocrText = text;
