@@ -5,6 +5,9 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import Tesseract from 'tesseract.js';
 
+// Forzar renderizado dinámico para esta ruta que usa autenticación
+export const dynamic = 'force-dynamic';
+
 const consumoSchema = z.object({
   cedula: z.string().min(6, 'Cédula requerida'),
   locationId: z.string().min(1, 'Location ID requerido'),

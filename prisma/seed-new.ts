@@ -56,7 +56,7 @@ async function main() {
   console.log('👑 SuperAdmin created:', superAdmin.email);
 
   // Create ADMIN user
-  const adminPassword = await hash('admin123', 12);
+  const adminPassword = await hash('manager123', 12);
   
   const admin = await prisma.user.upsert({
     where: { 
@@ -101,13 +101,57 @@ async function main() {
     }
   });
 
-  console.log('� Staff created:', staff.email);
+  console.log('👥 Staff created:', staff.email);
 
-  console.log('✅ Seeding completed!');
-  console.log('\n🔑 Login credentials:');
-  console.log('SUPERADMIN: admin@lealta.com / admin123');
-  console.log('ADMIN: admin@lealta.com / admin123');
-  console.log('STAFF: staff@lealta.com / staff123');
+  // Create demo clients
+  const clientes = await Promise.all([
+    prisma.cliente.upsert({
+      where: { 
+        businessId_cedula: {
+          businessId: demoBusiness.id,
+          cedula: '12345678'
+        }
+      },
+      update: {},
+      create: {
+        businessId: demoBusiness.id,
+        cedula: '12345678',
+        nombre: 'Juan Pérez',
+        correo: 'juan@demo.com',
+        telefono: '555-0001',
+        puntos: 250,
+        totalVisitas: 5,
+        totalGastado: 125.50
+      }
+    }),
+    prisma.cliente.upsert({
+      where: { 
+        businessId_cedula: {
+          businessId: demoBusiness.id,
+          cedula: '87654321'
+        }
+      },
+      update: {},
+      create: {
+        businessId: demoBusiness.id,
+        cedula: '87654321',
+        nombre: 'María García',
+        correo: 'maria@demo.com',
+        telefono: '555-0002',
+        puntos: 180,
+        totalVisitas: 3,
+        totalGastado: 89.75
+      }
+    })
+  ]);
+
+  console.log(`👥 ${clientes.length} clientes created`);
+
+  console.log('\n🎉 Seeding completed successfully!');
+  console.log('\n📝 Login credentials:');
+  console.log('🏆 SuperAdmin: admin@lealta.com / admin123');
+  console.log('👨‍💼 Admin: manager@lealta.com / manager123');
+  console.log('👩‍💻 Staff: staff@lealta.com / staff123');
 }
 
 main()

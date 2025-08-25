@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { motion } from '../../components/motion';
-import { Shield, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Shield, Mail, Lock, Eye, EyeOff, UserPlus } from 'lucide-react';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -33,9 +34,15 @@ export default function LoginPage() {
       
       if (response.ok) {
         // Redirect based on role
-        window.location.href = data.role === 'SUPERADMIN' ? '/superadmin' : '/admin';
+        const roleRedirect: Record<string, string> = {
+          SUPERADMIN: '/superadmin',
+          ADMIN: '/admin',
+          STAFF: '/staff'
+        };
+        
+        window.location.href = roleRedirect[data.role] || '/staff';
       } else {
-        setError('Credenciales inválidas');
+        setError(data.error || 'Credenciales inválidas');
       }
     } catch (error) {
       console.error('Error de conexión:', error);
@@ -145,18 +152,21 @@ export default function LoginPage() {
           </motion.button>
         </motion.form>
 
-        {/* Demo Credentials */}
+        {/* Register Link */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="mt-6 p-4 bg-dark-800/50 rounded-lg border border-dark-700"
+          transition={{ delay: 0.5 }}
+          className="mt-6 text-center"
         >
-          <h3 className="text-sm font-medium text-white mb-2">Credenciales de Demo:</h3>
-          <div className="space-y-1 text-sm text-dark-300">
-            <p><strong>SUPERADMIN:</strong> admin@lealta.com / admin123</p>
-            <p><strong>STAFF:</strong> staff@lealta.com / staff123</p>
-          </div>
+          <p className="text-dark-400 mb-4">¿No tienes una cuenta?</p>
+          <Link 
+            href="/signup"
+            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+          >
+            <UserPlus className="w-5 h-5 mr-2" />
+            Registrar Empresa
+          </Link>
         </motion.div>
       </motion.div>
     </div>

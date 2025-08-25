@@ -50,7 +50,6 @@ export function DesktopNavigation() {
             <ul className="space-y-2">
               <NavItem href="/admin" label="Dashboard" />
               <NavItem href="/staff" label="Captura Consumos" />
-              <NavItem href="/portal" label="Portal Cliente" />
               <NavItem href="/superadmin" label="Super Admin" />
             </ul>
           </div>
@@ -60,7 +59,7 @@ export function DesktopNavigation() {
   );
 }
 
-function NavItem({ href, label }: { href: string; label: string }) {
+function NavItem({ href, label }: Readonly<{ href: string; label: string }>) {
   return (
     <li>
       <a

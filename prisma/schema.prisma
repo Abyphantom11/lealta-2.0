@@ -3,56 +3,112 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 enum Role {
-  SUPERADMIN
-  ADMIN
-  STAFF
+  SUPERADMIN  // Dueño del negocio - acceso total
+  ADMIN       // Administrador - gestión de staff y reportes
+  STAFF       // Empleado - solo registro de consumos
+}
+
+enum SubscriptionPlan {
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+model Business {
+  id               String           @id @default(cuid())
+  name             String           // "Restaurante Plaza"
+  slug             String           @unique // "restaurante-plaza"
+  subdomain        String           @unique // "rest-plaza" 
+  customDomain     String?          // "pedidos.empresa.com" (opcional)
+  subscriptionPlan SubscriptionPlan @default(BASIC)
+  isActive         Boolean          @default(true)
+  settings         Json?            // configuración personalizada
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  // Relaciones
+  users      User[]    @relation("BusinessUsers")
+  clientes   Cliente[] @relation("BusinessClientes")
+  locations  Location[] @relation("BusinessLocations")
+  consumos   Consumo[] @relation("BusinessConsumos")
 }
 
 model User {
   id           String   @id @default(cuid())
-  email        String   @unique
+  businessId   String   // FK a Business - OBLIGATORIO
+  email        String   
   passwordHash String
   name         String?
   role         Role     @default(STAFF)
+  createdBy    String?  // ID del SuperAdmin que lo creó
+  isActive     Boolean  @default(true)
+  lastLogin    DateTime?
+  permissions  Json?    // Permisos específicos granulares
+  loginAttempts Int     @default(0) // Control de intentos fallidos
+  lockedUntil  DateTime? // Bloqueo temporal por intentos fallidos
+  sessionToken String?   // Token de sesión único
+  sessionExpires DateTime? // Expiración de sesión
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relaciones
+  business     Business @relation("BusinessUsers", fields: [businessId], references: [id], onDelete: Cascade)
+  creator      User?    @relation("UserHierarchy", fields: [createdBy], references: [id])
+  createdUsers User[]   @relation("UserHierarchy")
+  consumos     Consumo[] @relation("EmpleadoConsumos")
+
+  // Email único por empresa
+  @@unique([businessId, email])
 }
 
 model Location {
-  id       String    @id @default(cuid())
-  name     String
-  consumos Consumo[]
-  createdAt DateTime @default(now())
+  id        String    @id @default(cuid())
+  businessId String   // FK a Business
+  name      String
+  createdAt DateTime  @default(now())
+  
+  // Relaciones
+  business  Business  @relation("BusinessLocations", fields: [businessId], references: [id], onDelete: Cascade)
+  consumos  Consumo[]
 }
 
 model Cliente {
   id           String     @id @default(cuid())
-  cedula       String     @unique // AUTH único del cliente (sin password)
+  businessId   String?    // FK a Business - temporalmente opcional
+  cedula       String     @unique // Cédula única global temporalmente
   nombre       String
   correo       String
   telefono     String
   puntos       Int        @default(0)
   totalVisitas Int        @default(0)
-  totalGastado Decimal    @default(0) @db.Decimal(12, 2)
+  totalGastado Float      @default(0)
   defaultCount Int        @default(0)
   riskLevel    String     @default("LOW") // LOW, MEDIUM, HIGH
   lastLogin    DateTime?
   portalViews  Int        @default(0)
   registeredAt DateTime   @default(now())
+  
+  // Relaciones
+  business     Business?  @relation("BusinessClientes", fields: [businessId], references: [id], onDelete: Cascade)
   consumos     Consumo[]
   visits       VisitLog[]
+
+  // Temporalmente removemos la restricción compuesta
+  // @@unique([businessId, cedula])
 }
 
 model Consumo {
   id             String    @id @default(cuid())
+  businessId     String?   // FK a Business - temporalmente opcional
   clienteId      String
   locationId     String
   productos      Json // items parseados por OCR
-  total          Decimal   @db.Decimal(12, 2)
+  total          Float
   puntos         Int       @default(0)
   empleadoId     String // User.id que lo registró
   pagado         Boolean   @default(false)
@@ -62,8 +118,11 @@ model Consumo {
   ticketImageUrl String? // imagen subida del ticket
   ocrText        String? // texto crudo del OCR
 
+  // Relaciones
+  business Business? @relation("BusinessConsumos", fields: [businessId], references: [id], onDelete: Cascade)
   cliente  Cliente  @relation(fields: [clienteId], references: [id])
   location Location @relation(fields: [locationId], references: [id])
+  empleado User     @relation("EmpleadoConsumos", fields: [empleadoId], references: [id])
 }
 
 model VisitLog {

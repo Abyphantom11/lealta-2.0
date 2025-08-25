@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Star, Users, ShoppingBag, BarChart3, Monitor, Globe } from 'lucide-react';
+import { Star, Monitor, Globe } from 'lucide-react';
 import { PlatformAware, useElectron } from '../components/ElectronProvider';
 import { DesktopTitleBar } from '../components/DesktopUI';
 
@@ -49,38 +49,15 @@ export default function HomePage() {
           />
         </div>
 
-        {/* Access Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+        {/* Unified Access Panel */}
+        <div className="flex justify-center max-w-lg mx-auto">
           <AccessCard
-            title="Portal Cliente"
-            description="Experiencia premium para clientes"
-            icon={<Users className="w-8 h-8" />}
-            href="/portal"
-            gradient="from-primary-600 to-blue-600"
-          />
-          
-          <AccessCard
-            title="Staff Portal"
-            description="Captura de consumo pre-pago"
-            icon={<ShoppingBag className="w-8 h-8" />}
-            href="/staff"
-            gradient="from-success-600 to-green-600"
-          />
-          
-          <AccessCard
-            title="Admin Panel"
-            description="Gestión de portal y loyalty"
-            icon={<BarChart3 className="w-8 h-8" />}
-            href="/admin"
-            gradient="from-purple-600 to-pink-600"
-          />
-          
-          <AccessCard
-            title="Super Admin"
-            description="Analytics y control total"
-            icon={<Star className="w-8 h-8" />}
-            href="/superadmin"
-            gradient="from-warning-600 to-orange-600"
+            title="¿Empezamos?"
+            description="Gestiona tu negocio desde cualquier lugar con herramientas que realmente funcionan"
+            icon={<Star className="w-12 h-12" />}
+            href="/login"
+            gradient="from-primary-600 via-purple-600 to-pink-600"
+            isMain={true}
           />
         </div>
 
@@ -92,7 +69,7 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
             <FeatureCard
               title="Registro Pre-Consumo"
-              description="Los clientes se registran antes de consumir para acceder al portal premium"
+              description="Los clientes se registran antes de consumir para control y trazabilidad completa"
             />
             <FeatureCard
               title="OCR de Tickets"
@@ -104,36 +81,27 @@ export default function HomePage() {
             />
           </div>
         </div>
-
-        {/* Login Button */}
-        <div className="mt-16 text-center">
-          <Link 
-            href="/login"
-            className="inline-block px-8 py-4 bg-gradient-to-r from-primary-600 to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-          >
-            Acceso Backoffice
-          </Link>
-        </div>
       </div>
     </div>
   );
 }
 
-function AccessCard({ title, description, icon, href, gradient }: Readonly<{
+function AccessCard({ title, description, icon, href, gradient, isMain = false }: Readonly<{
   title: string;
   description: string;
   icon: React.ReactNode;
   href: string;
   gradient: string;
+  isMain?: boolean;
 }>) {
   return (
     <Link href={href}>
-      <div className="premium-card cursor-pointer group">
-        <div className={`w-16 h-16 bg-gradient-to-r ${gradient} rounded-xl flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform duration-200`}>
+      <div className={`premium-card cursor-pointer group text-center ${isMain ? 'scale-110 hover:scale-125 px-8 py-10' : ''}`}>
+        <div className={`${isMain ? 'w-24 h-24' : 'w-16 h-16'} bg-gradient-to-r ${gradient} rounded-xl flex items-center justify-center text-white mb-6 mx-auto group-hover:scale-110 transition-transform duration-200`}>
           {icon}
         </div>
-        <h3 className="text-xl font-semibold text-white mb-2">{title}</h3>
-        <p className="text-dark-400 text-sm">{description}</p>
+        <h3 className={`${isMain ? 'text-3xl' : 'text-xl'} font-bold text-white mb-4`}>{title}</h3>
+        <p className={`text-dark-400 ${isMain ? 'text-lg leading-relaxed' : 'text-sm'}`}>{description}</p>
       </div>
     </Link>
   );

@@ -2,14 +2,29 @@
 
 import { useState } from 'react';
 import { motion } from '../../components/motion';
-import { Search, Camera, Upload, CheckCircle, AlertCircle, User } from 'lucide-react';
+import { useRequireAuth } from '../../hooks/useAuth';
+import RoleSwitch from '../../components/RoleSwitch';
+import { Search, Camera, Upload, CheckCircle, AlertCircle, User, LogOut } from 'lucide-react';
 
 export default function StaffPage() {
+  const { user, loading, logout, isAuthenticated } = useRequireAuth('STAFF');
   const [cedula, setCedula] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<any>(null);
+
+  // Mostrar loading mientras se verifica autenticación
+  if (loading || !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white">Verificando autenticación...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -71,14 +86,35 @@ export default function StaffPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8 pt-8"
         >
-          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-success-600 to-primary-600 rounded-full flex items-center justify-center">
-            <Camera className="w-8 h-8 text-white" />
+          <div className="flex justify-between items-start mb-4">
+            <div className="flex-1">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-success-600 to-primary-600 rounded-full flex items-center justify-center">
+                <Camera className="w-8 h-8 text-white" />
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-white font-medium">{user?.name}</p>
+              <p className="text-gray-400 text-sm">{user?.email}</p>
+              <div className="mt-2 flex items-center space-x-2">
+                <RoleSwitch 
+                  currentRole={user?.role || 'STAFF'} 
+                  currentPath="/staff"
+                />
+                <button
+                  onClick={logout}
+                  className="p-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                  title="Cerrar Sesión"
+                >
+                  <LogOut className="w-4 h-4 text-white" />
+                </button>
+              </div>
+            </div>
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">
             Staff <span className="gradient-primary bg-clip-text text-transparent">Portal</span>
           </h1>
           <p className="text-dark-400">
-            Captura del consumo pre-pago
+            {user?.business?.name || 'Captura del consumo pre-pago'}
           </p>
         </motion.div>
 

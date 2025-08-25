@@ -48,7 +48,7 @@ export function useElectron() {
   };
 }
 
-export function ElectronProvider({ children }: { children: React.ReactNode }) {
+export function ElectronProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const { isElectron } = useElectron();
 
   useEffect(() => {
@@ -57,7 +57,7 @@ export function ElectronProvider({ children }: { children: React.ReactNode }) {
       window.electronAPI.onMenuAction((event, action) => {
         switch (action) {
           case 'new-client':
-            window.location.href = '/portal';
+            window.location.href = '/admin'; // Redirigir a admin para gestionar clientes
             break;
           case 'capture-consumption':
             window.location.href = '/staff';
@@ -87,11 +87,11 @@ export function PlatformAware({
   web, 
   desktop, 
   children 
-}: { 
+}: Readonly<{ 
   web?: React.ReactNode;
   desktop?: React.ReactNode;
   children?: React.ReactNode;
-}) {
+}>) {
   const { isElectron } = useElectron();
 
   if (isElectron && desktop) {
