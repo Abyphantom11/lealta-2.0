@@ -12,30 +12,41 @@ export async function POST(request: NextRequest) {
       nombre, 
       descripcion, 
       precio, 
-      precioVaso, 
-      imagen, 
-      isDestacado, 
+      precioVaso,
+      precioBotella,
+      tipoProducto,
+      imagenUrl, 
+      destacado,
+      disponible,
       opciones 
     } = body;
 
-    if (!categoryId || !nombre || !precio) {
+    if (!categoryId || !nombre) {
       return NextResponse.json(
-        { error: 'CategoryId, nombre y precio son requeridos' },
+        { error: 'CategoryId y nombre son requeridos' },
         { status: 400 }
       );
     }
 
+    // Preparar datos del producto
+    const productData: any = {
+      categoryId,
+      nombre,
+      tipoProducto: tipoProducto || 'simple'
+    };
+    
+    if (descripcion) productData.descripcion = descripcion;
+    if (precio) productData.precio = parseFloat(precio);
+    if (precioVaso) productData.precioVaso = parseFloat(precioVaso);
+    if (precioBotella) productData.precioBotella = parseFloat(precioBotella);
+    if (imagenUrl) productData.imagenUrl = imagenUrl;
+    
+    productData.destacado = destacado || false;
+    productData.disponible = disponible !== false;
+    if (opciones) productData.opciones = opciones;
+
     const producto = await prisma.menuProduct.create({
-      data: {
-        categoryId,
-        nombre,
-        descripcion: descripcion || null,
-        precio: parseFloat(precio),
-        precioVaso: precioVaso ? parseFloat(precioVaso) : null,
-        imagen: imagen || null,
-        isDestacado: isDestacado || false,
-        opciones: opciones || null
-      }
+      data: productData
     });
 
     return NextResponse.json({
@@ -52,6 +63,52 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// GET - Obtener productos
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const businessId = searchParams.get('businessId');
+
+    if (!businessId) {
+      return NextResponse.json(
+        { error: 'businessId es requerido' },
+        { status: 400 }
+      );
+    }
+
+    const productos = await prisma.menuProduct.findMany({
+      where: {
+        category: {
+          businessId: businessId
+        }
+      },
+      include: {
+        category: {
+          select: {
+            id: true,
+            nombre: true
+          }
+        }
+      },
+      orderBy: {
+        nombre: 'asc'
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      productos
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo productos:', error);
+    return NextResponse.json(
+      { error: 'Error interno del servidor' },
+      { status: 500 }
+    );
+  }
+}
+
 // PUT - Actualizar producto
 export async function PUT(request: NextRequest) {
   try {
@@ -61,10 +118,12 @@ export async function PUT(request: NextRequest) {
       nombre, 
       descripcion, 
       precio, 
-      precioVaso, 
-      imagen, 
-      isAvailable,
-      isDestacado, 
+      precioVaso,
+      precioBotella,
+      tipoProducto,
+      imagenUrl, 
+      disponible,
+      destacado, 
       opciones 
     } = body;
 
@@ -75,18 +134,23 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // Preparar datos para actualización
+    const updateData: any = {};
+    
+    if (nombre !== undefined) updateData.nombre = nombre;
+    if (descripcion !== undefined) updateData.descripcion = descripcion;
+    if (precio !== undefined) updateData.precio = parseFloat(precio);
+    if (precioVaso !== undefined) updateData.precioVaso = parseFloat(precioVaso);
+    if (precioBotella !== undefined) updateData.precioBotella = parseFloat(precioBotella);
+    if (tipoProducto !== undefined) updateData.tipoProducto = tipoProducto;
+    if (imagenUrl !== undefined) updateData.imagenUrl = imagenUrl;
+    if (disponible !== undefined) updateData.disponible = disponible;
+    if (destacado !== undefined) updateData.destacado = destacado;
+    if (opciones !== undefined) updateData.opciones = opciones;
+
     const producto = await prisma.menuProduct.update({
       where: { id },
-      data: {
-        nombre: nombre || undefined,
-        descripcion: descripcion || undefined,
-        precio: precio ? parseFloat(precio) : undefined,
-        precioVaso: precioVaso ? parseFloat(precioVaso) : undefined,
-        imagen: imagen || undefined,
-        isAvailable: isAvailable !== undefined ? isAvailable : undefined,
-        isDestacado: isDestacado !== undefined ? isDestacado : undefined,
-        opciones: opciones || undefined
-      }
+      data: updateData
     });
 
     return NextResponse.json({
@@ -118,7 +182,7 @@ export async function DELETE(request: NextRequest) {
 
     await prisma.menuProduct.update({
       where: { id },
-      data: { isAvailable: false }
+      data: { disponible: false } as any
     });
 
     return NextResponse.json({

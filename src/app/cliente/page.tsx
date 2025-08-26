@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from '../../components/motion';
+import { motion, AnimatePresence } from '../../components/motion';
 import { 
   Bell, 
   User, 
@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 export default function ClientePortalPage() {
-  const [step, setStep] = useState<'initial' | 'cedula' | 'register' | 'dashboard' | 'menu'>('initial');
+  const [step, setStep] = useState<'initial' | 'cedula' | 'register' | 'dashboard'>('initial');
   const [cedula, setCedula] = useState('');
   const [formData, setFormData] = useState({
     nombre: '',
@@ -30,11 +30,19 @@ export default function ClientePortalPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [clienteData, setClienteData] = useState<any>(null);
+  
+  // Estados del menú drawer
+  const [isMenuDrawerOpen, setIsMenuDrawerOpen] = useState(false);
   const [activeMenuSection, setActiveMenuSection] = useState<'categories' | 'products'>('categories');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [menuCategories, setMenuCategories] = useState<any[]>([]);
+  const [allCategories, setAllCategories] = useState<any[]>([]); // Todas las categorías incluyendo subcategorías
   const [menuProducts, setMenuProducts] = useState<any[]>([]);
   const [isLoadingMenu, setIsLoadingMenu] = useState(false);
+  
+  // Estados del buscador
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
 
   const handleCedulaSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,10 +124,17 @@ export default function ClientePortalPage() {
   const loadMenuCategories = async () => {
     setIsLoadingMenu(true);
     try {
-      const response = await fetch('/api/admin/menu');
+      const response = await fetch('/api/admin/menu?businessId=business_1');
       if (response.ok) {
         const data = await response.json();
-        setMenuCategories(data.categorias || []);
+        const allCats = data.menu || [];
+        
+        // Guardar todas las categorías para uso interno
+        setAllCategories(allCats);
+        
+        // Mostrar solo categorías principales inicialmente
+        const mainCategories = allCats.filter((cat: any) => !cat.parentId);
+        setMenuCategories(mainCategories);
       }
     } catch (error) {
       console.error('Error loading menu categories:', error);
@@ -128,20 +143,144 @@ export default function ClientePortalPage() {
     }
   };
 
-  // Función para cargar productos de una categoría
+  // Función para cargar productos de una categoría o mostrar subcategorías
   const loadCategoryProducts = async (categoryId: string) => {
     setIsLoadingMenu(true);
     try {
-      const category = menuCategories.find(c => c.id === categoryId);
-      setMenuProducts(category?.productos || []);
-      setSelectedCategory(categoryId);
-      setActiveMenuSection('products');
+      const category = allCategories.find(c => c.id === categoryId);
+      if (category) {
+        // Verificar si tiene subcategorías
+        const subcategories = allCategories.filter(c => c.parentId === categoryId);
+        
+        if (subcategories.length > 0) {
+          // Si tiene subcategorías, mostrarlas en lugar de productos
+          setMenuCategories(subcategories);
+          setSelectedCategory(categoryId);
+          setActiveMenuSection('categories'); // Mantener en vista de categorías
+        } else {
+          // Si no tiene subcategorías, mostrar productos directamente
+          setMenuProducts(category.productos || []);
+          setSelectedCategory(categoryId);
+          setActiveMenuSection('products');
+        }
+      }
     } catch (error) {
-      console.error('Error loading category products:', error);
+      console.error('Error loading category content:', error);
     } finally {
       setIsLoadingMenu(false);
     }
   };
+
+  // Función helper para renderizar la vista del menú
+  const renderMenuView = () => {
+    if (searchQuery && searchQuery.length >= 2) {
+      return (
+        <MenuProductsView 
+          products={filteredProducts}
+          isLoading={isLoadingMenu}
+          searchQuery={searchQuery}
+        />
+      );
+    }
+    
+    if (activeMenuSection === 'categories') {
+      return (
+        <MenuCategoriesView 
+          categories={menuCategories}
+          onCategorySelect={loadCategoryProducts}
+          isLoading={isLoadingMenu}
+          searchQuery=""
+        />
+      );
+    }
+    
+    return (
+      <MenuProductsView 
+        products={menuProducts}
+        isLoading={isLoadingMenu}
+        searchQuery=""
+      />
+    );
+  };
+
+  // Función para manejar navegación hacia atrás
+  const handleBackNavigation = async () => {
+    // Limpiar búsqueda primero si está activa
+    if (searchQuery) {
+      setSearchQuery('');
+      setFilteredProducts(menuProducts);
+      return;
+    }
+    
+    if (activeMenuSection === 'products') {
+      // Si estamos en productos, volver a categorías (subcategorías o principales)
+      setActiveMenuSection('categories');
+      setSelectedCategory(null);
+      
+      // Recargar categorías principales
+      const mainCategories = allCategories.filter((cat: any) => !cat.parentId);
+      setMenuCategories(mainCategories);
+    } else if (selectedCategory) {
+      // Si estamos en subcategorías, volver a categorías principales
+      const mainCategories = allCategories.filter((cat: any) => !cat.parentId);
+      setMenuCategories(mainCategories);
+      setSelectedCategory(null);
+    } else {
+      // Cerrar el drawer
+      setIsMenuDrawerOpen(false);
+    }
+  };
+
+  // Función de búsqueda global - busca en todos los productos independientemente de la vista
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    
+    if (!query.trim() || query.trim().length < 2) {
+      // Si no hay búsqueda o es muy corta, limpiar filtros
+      setFilteredProducts(menuProducts);
+      return;
+    }
+
+    const searchLower = query.toLowerCase().trim();
+    
+    // Búsqueda global en TODOS los productos, no solo los de la categoría actual
+    // Obtener todos los productos de todas las categorías
+    const allProducts: any[] = [];
+    
+    // Recopilar productos de todas las categorías
+    allCategories.forEach((category: any) => {
+      if (category.productos && Array.isArray(category.productos)) {
+        allProducts.push(...category.productos);
+      }
+    });
+    
+    // Búsqueda mejorada en todos los productos
+    const filtered = allProducts.filter((product: any) => {
+      const nombre = product.nombre?.toLowerCase() || '';
+      const descripcion = product.descripcion?.toLowerCase() || '';
+      
+      // Buscar palabras completas o al inicio de palabras
+      const words = searchLower.split(' ').filter(word => word.length > 1);
+      
+      return words.some(word => 
+        nombre.includes(word) || 
+        descripcion.includes(word) ||
+        nombre.startsWith(word) ||
+        descripcion.startsWith(word)
+      );
+    });
+    
+    setFilteredProducts(filtered);
+  };
+
+  // Effect para actualizar filtros cuando cambian los datos
+  useEffect(() => {
+    if (searchQuery && searchQuery.length >= 2) {
+      handleSearch(searchQuery);
+    } else {
+      setFilteredProducts(menuProducts);
+    }
+  }, [menuCategories, menuProducts, allCategories]);
 
   // Hook para cargar datos cuando se entra al dashboard
   useEffect(() => {
@@ -150,79 +289,97 @@ export default function ClientePortalPage() {
     }
   }, [step]);
 
-  // Función para mostrar el menú completo
-  const renderMenuView = () => (
-    <div className="min-h-screen bg-black text-white">
-      {/* Header del Menú */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-800">
-        <div className="flex items-center space-x-3">
-          <button 
-            onClick={() => {
-              if (activeMenuSection === 'products') {
-                setActiveMenuSection('categories');
-                setSelectedCategory(null);
-              } else {
-                setStep('dashboard');
+  // Función para mostrar el drawer del menú
+  const renderMenuDrawer = () => (
+    <AnimatePresence>
+      {isMenuDrawerOpen && (
+        <>
+          {/* Overlay */}
+          <motion.div
+            className="fixed inset-0 bg-black/50 z-40"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsMenuDrawerOpen(false)}
+          />
+          
+          {/* Drawer */}
+          <motion.div
+            className="fixed bottom-0 left-0 right-0 bg-black text-white z-50 rounded-t-3xl"
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            style={{ height: '85vh' }}
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={0.1}
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 100) {
+                setIsMenuDrawerOpen(false);
               }
             }}
-            className="p-2 rounded-full bg-gray-800/50 hover:bg-gray-700 transition-colors"
           >
-            <ArrowRight className="w-5 h-5 text-gray-300 rotate-180" />
-          </button>
-          <h1 className="text-xl font-bold">
-            {activeMenuSection === 'categories' ? 'Nuestro Menú' : 
-             menuCategories.find(c => c.id === selectedCategory)?.nombre}
-          </h1>
-        </div>
-        <div className="flex items-center space-x-3">
-          <button className="p-2 rounded-full bg-gray-800/50 hover:bg-gray-700 transition-colors">
-            <Search className="w-5 h-5 text-gray-300" />
-          </button>
-        </div>
-      </div>
-
-      {/* Contenido del Menú */}
-      <div className="p-4">
-        {activeMenuSection === 'categories' ? (
-          <MenuCategoriesView 
-            categories={menuCategories}
-            onCategorySelect={loadCategoryProducts}
-            isLoading={isLoadingMenu}
-          />
-        ) : (
-          <MenuProductsView 
-            products={menuProducts}
-            isLoading={isLoadingMenu}
-          />
-        )}
-      </div>
-
-      {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800">
-        <div className="flex items-center justify-around py-3">
-          <button 
-            onClick={() => setStep('dashboard')}
-            className="text-center"
-          >
-            <Coffee className="w-6 h-6 text-gray-400 mx-auto mb-1" />
-            <span className="text-xs text-gray-400">Inicio</span>
-          </button>
-          <div className="text-center relative">
-            <div className="w-12 h-12 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full flex items-center justify-center mb-1">
-              <Menu className="w-6 h-6 text-white" />
+            {/* Handle */}
+            <div className="flex justify-center pt-3 pb-2 cursor-pointer">
+              <div className="w-12 h-1 bg-gray-600 rounded-full"></div>
             </div>
-            <span className="text-xs text-pink-500 font-medium">Menú</span>
-          </div>
-          <div className="text-center">
-            <User className="w-6 h-6 text-gray-400 mx-auto mb-1" />
-            <span className="text-xs text-gray-400">Perfil</span>
-          </div>
-        </div>
-      </div>
 
-      {/* Spacer for bottom navigation */}
-      <div className="h-20"></div>
-    </div>
+            {/* Header del Drawer */}
+            <div className="p-4 border-b border-gray-800">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <button 
+                    onClick={handleBackNavigation}
+                    className="p-2 rounded-full bg-gray-800/50 hover:bg-gray-700 transition-colors"
+                  >
+                    <ArrowRight className="w-5 h-5 text-gray-300 rotate-180" />
+                  </button>
+                  <h1 className="text-xl font-bold">
+                    {(() => {
+                      if (activeMenuSection === 'products') return 'Productos';
+                      if (selectedCategory) return 'Categorías';
+                      return 'Nuestro Menú';
+                    })()}
+                  </h1>
+                </div>
+                <button 
+                  onClick={() => setIsMenuDrawerOpen(false)}
+                  className="p-2 rounded-full bg-gray-800/50 hover:bg-gray-700 transition-colors"
+                >
+                  <ArrowRight className="w-5 h-5 text-gray-300 rotate-45" />
+                </button>
+              </div>
+              
+              {/* Buscador */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar productos en todo el menú... (mín. 2 caracteres)"
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 placeholder-gray-400"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => handleSearch('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                  >
+                    <ArrowRight className="w-4 h-4 rotate-45" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Contenido del Menú */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {renderMenuView()}
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 
   const renderInitialView = () => (
@@ -493,76 +650,86 @@ export default function ClientePortalPage() {
 
   const renderDashboard = () => (
     <div className="min-h-screen bg-black text-white">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4">
-        <div className="flex items-center space-x-3">
-          <h1 className="text-xl">
-            Hola, <span className="text-pink-500 font-semibold">{clienteData?.nombre || 'Cliente'}</span>
-          </h1>
-        </div>
-        <div className="flex items-center space-x-3">
-          <button className="p-2 rounded-full bg-gray-800/50 hover:bg-gray-700 transition-colors">
-            <Bell className="w-5 h-5 text-gray-300" />
-          </button>
-          <div className="w-8 h-8 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full flex items-center justify-center">
-            <span className="text-white text-sm font-bold">
-              {(clienteData?.nombre || 'C')[0].toUpperCase()}
-            </span>
+      {/* Header fijo */}
+      <div className="fixed top-0 left-0 right-0 bg-black/95 backdrop-blur-sm border-b border-gray-800 z-50 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <h1 className="text-xl">
+              Hola, <span className="text-pink-500 font-semibold">{clienteData?.nombre || 'Cliente'}</span>
+            </h1>
           </div>
-        </div>
-      </div>
-
-      {/* Balance Card */}
-      <div className="mx-4 mb-6">
-        <motion.div
-          className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-2xl p-6 relative overflow-hidden"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          {/* Background pattern */}
-          <div className="absolute top-0 right-0 w-32 h-32 opacity-20">
-            <Coffee className="w-full h-full text-white/30" />
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-white/80 text-lg mb-2">Balance de Puntos</div>
-              <div className="text-4xl font-bold text-white mb-1">
-                {clienteData?.puntos || 100}
-              </div>
-              <div className="text-white/60 text-sm">
-                Tarjeta ****{(clienteData?.cedula || cedula).slice(-4)}
-              </div>
-            </div>
-            <button className="bg-white/20 backdrop-blur-sm rounded-full p-3 hover:bg-white/30 transition-colors">
-              <Eye className="w-6 h-6 text-white" />
+          <div className="flex items-center space-x-3">
+            <button className="p-2 rounded-full bg-gray-800/50 hover:bg-gray-700 transition-colors">
+              <Bell className="w-5 h-5 text-gray-300" />
             </button>
+            <div className="w-8 h-8 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full flex items-center justify-center">
+              <span className="text-white text-sm font-bold">
+                {(clienteData?.nombre || 'C')[0].toUpperCase()}
+              </span>
+            </div>
           </div>
-        </motion.div>
+        </div>
       </div>
 
-      {/* Banners Section - Editable desde Admin */}
-      <BannersSection />
+      {/* Contenido principal con padding superior */}
+      <div className="pt-16">
+        {/* Balance Card */}
+        <div className="mx-4 mb-6 mt-4">
+          <motion.div
+            className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-2xl p-6 relative overflow-hidden"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            {/* Background pattern */}
+            <div className="absolute top-0 right-0 w-32 h-32 opacity-20">
+              <Coffee className="w-full h-full text-white/30" />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-white/80 text-lg mb-2">Balance de Puntos</div>
+                <div className="text-4xl font-bold text-white mb-1">
+                  {clienteData?.puntos || 100}
+                </div>
+                <div className="text-white/60 text-sm">
+                  Tarjeta ****{(clienteData?.cedula || cedula).slice(-4)}
+                </div>
+              </div>
+              <button className="bg-white/20 backdrop-blur-sm rounded-full p-3 hover:bg-white/30 transition-colors">
+                <Eye className="w-6 h-6 text-white" />
+              </button>
+            </div>
+          </motion.div>
+        </div>
 
-      {/* Promociones Section - Editable desde Admin */}
-      <PromocionesSection />
+        {/* Banners Section - Editable desde Admin */}
+        <BannersSection />
 
-      {/* Favorito del Día Section - Editable desde Admin */}
-      <FavoritoDelDiaSection />
+        {/* Promociones Section - Editable desde Admin */}
+        <PromocionesSection />
 
-      {/* Recompensas de Fidelización - Editable desde Admin */}
-      <RecompensasSection />
+        {/* Favorito del Día Section - Editable desde Admin */}
+        <FavoritoDelDiaSection />
+
+        {/* Recompensas de Fidelización - Editable desde Admin */}
+        <RecompensasSection />
+      </div>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800">
+      <div className="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800 z-40">
         <div className="flex items-center justify-around py-3">
           <div className="text-center">
             <Coffee className="w-6 h-6 text-gray-400 mx-auto mb-1" />
             <span className="text-xs text-gray-400">Inicio</span>
           </div>
           <button 
-            onClick={() => setStep('menu')}
+            onClick={() => {
+              setIsMenuDrawerOpen(true);
+              if (menuCategories.length === 0) {
+                loadMenuCategories();
+              }
+            }}
             className="text-center relative"
           >
             <div className="w-12 h-12 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full flex items-center justify-center mb-1">
@@ -585,10 +752,19 @@ export default function ClientePortalPage() {
   // Render based on current step
   if (step === 'cedula') return renderCedulaForm();
   if (step === 'register') return renderRegisterForm();
-  if (step === 'dashboard') return renderDashboard();
-  if (step === 'menu') return renderMenuView();
+  if (step === 'dashboard') return (
+    <>
+      {renderDashboard()}
+      {renderMenuDrawer()}
+    </>
+  );
 
-  return renderInitialView();
+  return (
+    <>
+      {renderInitialView()}
+      {renderMenuDrawer()}
+    </>
+  );
 }
 
 interface CategoryCardProps {
@@ -847,11 +1023,11 @@ function RecompensasSection() {
 
 // Sección de Favorito del Día
 function FavoritoDelDiaSection() {
-  const [favoritoDelDia, setFavoritoDelDia] = useState<any>(null);
+  const [favorito, setFavorito] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchFavoritoDelDia = async () => {
+    const fetchFavorito = async () => {
       try {
         const response = await fetch('/api/admin/portal-config?businessId=default', {
           cache: 'no-store',
@@ -861,140 +1037,269 @@ function FavoritoDelDiaSection() {
         });
         if (response.ok) {
           const data = await response.json();
-          console.log('🔄 Cliente - Datos recibidos:', data.config); // Debug
-          const favorito = data.config?.favoritoDelDia;
-          if (favorito?.activo && favorito?.imagenUrl) {
-            console.log('✅ Cliente - Favorito encontrado:', favorito); // Debug
-            setFavoritoDelDia(favorito);
+          console.log('🎯 Cliente - Favorito recibido:', data.config?.favoritoDelDia); // Debug
+          const favoritoActivo = data.config?.favoritoDelDia;
+          
+          if (favoritoActivo?.activo && favoritoActivo?.imagenUrl && favoritoActivo.imagenUrl.trim() !== '') {
+            console.log('✅ Cliente - Favorito activo encontrado:', favoritoActivo); // Debug
+            setFavorito(favoritoActivo);
           } else {
-            console.log('❌ Cliente - Sin favorito válido'); // Debug
-            setFavoritoDelDia(null);
+            setFavorito(null);
           }
         }
       } catch (error) {
-        console.error('Error loading favorito del día:', error);
+        console.error('Error loading favorito:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchFavoritoDelDia();
+    fetchFavorito();
     
     // Polling para actualización en tiempo real cada 2 segundos
-    const interval = setInterval(fetchFavoritoDelDia, 2000);
+    const interval = setInterval(fetchFavorito, 2000);
     return () => clearInterval(interval);
   }, []);
 
-  if (isLoading || !favoritoDelDia) return null;
+  if (isLoading || !favorito) return null;
 
   return (
     <div className="mx-4 mb-6">
-      <h3 className="text-lg font-semibold text-white mb-4">Favorito del Día</h3>
-      <motion.div 
-        className="bg-gradient-to-r from-yellow-500 to-orange-600 rounded-xl overflow-hidden relative"
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
+      <h3 className="text-lg font-semibold text-white mb-4">Favorito del día</h3>
+      <motion.div
+        className="bg-dark-800 rounded-xl overflow-hidden relative"
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.5 }}
       >
-        {favoritoDelDia.imagenUrl && (
-          <div className="relative">
-            <img 
-              src={favoritoDelDia.imagenUrl} 
-              alt="Favorito del día" 
-              className="w-full h-48 object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-            <div className="absolute bottom-4 left-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                  <UtensilsCrossed className="w-4 h-4 text-white" />
-                </div>
-                <span className="text-white font-medium text-sm">Favorito del Día</span>
-              </div>
-            </div>
-          </div>
-        )}
+        <img 
+          src={favorito.imagenUrl} 
+          alt="Favorito del día"
+          className="w-full h-48 object-cover rounded-xl"
+        />
       </motion.div>
     </div>
   );
 }
 
 // Componente para mostrar categorías del menú
-function MenuCategoriesView({ categories, onCategorySelect, isLoading }: any) {
+function MenuCategoriesView({ categories, onCategorySelect, isLoading, searchQuery }: any) {
   const skeletonIds = ['cat-1', 'cat-2', 'cat-3', 'cat-4'];
   
-  return (
-    <div>
-      <h2 className="text-lg font-semibold text-white mb-4">Categorías</h2>
-      {isLoading ? (
+  // Renderizar estado de carga
+  if (isLoading) {
+    return (
+      <div>
+        <h2 className="text-lg font-semibold text-white mb-4">
+          {searchQuery ? `Resultados para "${searchQuery}"` : 'Categorías'}
+        </h2>
         <div className="animate-pulse space-y-4">
           {skeletonIds.map((id) => (
             <div key={id} className="h-16 bg-gray-800 rounded-lg" />
           ))}
         </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-4">
-          {categories.map((category: any) => (
-            <motion.div
-              key={category.id}
-              className="bg-gray-900 rounded-lg p-4 cursor-pointer hover:bg-gray-800 transition-colors"
-              onClick={() => onCategorySelect(category.id)}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-            >
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                  <UtensilsCrossed className="w-6 h-6 text-white" />
-                </div>
-                <div className="text-white font-medium">{category.nombre}</div>
-              </div>
-            </motion.div>
-          ))}
+      </div>
+    );
+  }
+
+  // Renderizar estado vacío
+  if (categories.length === 0) {
+    return (
+      <div>
+        <h2 className="text-lg font-semibold text-white mb-4">
+          {searchQuery ? `Resultados para "${searchQuery}"` : 'Categorías'}
+        </h2>
+        <div className="text-center py-8">
+          <div className="text-gray-400 mb-2">
+            {searchQuery ? 'No se encontraron categorías' : 'No hay categorías disponibles'}
+          </div>
+          {searchQuery && (
+            <div className="text-gray-500 text-sm">
+              Intenta con otro término de búsqueda
+            </div>
+          )}
         </div>
-      )}
+      </div>
+    );
+  }
+
+  // Renderizar categorías
+  return (
+    <div>
+      <h2 className="text-lg font-semibold text-white mb-4">
+        {searchQuery ? `Resultados para "${searchQuery}"` : 'Categorías'}
+      </h2>
+      <div className="grid grid-cols-2 gap-4">
+        {categories.map((category: any) => (
+          <motion.div
+            key={category.id}
+            className="bg-gray-900 rounded-lg p-4 cursor-pointer hover:bg-gray-800 transition-colors"
+            onClick={() => onCategorySelect(category.id)}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <div className="flex items-center space-x-3">
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                category.parentId 
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500' 
+                  : 'bg-gradient-to-r from-blue-500 to-purple-500'
+              }`}>
+                <UtensilsCrossed className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <div className="text-white font-medium">{category.nombre}</div>
+                {category.descripcion && (
+                  <div className="text-gray-400 text-xs mt-1">{category.descripcion}</div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
     </div>
   );
 }
 
 // Componente para mostrar productos de una categoría
-function MenuProductsView({ products, isLoading }: any) {
+function MenuProductsView({ products, isLoading, searchQuery }: any) {
   const skeletonIds = ['prod-1', 'prod-2', 'prod-3', 'prod-4'];
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
   
-  return (
-    <div>
-      <h2 className="text-lg font-semibold text-white mb-4">Productos</h2>
-      {isLoading ? (
+  // Renderizar estado de carga
+  if (isLoading) {
+    return (
+      <div>
+        <h2 className="text-lg font-semibold text-white mb-4">
+          {searchQuery ? `Resultados para "${searchQuery}"` : 'Productos'}
+        </h2>
         <div className="animate-pulse space-y-4">
           {skeletonIds.map((id) => (
             <div key={id} className="h-16 bg-gray-800 rounded-lg" />
           ))}
         </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4">
-          {products.map((product: any) => (
-            <motion.div
-              key={product.id}
-              className="bg-gray-900 rounded-lg p-4 cursor-pointer hover:bg-gray-800 transition-colors"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center">
-                    <Coffee className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="text-white font-medium">{product.nombre}</div>
+      </div>
+    );
+  }
+
+  // Renderizar estado vacío
+  if (products.length === 0) {
+    return (
+      <div>
+        <h2 className="text-lg font-semibold text-white mb-4">
+          {searchQuery ? `Resultados para "${searchQuery}"` : 'Productos'}
+        </h2>
+        <div className="text-center py-8">
+          <div className="text-gray-400 mb-2">
+            {searchQuery ? 'No se encontraron productos' : 'No hay productos disponibles'}
+          </div>
+          {searchQuery && (
+            <div className="text-gray-500 text-sm">
+              Intenta con otro término de búsqueda
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Renderizar productos
+  return (
+    <div>
+      <h2 className="text-lg font-semibold text-white mb-4">
+        {searchQuery ? `Resultados para "${searchQuery}"` : 'Productos'}
+      </h2>
+      <div className="grid grid-cols-1 gap-4">
+        {products.map((product: any) => (
+          <motion.div
+            key={product.id}
+            className="bg-gray-900 rounded-lg p-4 cursor-pointer hover:bg-gray-800 transition-colors"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center">
+                  <Coffee className="w-6 h-6 text-white" />
                 </div>
-                <div className="text-white font-bold">
-                  {product.precio.toFixed(2)} USD
+                <div className="flex-1">
+                  <div className="text-white font-medium">{product.nombre}</div>
+                  {product.descripcion && (
+                    <div className="text-gray-400 text-xs mt-1 line-clamp-2">{product.descripcion}</div>
+                  )}
                 </div>
               </div>
+              <div className="flex items-center space-x-3">
+                {product.imagenUrl && (
+                  <button
+                    onClick={() => setSelectedProduct(product)}
+                    className="p-2 rounded-full bg-gray-800 hover:bg-gray-700 transition-colors"
+                  >
+                    <Eye className="w-4 h-4 text-gray-300" />
+                  </button>
+                )}
+                <div className="text-white font-bold">
+                  {(() => {
+                    if (product.precio) return product.precio.toFixed(2);
+                    if (product.precioVaso) return product.precioVaso.toFixed(2);
+                    return '0.00';
+                  })()} USD
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Modal para mostrar imagen y descripción del producto */}
+      <AnimatePresence>
+        {selectedProduct && (
+          <>
+            <motion.div
+              className="fixed inset-0 bg-black/70 z-60"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedProduct(null)}
+            />
+            <motion.div
+              className="fixed top-4 left-4 right-4 bottom-4 md:top-1/2 md:left-1/2 md:transform md:-translate-x-1/2 md:-translate-y-1/2 bg-gray-900 rounded-xl p-6 z-70 max-w-lg md:w-auto overflow-y-auto flex flex-col"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+            >
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="text-white font-semibold text-lg">{selectedProduct.nombre}</h3>
+                <button
+                  onClick={() => setSelectedProduct(null)}
+                  className="p-1 rounded-full hover:bg-gray-800 transition-colors"
+                >
+                  <ArrowRight className="w-5 h-5 text-gray-400 rotate-45" />
+                </button>
+              </div>
+              
+              {selectedProduct.imagenUrl && (
+                <div className="mb-4 flex justify-center">
+                  <img
+                    src={selectedProduct.imagenUrl}
+                    alt={selectedProduct.nombre}
+                    className="max-w-full max-h-64 object-contain bg-gray-800 rounded-lg"
+                  />
+                </div>
+              )}
+              
+              {selectedProduct.descripcion && (
+                <div className="text-center">
+                  <p className="text-gray-300 text-sm leading-relaxed">
+                    {selectedProduct.descripcion}
+                  </p>
+                </div>
+              )}
             </motion.div>
-          ))}
-        </div>
-      )}
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

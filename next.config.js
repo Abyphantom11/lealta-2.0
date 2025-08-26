@@ -10,6 +10,13 @@ const nextConfig = {
   experimental: {
     esmExternals: false,
   },
+  // Allow cross-origin requests from the local network
+  allowedDevOrigins: [
+    '192.168.1.5:3001',
+    'localhost:3001',
+    '127.0.0.1:3001',
+    '192.168.1.*:3001',
+  ],
 };
 
 module.exports = nextConfig;

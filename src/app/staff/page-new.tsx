@@ -17,28 +17,34 @@ import {
   FileText,
   Clock,
   Award,
-  X,
-  Zap
+  X
 } from 'lucide-react';
 
-// Type for notifications
-type NotificationType = {
-  type: 'success' | 'error' | 'info';
-  message: string;
-} | null;
+// Type aliases
+type NotificationType = 'success' | 'error' | 'info';
+type NotificationState = {type: NotificationType, message: string} | null;
 
 export default function StaffPage() {
+  // Función para obtener las clases CSS del nivel del cliente
+  const getCustomerLevelClasses = (nivel: string) => {
+    if (nivel === 'Gold') return 'bg-yellow-500/20 text-yellow-400';
+    if (nivel === 'Silver') return 'bg-gray-500/20 text-gray-400';
+    return 'bg-amber-600/20 text-amber-400';
+  };
+
   const { user, loading, logout, isAuthenticated } = useRequireAuth('STAFF');
   
   // Estados principales
   const [cedula, setCedula] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [notification, setNotification] = useState<NotificationType>(null);
+  const [notification, setNotification] = useState<NotificationState>(null);
   const [preview, setPreview] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<any>(null);
   
-  // Estados para UI mejorada (sin cámara)
+  // Estados para cámara y UI mejorada
+  const [cameraMode, setCameraMode] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
   const [customerInfo, setCustomerInfo] = useState<any>(null);
   const [isSearchingCustomer, setIsSearchingCustomer] = useState(false);
   const [recentTickets, setRecentTickets] = useState<any[]>([]);
@@ -49,7 +55,9 @@ export default function StaffPage() {
     totalAmount: 180.50
   });
   
-  // Referencias para el input de archivo
+  // Referencias para la cámara
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Efecto para cargar datos iniciales
@@ -57,7 +65,7 @@ export default function StaffPage() {
     loadRecentTickets();
   }, []);
 
-  // Función para buscar información del cliente en la base de datos REAL
+  // Función para buscar información del cliente
   const searchCustomer = async (cedulaValue: string) => {
     if (cedulaValue.length < 6) {
       setCustomerInfo(null);
@@ -66,39 +74,22 @@ export default function StaffPage() {
 
     setIsSearchingCustomer(true);
     try {
-      // Llamar a la API real de verificación de clientes
-      const response = await fetch('/api/cliente/verificar', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ cedula: cedulaValue }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al consultar cliente');
-      }
-
-      const data = await response.json();
-
-      if (data.existe && data.cliente) {
-        // Cliente encontrado en la base de datos
-        const cliente = data.cliente;
+      // Simular búsqueda de cliente (reemplazar con API real)
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      if (cedulaValue === '12345678') {
         setCustomerInfo({
-          cedula: cliente.cedula,
-          nombre: cliente.nombre,
-          email: null, // La API actual no devuelve email, se puede extender
-          telefono: null, // La API actual no devuelve teléfono, se puede extender
-          puntos: cliente.puntos || 0,
-          nivel: determineCustomerLevel(cliente.puntos || 0),
-          ultimaVisita: null, // Se puede agregar a la API si se necesita
-          totalGastado: 0, // Se puede calcular desde las transacciones si se necesita
-          frecuencia: `${cliente.visitas || 0} visitas registradas`
+          cedula: cedulaValue,
+          nombre: 'Juan Carlos Pérez',
+          email: 'juan@email.com',
+          telefono: '+1234567890',
+          puntos: 150,
+          nivel: 'Gold',
+          ultimaVisita: '2025-08-20',
+          totalGastado: 450.00,
+          frecuencia: 'Cliente frecuente'
         });
-        
-        console.log('✅ Cliente encontrado en base de datos:', cliente);
       } else {
-        // Cliente no encontrado - nuevo cliente
         setCustomerInfo({
           cedula: cedulaValue,
           nombre: 'Cliente Nuevo',
@@ -110,24 +101,12 @@ export default function StaffPage() {
           totalGastado: 0,
           frecuencia: 'Primera visita'
         });
-        
-        console.log('ℹ️ Cliente nuevo - no encontrado en base de datos');
       }
     } catch (error) {
-      console.error('❌ Error buscando cliente:', error);
-      showNotification('error', 'Error al buscar cliente en la base de datos');
-      setCustomerInfo(null);
+      console.error('Error searching customer:', error);
     } finally {
       setIsSearchingCustomer(false);
     }
-  };
-
-  // Función para determinar el nivel del cliente basado en puntos
-  const determineCustomerLevel = (puntos: number): 'Bronze' | 'Silver' | 'Gold' | 'Platinum' => {
-    if (puntos >= 500) return 'Platinum';
-    if (puntos >= 300) return 'Gold';
-    if (puntos >= 100) return 'Silver';
-    return 'Bronze';
   };
 
   // Función para cargar tickets recientes
@@ -164,146 +143,61 @@ export default function StaffPage() {
     ]);
   };
 
-  // Función para abrir la herramienta de recorte de Windows
-  const openSnippingTool = () => {
-    showNotification('info', '💡 Presiona Win + Shift + S para abrir la herramienta de recorte, captura tu POS y luego sube la imagen aquí');
-    
-    // Mostrar instrucciones adicionales en la consola para debugging
-    console.log('Instrucciones para captura:');
-    console.log('1. Presiona Win + Shift + S');
-    console.log('2. Selecciona el área de la cuenta en tu POS');
-    console.log('3. La captura se guarda en el portapapeles');
-    console.log('4. Pégala en Paint o guárdala como archivo');
-    console.log('5. Usa "Subir Captura" para cargar la imagen');
-  };
-
-  // Estado para capturas automáticas
-  const [isWaitingForCapture, setIsWaitingForCapture] = useState(false);
-  const [captureStartTime, setCaptureStartTime] = useState<number>(0);
-  const [lastClipboardCheck, setLastClipboardCheck] = useState<string | null>(null);
-
-  // Función para abrir herramienta de recorte y esperar captura
-  const startAutomaticCapture = async () => {
-    if (isWaitingForCapture) {
-      // Si ya está esperando, cancelar
-      setIsWaitingForCapture(false);
-      setCaptureStartTime(0);
-      setLastClipboardCheck(null);
-      showNotification('info', '❌ Captura automática cancelada');
-      return;
-    }
-
-    // Iniciar proceso de captura
-    setIsWaitingForCapture(true);
-    setCaptureStartTime(Date.now());
-    setLastClipboardCheck(null);
-    
-    // Mostrar instrucciones claras
-    showNotification('info', '🎯 Modo captura activo. Ve a tu POS y usa Win + Shift + S. Luego regresa a Lealta');
-    
-    // Instrucciones detalladas en consola
-    console.log('=== CAPTURA AUTOMÁTICA INICIADA ===');
-    console.log('1. Ve a tu sistema POS');
-    console.log('2. Presiona Win + Shift + S');
-    console.log('3. Selecciona el área de la cuenta');
-    console.log('4. REGRESA A LEALTA para que se detecte');
-    console.log('IMPORTANTE: Debes regresar a Lealta después de capturar');
-    
-    // Timeout de 5 minutos para dar tiempo suficiente
-    setTimeout(() => {
-      if (isWaitingForCapture) {
-        setIsWaitingForCapture(false);
-        setCaptureStartTime(0);
-        setLastClipboardCheck(null);
-        showNotification('info', '⏰ Tiempo de captura expirado. Inténtalo de nuevo');
-      }
-    }, 300000); // 5 minutos
-  };
-
-  // Función para detectar cuando el usuario regresa a la ventana
-  const handleWindowFocus = async () => {
-    if (!isWaitingForCapture) return;
-    
-    console.log('👀 Ventana enfocada - verificando portapapeles...');
-    
-    // Esperar un momento para que el portapapeles se actualice
-    setTimeout(async () => {
-      await checkClipboardForImage();
-    }, 500);
-  };
-
-  // Agregar listener para cuando la ventana gana foco
-  useEffect(() => {
-    window.addEventListener('focus', handleWindowFocus);
-    
-    return () => {
-      window.removeEventListener('focus', handleWindowFocus);
-    };
-  }, [isWaitingForCapture]);
-
-  // Función para verificar si debe procesar la imagen
-  const shouldProcessImage = (currentTime: number, currentClipboardId: string): boolean => {
-    const timeCondition = currentTime > captureStartTime + 2000; // 2 segundos mínimo
-    const newImageCondition = currentClipboardId !== lastClipboardCheck;
-    return timeCondition && newImageCondition;
-  };
-
-  // Función para procesar la imagen capturada
-  const processClipboardImage = async (blob: Blob, currentTime: number) => {
-    const file = new File([blob], `captura-pos-${currentTime}.png`, { type: blob.type });
-    
-    setSelectedFile(file);
-    const reader = new FileReader();
-    reader.onload = (e) => setPreview(e.target?.result as string);
-    reader.readAsDataURL(file);
-    
-    // Finalizar proceso
-    setIsWaitingForCapture(false);
-    setCaptureStartTime(0);
-    setLastClipboardCheck(null);
-    
-    showNotification('success', '🎉 ¡Captura del POS detectada y cargada!');
-    console.log('✅ Captura procesada exitosamente');
-  };
-
-  // Función para leer imagen del portapapeles
-  const checkClipboardForImage = async () => {
-    if (!isWaitingForCapture) return false;
-    
+  // Función para iniciar la cámara
+  const startCamera = async () => {
     try {
-      if (!navigator.clipboard?.read) {
-        console.log('API del portapapeles no disponible');
-        return false;
-      }
-
-      const clipboardItems = await navigator.clipboard.read();
-      
-      for (const clipboardItem of clipboardItems) {
-        for (const type of clipboardItem.types) {
-          if (type.startsWith('image/')) {
-            const blob = await clipboardItem.getType(type);
-            
-            // Crear un hash simple del blob para detectar cambios
-            const blobText = await blob.text().catch(() => blob.size.toString());
-            const currentClipboardId = `${blob.size}-${blob.type}-${blobText.slice(0, 50)}`;
-            const currentTime = Date.now();
-            
-            if (shouldProcessImage(currentTime, currentClipboardId)) {
-              setLastClipboardCheck(currentClipboardId);
-              await processClipboardImage(blob, currentTime);
-              return true;
-            } else if (currentClipboardId === lastClipboardCheck) {
-              console.log('📎 Misma imagen en portapapeles, esperando nueva captura...');
-            } else {
-              console.log('⏳ Esperando tiempo mínimo antes de procesar...');
-            }
-          }
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          facingMode: 'environment', // Cámara trasera preferida
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
         }
+      });
+      
+      setStream(mediaStream);
+      setCameraMode(true);
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
       }
-      return false;
     } catch (error) {
-      console.error('Error leyendo portapapeles:', error);
-      return false;
+      console.error('Error accessing camera:', error);
+      showNotification('error', 'No se pudo acceder a la cámara');
+    }
+  };
+
+  // Función para detener la cámara
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setCameraMode(false);
+  };
+
+  // Función para capturar imagen de la cámara
+  const captureImage = () => {
+    if (videoRef.current && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const video = videoRef.current;
+      
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0);
+        
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], 'ticket-capture.jpg', { type: 'image/jpeg' });
+            setSelectedFile(file);
+            setPreview(canvas.toDataURL());
+            stopCamera();
+            showNotification('success', 'Imagen capturada exitosamente');
+          }
+        }, 'image/jpeg', 0.8);
+      }
     }
   };
 
@@ -320,9 +214,9 @@ export default function StaffPage() {
       const reader = new FileReader();
       reader.onload = (e) => setPreview(e.target?.result as string);
       reader.readAsDataURL(file);
-      showNotification('info', 'Captura cargada exitosamente');
+      showNotification('info', 'Imagen cargada exitosamente');
     } else {
-      showNotification('error', 'Por favor selecciona un archivo de imagen válido para la captura');
+      showNotification('error', 'Por favor selecciona un archivo de imagen válido');
     }
   };
 
@@ -420,17 +314,14 @@ export default function StaffPage() {
     }
   };
 
-  const getCustomerLevelClasses = (nivel: string) => {
-    switch (nivel) {
-      case 'Gold':
-        return 'bg-yellow-500/20 text-yellow-400';
-      case 'Silver':
-        return 'bg-gray-500/20 text-gray-400';
-      case 'Bronze':
-      default:
-        return 'bg-amber-600/20 text-amber-400';
-    }
-  };
+  // Limpiar cámara al desmontar el componente
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [stream]);
 
   // Mostrar loading mientras se verifica autenticación
   if (loading || !isAuthenticated) {
@@ -564,18 +455,18 @@ export default function StaffPage() {
             >
               <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
                 <Camera className="w-6 h-6 mr-2 text-primary-400" />
-                Procesar Cuenta del POS
+                Procesar Ticket
               </h2>
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Input Cédula */}
                 <div>
-                  <label htmlFor="cedula" className="block text-sm font-medium text-dark-300 mb-2">
+                  <label htmlFor="cedula-input" className="block text-sm font-medium text-dark-300 mb-2">
                     Cédula del Cliente
                   </label>
                   <div className="relative">
                     <input
-                      id="cedula"
+                      id="cedula-input"
                       type="text"
                       value={cedula}
                       onChange={(e) => handleCedulaChange(e.target.value)}
@@ -625,77 +516,32 @@ export default function StaffPage() {
                   )}
                 </AnimatePresence>
 
-                {/* Captura de Pantalla del POS */}
+                {/* Captura de Imagen */}
                 <div>
                   <span className="block text-sm font-medium text-dark-300 mb-4">
-                    Captura de la Cuenta del POS
+                    Imagen del Ticket
                   </span>
                   
-                  <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 mb-4">
-                    <div className="flex items-start space-x-3">
-                      <AlertCircle className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
-                      <div className="text-sm text-blue-300">
-                        <p className="font-medium mb-1">🚀 Captura Automática - Flujo Optimizado</p>
-                        <ul className="space-y-1 text-xs">
-                          <li>• <strong>Paso 1:</strong> Haz clic en "Captura Automática Inteligente"</li>
-                          <li>• <strong>Paso 2:</strong> Ve a tu sistema POS</li>
-                          <li>• <strong>Paso 3:</strong> Presiona <kbd className="px-1 py-0.5 bg-blue-600/20 rounded">Win + Shift + S</kbd> y captura la cuenta</li>
-                          <li>• <strong>Paso 4:</strong> <span className="text-yellow-300 font-medium">¡REGRESA A LEALTA!</span></li>
-                          <li>• <strong>¡AUTOMÁTICO!</strong> La imagen se detecta al regresar 🎉</li>
-                        </ul>
-                        <div className="mt-2 p-2 bg-yellow-500/10 border border-yellow-500/30 rounded text-yellow-300">
-                          <strong>💡 Importante:</strong> Debes regresar a Lealta después de capturar para que se detecte automáticamente.
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
                   {/* Botones de Captura */}
-                  <div className="space-y-4 mb-4">
-                    {/* Botón de Captura Automática Mejorada */}
+                  <div className="flex gap-4 mb-4">
                     <button
                       type="button"
-                      onClick={startAutomaticCapture}
-                      className={`w-full flex items-center justify-center space-x-2 p-4 rounded-lg transition-all ${
-                        isWaitingForCapture 
-                          ? 'bg-orange-600 hover:bg-orange-700 text-white animate-pulse' 
-                          : 'bg-purple-600 hover:bg-purple-700 text-white'
-                      }`}
+                      onClick={startCamera}
+                      disabled={cameraMode}
+                      className="flex-1 flex items-center justify-center space-x-2 p-4 bg-primary-600 hover:bg-primary-700 disabled:bg-dark-700 disabled:text-dark-400 text-white rounded-lg transition-colors"
                     >
-                      {isWaitingForCapture ? (
-                        <>
-                          <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
-                          <span>🎯 Esperando Captura del POS...</span>
-                          <span className="text-xs bg-white/20 px-2 py-1 rounded">Regresa después de capturar</span>
-                        </>
-                      ) : (
-                        <>
-                          <Zap className="w-5 h-5" />
-                          <span>🚀 Captura Automática Inteligente</span>
-                        </>
-                      )}
+                      <Camera className="w-5 h-5" />
+                      <span>Tomar Foto</span>
                     </button>
-
-                    {/* Botones tradicionales */}
-                    <div className="flex gap-4">
-                      <button
-                        type="button"
-                        onClick={openSnippingTool}
-                        className="flex-1 flex items-center justify-center space-x-2 p-4 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors"
-                      >
-                        <Camera className="w-5 h-5" />
-                        <span>Win + Shift + S</span>
-                      </button>
-                      
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="flex-1 flex items-center justify-center space-x-2 p-4 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colors"
-                      >
-                        <Upload className="w-5 h-5" />
-                        <span>Subir Captura</span>
-                      </button>
-                    </div>
+                    
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex-1 flex items-center justify-center space-x-2 p-4 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colors"
+                    >
+                      <Upload className="w-5 h-5" />
+                      <span>Subir Archivo</span>
+                    </button>
                   </div>
 
                   <input
@@ -706,8 +552,53 @@ export default function StaffPage() {
                     className="hidden"
                   />
 
+                  {/* Camera Mode */}
+                  <AnimatePresence>
+                    {cameraMode && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        className="relative bg-black rounded-lg overflow-hidden mb-4"
+                      >
+                        <video
+                          ref={videoRef}
+                          autoPlay
+                          playsInline
+                          className="w-full h-64 object-cover"
+                        >
+                          <track kind="captions" label="Descripción del video" />
+                        </video>
+                        
+                        {/* Camera Overlay */}
+                        <div className="absolute inset-0 border-2 border-dashed border-primary-400 opacity-50 m-8"></div>
+                        <div className="absolute top-4 left-4 bg-black/50 text-white px-3 py-1 rounded text-sm">
+                          Alinea el ticket dentro del marco
+                        </div>
+                        
+                        {/* Camera Controls */}
+                        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-4">
+                          <button
+                            type="button"
+                            onClick={captureImage}
+                            className="bg-primary-600 hover:bg-primary-700 text-white p-3 rounded-full transition-colors"
+                          >
+                            <Camera className="w-6 h-6" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={stopCamera}
+                            className="bg-red-600 hover:bg-red-700 text-white p-3 rounded-full transition-colors"
+                          >
+                            <X className="w-6 h-6" />
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   {/* Preview */}
-                  {preview && (
+                  {preview && !cameraMode && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
@@ -725,7 +616,7 @@ export default function StaffPage() {
                         <X className="w-4 h-4" />
                       </button>
                       <div className="absolute bottom-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-sm">
-                        ✓ Captura Lista
+                        ✓ Imagen Lista
                       </div>
                     </motion.div>
                   )}
@@ -860,8 +751,7 @@ export default function StaffPage() {
                   <p className="font-medium text-white mb-2">Instrucciones:</p>
                   <ul className="space-y-1 list-disc list-inside">
                     <li>Verificar la cédula del cliente</li>
-                    <li>Mostrar la cuenta en tu POS</li>
-                    <li>Capturar pantalla de la cuenta completa</li>
+                    <li>Usar la cámara para mejor calidad</li>
                     <li>Procesar ANTES del pago</li>
                     <li>Confirmar total con el cliente</li>
                   </ul>
@@ -871,6 +761,9 @@ export default function StaffPage() {
           </div>
         </div>
       </div>
+
+      {/* Canvas para captura (invisible) */}
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 }

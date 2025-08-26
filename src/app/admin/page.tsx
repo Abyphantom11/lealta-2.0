@@ -26,7 +26,8 @@ import {
   Edit3,
   Trash2,
   Gift,
-  Save
+  Save,
+  Coffee
 } from 'lucide-react';
 
 // Hook personalizado para manejar carga de archivos
@@ -452,23 +453,29 @@ function ClientesContent() {
 
 // Menu Content Component
 function MenuContent() {
-  const [activeTab, setActiveTab] = useState<'categorias' | 'productos'>('categorias');
+  const [activeTab, setActiveTab] = useState<'categorias' | 'productos' | 'preview'>('preview');
   const [categories, setCategories] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Estados para modales
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<any>(null);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         // Fetch categories
-        const categoriesResponse = await fetch('/api/admin/menu');
+        const categoriesResponse = await fetch('/api/admin/menu?businessId=business_1');
         if (categoriesResponse.ok) {
           const categoriesData = await categoriesResponse.json();
-          setCategories(categoriesData.categorias || []);
+          setCategories(categoriesData.menu || []);
         }
 
         // Fetch products
-        const productsResponse = await fetch('/api/admin/menu/productos');
+        const productsResponse = await fetch('/api/admin/menu/productos?businessId=business_1');
         if (productsResponse.ok) {
           const productsData = await productsResponse.json();
           setProducts(productsData.productos || []);
@@ -546,20 +553,21 @@ function MenuContent() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-semibold text-white">Gestión de Menú</h3>
-        <div className="flex items-center space-x-3">
-          <button className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors">
-            <Plus className="w-4 h-4 text-white" />
-            <span className="text-white">Nueva Categoría</span>
-          </button>
-          <button className="flex items-center space-x-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors">
-            <Plus className="w-4 h-4 text-white" />
-            <span className="text-white">Nuevo Producto</span>
-          </button>
-        </div>
       </div>
 
       {/* Tabs */}
       <div className="flex space-x-1 bg-dark-800 rounded-lg p-1">
+        <button
+          onClick={() => setActiveTab('preview')}
+          className={`px-4 py-2 rounded-md font-medium transition-colors ${
+            activeTab === 'preview' 
+              ? 'bg-green-600 text-white shadow-sm' 
+              : 'text-dark-300 hover:text-white'
+          }`}
+        >
+          <Eye className="w-4 h-4 inline mr-2" />
+          Vista Previa
+        </button>
         <button
           onClick={() => setActiveTab('categorias')}
           className={`px-4 py-2 rounded-md font-medium transition-colors ${
@@ -589,7 +597,13 @@ function MenuContent() {
         <div className="premium-card">
           <div className="flex items-center justify-between mb-6">
             <h4 className="text-lg font-semibold text-white">Categorías del Menú</h4>
-            <button className="flex items-center space-x-2 px-4 py-2 bg-success-600 hover:bg-success-700 rounded-lg transition-colors">
+            <button 
+              onClick={() => {
+                setEditingCategory(null);
+                setShowCategoryModal(true);
+              }}
+              className="flex items-center space-x-2 px-4 py-2 bg-success-600 hover:bg-success-700 rounded-lg transition-colors"
+            >
               <Plus className="w-4 h-4 text-white" />
               <span className="text-white">Nueva Categoría</span>
             </button>
@@ -603,40 +617,98 @@ function MenuContent() {
             </div>
           ) : (
             <div className="space-y-4">
-              {categories.map((category: any) => (
-                <div key={category.id} className="bg-dark-800/30 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <h5 className="text-lg font-medium text-white">{category.nombre}</h5>
-                      <p className="text-dark-300 text-sm mt-1">{category.descripcion}</p>
-                      <div className="flex items-center space-x-2 mt-2">
-                        <span className={`inline-block px-2 py-1 rounded-full text-xs ${
-                          category.activo ? 'bg-success-500/20 text-success-400' : 'bg-dark-600 text-dark-400'
-                        }`}>
-                          {category.activo ? 'Activo' : 'Inactivo'}
-                        </span>
-                        <span className="text-xs text-dark-400">Orden: {category.orden}</span>
+              {/* Categorías principales */}
+              {categories.filter(cat => !cat.parentId).map((category: any) => (
+                <div key={category.id}>
+                  {/* Categoría principal */}
+                  <div className="bg-dark-800/30 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <h5 className="text-lg font-medium text-white">{category.nombre}</h5>
+                        <p className="text-dark-300 text-sm mt-1">{category.descripcion}</p>
+                        <div className="flex items-center space-x-2 mt-2">
+                          <span className={`inline-block px-2 py-1 rounded-full text-xs ${
+                            category.activo ? 'bg-success-500/20 text-success-400' : 'bg-dark-600 text-dark-400'
+                          }`}>
+                            {category.activo ? 'Activo' : 'Inactivo'}
+                          </span>
+                          <span className="text-xs text-dark-400">Orden: {category.orden}</span>
+                          <span className="text-xs text-primary-400">Categoría Principal</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => toggleCategoryStatus(category.id)}
+                          className={`p-2 rounded-md ${
+                            category.activo
+                              ? 'text-success-400 hover:text-success-300 hover:bg-success-500/10'
+                              : 'text-dark-400 hover:text-dark-300 hover:bg-dark-600'
+                          }`}
+                        >
+                          {category.activo ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setEditingCategory(category);
+                            setShowCategoryModal(true);
+                          }}
+                          className="text-primary-400 hover:text-primary-300 p-2 rounded-md hover:bg-primary-500/10">
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button className="text-red-400 hover:text-red-300 p-2 rounded-md hover:bg-red-500/10">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => toggleCategoryStatus(category.id)}
-                        className={`p-2 rounded-md ${
-                          category.activo
-                            ? 'text-success-400 hover:text-success-300 hover:bg-success-500/10'
-                            : 'text-dark-400 hover:text-dark-300 hover:bg-dark-600'
-                        }`}
-                      >
-                        {category.activo ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                      </button>
-                      <button className="text-primary-400 hover:text-primary-300 p-2 rounded-md hover:bg-primary-500/10">
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button className="text-red-400 hover:text-red-300 p-2 rounded-md hover:bg-red-500/10">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
                   </div>
+                  
+                  {/* Subcategorías */}
+                  {categories.filter(subcat => subcat.parentId === category.id).length > 0 && (
+                    <div className="ml-8 mt-2 space-y-2">
+                      {categories.filter(subcat => subcat.parentId === category.id).map((subcategory: any) => (
+                        <div key={subcategory.id} className="bg-dark-700/30 rounded-lg p-3 border-l-4 border-primary-500">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <h6 className="text-md font-medium text-white">{subcategory.nombre}</h6>
+                              <p className="text-dark-300 text-sm mt-1">{subcategory.descripcion}</p>
+                              <div className="flex items-center space-x-2 mt-2">
+                                <span className={`inline-block px-2 py-1 rounded-full text-xs ${
+                                  subcategory.activo ? 'bg-success-500/20 text-success-400' : 'bg-dark-600 text-dark-400'
+                                }`}>
+                                  {subcategory.activo ? 'Activo' : 'Inactivo'}
+                                </span>
+                                <span className="text-xs text-dark-400">Orden: {subcategory.orden}</span>
+                                <span className="text-xs text-yellow-400">Subcategoría</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={() => toggleCategoryStatus(subcategory.id)}
+                                className={`p-2 rounded-md ${
+                                  subcategory.activo
+                                    ? 'text-success-400 hover:text-success-300 hover:bg-success-500/10'
+                                    : 'text-dark-400 hover:text-dark-300 hover:bg-dark-600'
+                                }`}
+                              >
+                                {subcategory.activo ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                              </button>
+                              <button 
+                                onClick={() => {
+                                  setEditingCategory(subcategory);
+                                  setShowCategoryModal(true);
+                                }}
+                                className="text-primary-400 hover:text-primary-300 p-2 rounded-md hover:bg-primary-500/10">
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                              <button className="text-red-400 hover:text-red-300 p-2 rounded-md hover:bg-red-500/10">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -649,7 +721,13 @@ function MenuContent() {
         <div className="premium-card">
           <div className="flex items-center justify-between mb-6">
             <h4 className="text-lg font-semibold text-white mb-4">Productos del Menú</h4>
-            <button className="flex items-center space-x-2 px-4 py-2 bg-success-600 hover:bg-success-700 rounded-lg transition-colors">
+            <button 
+              onClick={() => {
+                setEditingProduct(null);
+                setShowProductModal(true);
+              }}
+              className="flex items-center space-x-2 px-4 py-2 bg-success-600 hover:bg-success-700 rounded-lg transition-colors"
+            >
               <Plus className="w-4 h-4 text-white" />
               <span className="text-white">Nuevo Producto</span>
             </button>
@@ -664,7 +742,7 @@ function MenuContent() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {products.map((product: any) => {
-                const category = categories.find((c: any) => c.id === product.categoriaId);
+                const category = categories.find((c: any) => c.id === product.categoryId);
                 return (
                   <div key={product.id} className="bg-dark-800/30 rounded-lg p-4">
                     <div className="flex items-start justify-between mb-3">
@@ -716,7 +794,12 @@ function MenuContent() {
                         >
                           {product.disponible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                         </button>
-                        <button className="text-primary-400 hover:bg-primary-500/10 p-1 rounded">
+                        <button 
+                          onClick={() => {
+                            setEditingProduct(product);
+                            setShowProductModal(true);
+                          }}
+                          className="text-primary-400 hover:bg-primary-500/10 p-1 rounded">
                           <Edit3 className="w-4 h-4" />
                         </button>
                         <button className="text-red-400 hover:bg-red-500/10 p-1 rounded">
@@ -731,6 +814,662 @@ function MenuContent() {
           )}
         </div>
       )}
+
+      {/* Vista Previa Tab */}
+      {activeTab === 'preview' && (
+        <div className="premium-card">
+          <div className="flex items-center justify-between mb-6">
+            <h4 className="text-lg font-semibold text-white">Vista Previa del Menú</h4>
+            <div className="flex items-center space-x-2 text-sm text-dark-400">
+              <Smartphone className="w-4 h-4" />
+              <span>Vista del Cliente</span>
+            </div>
+          </div>
+          
+          <MenuPreview categories={categories} products={products} />
+        </div>
+      )}
+
+      {/* Modal para crear/editar categoría */}
+      {showCategoryModal && (
+        <CategoryModal
+          category={editingCategory}
+          onSave={async (categoryData) => {
+            try {
+              setIsLoading(true);
+              const method = editingCategory ? 'PUT' : 'POST';
+              const body = editingCategory 
+                ? { ...categoryData, id: editingCategory.id }
+                : { ...categoryData, businessId: 'business_1' };
+
+              const response = await fetch('/api/admin/menu', {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+              });
+
+              if (response.ok) {
+                setShowCategoryModal(false);
+                setEditingCategory(null);
+                
+                // Refrescar categorías
+                const categoriesResponse = await fetch('/api/admin/menu?businessId=business_1');
+                if (categoriesResponse.ok) {
+                  const categoriesData = await categoriesResponse.json();
+                  setCategories(categoriesData.menu || []);
+                }
+              } else {
+                console.error('Error saving category');
+              }
+            } catch (error) {
+              console.error('Error:', error);
+            } finally {
+              setIsLoading(false);
+            }
+          }}
+          onClose={() => {
+            setShowCategoryModal(false);
+            setEditingCategory(null);
+          }}
+        />
+      )}
+
+      {/* Modal para crear/editar producto */}
+      {showProductModal && (
+        <ProductModal
+          product={editingProduct}
+          categories={categories}
+          onSave={async (productData) => {
+            try {
+              setIsLoading(true);
+              
+              // Validar que no existe un producto con el mismo nombre en la misma categoría
+              const existingProduct = products.find(p => 
+                p.categoryId === productData.categoryId && 
+                p.nombre.toLowerCase() === productData.nombre.toLowerCase() &&
+                (!editingProduct || p.id !== editingProduct.id)
+              );
+              
+              if (existingProduct) {
+                alert('Ya existe un producto con ese nombre en esta categoría. Por favor elige otro nombre.');
+                setIsLoading(false);
+                return;
+              }
+
+              const method = editingProduct ? 'PUT' : 'POST';
+              const body = editingProduct 
+                ? { ...productData, id: editingProduct.id }
+                : productData;
+
+              const response = await fetch('/api/admin/menu/productos', {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+              });
+
+              if (response.ok) {
+                setShowProductModal(false);
+                setEditingProduct(null);
+                
+                // Refrescar productos
+                const productsResponse = await fetch('/api/admin/menu/productos?businessId=business_1');
+                if (productsResponse.ok) {
+                  const productsData = await productsResponse.json();
+                  setProducts(productsData.productos || []);
+                } else {
+                  console.error('Error refrescando productos');
+                }
+              } else {
+                const errorData = await response.json();
+                alert(`Error guardando producto: ${errorData.error || 'Error desconocido'}`);
+              }
+            } catch (error) {
+              console.error('Error:', error);
+              alert('Error de conexión al guardar el producto');
+            } finally {
+              setIsLoading(false);
+            }
+          }}
+          onClose={() => {
+            setShowProductModal(false);
+            setEditingProduct(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Componente de Vista Previa del Menú
+function MenuPreview({ categories, products }: { readonly categories: any[], readonly products: any[] }) {
+  const [selectedCategory, setSelectedCategory] = useState<any>(null);
+  
+  const activeCategories = categories.filter(cat => cat.activo && !cat.parentId); // Solo categorías principales activas
+  const availableProducts = products.filter(prod => prod.disponible);
+  
+  const getSubcategories = (parentId: string) => {
+    return categories.filter(cat => cat.parentId === parentId && cat.activo);
+  };
+  
+  const getProductsForCategory = (categoryId: string) => {
+    return availableProducts.filter(product => product.categoryId === categoryId);
+  };
+  
+  return (
+    <div className="bg-black rounded-xl p-6 max-w-md mx-auto text-white" style={{ minHeight: '600px' }}>
+      {/* Header del menú */}
+      <div className="text-center mb-6">
+        <h1 className="text-2xl font-bold text-white mb-2">Nuestro Menú</h1>
+        <p className="text-gray-400 text-sm">Vista previa del menú del cliente</p>
+      </div>
+
+      {/* Categorías */}
+      {activeCategories.length === 0 ? (
+        <div className="text-center text-gray-400 py-12">
+          <UtensilsCrossed className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+          <p>No hay categorías activas</p>
+          <p className="text-sm">Crea categorías para mostrar el menú</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Lista de categorías */}
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            {activeCategories.map((category: any) => (
+              <button
+                key={category.id}
+                onClick={() => setSelectedCategory(selectedCategory?.id === category.id ? null : category)}
+                className={`p-4 rounded-lg border transition-all ${
+                  selectedCategory?.id === category.id
+                    ? 'bg-primary-600 border-primary-500 text-white'
+                    : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
+                }`}
+              >
+                <div className="text-center">
+                  <div className="text-lg font-medium">{category.nombre}</div>
+                  <div className="text-xs mt-1 opacity-75">{category.descripcion}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Productos de la categoría seleccionada */}
+          {selectedCategory && (
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold text-white mb-3">
+                {selectedCategory.nombre}
+              </h3>
+              
+              {/* Subcategorías si existen */}
+              {getSubcategories(selectedCategory.id).length > 0 && (
+                <div className="mb-4">
+                  <h4 className="text-md font-medium text-gray-300 mb-2">Subcategorías:</h4>
+                  <div className="grid grid-cols-1 gap-2">
+                    {getSubcategories(selectedCategory.id).map((subcategory: any) => (
+                      <div key={subcategory.id} className="bg-gray-700 rounded-lg p-3">
+                        <h5 className="font-medium text-white mb-2">{subcategory.nombre}</h5>
+                        
+                        {/* Productos de la subcategoría */}
+                        <div className="space-y-2">
+                          {getProductsForCategory(subcategory.id).map((product: any) => (
+                            <div key={product.id} className="bg-gray-600 rounded-md p-3">
+                              <div className="flex justify-between items-start">
+                                <div className="flex-1">
+                                  <h6 className="font-medium text-white text-sm">{product.nombre}</h6>
+                                  {product.descripcion && (
+                                    <p className="text-gray-300 text-xs mt-1">{product.descripcion}</p>
+                                  )}
+                                </div>
+                                <div className="text-right">
+                                  {product.precio && (
+                                    <div className="text-primary-400 font-bold text-sm">
+                                      ${product.precio.toFixed(2)}
+                                    </div>
+                                  )}
+                                  {product.precioVaso && (
+                                    <div className="text-primary-400 font-bold text-xs">
+                                      Vaso: ${product.precioVaso.toFixed(2)}
+                                    </div>
+                                  )}
+                                  {product.precioBotella && (
+                                    <div className="text-primary-400 font-bold text-xs">
+                                      Botella: ${product.precioBotella.toFixed(2)}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          
+                          {getProductsForCategory(subcategory.id).length === 0 && (
+                            <div className="text-center text-gray-400 py-4">
+                              <p className="text-xs">No hay productos en esta subcategoría</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Productos directos de la categoría principal */}
+              {getProductsForCategory(selectedCategory.id).map((product: any) => (
+                <div key={product.id} className="bg-gray-800 rounded-lg p-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-white">{product.nombre}</h4>
+                      {product.descripcion && (
+                        <p className="text-gray-400 text-sm mt-1">{product.descripcion}</p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      {product.precio && (
+                        <div className="text-primary-400 font-bold">
+                          ${product.precio.toFixed(2)}
+                        </div>
+                      )}
+                      {product.precioVaso && (
+                        <div className="text-primary-400 font-bold text-sm">
+                          Vaso: ${product.precioVaso.toFixed(2)}
+                        </div>
+                      )}
+                      {product.precioBotella && (
+                        <div className="text-primary-400 font-bold text-sm">
+                          Botella: ${product.precioBotella.toFixed(2)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
+              {getProductsForCategory(selectedCategory.id).length === 0 && getSubcategories(selectedCategory.id).length === 0 && (
+                <div className="text-center text-gray-400 py-8">
+                  <Coffee className="w-8 h-8 mx-auto mb-2 text-gray-500" />
+                  <p className="text-sm">No hay productos ni subcategorías en esta categoría</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!selectedCategory && (
+            <div className="text-center text-gray-400 py-8">
+              <p className="text-sm">Selecciona una categoría para ver los productos</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Modal para crear/editar categorías
+function CategoryModal({ category, onSave, onClose }: Readonly<{
+  category: any;
+  onSave: (data: any) => void;
+  onClose: () => void;
+}>) {
+  const [formData, setFormData] = useState({
+    nombre: category?.nombre || '',
+    descripcion: category?.descripcion || '',
+    orden: category?.orden || 0,
+    activo: category?.activo ?? true,
+    icono: category?.icono || '',
+    parentId: category?.parentId || ''
+  });
+
+  const [categories, setCategories] = useState<any[]>([]);
+
+  // Cargar categorías para el selector de categoría padre
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/admin/menu?businessId=business_1');
+        if (response.ok) {
+          const data = await response.json();
+          // Filtrar categorías que no sean subcategorías y que no sea la categoría actual (para evitar auto-referencia)
+          const parentCategories = (data.menu || []).filter((cat: any) => 
+            !cat.parentId && (!category || cat.id !== category.id)
+          );
+          setCategories(parentCategories);
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    fetchCategories();
+  }, [category]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div 
+        className="fixed inset-0" 
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div className="bg-dark-800 rounded-lg p-6 w-full max-w-md mx-4 relative z-10">
+        <h3 className="text-lg font-semibold text-white mb-4">
+          {category ? 'Editar Categoría' : 'Nueva Categoría'}
+        </h3>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="category-parent" className="block text-sm font-medium text-dark-300 mb-2">
+              Categoría Padre (opcional)
+            </label>
+            <select
+              id="category-parent"
+              value={formData.parentId}
+              onChange={(e) => setFormData(prev => ({ ...prev, parentId: e.target.value }))}
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
+            >
+              <option value="">Categoría principal</option>
+              {categories.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.nombre}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="category-nombre" className="block text-sm font-medium text-dark-300 mb-2">
+              Nombre
+            </label>
+            <input
+              id="category-nombre"
+              type="text"
+              value={formData.nombre}
+              onChange={(e) => setFormData(prev => ({ ...prev, nombre: e.target.value }))}
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="category-descripcion" className="block text-sm font-medium text-dark-300 mb-2">
+              Descripción
+            </label>
+            <textarea
+              id="category-descripcion"
+              value={formData.descripcion}
+              onChange={(e) => setFormData(prev => ({ ...prev, descripcion: e.target.value }))}
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
+              rows={3}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="category-orden" className="block text-sm font-medium text-dark-300 mb-2">
+              Orden
+            </label>
+            <input
+              id="category-orden"
+              type="number"
+              value={formData.orden}
+              onChange={(e) => setFormData(prev => ({ ...prev, orden: parseInt(e.target.value) || 0 }))}
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
+            />
+          </div>
+
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="activo"
+              checked={formData.activo}
+              onChange={(e) => setFormData(prev => ({ ...prev, activo: e.target.checked }))}
+              className="mr-2"
+            />
+            <label htmlFor="activo" className="text-sm text-dark-300">
+              Categoría activa
+            </label>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-dark-300 hover:text-white transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md transition-colors"
+            >
+              {category ? 'Actualizar' : 'Crear'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Modal para crear/editar productos
+function ProductModal({ product, categories, onSave, onClose }: Readonly<{
+  product: any;
+  categories: any[];
+  onSave: (data: any) => void;
+  onClose: () => void;
+}>) {
+  const [formData, setFormData] = useState({
+    nombre: product?.nombre || '',
+    descripcion: product?.descripcion || '',
+    categoryId: product?.categoryId || '',
+    precio: product?.precio || '',
+    precioVaso: product?.precioVaso || '',
+    precioBotella: product?.precioBotella || '',
+    tipoProducto: product?.tipoProducto || 'simple',
+    disponible: product?.disponible ?? true,
+    destacado: product?.destacado ?? false,
+    imagenUrl: product?.imagenUrl || ''
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div 
+        className="fixed inset-0" 
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div className="bg-dark-800 rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto relative z-10">
+        <h3 className="text-lg font-semibold text-white mb-4">
+          {product ? 'Editar Producto' : 'Nuevo Producto'}
+        </h3>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="product-categoria" className="block text-sm font-medium text-dark-300 mb-2">
+              Categoría
+            </label>
+            <select
+              id="product-categoria"
+              value={formData.categoryId}
+              onChange={(e) => setFormData(prev => ({ ...prev, categoryId: e.target.value }))}
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
+              required
+            >
+              <option value="">Seleccionar categoría</option>
+              {categories.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.nombre}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="product-nombre" className="block text-sm font-medium text-dark-300 mb-2">
+              Nombre
+            </label>
+            <input
+              id="product-nombre"
+              type="text"
+              value={formData.nombre}
+              onChange={(e) => setFormData(prev => ({ ...prev, nombre: e.target.value }))}
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="product-descripcion" className="block text-sm font-medium text-dark-300 mb-2">
+              Descripción
+            </label>
+            <textarea
+              id="product-descripcion"
+              value={formData.descripcion}
+              onChange={(e) => setFormData(prev => ({ ...prev, descripcion: e.target.value }))}
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
+              rows={3}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="product-tipo" className="block text-sm font-medium text-dark-300 mb-2">
+              Tipo de Producto
+            </label>
+            <select
+              id="product-tipo"
+              value={formData.tipoProducto}
+              onChange={(e) => setFormData(prev => ({ ...prev, tipoProducto: e.target.value }))}
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
+            >
+              <option value="simple">Simple</option>
+              <option value="botella">Botella</option>
+              <option value="variable">Variable</option>
+            </select>
+          </div>
+
+          {formData.tipoProducto === 'simple' && (
+            <div>
+              <label htmlFor="product-precio" className="block text-sm font-medium text-dark-300 mb-2">
+                Precio
+              </label>
+              <input
+                id="product-precio"
+                type="number"
+                step="0.01"
+                value={formData.precio}
+                onChange={(e) => setFormData(prev => ({ ...prev, precio: e.target.value }))}
+                className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
+              />
+            </div>
+          )}
+
+          {formData.tipoProducto === 'botella' && (
+            <>
+              <div>
+                <label htmlFor="product-precio-vaso" className="block text-sm font-medium text-dark-300 mb-2">
+                  Precio por Vaso
+                </label>
+                <input
+                  id="product-precio-vaso"
+                  type="number"
+                  step="0.01"
+                  value={formData.precioVaso}
+                  onChange={(e) => setFormData(prev => ({ ...prev, precioVaso: e.target.value }))}
+                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
+                />
+              </div>
+              <div>
+                <label htmlFor="product-precio-botella" className="block text-sm font-medium text-dark-300 mb-2">
+                  Precio por Botella
+                </label>
+                <input
+                  id="product-precio-botella"
+                  type="number"
+                  step="0.01"
+                  value={formData.precioBotella}
+                  onChange={(e) => setFormData(prev => ({ ...prev, precioBotella: e.target.value }))}
+                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
+                />
+              </div>
+            </>
+          )}
+
+          <div>
+            <label htmlFor="product-imagen" className="block text-sm font-medium text-dark-300 mb-2">
+              Imagen del Producto
+            </label>
+            <input
+              id="product-imagen"
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onload = (event) => {
+                    setFormData(prev => ({ ...prev, imagenUrl: event.target?.result as string }));
+                  };
+                  reader.readAsDataURL(file);
+                }
+              }}
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-600 file:text-white hover:file:bg-primary-700"
+            />
+            {formData.imagenUrl && (
+              <div className="mt-2">
+                <img 
+                  src={formData.imagenUrl} 
+                  alt="Preview" 
+                  className="w-20 h-20 object-cover rounded-md"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="disponible"
+                checked={formData.disponible}
+                onChange={(e) => setFormData(prev => ({ ...prev, disponible: e.target.checked }))}
+                className="mr-2"
+              />
+              <label htmlFor="disponible" className="text-sm text-dark-300">
+                Producto disponible
+              </label>
+            </div>
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="destacado"
+                checked={formData.destacado}
+                onChange={(e) => setFormData(prev => ({ ...prev, destacado: e.target.checked }))}
+                className="mr-2"
+              />
+              <label htmlFor="destacado" className="text-sm text-dark-300">
+                Producto destacado
+              </label>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-dark-300 hover:text-white transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md transition-colors"
+            >
+              {product ? 'Actualizar' : 'Crear'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
