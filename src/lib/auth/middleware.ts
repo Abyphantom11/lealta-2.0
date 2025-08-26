@@ -140,7 +140,7 @@ export async function getCurrentUser(request: NextRequest): Promise<AuthUser | n
       }
     });
 
-    if (!user || !user.business.isActive) {
+    if (!user?.business?.isActive) {
       return null;
     }
 

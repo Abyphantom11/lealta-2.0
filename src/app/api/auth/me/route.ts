@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    if (!user || !user.business.isActive) {
+    if (!user?.business?.isActive) {
       return NextResponse.json(
         { error: 'Usuario no encontrado o inactivo' },
         { status: 401 }

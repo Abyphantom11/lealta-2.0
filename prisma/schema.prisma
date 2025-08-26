@@ -36,6 +36,8 @@ model Business {
   clientes   Cliente[] @relation("BusinessClientes")
   locations  Location[] @relation("BusinessLocations")
   consumos   Consumo[] @relation("BusinessConsumos")
+  // portalConfig PortalConfig? @relation("BusinessPortalConfig") // Removido temporalmente
+  menuCategories MenuCategory[] @relation("BusinessMenuCategories")
 }
 
 model User {
@@ -133,4 +135,75 @@ model VisitLog {
   timestamp DateTime @default(now())
 
   cliente Cliente @relation(fields: [clienteId], references: [id])
+}
+
+// Configuración del Portal Cliente
+model PortalConfig {
+  id         String   @id @default(cuid())
+  businessId String   @unique
+  
+  // Banners y promociones
+  banners    Json     // Array de banners con imagen, título, descripción, fechas
+  promociones Json    // Array de promociones activas
+  eventos    Json     // Eventos del día/semana
+  
+  // Configuración de recompensas
+  recompensas Json    // Catálogo de recompensas canjeables por puntos
+  
+  // Favorito del día
+  favoritoDelDia Json? // Producto favorito del día con imagen
+  
+  // Configuración visual
+  colores    Json?    // Theme colors personalizados
+  logo       String?  // URL del logo del negocio
+  
+  // Metadatos
+  isActive   Boolean  @default(true)
+  updatedAt  DateTime @updatedAt
+  updatedBy  String   // User ID que hizo el último cambio
+  
+  // Relaciones removidas temporalmente para evitar constraint issues
+  // business   Business @relation("BusinessPortalConfig", fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+// Gestión del Menú
+model MenuCategory {
+  id          String      @id @default(cuid())
+  businessId  String
+  nombre      String      // "Cócteles", "Mockteles", "Platos", "Botellas"
+  descripcion String?
+  orden       Int         @default(0)
+  isActive    Boolean     @default(true)
+  icono       String?     // Nombre del icono o URL
+  
+  // Relaciones
+  business    Business    @relation("BusinessMenuCategories", fields: [businessId], references: [id], onDelete: Cascade)
+  productos   MenuProduct[]
+  
+  @@unique([businessId, nombre])
+}
+
+model MenuProduct {
+  id           String       @id @default(cuid())
+  categoryId   String
+  nombre       String
+  descripcion  String?
+  precio       Float
+  precioVaso   Float?       // Para botellas que se pueden pedir por vaso
+  imagen       String?      // URL de la imagen del producto
+  isAvailable  Boolean      @default(true)
+  isDestacado  Boolean      @default(false) // Producto destacado
+  orden        Int          @default(0)
+  
+  // Opciones del producto
+  opciones     Json?        // Array de opciones como tamaños, extras, etc.
+  
+  // Metadatos
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  
+  // Relaciones
+  category     MenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  @@unique([categoryId, nombre])
 }

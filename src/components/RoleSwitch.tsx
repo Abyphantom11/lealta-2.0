@@ -6,8 +6,8 @@ import { ChevronDown, Shield, UserCog, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface RoleSwitchProps {
-  currentRole: 'SUPERADMIN' | 'ADMIN' | 'STAFF';
-  currentPath: string;
+  readonly currentRole: 'SUPERADMIN' | 'ADMIN' | 'STAFF';
+  readonly currentPath: string;
 }
 
 export default function RoleSwitch({ currentRole, currentPath }: RoleSwitchProps) {
