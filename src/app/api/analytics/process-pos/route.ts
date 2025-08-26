@@ -33,11 +33,11 @@ export async function POST(request: NextRequest) {
 
     // Convertir archivo a buffer
     const arrayBuffer = await file.arrayBuffer();
-    let imageBuffer = Buffer.from(arrayBuffer);
+    let imageBuffer: Buffer = Buffer.from(new Uint8Array(arrayBuffer));
 
     // Optimizar imagen si es necesario
     if (file.size > 2 * 1024 * 1024) { // Si es mayor a 2MB
-      imageBuffer = await sharp(imageBuffer)
+      imageBuffer = await sharp(Buffer.from(new Uint8Array(arrayBuffer)))
         .resize({ width: 1920, height: 1080, fit: 'inside' })
         .jpeg({ quality: 85 })
         .toBuffer();
