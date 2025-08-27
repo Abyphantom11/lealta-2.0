@@ -35,7 +35,6 @@ export default function ClientePortalPage() {
     logoUrl: '',
     primaryColor: '#2563EB'
   });
-  const [brandingLoaded, setBrandingLoaded] = useState(false);
   
   // Estados del menú drawer
   const [isMenuDrawerOpen, setIsMenuDrawerOpen] = useState(false);
@@ -76,18 +75,25 @@ export default function ClientePortalPage() {
           }
         }
       } catch (error) {
-        // Fallback a localStorage
-        const savedBranding = localStorage.getItem('portalBranding');
-        if (savedBranding) {
-          try {
-            const parsed = JSON.parse(savedBranding);
-            setBrandingConfig(parsed);
-          } catch (parseError) {
-            // Error silencioso, mantener configuración por defecto
-          }
+        // Si la API falla, usar localStorage como fallback
+        console.warn('API branding no disponible, usando localStorage como fallback:', error);
+        handleLocalStorageFallback();
+      }
+    };
+
+    // Función auxiliar para manejar fallback de localStorage
+    const handleLocalStorageFallback = () => {
+      const savedBranding = localStorage.getItem('portalBranding');
+      if (savedBranding) {
+        try {
+          const parsed = JSON.parse(savedBranding);
+          setBrandingConfig(parsed);
+        } catch (parseError) {
+          // Si también falla el parsing de localStorage, mantener configuración por defecto
+          console.warn('Error parsing localStorage branding, usando configuración por defecto:', parseError);
+          // La configuración por defecto ya está establecida en el estado inicial
         }
       }
-      setBrandingLoaded(true);
     };
 
     // Cargar al inicio
