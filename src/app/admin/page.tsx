@@ -27,7 +27,11 @@ import {
   Trash2,
   Gift,
   Save,
-  Coffee
+  Coffee,
+  Building,
+  Bell,
+  User,
+  IdCard
 } from 'lucide-react';
 
 // Hook personalizado para manejar carga de archivos
@@ -1477,6 +1481,12 @@ function ProductModal({ product, categories, onSave, onClose }: Readonly<{
 // Portal Content Component - Gestión completa del portal del cliente
 function PortalContent() {
   const [activeTab, setActiveTab] = useState<'preview' | 'banners' | 'promociones' | 'recompensas' | 'favorito'>('preview');
+  const [previewMode, setPreviewMode] = useState<'portal' | 'login'>('portal'); // Estado para cambiar entre Portal y Login
+  const [brandingConfig, setBrandingConfig] = useState<any>({ // Configuración de branding para el login
+    businessName: 'Mi Empresa',
+    logoUrl: '',
+    primaryColor: '#3B82F6'
+  });
   const [config, setConfig] = useState<any>({
     banners: [],
     promociones: [],
@@ -1555,7 +1565,7 @@ function PortalContent() {
 
   const handleSave = async () => {
     try {
-      console.log('💾 Admin - Guardando config:', config); // Debug
+      console.log('💾 Admin - Guardando config:', config);
       const response = await fetch('/api/admin/portal-config', {
         method: 'PUT',
         headers: {
@@ -1572,11 +1582,122 @@ function PortalContent() {
       }
 
       const result = await response.json();
-      console.log('✅ Admin - Config guardada exitosamente:', result); // Debug
+      console.log('✅ Admin - Config guardada exitosamente:', result);
     } catch (error) {
       console.error('❌ Admin - Error saving portal config:', error);
     }
   };
+
+  // Funciones para manejar el branding del login
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const newConfig = {
+          ...brandingConfig,
+          logoUrl: e.target?.result as string
+        };
+        
+        setBrandingConfig(newConfig);
+        
+        try {
+          // Guardar en la API
+          
+          const response = await fetch('/api/branding', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(newConfig),
+          });
+          
+          if (response.ok) {
+            
+            // También guardar en localStorage como backup
+            localStorage.setItem('portalBranding', JSON.stringify(newConfig));
+          } else {
+            console.error('Admin: Error guardando logo en API');
+          }
+        } catch (error) {
+          console.error('Admin: Error conectando con API:', error);
+          // Fallback a localStorage
+          localStorage.setItem('portalBranding', JSON.stringify(newConfig));
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleBrandingChange = async (field: string, value: string) => {
+    const newConfig = {
+      ...brandingConfig,
+      [field]: value
+    };
+    
+    setBrandingConfig(newConfig);
+    
+    try {
+      // Guardar en la API (funcionará entre diferentes dominios/puertos)
+      
+      const response = await fetch('/api/branding', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newConfig),
+      });
+      
+      if (response.ok) {
+        
+        // También guardar en localStorage como backup
+        localStorage.setItem('portalBranding', JSON.stringify(newConfig));
+      } else {
+        console.error('Admin: Error guardando branding en API');
+      }
+    } catch (error) {
+      console.error('Admin: Error conectando con API:', error);
+      // Fallback a localStorage
+      localStorage.setItem('portalBranding', JSON.stringify(newConfig));
+    }
+  };
+
+  // Cargar branding desde la API al montar el componente
+  useEffect(() => {
+    const loadBranding = async () => {
+      try {
+        const response = await fetch('/api/branding');
+        if (response.ok) {
+          const branding = await response.json();
+          setBrandingConfig(branding);
+          // También guardar en localStorage como backup
+          localStorage.setItem('portalBranding', JSON.stringify(branding));
+        } else {
+          console.error('Admin: Error cargando branding desde API');
+          // Fallback a localStorage
+          const savedBranding = localStorage.getItem('portalBranding');
+          if (savedBranding) {
+            const parsed = JSON.parse(savedBranding);
+            setBrandingConfig(parsed);
+          }
+        }
+      } catch (error) {
+        console.error('Admin: Error conectando con API:', error);
+        // Fallback a localStorage
+        const savedBranding = localStorage.getItem('portalBranding');
+        if (savedBranding) {
+          try {
+            const parsed = JSON.parse(savedBranding);
+            setBrandingConfig(parsed);
+          } catch (parseError) {
+            console.error('Admin: Error parsing localStorage:', parseError);
+          }
+        }
+      }
+    };
+
+    loadBranding();
+  }, []);
 
   if (isLoading) {
     return (
@@ -1642,13 +1763,19 @@ function PortalContent() {
         activeTab={activeTab}
         config={config}
         setConfig={setConfig}
+        previewMode={previewMode}
+        setPreviewMode={setPreviewMode}
+        brandingConfig={brandingConfig}
+        setBrandingConfig={setBrandingConfig}
+        handleLogoUpload={handleLogoUpload}
+        handleBrandingChange={handleBrandingChange}
       />
     </div>
   );
 }
 
 // Componente principal que maneja el contenido del portal según la pestaña activa
-function PortalContentManager({ activeTab, config, setConfig }: any) {
+function PortalContentManager({ activeTab, config, setConfig, previewMode, setPreviewMode, brandingConfig, setBrandingConfig, handleLogoUpload, handleBrandingChange }: any) {
   const addItem = (type: string, item: any) => {
     const newItem = {
       ...item,
@@ -1693,127 +1820,362 @@ function PortalContentManager({ activeTab, config, setConfig }: any) {
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
       {/* Vista Previa del Portal */}
       <div className="premium-card">
-        <h4 className="text-lg font-semibold text-white mb-4 flex items-center">
-          <Smartphone className="w-5 h-5 mr-2" />
-          Vista del Cliente - ACTUALIZADA v2.0
-        </h4>
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-lg font-semibold text-white flex items-center">
+            <Smartphone className="w-5 h-5 mr-2" />
+            Vista del Portal Cliente - ACTUALIZADA v2.0
+          </h4>
+          
+          {/* Botones Switch para Portal/Login */}
+          <div className="flex bg-dark-700 rounded-lg p-1">
+            <button
+              onClick={() => setPreviewMode('portal')}
+              className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                previewMode === 'portal' 
+                  ? 'bg-primary-600 text-white' 
+                  : 'text-dark-300 hover:text-white'
+              }`}
+            >
+              Portal Cliente
+            </button>
+            <button
+              onClick={() => setPreviewMode('login')}
+              className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                previewMode === 'login' 
+                  ? 'bg-primary-600 text-white' 
+                  : 'text-dark-300 hover:text-white'
+              }`}
+            >
+              Branding
+            </button>
+          </div>
+        </div>
         <div className="bg-dark-950 rounded-xl p-4 border border-dark-700">
-          {/* Simulación móvil del portal */}
-          <div className="bg-black text-white min-h-96 max-w-xs mx-auto rounded-xl overflow-hidden border border-dark-600">
-            {/* Header del móvil */}
-            <div className="flex items-center justify-between p-4">
-              <h1 className="text-lg">
-                Hola, <span className="text-pink-500 font-semibold">Cliente</span>
-              </h1>
-              <div className="w-6 h-6 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full"></div>
-            </div>
-
-            {/* Balance Card */}
-            <div className="mx-4 mb-4">
-              <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-xl p-4">
-                <div className="text-white/80 text-sm mb-1">Balance de Puntos</div>
-                <div className="text-2xl font-bold text-white mb-1">250</div>
-                <div className="text-white/60 text-xs">Tarjeta ****1234</div>
+          {previewMode === 'portal' ? (
+            // Vista Previa del Portal
+            <div className="bg-black text-white min-h-96 max-w-xs mx-auto rounded-xl overflow-hidden border border-dark-600">
+              {/* Header del móvil */}
+              <div className="flex items-center justify-between p-4">
+                <h1 className="text-lg">
+                  Hola, <span className="text-pink-500 font-semibold">Cliente</span>
+                </h1>
+                <div className="w-6 h-6 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full"></div>
               </div>
-            </div>
 
-            {/* Evento del día */}
-            {config.banners.filter((b: any) => b.activo && b.imagenUrl).length > 0 && (
-              <div className="mx-4 mb-3">
-                <h3 className="text-white font-semibold text-sm mb-2">Evento del día</h3>
-                {config.banners.filter((b: any) => b.activo && b.imagenUrl).slice(0, 1).map((banner: any) => (
-                  <div key={banner.id} className="relative overflow-hidden rounded-xl">
+              {/* Balance Card */}
+              <div className="mx-4 mb-4">
+                <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-xl p-4">
+                  <div className="text-white/80 text-sm mb-1">Balance de Puntos</div>
+                  <div className="text-2xl font-bold text-white mb-1">250</div>
+                  <div className="text-white/60 text-xs">Tarjeta ****1234</div>
+                </div>
+              </div>
+
+              {/* Evento del día */}
+              {config.banners.filter((b: any) => b.activo && b.imagenUrl).length > 0 && (
+                <div className="mx-4 mb-3">
+                  <h3 className="text-white font-semibold text-sm mb-2">Evento del día</h3>
+                  {config.banners.filter((b: any) => b.activo && b.imagenUrl).slice(0, 1).map((banner: any) => (
+                    <div key={banner.id} className="relative overflow-hidden rounded-xl">
+                      <img 
+                        src={banner.imagenUrl} 
+                        alt="Evento del día"
+                        className="w-full h-36 object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Favorito del Día */}
+              {config.favoritoDelDia?.activo && config.favoritoDelDia?.imagenUrl && (
+                <div className="mx-4 mb-3">
+                  <h3 className="text-white font-semibold text-sm mb-2">Favorito del día</h3>
+                  <div className="relative overflow-hidden rounded-xl">
                     <img 
-                      src={banner.imagenUrl} 
-                      alt="Evento del día"
-                      className="w-full h-36 object-cover"
+                      src={config.favoritoDelDia.imagenUrl} 
+                      alt="Favorito del día" 
+                      className="w-full h-32 object-cover"
                     />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Favorito del Día */}
-            {config.favoritoDelDia?.activo && config.favoritoDelDia?.imagenUrl && (
-              <div className="mx-4 mb-3">
-                <h3 className="text-white font-semibold text-sm mb-2">Favorito del día</h3>
-                <div className="relative overflow-hidden rounded-xl">
-                  <img 
-                    src={config.favoritoDelDia.imagenUrl} 
-                    alt="Favorito del día" 
-                    className="w-full h-32 object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                  <div className="absolute bottom-2 left-3">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
-                        <span className="text-white text-xs">⭐</span>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                    <div className="absolute bottom-2 left-3">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
+                          <span className="text-white text-xs">⭐</span>
+                        </div>
+                        <span className="text-white font-medium text-xs">Favorito del Día</span>
                       </div>
-                      <span className="text-white font-medium text-xs">Favorito del Día</span>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Promociones */}
-            {config.promociones.filter((p: any) => p.activo).length > 0 && (
-              <div className="mx-4 mb-3">
-                <h3 className="text-white font-semibold text-sm mb-2">Promociones Especiales</h3>
-                {config.promociones.filter((p: any) => p.activo).slice(0, 2).map((promo: any) => (
-                  <div key={promo.id} className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-lg p-3 mb-2">
-                    <h4 className="text-white font-medium text-sm">{promo.titulo}</h4>
-                    <p className="text-white/80 text-xs">{promo.descripcion}</p>
-                  </div>
-                ))}
-              </div>
-            )}
+              {/* Promociones */}
+              {config.promociones.filter((p: any) => p.activo).length > 0 && (
+                <div className="mx-4 mb-3">
+                  <h3 className="text-white font-semibold text-sm mb-2">Promociones Especiales</h3>
+                  {config.promociones.filter((p: any) => p.activo).slice(0, 2).map((promo: any) => (
+                    <div key={promo.id} className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-lg p-3 mb-2">
+                      <h4 className="text-white font-medium text-sm">{promo.titulo}</h4>
+                      <p className="text-white/80 text-xs">{promo.descripcion}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-            {/* Recompensas */}
-            {config.recompensas.filter((r: any) => r.activo).length > 0 && (
-              <div className="mx-4 mb-3">
-                <h3 className="text-white font-semibold text-sm mb-2">Recompensas</h3>
-                <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg p-3">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Gift className="w-4 h-4 text-white" />
-                    <span className="text-white font-medium text-sm">Programa de Puntos</span>
-                  </div>
-                  <div className="flex overflow-x-auto space-x-2 pb-1">
-                    {config.recompensas.filter((r: any) => r.activo).slice(0, 3).map((recompensa: any) => (
-                      <div key={recompensa.id} className="bg-white/20 rounded-lg p-2 min-w-[120px]">
-                        <div className="text-white font-medium text-xs">{recompensa.nombre}</div>
-                        <div className="text-white font-bold text-xs">{recompensa.puntosRequeridos} pts</div>
-                      </div>
-                    ))}
+              {/* Recompensas */}
+              {config.recompensas.filter((r: any) => r.activo).length > 0 && (
+                <div className="mx-4 mb-3">
+                  <h3 className="text-white font-semibold text-sm mb-2">Recompensas</h3>
+                  <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg p-3">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Gift className="w-4 h-4 text-white" />
+                      <span className="text-white font-medium text-sm">Programa de Puntos</span>
+                    </div>
+                    <div className="flex overflow-x-auto space-x-2 pb-1">
+                      {config.recompensas.filter((r: any) => r.activo).slice(0, 3).map((recompensa: any) => (
+                        <div key={recompensa.id} className="bg-white/20 rounded-lg p-2 min-w-[120px]">
+                          <div className="text-white font-medium text-xs">{recompensa.nombre}</div>
+                          <div className="text-white font-bold text-xs">{recompensa.puntosRequeridos} pts</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
+              )}
+            </div>
+          ) : (
+            // Vista Previa del Portal del Cliente
+            <div className="bg-black text-white min-h-96 max-w-xs mx-auto rounded-xl overflow-hidden border border-dark-600">
+              {/* Header del portal del cliente */}
+              <div className="flex items-center justify-between p-4">
+                <div className="flex items-center space-x-2">
+                  {brandingConfig.logoUrl ? (
+                    <img 
+                      src={brandingConfig.logoUrl} 
+                      alt="Logo" 
+                      className="w-6 h-6 rounded object-cover"
+                    />
+                  ) : (
+                    <div className="w-6 h-6 bg-gradient-to-r from-yellow-400 to-orange-500 rounded flex items-center justify-center">
+                      <span className="text-black font-bold text-sm">⚡</span>
+                    </div>
+                  )}
+                  <span className="text-white font-bold text-lg">
+                    {brandingConfig.businessName || 'LEALTA'}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <button className="p-2 rounded-full hover:bg-gray-800 transition-colors">
+                    <Bell className="w-4 h-4 text-white" />
+                  </button>
+                  <button className="p-2 rounded-full hover:bg-gray-800 transition-colors">
+                    <User className="w-4 h-4 text-white" />
+                  </button>
+                </div>
               </div>
-            )}
-          </div>
+
+              {/* Hero Section */}
+              <div className="relative h-32 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-900 via-blue-900 to-indigo-900" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+                <div className="absolute inset-0 flex flex-col justify-center items-center text-center px-4">
+                  <h1 className="text-xl font-bold text-white mb-1">
+                    Descubre Nuestro Menú
+                  </h1>
+                  <p className="text-white/80 text-xs mb-3">Premium Digital</p>
+                  <button 
+                    className="text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 text-xs"
+                    style={{ backgroundColor: brandingConfig.primaryColor || '#2563EB' }}
+                  >
+                    <IdCard className="w-4 h-4" />
+                    <span>Acceder con Cédula</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Panel de Edición */}
       <div className="premium-card">
-        {activeTab === 'preview' && (
-          <div className="text-center py-8">
-            <Eye className="w-12 h-12 mx-auto mb-4 text-primary-500" />
-            <h4 className="text-lg font-semibold text-white mb-2">Vista Previa en Tiempo Real</h4>
-            <p className="text-dark-400 mb-4">
-              Esta vista muestra cómo verán los clientes tu portal. Los cambios se reflejan automáticamente.
-            </p>
-            <div className="bg-dark-800 rounded-lg p-4 text-left">
-              <h5 className="text-white font-medium mb-2">Elementos Activos:</h5>
-              <ul className="space-y-1 text-sm text-dark-300">
-                <li>• {config.banners.filter((b: any) => b.activo).length} Banners activos</li>
-                <li>• {config.promociones.filter((p: any) => p.activo).length} Promociones activas</li>
-                <li>• {config.favoritoDelDia?.activo ? '1' : '0'} Favorito del día activo</li>
-                <li>• {config.eventos.filter((e: any) => e.activo).length} Eventos activos</li>
-                <li>• {config.recompensas.filter((r: any) => r.activo).length} Recompensas activas</li>
-              </ul>
-            </div>
-          </div>
-        )}
+        {(() => {
+          if (activeTab === 'preview' && previewMode === 'login') {
+            // Configuración de Branding para Login
+            return (
+              <div>
+                <div className="flex items-center mb-6">
+                  <Building className="w-6 h-6 mr-2 text-primary-500" />
+                  <h4 className="text-lg font-semibold text-white">Branding del Portal Cliente</h4>
+                </div>
+                
+                <div className="space-y-6">
+                  {/* Nombre del Negocio */}
+                  <div>
+                    <label htmlFor="business-name" className="block text-sm font-medium text-white mb-2">
+                      Nombre del Negocio
+                    </label>
+                    <input
+                      type="text"
+                      id="business-name"
+                      value={brandingConfig.businessName}
+                      onChange={(e) => handleBrandingChange('businessName', e.target.value)}
+                      className="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded-lg text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      placeholder="LEALTA"
+                    />
+                    <p className="text-dark-400 text-xs mt-1">
+                      Aparece en la esquina superior izquierda del portal
+                    </p>
+                  </div>
+
+                  {/* Logo Upload */}
+                  <div>
+                    <label htmlFor="logo-upload" className="block text-sm font-medium text-white mb-2">
+                      Logo del Negocio
+                    </label>
+                    <div className="space-y-3">
+                      <input
+                        type="file"
+                        id="logo-upload"
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded-lg text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-600 file:text-white hover:file:bg-primary-700"
+                      />
+                      {brandingConfig.logoUrl && (
+                        <div className="flex items-center space-x-3">
+                          <img 
+                            src={brandingConfig.logoUrl} 
+                            alt="Logo preview" 
+                            className="w-16 h-16 object-cover rounded-lg border border-dark-600"
+                          />
+                          <button
+                            onClick={() => handleBrandingChange('logoUrl', '')}
+                            className="px-3 py-1 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-dark-400 text-xs mt-1">
+                      Reemplaza el ícono en la esquina superior izquierda
+                    </p>
+                  </div>
+
+                  {/* Color Primario */}
+                  <div>
+                    <label htmlFor="primary-color" className="block text-sm font-medium text-white mb-2">
+                      Color Primario
+                    </label>
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="color"
+                        id="primary-color"
+                        value={brandingConfig.primaryColor}
+                        onChange={(e) => handleBrandingChange('primaryColor', e.target.value)}
+                        className="w-12 h-10 rounded-lg border-2 border-dark-600 bg-dark-800"
+                      />
+                      <input
+                        type="text"
+                        value={brandingConfig.primaryColor}
+                        onChange={(e) => handleBrandingChange('primaryColor', e.target.value)}
+                        className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 rounded-lg text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        placeholder="#2563EB"
+                      />
+                    </div>
+                    <p className="text-dark-400 text-xs mt-1">
+                      Color del botón "Acceder con Cédula" y otros elementos
+                    </p>
+                  </div>
+
+                  {/* Vista previa de cambios */}
+                  <div className="bg-dark-800 rounded-lg p-4">
+                    <h5 className="text-white font-medium mb-2">Configuración Actual:</h5>
+                    <ul className="space-y-1 text-sm text-dark-300">
+                      <li>• Nombre: {brandingConfig.businessName || 'LEALTA (predeterminado)'}</li>
+                      <li>• Logo: {brandingConfig.logoUrl ? 'Configurado' : 'Ícono predeterminado'}</li>
+                      <li>• Color: {brandingConfig.primaryColor}</li>
+                    </ul>
+                  </div>
+
+                  {/* Botón de Actualizar */}
+                  <div className="pt-4 border-t border-dark-700 space-y-3">
+                    <button
+                      onClick={() => {
+                        // Forzar actualización guardando en localStorage
+                        localStorage.setItem('portalBranding', JSON.stringify(brandingConfig));
+                        
+                        // Enviar evento personalizado para notificar a otras pestañas
+                        window.dispatchEvent(new CustomEvent('brandingUpdated', { 
+                          detail: brandingConfig 
+                        }));
+                        
+                        // También usar storage event para otras pestañas
+                        localStorage.setItem('brandingTrigger', Date.now().toString());
+                        
+                        // Mostrar feedback visual
+                        const btn = document.activeElement as HTMLButtonElement;
+                        const originalText = btn?.textContent;
+                        if (btn) {
+                          btn.textContent = '✅ Actualizado - Recarga el portal cliente';
+                          btn.disabled = true;
+                          setTimeout(() => {
+                            btn.textContent = originalText;
+                            btn.disabled = false;
+                          }, 3000);
+                        }
+                      }}
+                      className="w-full bg-primary-600 hover:bg-primary-700 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>Actualizar Portal Cliente</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        // Guardar antes de abrir
+                        localStorage.setItem('portalBranding', JSON.stringify(brandingConfig));
+                        // Abrir portal del cliente en nueva pestaña
+                        window.open('/cliente', '_blank');
+                      }}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+                    >
+                      <Eye className="w-4 h-4" />
+                      <span>Ver Portal Cliente Real</span>
+                    </button>
+                    
+                    <p className="text-dark-400 text-xs text-center">
+                      Usa "Actualizar" para sincronizar cambios, luego "Ver Portal" para verificar en una nueva pestaña.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          } else if (activeTab === 'preview') {
+            // Vista previa normal del portal
+            return (
+              <div className="text-center py-8">
+                <Eye className="w-12 h-12 mx-auto mb-4 text-primary-500" />
+                <h4 className="text-lg font-semibold text-white mb-2">Vista Previa en Tiempo Real</h4>
+                <p className="text-dark-400 mb-4">
+                  Esta vista muestra cómo verán los clientes tu portal. Los cambios se reflejan automáticamente.
+                </p>
+                <div className="bg-dark-800 rounded-lg p-4 text-left">
+                  <h5 className="text-white font-medium mb-2">Elementos Activos:</h5>
+                  <ul className="space-y-1 text-sm text-dark-300">
+                    <li>• {config.banners.filter((b: any) => b.activo).length} Banners activos</li>
+                    <li>• {config.promociones.filter((p: any) => p.activo).length} Promociones activas</li>
+                    <li>• {config.favoritoDelDia?.activo ? '1' : '0'} Favorito del día activo</li>
+                    <li>• {config.eventos.filter((e: any) => e.activo).length} Eventos activos</li>
+                    <li>• {config.recompensas.filter((r: any) => r.activo).length} Recompensas activas</li>
+                  </ul>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
 
         {activeTab === 'banners' && (
           <BannersManager 

@@ -7,8 +7,6 @@ import {
   User, 
   UtensilsCrossed, 
   Coffee, 
-  Wine, 
-  Cake, 
   IdCard, 
   UserPlus, 
   ArrowRight,
@@ -31,6 +29,14 @@ export default function ClientePortalPage() {
   const [error, setError] = useState('');
   const [clienteData, setClienteData] = useState<any>(null);
   
+  // Estados del branding (se pueden cargar desde el admin o localStorage)
+  const [brandingConfig, setBrandingConfig] = useState({
+    businessName: 'LEALTA',
+    logoUrl: '',
+    primaryColor: '#2563EB'
+  });
+  const [brandingLoaded, setBrandingLoaded] = useState(false);
+  
   // Estados del menú drawer
   const [isMenuDrawerOpen, setIsMenuDrawerOpen] = useState(false);
   const [activeMenuSection, setActiveMenuSection] = useState<'categories' | 'products'>('categories');
@@ -43,6 +49,67 @@ export default function ClientePortalPage() {
   // Estados del buscador
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
+
+  // Cargar branding desde la API al montar el componente
+  useEffect(() => {
+    const loadBranding = async () => {
+      try {
+        const response = await fetch('/api/branding', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          cache: 'no-cache'
+        });
+        
+        if (response.ok) {
+          const branding = await response.json();
+          setBrandingConfig(branding);
+          // También guardar en localStorage como backup
+          localStorage.setItem('portalBranding', JSON.stringify(branding));
+        } else {
+          // Fallback a localStorage
+          const savedBranding = localStorage.getItem('portalBranding');
+          if (savedBranding) {
+            const parsed = JSON.parse(savedBranding);
+            setBrandingConfig(parsed);
+          }
+        }
+      } catch (error) {
+        // Fallback a localStorage
+        const savedBranding = localStorage.getItem('portalBranding');
+        if (savedBranding) {
+          try {
+            const parsed = JSON.parse(savedBranding);
+            setBrandingConfig(parsed);
+          } catch (parseError) {
+            // Error silencioso, mantener configuración por defecto
+          }
+        }
+      }
+      setBrandingLoaded(true);
+    };
+
+    // Cargar al inicio
+    loadBranding();
+
+    // Polling cada 2 segundos para detectar cambios más rápido
+    const interval = setInterval(loadBranding, 2000);
+
+    // Escuchar cambios de localStorage (backup)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'portalBranding' || e.key === 'brandingTrigger') {
+        loadBranding();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
   const handleCedulaSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -387,10 +454,18 @@ export default function ClientePortalPage() {
       {/* Header */}
       <header className="flex items-center justify-between p-4 relative z-10">
         <div className="flex items-center space-x-2">
-          <div className="w-6 h-6 bg-gradient-to-r from-yellow-400 to-orange-500 rounded flex items-center justify-center">
-            <span className="text-black font-bold text-sm">⚡</span>
-          </div>
-          <span className="text-white font-bold text-lg">LEALTA</span>
+          {brandingConfig.logoUrl ? (
+            <img 
+              src={brandingConfig.logoUrl} 
+              alt="Logo" 
+              className="w-6 h-6 rounded object-cover"
+            />
+          ) : (
+            <div className="w-6 h-6 bg-gradient-to-r from-yellow-400 to-orange-500 rounded flex items-center justify-center">
+              <span className="text-black font-bold text-sm">⚡</span>
+            </div>
+          )}
+          <span className="text-white font-bold text-lg">{brandingConfig.businessName}</span>
         </div>
         <div className="flex items-center space-x-3">
           <button className="p-2 rounded-full hover:bg-gray-800 transition-colors">
@@ -430,7 +505,15 @@ export default function ClientePortalPage() {
           </motion.p>
           <motion.button 
             onClick={() => setStep('cedula')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center space-x-2"
+            className="text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center space-x-2"
+            style={{ 
+              backgroundColor: brandingConfig.primaryColor,
+              boxShadow: `0 4px 14px 0 ${brandingConfig.primaryColor}33`
+            }}
+            whileHover={{ 
+              filter: 'brightness(1.1)',
+              scale: 1.02 
+            }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
@@ -439,37 +522,6 @@ export default function ClientePortalPage() {
             <span>Acceder con Cédula</span>
           </motion.button>
         </div>
-      </div>
-
-      {/* Categories Section */}
-      <div className="p-6">
-        <motion.div 
-          className="grid grid-cols-4 gap-4 mb-8"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.6 }}
-        >
-          <CategoryCard 
-            icon={<UtensilsCrossed className="w-6 h-6" />}
-            label="Enter"
-            color="bg-green-600"
-          />
-          <CategoryCard 
-            icon={<Coffee className="w-6 h-6" />}
-            label="Princ"
-            color="bg-red-600"
-          />
-          <CategoryCard 
-            icon={<Wine className="w-6 h-6" />}
-            label="Bebid"
-            color="bg-yellow-600"
-          />
-          <CategoryCard 
-            icon={<Cake className="w-6 h-6" />}
-            label="Post"
-            color="bg-orange-600"
-          />
-        </motion.div>
       </div>
     </div>
   );
@@ -484,10 +536,18 @@ export default function ClientePortalPage() {
       >
         <div className="text-center mb-8">
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded flex items-center justify-center">
-              <span className="text-black font-bold text-sm">⚡</span>
-            </div>
-            <span className="text-white font-bold text-xl">LEALTA</span>
+            {brandingConfig.logoUrl ? (
+              <img 
+                src={brandingConfig.logoUrl} 
+                alt="Logo" 
+                className="w-8 h-8 rounded object-cover"
+              />
+            ) : (
+              <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded flex items-center justify-center">
+                <span className="text-black font-bold text-sm">⚡</span>
+              </div>
+            )}
+            <span className="text-white font-bold text-xl">{brandingConfig.businessName}</span>
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">Bienvenido</h2>
           <p className="text-gray-400">Ingrese su cédula para continuar</p>
@@ -503,7 +563,18 @@ export default function ClientePortalPage() {
               type="text"
               value={cedula}
               onChange={(e) => setCedula(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+              className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none transition-colors"
+              style={{
+                '--focus-color': brandingConfig.primaryColor,
+              } as React.CSSProperties}
+              onFocus={(e) => {
+                e.target.style.borderColor = brandingConfig.primaryColor;
+                e.target.style.boxShadow = `0 0 0 3px ${brandingConfig.primaryColor}33`;
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#374151';
+                e.target.style.boxShadow = 'none';
+              }}
               placeholder="Ej: 12345678"
               disabled={isLoading}
             />
@@ -518,7 +589,11 @@ export default function ClientePortalPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+            className="w-full disabled:bg-gray-600 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+            style={{ 
+              backgroundColor: isLoading ? '#4B5563' : brandingConfig.primaryColor,
+              boxShadow: isLoading ? 'none' : `0 4px 14px 0 ${brandingConfig.primaryColor}33`
+            }}
           >
             {isLoading ? (
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -551,7 +626,21 @@ export default function ClientePortalPage() {
         transition={{ duration: 0.6 }}
       >
         <div className="text-center mb-8">
-          <UserPlus className="w-12 h-12 text-blue-500 mx-auto mb-4" />
+          <div className="flex items-center justify-center space-x-2 mb-4">
+            {brandingConfig.logoUrl ? (
+              <img 
+                src={brandingConfig.logoUrl} 
+                alt="Logo" 
+                className="w-8 h-8 rounded object-cover"
+              />
+            ) : (
+              <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded flex items-center justify-center">
+                <span className="text-black font-bold text-sm">⚡</span>
+              </div>
+            )}
+            <span className="text-white font-bold text-xl">{brandingConfig.businessName}</span>
+          </div>
+          <UserPlus className="w-8 h-8 mx-auto mb-3" style={{ color: brandingConfig.primaryColor }} />
           <h2 className="text-2xl font-bold text-white mb-2">Registro</h2>
           <p className="text-gray-400">Complete sus datos para crear su cuenta</p>
         </div>
@@ -624,7 +713,11 @@ export default function ClientePortalPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+            className="w-full disabled:bg-gray-600 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+            style={{ 
+              backgroundColor: isLoading ? '#4B5563' : brandingConfig.primaryColor,
+              boxShadow: isLoading ? 'none' : `0 4px 14px 0 ${brandingConfig.primaryColor}33`
+            }}
           >
             {isLoading ? (
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
