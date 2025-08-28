@@ -14,8 +14,8 @@ export async function GET() {
       // Valores por defecto
       const defaultBranding = {
         businessName: 'LEALTA',
-        logoUrl: '',
-        primaryColor: '#2563EB'
+        primaryColor: '#2563EB',
+        carouselImages: []
       };
       return NextResponse.json(defaultBranding);
     }
@@ -38,6 +38,11 @@ export async function POST(request: NextRequest) {
         { error: 'Missing required fields' },
         { status: 400 }
       );
+    }
+
+    // Asegurar que carouselImages existe como array
+    if (!branding.carouselImages) {
+      branding.carouselImages = [];
     }
 
     // Guardar en archivo

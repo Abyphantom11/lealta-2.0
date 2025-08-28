@@ -120,3 +120,45 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
+
+// DELETE - Eliminar categoría
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: 'ID de la categoría es requerido' },
+        { status: 400 }
+      );
+    }
+
+    // Primero eliminar todos los productos asociados a esta categoría
+    await prisma.menuProduct.deleteMany({
+      where: { categoryId: id }
+    });
+
+    // Luego eliminar las subcategorías
+    await prisma.menuCategory.deleteMany({
+      where: { parentId: id }
+    });
+
+    // Finalmente eliminar la categoría principal
+    await prisma.menuCategory.delete({
+      where: { id }
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Categoría eliminada correctamente'
+    });
+
+  } catch (error) {
+    console.error('Error eliminando categoría:', error);
+    return NextResponse.json(
+      { error: 'Error interno del servidor' },
+      { status: 500 }
+    );
+  }
+}

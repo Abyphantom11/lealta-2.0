@@ -29,9 +29,10 @@ import {
   Save,
   Coffee,
   Building,
-  Bell,
-  User,
-  IdCard
+  IdCard,
+  CheckCircle,
+  AlertTriangle,
+  Info
 } from 'lucide-react';
 
 // Hook personalizado para manejar carga de archivos
@@ -462,11 +463,47 @@ function MenuContent() {
   const [products, setProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
+  // Estados para notificaciones elegantes
+  const [notification, setNotification] = useState<{
+    type: 'success' | 'error' | 'warning' | 'info';
+    message: string;
+    show: boolean;
+  }>({
+    type: 'success',
+    message: '',
+    show: false
+  });
+  
   // Estados para modales
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState<any>(null);
   const [editingProduct, setEditingProduct] = useState<any>(null);
+
+  // Función para mostrar notificaciones elegantes
+  const showNotification = (type: 'success' | 'error' | 'warning' | 'info', message: string) => {
+    setNotification({ type, message, show: true });
+    setTimeout(() => {
+      setNotification(prev => ({ ...prev, show: false }));
+    }, 4000);
+  };
+
+  // Estado para modal de confirmación
+  const [confirmModal, setConfirmModal] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText: string;
+    type: 'danger' | 'warning';
+  }>({
+    show: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    confirmText: 'Confirmar',
+    type: 'danger'
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -542,6 +579,108 @@ function MenuContent() {
     }
   };
 
+  // Función para eliminar categoría
+  // Helper para filtrar productos después de eliminar categoría
+  const filterProductsAfterCategoryDelete = (products: any[], categoryIdToDelete: string) => {
+    return products.filter((p: any) => {
+      const category = categories.find(c => c.id === p.categoryId);
+      const isFromDeletedCategory = category?.id === categoryIdToDelete;
+      const isFromDeletedSubcategory = category?.parentId === categoryIdToDelete;
+      return !isFromDeletedCategory && !isFromDeletedSubcategory;
+    });
+  };
+
+  // Función separada para ejecutar eliminación de categoría
+  const executeDeleteCategory = async (categoryId: string) => {
+    try {
+      setIsLoading(true);
+      
+      const response = await fetch(`/api/admin/menu?id=${encodeURIComponent(categoryId)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.ok) {
+        setCategories(prev => prev.filter((c: any) => c.id !== categoryId));
+        // También eliminar productos de esta categoría y subcategorías
+        setProducts(prev => filterProductsAfterCategoryDelete(prev, categoryId));
+        showNotification('success', 'Categoría eliminada exitosamente');
+      } else {
+        const errorData = await response.json();
+        showNotification('error', `Error eliminando categoría: ${errorData.error || 'Error desconocido'}`);
+      }
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      showNotification('error', 'Error de conexión al eliminar categoría');
+    } finally {
+      setIsLoading(false);
+      setConfirmModal(prev => ({ ...prev, show: false }));
+    }
+  };
+
+  const deleteCategory = async (categoryId: string) => {
+    if (!categoryId) {
+      showNotification('error', 'ID de la categoría no válido');
+      return;
+    }
+
+    setConfirmModal({
+      show: true,
+      title: 'Eliminar Categoría',
+      message: '¿Estás seguro de que quieres eliminar esta categoría? Esta acción eliminará también todos los productos y subcategorías asociados y no se puede deshacer.',
+      confirmText: 'Eliminar',
+      type: 'danger',
+      onConfirm: () => {
+        executeDeleteCategory(categoryId);
+      }
+    });
+  };
+
+  // Función separada para ejecutar eliminación de producto
+  const executeDeleteProduct = async (productId: string) => {
+    try {
+      setIsLoading(true);
+      
+      const response = await fetch(`/api/admin/menu/productos?id=${encodeURIComponent(productId)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.ok) {
+        setProducts(prev => prev.filter((p: any) => p.id !== productId));
+        showNotification('success', 'Producto eliminado exitosamente');
+      } else {
+        const errorData = await response.json();
+        showNotification('error', `Error eliminando producto: ${errorData.error || 'Error desconocido'}`);
+      }
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      showNotification('error', 'Error de conexión al eliminar producto');
+    } finally {
+      setIsLoading(false);
+      setConfirmModal(prev => ({ ...prev, show: false }));
+    }
+  };
+
+  // Función para eliminar producto
+  const deleteProduct = async (productId: string) => {
+    if (!productId) {
+      showNotification('error', 'ID del producto no válido');
+      return;
+    }
+
+    setConfirmModal({
+      show: true,
+      title: 'Eliminar Producto',
+      message: '¿Estás seguro de que quieres eliminar este producto? Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+      type: 'danger',
+      onConfirm: () => {
+        executeDeleteProduct(productId);
+      }
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -552,6 +691,14 @@ function MenuContent() {
       </div>
     );
   }
+
+  // Helper para obtener estilo de notificación
+  const getNotificationClass = (type: string) => {
+    if (type === 'success') return 'bg-green-600';
+    if (type === 'error') return 'bg-red-600';
+    if (type === 'warning') return 'bg-yellow-600';
+    return 'bg-blue-600';
+  };
 
   return (
     <div className="space-y-6">
@@ -659,7 +806,9 @@ function MenuContent() {
                           className="text-primary-400 hover:text-primary-300 p-2 rounded-md hover:bg-primary-500/10">
                           <Edit3 className="w-4 h-4" />
                         </button>
-                        <button className="text-red-400 hover:text-red-300 p-2 rounded-md hover:bg-red-500/10">
+                        <button 
+                          onClick={() => deleteCategory(category.id)}
+                          className="text-red-400 hover:text-red-300 p-2 rounded-md hover:bg-red-500/10">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -704,7 +853,9 @@ function MenuContent() {
                                 className="text-primary-400 hover:text-primary-300 p-2 rounded-md hover:bg-primary-500/10">
                                 <Edit3 className="w-4 h-4" />
                               </button>
-                              <button className="text-red-400 hover:text-red-300 p-2 rounded-md hover:bg-red-500/10">
+                              <button 
+                                onClick={() => deleteCategory(subcategory.id)}
+                                className="text-red-400 hover:text-red-300 p-2 rounded-md hover:bg-red-500/10">
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
@@ -806,7 +957,9 @@ function MenuContent() {
                           className="text-primary-400 hover:bg-primary-500/10 p-1 rounded">
                           <Edit3 className="w-4 h-4" />
                         </button>
-                        <button className="text-red-400 hover:bg-red-500/10 p-1 rounded">
+                        <button 
+                          onClick={() => deleteProduct(product.id)}
+                          className="text-red-400 hover:bg-red-500/10 p-1 rounded">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -855,6 +1008,7 @@ function MenuContent() {
               if (response.ok) {
                 setShowCategoryModal(false);
                 setEditingCategory(null);
+                showNotification('success', editingCategory ? 'Categoría actualizada exitosamente' : 'Categoría creada exitosamente');
                 
                 // Refrescar categorías
                 const categoriesResponse = await fetch('/api/admin/menu?businessId=business_1');
@@ -863,10 +1017,12 @@ function MenuContent() {
                   setCategories(categoriesData.menu || []);
                 }
               } else {
-                console.error('Error saving category');
+                const errorData = await response.json();
+                showNotification('error', `Error guardando categoría: ${errorData.error || 'Error desconocido'}`);
               }
             } catch (error) {
               console.error('Error:', error);
+              showNotification('error', 'Error de conexión al guardar categoría');
             } finally {
               setIsLoading(false);
             }
@@ -895,7 +1051,7 @@ function MenuContent() {
               );
               
               if (existingProduct) {
-                alert('Ya existe un producto con ese nombre en esta categoría. Por favor elige otro nombre.');
+                showNotification('warning', 'Ya existe un producto con ese nombre en esta categoría. Por favor elige otro nombre.');
                 setIsLoading(false);
                 return;
               }
@@ -914,6 +1070,7 @@ function MenuContent() {
               if (response.ok) {
                 setShowProductModal(false);
                 setEditingProduct(null);
+                showNotification('success', editingProduct ? 'Producto actualizado exitosamente' : 'Producto creado exitosamente');
                 
                 // Refrescar productos
                 const productsResponse = await fetch('/api/admin/menu/productos?businessId=business_1');
@@ -925,11 +1082,11 @@ function MenuContent() {
                 }
               } else {
                 const errorData = await response.json();
-                alert(`Error guardando producto: ${errorData.error || 'Error desconocido'}`);
+                showNotification('error', `Error guardando producto: ${errorData.error || 'Error desconocido'}`);
               }
             } catch (error) {
               console.error('Error:', error);
-              alert('Error de conexión al guardar el producto');
+              showNotification('error', 'Error de conexión al guardar el producto');
             } finally {
               setIsLoading(false);
             }
@@ -939,6 +1096,63 @@ function MenuContent() {
             setEditingProduct(null);
           }}
         />
+      )}
+
+      {/* Notificación elegante */}
+      {notification.show && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transform transition-all duration-300 ${getNotificationClass(notification.type)}`}>
+          <div className="flex items-center space-x-3">
+            <div className="flex-shrink-0">
+              {notification.type === 'success' && <CheckCircle className="w-5 h-5 text-white" />}
+              {notification.type === 'error' && <X className="w-5 h-5 text-white" />}
+              {notification.type === 'warning' && <AlertTriangle className="w-5 h-5 text-white" />}
+              {notification.type === 'info' && <Info className="w-5 h-5 text-white" />}
+            </div>
+            <p className="text-white text-sm font-medium">{notification.message}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación elegante */}
+      {confirmModal.show && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md mx-4 border border-gray-700">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                confirmModal.type === 'danger' ? 'bg-red-600/20' : 'bg-yellow-600/20'
+              }`}>
+                {confirmModal.type === 'danger' ? 
+                  <Trash2 className="w-5 h-5 text-red-400" /> : 
+                  <AlertTriangle className="w-5 h-5 text-yellow-400" />
+                }
+              </div>
+              <h3 className="text-lg font-semibold text-white">{confirmModal.title}</h3>
+            </div>
+            
+            <p className="text-gray-300 text-sm mb-6 leading-relaxed">
+              {confirmModal.message}
+            </p>
+            
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setConfirmModal(prev => ({ ...prev, show: false }))}
+                className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmModal.onConfirm}
+                className={`flex-1 px-4 py-2 text-white rounded-lg transition-colors font-medium ${
+                  confirmModal.type === 'danger' 
+                    ? 'bg-red-600 hover:bg-red-700' 
+                    : 'bg-yellow-600 hover:bg-yellow-700'
+                }`}
+              >
+                {confirmModal.confirmText}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -1115,7 +1329,6 @@ function CategoryModal({ category, onSave, onClose }: Readonly<{
 }>) {
   const [formData, setFormData] = useState({
     nombre: category?.nombre || '',
-    descripcion: category?.descripcion || '',
     orden: category?.orden || 0,
     activo: category?.activo ?? true,
     icono: category?.icono || '',
@@ -1190,19 +1403,6 @@ function CategoryModal({ category, onSave, onClose }: Readonly<{
               onChange={(e) => setFormData(prev => ({ ...prev, nombre: e.target.value }))}
               className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
               required
-            />
-          </div>
-
-          <div>
-            <label htmlFor="category-descripcion" className="block text-sm font-medium text-dark-300 mb-2">
-              Descripción
-            </label>
-            <textarea
-              id="category-descripcion"
-              value={formData.descripcion}
-              onChange={(e) => setFormData(prev => ({ ...prev, descripcion: e.target.value }))}
-              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
-              rows={3}
             />
           </div>
 
@@ -1417,7 +1617,7 @@ function ProductModal({ product, categories, onSave, onClose }: Readonly<{
                   reader.readAsDataURL(file);
                 }
               }}
-              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-600 file:text-white hover:file:bg-primary-700"
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-primary-600 file:text-white hover:file:bg-primary-700"
             />
             {formData.imagenUrl && (
               <div className="mt-2">
@@ -1484,8 +1684,12 @@ function PortalContent() {
   const [previewMode, setPreviewMode] = useState<'portal' | 'login'>('portal'); // Estado para cambiar entre Portal y Login
   const [brandingConfig, setBrandingConfig] = useState<any>({ // Configuración de branding para el login
     businessName: 'Mi Empresa',
-    logoUrl: '',
-    primaryColor: '#3B82F6'
+    primaryColor: '#3B82F6',
+    carouselImages: [ // Imágenes del carrusel (máximo 6)
+      'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=250&fit=crop',
+      'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&h=250&fit=crop',
+      'https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=250&fit=crop'
+    ]
   });
   const [config, setConfig] = useState<any>({
     banners: [],
@@ -1588,48 +1792,7 @@ function PortalContent() {
     }
   };
 
-  // Funciones para manejar el branding del login
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const newConfig = {
-          ...brandingConfig,
-          logoUrl: e.target?.result as string
-        };
-        
-        setBrandingConfig(newConfig);
-        
-        try {
-          // Guardar en la API
-          
-          const response = await fetch('/api/branding', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(newConfig),
-          });
-          
-          if (response.ok) {
-            
-            // También guardar en localStorage como backup
-            localStorage.setItem('portalBranding', JSON.stringify(newConfig));
-          } else {
-            console.error('Admin: Error guardando logo en API');
-          }
-        } catch (error) {
-          console.error('Admin: Error conectando con API:', error);
-          // Fallback a localStorage
-          localStorage.setItem('portalBranding', JSON.stringify(newConfig));
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleBrandingChange = async (field: string, value: string) => {
+  const handleBrandingChange = async (field: string, value: string | string[]) => {
     const newConfig = {
       ...brandingConfig,
       [field]: value
@@ -1639,7 +1802,6 @@ function PortalContent() {
     
     try {
       // Guardar en la API (funcionará entre diferentes dominios/puertos)
-      
       const response = await fetch('/api/branding', {
         method: 'POST',
         headers: {
@@ -1649,17 +1811,69 @@ function PortalContent() {
       });
       
       if (response.ok) {
+        // Crear una versión reducida para localStorage (sin imágenes base64)
+        const lightConfig = {
+          ...newConfig,
+          carouselImages: newConfig.carouselImages?.length || 0 // Solo guardar la cantidad
+        };
         
-        // También guardar en localStorage como backup
-        localStorage.setItem('portalBranding', JSON.stringify(newConfig));
+        try {
+          localStorage.setItem('portalBranding', JSON.stringify(lightConfig));
+        } catch (storageError) {
+          console.warn('localStorage lleno, limpiando datos antiguos:', storageError);
+          // Limpiar localStorage y guardar solo lo esencial
+          localStorage.removeItem('portalBranding');
+          localStorage.setItem('portalBranding', JSON.stringify({
+            businessName: newConfig.businessName,
+            primaryColor: newConfig.primaryColor,
+            carouselImages: [] // No guardar imágenes en localStorage
+          }));
+        }
       } else {
         console.error('Admin: Error guardando branding en API');
       }
     } catch (error) {
       console.error('Admin: Error conectando con API:', error);
-      // Fallback a localStorage
-      localStorage.setItem('portalBranding', JSON.stringify(newConfig));
+      // En caso de error de API, guardar solo datos básicos en localStorage
+      try {
+        const basicConfig = {
+          businessName: newConfig.businessName,
+          primaryColor: newConfig.primaryColor,
+          carouselImages: [] // No guardar imágenes pesadas en localStorage
+        };
+        localStorage.setItem('portalBranding', JSON.stringify(basicConfig));
+      } catch (storageError) {
+        console.warn('No se pudo guardar en localStorage, espacio insuficiente:', storageError);
+      }
     }
+  };
+
+  // Funciones para manejar las imágenes del carrusel
+  const handleCarouselImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const imageUrl = e.target?.result as string;
+        const currentImages = brandingConfig.carouselImages || [];
+        
+        // Verificar que no exceda el límite de 6 imágenes
+        if (currentImages.length >= 6) {
+          alert('Máximo 6 imágenes permitidas');
+          return;
+        }
+        
+        const newImages = [...currentImages, imageUrl];
+        await handleBrandingChange('carouselImages', newImages);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveCarouselImage = async (index: number) => {
+    const currentImages = brandingConfig.carouselImages || [];
+    const newImages = currentImages.filter((_: string, i: number) => i !== index);
+    await handleBrandingChange('carouselImages', newImages);
   };
 
   // Cargar branding desde la API al montar el componente
@@ -1670,15 +1884,27 @@ function PortalContent() {
         if (response.ok) {
           const branding = await response.json();
           setBrandingConfig(branding);
-          // También guardar en localStorage como backup
-          localStorage.setItem('portalBranding', JSON.stringify(branding));
+          // Guardar versión ligera en localStorage
+          try {
+            const lightConfig = {
+              ...branding,
+              carouselImages: branding.carouselImages?.length || 0 // Solo guardar la cantidad
+            };
+            localStorage.setItem('portalBranding', JSON.stringify(lightConfig));
+          } catch (storageError) {
+            console.warn('No se pudo guardar en localStorage:', storageError);
+          }
         } else {
           console.error('Admin: Error cargando branding desde API');
-          // Fallback a localStorage
+          // Fallback a localStorage (datos básicos solamente)
           const savedBranding = localStorage.getItem('portalBranding');
           if (savedBranding) {
             const parsed = JSON.parse(savedBranding);
-            setBrandingConfig(parsed);
+            // Si localStorage solo tiene datos básicos, usar valores por defecto para imágenes
+            setBrandingConfig({
+              ...parsed,
+              carouselImages: parsed.carouselImages || []
+            });
           }
         }
       } catch (error) {
@@ -1688,7 +1914,10 @@ function PortalContent() {
         if (savedBranding) {
           try {
             const parsed = JSON.parse(savedBranding);
-            setBrandingConfig(parsed);
+            setBrandingConfig({
+              ...parsed,
+              carouselImages: parsed.carouselImages || []
+            });
           } catch (parseError) {
             console.error('Admin: Error parsing localStorage:', parseError);
           }
@@ -1767,15 +1996,27 @@ function PortalContent() {
         setPreviewMode={setPreviewMode}
         brandingConfig={brandingConfig}
         setBrandingConfig={setBrandingConfig}
-        handleLogoUpload={handleLogoUpload}
         handleBrandingChange={handleBrandingChange}
+        handleCarouselImageUpload={handleCarouselImageUpload}
+        handleRemoveCarouselImage={handleRemoveCarouselImage}
       />
     </div>
   );
 }
 
 // Componente principal que maneja el contenido del portal según la pestaña activa
-function PortalContentManager({ activeTab, config, setConfig, previewMode, setPreviewMode, brandingConfig, setBrandingConfig, handleLogoUpload, handleBrandingChange }: any) {
+function PortalContentManager({ 
+  activeTab, 
+  config, 
+  setConfig, 
+  previewMode, 
+  setPreviewMode, 
+  brandingConfig, 
+  setBrandingConfig, 
+  handleBrandingChange,
+  handleCarouselImageUpload,
+  handleRemoveCarouselImage 
+}: any) {
   const addItem = (type: string, item: any) => {
     const newItem = {
       ...item,
@@ -1948,47 +2189,49 @@ function PortalContentManager({ activeTab, config, setConfig, previewMode, setPr
             // Vista Previa del Portal del Cliente
             <div className="bg-black text-white min-h-96 max-w-xs mx-auto rounded-xl overflow-hidden border border-dark-600">
               {/* Header del portal del cliente */}
-              <div className="flex items-center justify-between p-4">
-                <div className="flex items-center space-x-2">
-                  {brandingConfig.logoUrl ? (
-                    <img 
-                      src={brandingConfig.logoUrl} 
-                      alt="Logo" 
-                      className="w-6 h-6 rounded object-cover"
-                    />
-                  ) : (
-                    <div className="w-6 h-6 bg-gradient-to-r from-yellow-400 to-orange-500 rounded flex items-center justify-center">
-                      <span className="text-black font-bold text-sm">⚡</span>
-                    </div>
-                  )}
-                  <span className="text-white font-bold text-lg">
-                    {brandingConfig.businessName || 'LEALTA'}
-                  </span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <button className="p-2 rounded-full hover:bg-gray-800 transition-colors">
-                    <Bell className="w-4 h-4 text-white" />
-                  </button>
-                  <button className="p-2 rounded-full hover:bg-gray-800 transition-colors">
-                    <User className="w-4 h-4 text-white" />
-                  </button>
-                </div>
+              <div className="flex items-center justify-center p-4">
+                <span className="text-white font-bold text-lg">
+                  {brandingConfig.businessName || 'LEALTA'}
+                </span>
               </div>
 
               {/* Hero Section */}
-              <div className="relative h-32 overflow-hidden">
+              <div className="relative h-40 overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-purple-900 via-blue-900 to-indigo-900" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
                 <div className="absolute inset-0 flex flex-col justify-center items-center text-center px-4">
-                  <h1 className="text-xl font-bold text-white mb-1">
+                  <h1 className="text-lg font-bold text-white mb-2">
                     Descubre Nuestro Menú
                   </h1>
-                  <p className="text-white/80 text-xs mb-3">Premium Digital</p>
+                  
+                  {/* Carrusel de imágenes - Vista previa (primeros 3) */}
+                  {brandingConfig.carouselImages?.length > 0 && (
+                    <div className="mb-3">
+                      <div className="flex space-x-1 justify-center">
+                        {brandingConfig.carouselImages.slice(0, 3).map((image: string, index: number) => (
+                          <div key={`carousel-preview-${index}-${image.substring(0, 10)}`} className="w-16 h-10 relative overflow-hidden rounded">
+                            <img 
+                              src={image} 
+                              alt={`Carrusel ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ))}
+                        {brandingConfig.carouselImages.length > 3 && (
+                          <div className="w-16 h-10 bg-black/70 rounded flex items-center justify-center">
+                            <span className="text-white text-xs">+{brandingConfig.carouselImages.length - 3}</span>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-white/60 text-xs mt-1 text-center">Carrusel de Imágenes</p>
+                    </div>
+                  )}
+                  
                   <button 
-                    className="text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 text-xs"
+                    className="text-white px-3 py-1 rounded-lg font-medium transition-colors flex items-center space-x-1 text-xs"
                     style={{ backgroundColor: brandingConfig.primaryColor || '#2563EB' }}
                   >
-                    <IdCard className="w-4 h-4" />
+                    <IdCard className="w-3 h-3" />
                     <span>Acceder con Cédula</span>
                   </button>
                 </div>
@@ -2029,38 +2272,72 @@ function PortalContentManager({ activeTab, config, setConfig, previewMode, setPr
                     </p>
                   </div>
 
-                  {/* Logo Upload */}
+                  {/* Imágenes del Carrusel */}
                   <div>
-                    <label htmlFor="logo-upload" className="block text-sm font-medium text-white mb-2">
-                      Logo del Negocio
-                    </label>
-                    <div className="space-y-3">
-                      <input
-                        type="file"
-                        id="logo-upload"
-                        accept="image/*"
-                        onChange={handleLogoUpload}
-                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded-lg text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-600 file:text-white hover:file:bg-primary-700"
-                      />
-                      {brandingConfig.logoUrl && (
-                        <div className="flex items-center space-x-3">
-                          <img 
-                            src={brandingConfig.logoUrl} 
-                            alt="Logo preview" 
-                            className="w-16 h-16 object-cover rounded-lg border border-dark-600"
-                          />
+                    <div className="block text-sm font-medium text-white mb-2">
+                      Imágenes del Carrusel (máx. 6)
+                    </div>
+                    <div className="space-y-4">
+                      {/* Grid de imágenes actuales */}
+                      <div className="grid grid-cols-2 gap-3">
+                        {brandingConfig.carouselImages?.map((imageUrl: string, index: number) => (
+                          <div key={`carousel-${index}-${imageUrl.substring(0, 20)}`} className="relative group">
+                            <img 
+                              src={imageUrl} 
+                              alt={`Carrusel ${index + 1}`}
+                              className="w-full h-24 object-cover rounded-lg border border-dark-600"
+                            />
+                            <button
+                              onClick={() => handleRemoveCarouselImage(index)}
+                              className="absolute top-1 right-1 p-1 bg-red-600 text-white text-xs rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              ×
+                            </button>
+                            <div className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-1 rounded">
+                              {index + 1}
+                            </div>
+                          </div>
+                        ))}
+                        
+                        {/* Botón para agregar nueva imagen */}
+                        {(!brandingConfig.carouselImages || brandingConfig.carouselImages.length < 6) && (
+                          <div className="relative">
+                            <input
+                              type="file"
+                              id={`carousel-upload`}
+                              accept="image/*"
+                              onChange={handleCarouselImageUpload}
+                              className="absolute inset-0 opacity-0 cursor-pointer"
+                            />
+                            <div className="w-full h-24 border-2 border-dashed border-dark-600 rounded-lg flex flex-col items-center justify-center text-dark-400 hover:border-primary-500 hover:text-primary-400 transition-colors cursor-pointer">
+                              <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                              <span className="text-xs">Agregar</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Información y controles */}
+                      <div className="bg-dark-800 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-white text-sm font-medium">
+                            {brandingConfig.carouselImages?.length || 0} / 6 imágenes
+                          </span>
                           <button
-                            onClick={() => handleBrandingChange('logoUrl', '')}
-                            className="px-3 py-1 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700"
+                            onClick={() => handleBrandingChange('carouselImages', [])}
+                            className="text-red-400 hover:text-red-300 text-xs"
+                            disabled={!brandingConfig.carouselImages?.length}
                           >
-                            Eliminar
+                            Limpiar todo
                           </button>
                         </div>
-                      )}
+                        <p className="text-dark-400 text-xs">
+                          Las imágenes aparecen en el carrusel del login con rotación automática cada 6 segundos
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-dark-400 text-xs mt-1">
-                      Reemplaza el ícono en la esquina superior izquierda
-                    </p>
                   </div>
 
                   {/* Color Primario */}
@@ -2094,7 +2371,7 @@ function PortalContentManager({ activeTab, config, setConfig, previewMode, setPr
                     <h5 className="text-white font-medium mb-2">Configuración Actual:</h5>
                     <ul className="space-y-1 text-sm text-dark-300">
                       <li>• Nombre: {brandingConfig.businessName || 'LEALTA (predeterminado)'}</li>
-                      <li>• Logo: {brandingConfig.logoUrl ? 'Configurado' : 'Ícono predeterminado'}</li>
+                      <li>• Carrusel: {brandingConfig.carouselImages?.length || 0} imágenes configuradas</li>
                       <li>• Color: {brandingConfig.primaryColor}</li>
                     </ul>
                   </div>
@@ -2103,13 +2380,36 @@ function PortalContentManager({ activeTab, config, setConfig, previewMode, setPr
                   <div className="pt-4 border-t border-dark-700 space-y-3">
                     <button
                       onClick={() => {
-                        // Forzar actualización guardando en localStorage
-                        localStorage.setItem('portalBranding', JSON.stringify(brandingConfig));
+                        // Crear versión ligera para localStorage (sin imágenes base64)
+                        const lightConfig = {
+                          ...brandingConfig,
+                          carouselImages: brandingConfig.carouselImages?.length || 0 // Solo guardar la cantidad
+                        };
+                        
+                        try {
+                          localStorage.setItem('portalBranding', JSON.stringify(lightConfig));
+                        } catch (storageError) {
+                          console.warn('localStorage lleno, usando solo datos básicos:', storageError);
+                          // Guardar solo datos esenciales
+                          const basicConfig = {
+                            businessName: brandingConfig.businessName,
+                            primaryColor: brandingConfig.primaryColor,
+                            carouselImages: []
+                          };
+                          try {
+                            localStorage.removeItem('portalBranding');
+                            localStorage.setItem('portalBranding', JSON.stringify(basicConfig));
+                          } catch (finalError) {
+                            console.error('No se pudo actualizar localStorage:', finalError);
+                          }
+                        }
                         
                         // Enviar evento personalizado para notificar a otras pestañas
                         window.dispatchEvent(new CustomEvent('brandingUpdated', { 
                           detail: brandingConfig 
                         }));
+                        
+                        console.log('Evento brandingUpdated disparado con carrusel:', brandingConfig.carouselImages?.length || 0, 'imágenes');
                         
                         // También usar storage event para otras pestañas
                         localStorage.setItem('brandingTrigger', Date.now().toString());
@@ -2134,8 +2434,29 @@ function PortalContentManager({ activeTab, config, setConfig, previewMode, setPr
                     
                     <button
                       onClick={() => {
-                        // Guardar antes de abrir
-                        localStorage.setItem('portalBranding', JSON.stringify(brandingConfig));
+                        // Guardar versión ligera antes de abrir
+                        const lightConfig = {
+                          ...brandingConfig,
+                          carouselImages: brandingConfig.carouselImages?.length || 0
+                        };
+                        
+                        try {
+                          localStorage.setItem('portalBranding', JSON.stringify(lightConfig));
+                        } catch (storageError) {
+                          console.warn('localStorage lleno, usando datos básicos para portal:', storageError);
+                          const basicConfig = {
+                            businessName: brandingConfig.businessName,
+                            primaryColor: brandingConfig.primaryColor,
+                            carouselImages: []
+                          };
+                          try {
+                            localStorage.removeItem('portalBranding');
+                            localStorage.setItem('portalBranding', JSON.stringify(basicConfig));
+                          } catch (finalError) {
+                            console.error('No se pudo preparar datos para el portal:', finalError);
+                          }
+                        }
+                        
                         // Abrir portal del cliente en nueva pestaña
                         window.open('/cliente', '_blank');
                       }}
@@ -2636,7 +2957,7 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
             <input
               id="promoTitle"
               type="text"
-              placeholder="Ej: 2x1 en Cócteles"
+              placeholder="50"
               value={formData.titulo}
               onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
               className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded text-white placeholder-dark-400"
