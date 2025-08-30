@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    let whereClause: any = {
+    const whereClause: Record<string, unknown> = {
       businessId: currentUser.businessId,
       isActive: true
     };

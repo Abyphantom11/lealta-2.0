@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
 
     // Perform OCR
     let ocrText = '';
-    let productos: any[] = [];
+    let productos: { name: string; price?: number; line: string }[] = [];
     let total = 0;
 
     try {
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
 
       // If no total was found, sum up product prices
       if (total === 0 && productos.length > 0) {
-        total = productos.reduce((sum, p) => sum + (p.price || 0), 0);
+        total = productos.reduce((sum, p: { price?: number }) => sum + (p.price ?? 0), 0);
       }
 
       // If still no total, use a fallback amount
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
       data: {
         clienteId: cliente.id,
         locationId: validatedData.locationId,
-        productos: productos,
+        productos: JSON.stringify(productos),
         total: total,
         puntos: puntos,
         empleadoId: validatedData.empleadoId,

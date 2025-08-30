@@ -1,5 +1,4 @@
-// @ts-ignore
-const { PrismaClient } = require('@prisma/client');
+import { PrismaClient } from '@prisma/client';
 
 // Type for PrismaClient instance
 type PrismaClientInstance = InstanceType<typeof PrismaClient>;

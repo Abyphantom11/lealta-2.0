@@ -16,8 +16,10 @@ const config = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
         
-        const user = await prisma.user.findUnique({ 
-          where: { email: credentials.email } 
+        // Primero buscamos en todos los businesses para encontrar el usuario
+        const user = await prisma.user.findFirst({
+          where: { email: credentials.email },
+          include: { business: true }
         });
         
         if (!user) return null;
@@ -37,12 +39,14 @@ const config = {
   callbacks: {
     async jwt({ token, user }: any) {
       if (user) {
+        token.id = user.id;
         token.role = user.role;
       }
       return token;
     },
     async session({ session, token }: any) {
       if (token?.role) {
+        session.user.id = token.id;
         session.user.role = token.role;
       }
       return session;

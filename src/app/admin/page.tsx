@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRequireAuth } from '../../hooks/useAuth';
 import RoleSwitch from '../../components/RoleSwitch';
+import { MenuItem, MenuCategory, Cliente, StatsData } from '../../types/admin';
 import { 
   Users, 
   Receipt, 
@@ -36,7 +37,7 @@ import {
 } from 'lucide-react';
 
 // Hook personalizado para manejar carga de archivos
-const useFileUpload = (setFormData: (updater: (prev: any) => any) => void) => {
+const useFileUpload = <T extends Record<string, unknown>>(setFormData: (updater: (prev: T) => T) => void) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,7 +63,7 @@ export default function AdminPage() {
   const { user, loading, logout, isAuthenticated } = useRequireAuth('ADMIN');
   const [activeSection, setActiveSection] = useState<AdminSection>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<StatsData>({
     totalClients: 0,
     totalConsumos: 0,
     totalRevenue: 0,
@@ -225,7 +226,7 @@ export default function AdminPage() {
 }
 
 // Dashboard Content Component
-function DashboardContent({ stats }: Readonly<{ stats: any }>) {
+function DashboardContent({ stats }: Readonly<{ stats: StatsData }>) {
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
@@ -320,7 +321,7 @@ function DashboardContent({ stats }: Readonly<{ stats: any }>) {
 
 // Clientes Content Component
 function ClientesContent() {
-  const [clientes, setClientes] = useState<any[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -459,8 +460,8 @@ function ClientesContent() {
 // Menu Content Component
 function MenuContent() {
   const [activeTab, setActiveTab] = useState<'categorias' | 'productos' | 'preview'>('preview');
-  const [categories, setCategories] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<MenuCategory[]>([]);
+  const [products, setProducts] = useState<MenuItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   // Estados para notificaciones elegantes
@@ -477,8 +478,8 @@ function MenuContent() {
   // Estados para modales
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<any>(null);
-  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [editingCategory, setEditingCategory] = useState<MenuCategory | null>(null);
+  const [editingProduct, setEditingProduct] = useState<MenuItem | null>(null);
 
   // Función para mostrar notificaciones elegantes
   const showNotification = (type: 'success' | 'error' | 'warning' | 'info', message: string) => {
@@ -532,7 +533,7 @@ function MenuContent() {
   }, []);
 
   const toggleCategoryStatus = async (categoryId: string) => {
-    const category = categories.find((c: any) => c.id === categoryId);
+    const category = categories.find((c: MenuCategory) => c.id === categoryId);
     if (!category) return;
 
     try {
@@ -546,7 +547,7 @@ function MenuContent() {
       });
 
       if (response.ok) {
-        setCategories(prev => prev.map((c: any) => 
+        setCategories(prev => prev.map((c: MenuCategory) => 
           c.id === categoryId ? { ...c, activo: !c.activo } : c
         ));
       }
@@ -556,7 +557,7 @@ function MenuContent() {
   };
 
   const toggleProductStatus = async (productId: string) => {
-    const product = products.find((p: any) => p.id === productId);
+    const product = products.find((p: MenuItem) => p.id === productId);
     if (!product) return;
 
     try {
@@ -570,7 +571,7 @@ function MenuContent() {
       });
 
       if (response.ok) {
-        setProducts(prev => prev.map((p: any) => 
+        setProducts(prev => prev.map((p: MenuItem) => 
           p.id === productId ? { ...p, disponible: !p.disponible } : p
         ));
       }
@@ -581,8 +582,8 @@ function MenuContent() {
 
   // Función para eliminar categoría
   // Helper para filtrar productos después de eliminar categoría
-  const filterProductsAfterCategoryDelete = (products: any[], categoryIdToDelete: string) => {
-    return products.filter((p: any) => {
+  const filterProductsAfterCategoryDelete = (products: MenuItem[], categoryIdToDelete: string) => {
+    return products.filter((p: MenuItem) => {
       const category = categories.find(c => c.id === p.categoryId);
       const isFromDeletedCategory = category?.id === categoryIdToDelete;
       const isFromDeletedSubcategory = category?.parentId === categoryIdToDelete;
@@ -601,7 +602,7 @@ function MenuContent() {
       });
 
       if (response.ok) {
-        setCategories(prev => prev.filter((c: any) => c.id !== categoryId));
+        setCategories(prev => prev.filter((c: MenuCategory) => c.id !== categoryId));
         // También eliminar productos de esta categoría y subcategorías
         setProducts(prev => filterProductsAfterCategoryDelete(prev, categoryId));
         showNotification('success', 'Categoría eliminada exitosamente');
@@ -647,7 +648,7 @@ function MenuContent() {
       });
 
       if (response.ok) {
-        setProducts(prev => prev.filter((p: any) => p.id !== productId));
+        setProducts(prev => prev.filter((p: MenuItem) => p.id !== productId));
         showNotification('success', 'Producto eliminado exitosamente');
       } else {
         const errorData = await response.json();
@@ -769,7 +770,7 @@ function MenuContent() {
           ) : (
             <div className="space-y-4">
               {/* Categorías principales */}
-              {categories.filter(cat => !cat.parentId).map((category: any) => (
+              {categories.filter(cat => !cat.parentId).map((category: MenuCategory) => (
                 <div key={category.id}>
                   {/* Categoría principal */}
                   <div className="bg-dark-800/30 rounded-lg p-4">
@@ -818,7 +819,7 @@ function MenuContent() {
                   {/* Subcategorías */}
                   {categories.filter(subcat => subcat.parentId === category.id).length > 0 && (
                     <div className="ml-8 mt-2 space-y-2">
-                      {categories.filter(subcat => subcat.parentId === category.id).map((subcategory: any) => (
+                      {categories.filter(subcat => subcat.parentId === category.id).map((subcategory: MenuCategory) => (
                         <div key={subcategory.id} className="bg-dark-700/30 rounded-lg p-3 border-l-4 border-primary-500">
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
@@ -896,8 +897,8 @@ function MenuContent() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {products.map((product: any) => {
-                const category = categories.find((c: any) => c.id === product.categoryId);
+              {products.map((product: MenuItem) => {
+                const category = categories.find((c: MenuCategory) => c.id === product.categoryId);
                 return (
                   <div key={product.id} className="bg-dark-800/30 rounded-lg p-4">
                     <div className="flex items-start justify-between mb-3">
@@ -1159,7 +1160,7 @@ function MenuContent() {
 }
 
 // Componente de Vista Previa del Menú
-function MenuPreview({ categories, products }: { readonly categories: any[], readonly products: any[] }) {
+function MenuPreview({ categories, products }: { readonly categories: MenuCategory[], readonly products: MenuItem[] }) {
   const [selectedCategory, setSelectedCategory] = useState<any>(null);
   
   const activeCategories = categories.filter(cat => cat.activo && !cat.parentId); // Solo categorías principales activas

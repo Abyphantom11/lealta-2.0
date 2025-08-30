@@ -15,22 +15,22 @@ const PROTECTED_ROUTES = [
 // Rutas públicas (login, signup, etc.)
 const PUBLIC_ROUTES = [
   '/login',
-  '/signup',
-  '/api/auth/signin',
-  '/api/auth/signup',
-  '/api/auth/signout'
+  '/signup'
 ];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  
+  console.log('🔍 MIDDLEWARE DEBUG:', {
+    pathname,
+    hasSessionCookie: !!request.cookies.get('session'),
+    sessionCookieValue: request.cookies.get('session')?.value
+  });
 
-  // Permitir acceso a rutas públicas
-  if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
-    return NextResponse.next();
-  }
-
-  // Permitir acceso a archivos estáticos
-  if (pathname.startsWith('/_next') || pathname.startsWith('/favicon')) {
+  // Permitir acceso a rutas públicas y estáticas
+  if (PUBLIC_ROUTES.some(route => pathname.startsWith(route)) ||
+      pathname.startsWith('/_next') || 
+      pathname.startsWith('/favicon')) {
     return NextResponse.next();
   }
 
@@ -41,68 +41,96 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  console.log('🔒 Ruta protegida, verificando autenticación...');
+  return handleProtectedRoute(request, pathname);
+}
+
+async function handleProtectedRoute(request: NextRequest, pathname: string) {
   try {
-    // Verificar sesión desde cookie
     const sessionCookie = request.cookies.get('session')?.value;
     
     if (!sessionCookie) {
-      // Redirigir a login si no está autenticado
-      const loginUrl = new URL('/login', request.url);
-      loginUrl.searchParams.set('redirect', pathname);
-      return NextResponse.redirect(loginUrl);
+      console.log('❌ No hay cookie de sesión, redirigiendo a login');
+      return redirectToLogin(request, pathname);
     }
 
-    // Parsear datos básicos de la sesión
     const sessionData = JSON.parse(sessionCookie);
     
     if (!sessionData.userId || !sessionData.role) {
-      const loginUrl = new URL('/login', request.url);
-      return NextResponse.redirect(loginUrl);
+      console.log('❌ Datos de sesión incompletos');
+      return redirectToLogin(request, pathname);
     }
 
-    // Verificación básica de acceso por rol
-    const role = sessionData.role;
-    
-    // SUPERADMIN puede acceder a todos los dashboards
-    if (role === 'SUPERADMIN') {
-      // Permitir acceso completo a SUPERADMIN
-      const response = NextResponse.next();
-      response.headers.set('x-user-id', sessionData.userId);
-      response.headers.set('x-user-role', role);
-      response.headers.set('x-business-id', sessionData.businessId);
-      return response;
-    }
-    
-    // Verificar acceso específico para otros roles
-    if ((pathname.startsWith('/superadmin') || pathname.startsWith('/dashboard/superadmin'))) {
-      // Solo SUPERADMIN puede acceder aquí
-      const redirectUrl = new URL(role === 'ADMIN' ? '/admin' : '/staff', request.url);
-      return NextResponse.redirect(redirectUrl);
-    }
-    
-    if ((pathname.startsWith('/admin') || pathname.startsWith('/dashboard/admin')) && role !== 'ADMIN') {
-      const redirectUrl = new URL('/staff', request.url);
-      return NextResponse.redirect(redirectUrl);
-    }
-
-    if ((pathname.startsWith('/staff') || pathname.startsWith('/dashboard/staff')) && !['ADMIN', 'STAFF'].includes(role)) {
-      const redirectUrl = new URL('/login', request.url);
-      return NextResponse.redirect(redirectUrl);
-    }
-
-    // Añadir información del usuario a los headers para uso en API routes
-    const response = NextResponse.next();
-    response.headers.set('x-user-id', sessionData.userId);
-    response.headers.set('x-user-role', role);
-    response.headers.set('x-business-id', sessionData.businessId);
-
-    return response;
+    return processUserRole(sessionData, pathname, request);
 
   } catch (error) {
-    console.error('Middleware auth error:', error);
+    console.error('❌ Middleware auth error:', {
+      message: error instanceof Error ? error.message : String(error),
+      pathname: pathname,
+      hasCookie: !!request.cookies.get('session')
+    });
     
-    // En caso de error, redirigir a login
-    const loginUrl = new URL('/login', request.url);
-    return NextResponse.redirect(loginUrl);
+    return redirectToLogin(request, pathname);
   }
 }
+
+function redirectToLogin(request: NextRequest, pathname: string) {
+  const loginUrl = new URL('/login', request.url);
+  loginUrl.searchParams.set('redirect', pathname);
+  return NextResponse.redirect(loginUrl);
+}
+
+function processUserRole(sessionData: any, pathname: string, request: NextRequest) {
+  const role = sessionData.role;
+  
+  // SUPERADMIN puede acceder a todo
+  if (role === 'SUPERADMIN') {
+    return createResponseWithHeaders(sessionData, role);
+  }
+  
+  // Verificar acceso específico para otros roles
+  if (pathname.startsWith('/superadmin') && role !== 'SUPERADMIN') {
+    const redirectUrl = new URL(role === 'ADMIN' ? '/admin' : '/staff', request.url);
+    return NextResponse.redirect(redirectUrl);
+  }
+  
+  if (pathname.startsWith('/admin') && role !== 'ADMIN') {
+    const redirectUrl = new URL('/staff', request.url);
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  if (pathname.startsWith('/staff') && !['ADMIN', 'STAFF'].includes(role)) {
+    return redirectToLogin(request, pathname);
+  }
+
+  return createResponseWithHeaders(sessionData, role);
+}
+
+function createResponseWithHeaders(sessionData: any, role: string) {
+  const response = NextResponse.next();
+  response.headers.set('x-user-id', sessionData.userId);
+  response.headers.set('x-user-role', role);
+  response.headers.set('x-business-id', sessionData.businessId);
+
+  console.log('✅ Headers añadidos:', {
+    'x-user-id': sessionData.userId,
+    'x-user-role': role,
+    'x-business-id': sessionData.businessId
+  });
+
+  return response;
+}
+
+// Configuración del middleware - especifica en qué rutas debe ejecutarse
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api/auth (auth routes should be public)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api/auth|_next/static|_next/image|favicon.ico).*)',
+  ]
+};

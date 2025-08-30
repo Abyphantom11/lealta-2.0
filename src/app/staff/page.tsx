@@ -38,6 +38,15 @@ export default function StaffPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<any>(null);
   
+  // Estados para registro manual
+  const [modoManual, setModoManual] = useState(false);
+  const [empleadoVenta, setEmpleadoVenta] = useState('');
+  const [productos, setProductos] = useState<Array<{id: string, nombre: string, cantidad: number}>>([
+    {id: '1', nombre: '', cantidad: 1}
+  ]);
+  const [totalManual, setTotalManual] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   // Estados para UI mejorada (sin cámara)
   const [customerInfo, setCustomerInfo] = useState<any>(null);
   const [isSearchingCustomer, setIsSearchingCustomer] = useState(false);
@@ -122,7 +131,91 @@ export default function StaffPage() {
     }
   };
 
-  // Función para determinar el nivel del cliente basado en puntos
+  // Funciones para modo manual
+  const agregarProducto = () => {
+    const nuevoId = (productos.length + 1).toString();
+    setProductos([...productos, {id: nuevoId, nombre: '', cantidad: 1}]);
+  };
+
+  const eliminarProducto = (id: string) => {
+    if (productos.length > 1) {
+      setProductos(productos.filter(p => p.id !== id));
+    }
+  };
+
+  const actualizarProducto = (id: string, campo: 'nombre' | 'cantidad', valor: string | number) => {
+    setProductos(productos.map(p => 
+      p.id === id ? {...p, [campo]: valor} : p
+    ));
+  };
+
+  const submitConsumoManual = async () => {
+    if (!cedula || !empleadoVenta || !totalManual || productos.some(p => !p.nombre.trim())) {
+      showNotification('error', 'Por favor completa todos los campos requeridos');
+      return;
+    }
+
+    if (!customerInfo) {
+      showNotification('error', 'Primero debes buscar y verificar el cliente');
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      const consumoData = {
+        cedula: cedula,
+        empleadoVenta: empleadoVenta,
+        productos: productos.filter(p => p.nombre.trim()),
+        totalManual: parseFloat(totalManual)
+      };
+
+      const response = await fetch('/api/staff/consumo/manual', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(consumoData),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        showNotification('success', `✅ Consumo registrado: $${data.data.total} - ${data.data.cliente.puntosNuevos} puntos`);
+        
+        // Limpiar formulario
+        setEmpleadoVenta('');
+        setProductos([{id: '1', nombre: '', cantidad: 1}]);
+        setTotalManual('');
+        setCedula('');
+        setCustomerInfo(null);
+        
+        // Recargar tickets recientes y estadísticas en tiempo real
+        loadRecentTickets();
+        
+        // Agregar el nuevo ticket a la lista local inmediatamente para feedback inmediato
+        const nuevoTicket = {
+          id: Date.now(),
+          cedula: data.data.cliente.nombre,
+          cliente: data.data.cliente.nombre,
+          monto: data.data.total,
+          puntos: data.data.cliente.puntosNuevos,
+          hora: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+          items: data.data.productos.map((p: any) => p.nombre),
+          tipo: 'MANUAL'
+        };
+        
+        setRecentTickets(prev => [nuevoTicket, ...prev.slice(0, 4)]);
+      } else {
+        showNotification('error', `Error: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Error registrando consumo:', error);
+      showNotification('error', 'Error de conexión al registrar consumo');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   const determineCustomerLevel = (puntos: number): 'Bronze' | 'Silver' | 'Gold' | 'Platinum' => {
     if (puntos >= 500) return 'Platinum';
     if (puntos >= 300) return 'Gold';
@@ -130,38 +223,40 @@ export default function StaffPage() {
     return 'Bronze';
   };
 
-  // Función para cargar tickets recientes
+  // Función para cargar tickets recientes desde la API
   const loadRecentTickets = async () => {
-    // Simular carga de tickets recientes (reemplazar con API real)
-    setRecentTickets([
-      {
-        id: 1,
-        cedula: '12345678',
-        cliente: 'Juan Pérez',
-        monto: 25.50,
-        puntos: 26,
-        hora: '14:30',
-        items: ['Café Americano', 'Croissant']
-      },
-      {
-        id: 2,
-        cedula: '87654321',
-        cliente: 'María García',
-        monto: 18.00,
-        puntos: 18,
-        hora: '13:45',
-        items: ['Latte', 'Muffin']
-      },
-      {
-        id: 3,
-        cedula: '11223344',
-        cliente: 'Carlos López',
-        monto: 32.00,
-        puntos: 32,
-        hora: '12:20',
-        items: ['Almuerzo Ejecutivo']
+    try {
+      const response = await fetch('/api/admin/estadisticas?periodo=today');
+      const data = await response.json();
+      
+      if (data.success && data.estadisticas.consumosRecientes) {
+        const ticketsFormateados = data.estadisticas.consumosRecientes.slice(0, 5).map((consumo: any) => ({
+          id: consumo.id,
+          cedula: consumo.cliente.cedula,
+          cliente: consumo.cliente.nombre,
+          monto: consumo.total,
+          puntos: consumo.puntos,
+          hora: new Date(consumo.fecha).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+          items: Array.isArray(consumo.productos) ? consumo.productos.map((p: any) => p.nombre) : ['Productos procesados'],
+          tipo: consumo.tipo
+        }));
+        
+        setRecentTickets(ticketsFormateados);
+        
+        // Actualizar estadísticas del día también
+        const stats = data.estadisticas.resumen;
+        setTodayStats({
+          ticketsProcessed: stats.totalConsumos,
+          totalPoints: stats.totalPuntos,
+          uniqueCustomers: stats.clientesUnicos,
+          totalAmount: stats.totalMonto
+        });
       }
-    ]);
+    } catch (error) {
+      console.error('Error loading recent tickets:', error);
+      // Mantener datos mock como fallback
+      setRecentTickets([]);
+    }
   };
 
   // Función para abrir la herramienta de recorte de Windows
@@ -326,18 +421,44 @@ export default function StaffPage() {
     }
   };
 
+  // Debounce timer para la búsqueda automática
+  const [searchTimer, setSearchTimer] = useState<NodeJS.Timeout | null>(null);
+
   const handleCedulaChange = (value: string) => {
     // Solo permitir números
     const numericValue = value.replace(/\D/g, '');
     setCedula(numericValue);
     
-    // Buscar cliente automáticamente
-    if (numericValue.length >= 6) {
-      searchCustomer(numericValue);
-    } else {
+    // Limpiar timer anterior
+    if (searchTimer) {
+      clearTimeout(searchTimer);
+    }
+    
+    // Si hay menos de 4 dígitos, limpiar info del cliente
+    if (numericValue.length < 4) {
       setCustomerInfo(null);
+      setIsSearchingCustomer(false);
+      return;
+    }
+    
+    // Buscar automáticamente después de 500ms de pausa en escritura
+    if (numericValue.length >= 4) {
+      setIsSearchingCustomer(true);
+      const newTimer = setTimeout(() => {
+        searchCustomer(numericValue);
+      }, 500);
+      setSearchTimer(newTimer);
     }
   };
+
+  // Limpiar timer al desmontar componente
+  useEffect(() => {
+    return () => {
+      if (searchTimer) {
+        clearTimeout(searchTimer);
+      }
+    };
+  }, [searchTimer]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -499,6 +620,32 @@ export default function StaffPage() {
       </div>
 
       <div className="max-w-7xl mx-auto p-6">
+        {/* Selector de modo */}
+        <div className="flex justify-center mb-8">
+          <div className="bg-dark-800/50 p-1 rounded-lg inline-flex">
+            <button
+              onClick={() => setModoManual(false)}
+              className={`px-6 py-3 rounded-lg font-medium transition-all ${
+                !modoManual 
+                  ? 'bg-primary-600 text-white shadow-lg' 
+                  : 'text-dark-300 hover:text-white'
+              }`}
+            >
+              📸 Captura OCR
+            </button>
+            <button
+              onClick={() => setModoManual(true)}
+              className={`px-6 py-3 rounded-lg font-medium transition-all ${
+                modoManual 
+                  ? 'bg-primary-600 text-white shadow-lg' 
+                  : 'text-dark-300 hover:text-white'
+              }`}
+            >
+              ✍️ Registro Manual
+            </button>
+          </div>
+        </div>
+
         {/* Stats Dashboard */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -557,15 +704,17 @@ export default function StaffPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Formulario Principal */}
           <div className="lg:col-span-2">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="bg-dark-800/50 backdrop-blur-sm border border-dark-700 rounded-xl p-6"
-            >
-              <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
-                <Camera className="w-6 h-6 mr-2 text-primary-400" />
-                Procesar Cuenta del POS
-              </h2>
+            {!modoManual ? (
+              // Modo OCR (existente)
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="bg-dark-800/50 backdrop-blur-sm border border-dark-700 rounded-xl p-6"
+              >
+                <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
+                  <Camera className="w-6 h-6 mr-2 text-primary-400" />
+                  Procesar Cuenta del POS
+                </h2>
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Input Cédula */}
@@ -751,6 +900,200 @@ export default function StaffPage() {
                 </button>
               </form>
             </motion.div>
+            ) : (
+              // Modo Manual (nuevo)
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="bg-dark-800/50 backdrop-blur-sm border border-dark-700 rounded-xl p-6"
+              >
+                <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
+                  <FileText className="w-6 h-6 mr-2 text-primary-400" />
+                  Registro Manual de Consumo
+                </h2>
+
+                <div className="space-y-6">
+                  {/* Input Cédula */}
+                  <div>
+                    <label htmlFor="cedula-manual" className="block text-sm font-medium text-dark-300 mb-2">
+                      Cédula del Cliente *
+                    </label>
+                    <div className="flex space-x-3">
+                      <div className="flex-1 relative">
+                        <input
+                          id="cedula-manual"
+                          type="text"
+                          value={cedula}
+                          onChange={(e) => handleCedulaChange(e.target.value)}
+                          className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          placeholder="Ingrese la cédula (búsqueda automática)"
+                          maxLength={12}
+                          required
+                        />
+                        {isSearchingCustomer && (
+                          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500"></div>
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => searchCustomer(cedula)}
+                        disabled={isSearchingCustomer || !cedula}
+                        className="px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-600 text-white font-medium rounded-lg transition-colors flex items-center space-x-2"
+                      >
+                        {isSearchingCustomer ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>Buscando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <User className="w-4 h-4" />
+                            <span>Buscar</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Info del Cliente */}
+                  <AnimatePresence>
+                    {customerInfo && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="bg-dark-700/50 border border-dark-600 rounded-lg p-4"
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="font-medium text-white">{customerInfo.nombre}</h3>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCustomerLevelClasses(customerInfo.nivel)}`}>
+                            {customerInfo.nivel}
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-dark-400">Puntos Actuales:</span>
+                            <span className="text-yellow-400 font-medium ml-2">{customerInfo.puntos}</span>
+                          </div>
+                          <div>
+                            <span className="text-dark-400">Total Gastado:</span>
+                            <span className="text-green-400 font-medium ml-2">${customerInfo.totalGastado}</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Empleado POS */}
+                  <div>
+                    <label htmlFor="empleado-pos" className="block text-sm font-medium text-dark-300 mb-2">
+                      Empleado del POS (quien hizo la venta) *
+                    </label>
+                    <input
+                      id="empleado-pos"
+                      type="text"
+                      value={empleadoVenta}
+                      onChange={(e) => setEmpleadoVenta(e.target.value)}
+                      className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      placeholder="Nombre del empleado POS"
+                      required
+                    />
+                  </div>
+
+                  {/* Productos */}
+                  <div>
+                    <label htmlFor="productos-manual" className="block text-sm font-medium text-dark-300 mb-2">
+                      Productos Consumidos *
+                    </label>
+                    <div className="space-y-3">
+                      {productos.map((producto, index) => (
+                        <div key={producto.id} className="flex space-x-3 items-center">
+                          <div className="flex-1">
+                            <input
+                              type="text"
+                              value={producto.nombre}
+                              onChange={(e) => actualizarProducto(producto.id, 'nombre', e.target.value)}
+                              className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2 text-white placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                              placeholder="Nombre del producto"
+                              required
+                            />
+                          </div>
+                          <div className="w-20">
+                            <input
+                              type="number"
+                              min="1"
+                              value={producto.cantidad}
+                              onChange={(e) => actualizarProducto(producto.id, 'cantidad', parseInt(e.target.value) || 1)}
+                              className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-center focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                            />
+                          </div>
+                          {productos.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => eliminarProducto(producto.id)}
+                              className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={agregarProducto}
+                        className="w-full py-2 border-2 border-dashed border-dark-600 rounded-lg text-dark-400 hover:text-white hover:border-primary-500 transition-colors"
+                      >
+                        + Agregar Producto
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Total */}
+                  <div>
+                    <label htmlFor="total-manual" className="block text-sm font-medium text-dark-300 mb-2">
+                      Total de la Cuenta *
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-dark-400">$</span>
+                      <input
+                        id="total-manual"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={totalManual}
+                        onChange={(e) => setTotalManual(e.target.value)}
+                        className="w-full bg-dark-700 border border-dark-600 rounded-lg pl-8 pr-4 py-3 text-white placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Botón Guardar */}
+                  <button
+                    type="button"
+                    onClick={submitConsumoManual}
+                    disabled={isSubmitting || !cedula || !empleadoVenta || !totalManual || productos.some(p => !p.nombre.trim())}
+                    className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        <span>Guardando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-5 h-5" />
+                        <span>Guardar Consumo</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </motion.div>
+            )}
           </div>
 
           {/* Sidebar - Tickets Recientes y Resultado */}
@@ -822,12 +1165,23 @@ export default function StaffPage() {
                 {recentTickets.map((ticket) => (
                   <div key={ticket.id} className="bg-dark-700/50 border border-dark-600 rounded-lg p-3">
                     <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <p className="text-white font-medium">{ticket.cliente}</p>
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2">
+                          <p className="text-white font-medium">{ticket.cliente}</p>
+                          {ticket.tipo && (
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              ticket.tipo === 'MANUAL' 
+                                ? 'bg-blue-500/20 text-blue-400' 
+                                : 'bg-green-500/20 text-green-400'
+                            }`}>
+                              {ticket.tipo}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-dark-400 text-sm">{ticket.cedula}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-green-400 font-medium">${ticket.monto}</p>
+                        <p className="text-green-400 font-medium">${typeof ticket.monto === 'number' ? ticket.monto.toFixed(2) : ticket.monto}</p>
                         <p className="text-yellow-400 text-sm">+{ticket.puntos} pts</p>
                       </div>
                     </div>

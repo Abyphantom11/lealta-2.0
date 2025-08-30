@@ -20,7 +20,7 @@ export default function HomePage() {
             {isElectron ? <Monitor className="w-12 h-12 text-white" /> : <Star className="w-12 h-12 text-white" />}
           </div>
           <h1 className="text-5xl font-bold text-white mb-6">
-            Bienvenido a <span className="gradient-primary bg-clip-text text-transparent">Lealta</span>
+            Bienvenido a <span className="bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent font-bold">Lealta</span>
           </h1>
           
           <PlatformAware
@@ -42,8 +42,7 @@ export default function HomePage() {
                   Plataforma Web
                 </span>
                 <br />
-                Sistema integral de captación y control de clientes para bares, restaurantes y discotecas.
-                Registra antes del consumo, captura antes del cobro.
+                Sistema integral de captación, control de clientes y flujo de datos. Registra antes del consumo, captura antes del cobro.
               </p>
             }
           />
@@ -53,7 +52,7 @@ export default function HomePage() {
         <div className="flex justify-center max-w-lg mx-auto">
           <AccessCard
             title="¿Empezamos?"
-            description="Gestiona tu negocio desde cualquier lugar con herramientas que realmente funcionan"
+            description="Gestiona tu negocio desde cualquier lugar con herramientas pensadas para la comodidad"
             icon={<Star className="w-12 h-12" />}
             href="/login"
             gradient="from-primary-600 via-purple-600 to-pink-600"

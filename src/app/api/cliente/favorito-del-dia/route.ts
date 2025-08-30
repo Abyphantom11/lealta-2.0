@@ -13,8 +13,8 @@ export async function GET(request: NextRequest) {
       where: { businessId }
     });
 
-    // Cast portalConfig to any to access favoritoDelDia field
-    const config = portalConfig as any;
+    // Cast portalConfig to access favoritoDelDia field
+    const config = portalConfig as { favoritoDelDia?: unknown };
 
     if (!config?.favoritoDelDia) {
       return NextResponse.json({
