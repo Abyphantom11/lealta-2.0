@@ -3,6 +3,9 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Indicar a Next.js que esta ruta es dinámica
+export const dynamic = 'force-dynamic';
+
 // Función helper para generar períodos y reducir complejidad
 function generatePeriodos(tipo: string, mesEspecifico: string | null, añoEspecifico: string | null, now: Date): Array<{ label: string; inicio: Date; fin: Date }> {
   const periodos: Array<{ label: string; inicio: Date; fin: Date }> = [];

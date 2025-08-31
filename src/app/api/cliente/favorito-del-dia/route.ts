@@ -3,6 +3,9 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Indicar a Next.js que esta ruta es dinámica
+export const dynamic = 'force-dynamic';
+
 // GET - Obtener favorito del día del portal
 export async function GET(request: NextRequest) {
   try {

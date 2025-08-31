@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
+// Indicar a Next.js que esta ruta es dinámica
+export const dynamic = 'force-dynamic';
+
 const prisma = new PrismaClient();
 
 // Helper function para obtener configuración por defecto

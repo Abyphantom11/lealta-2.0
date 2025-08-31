@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRequireAuth } from '../../hooks/useAuth';
 import RoleSwitch from '../../components/RoleSwitch';
 import { MenuItem, MenuCategory, Cliente, StatsData } from '../../types/admin';
+import { CategoryFormData, ProductFormData, PortalConfig, ConfigSection } from '../../types/admin-extras';
+import Image from 'next/image';
 import { 
   Users, 
   Receipt, 
@@ -33,7 +35,8 @@ import {
   IdCard,
   CheckCircle,
   AlertTriangle,
-  Info
+  Info,
+  CreditCard
 } from 'lucide-react';
 
 // Hook personalizado para manejar carga de archivos
@@ -1161,7 +1164,7 @@ function MenuContent() {
 
 // Componente de Vista Previa del Menú
 function MenuPreview({ categories, products }: { readonly categories: MenuCategory[], readonly products: MenuItem[] }) {
-  const [selectedCategory, setSelectedCategory] = useState<any>(null);
+  const [selectedCategory, setSelectedCategory] = useState<MenuCategory | null>(null);
   
   const activeCategories = categories.filter(cat => cat.activo && !cat.parentId); // Solo categorías principales activas
   const availableProducts = products.filter(prod => prod.disponible);
@@ -1193,7 +1196,7 @@ function MenuPreview({ categories, products }: { readonly categories: MenuCatego
         <div className="space-y-4">
           {/* Lista de categorías */}
           <div className="grid grid-cols-2 gap-3 mb-6">
-            {activeCategories.map((category: any) => (
+            {activeCategories.map((category: MenuCategory) => (
               <button
                 key={category.id}
                 onClick={() => setSelectedCategory(selectedCategory?.id === category.id ? null : category)}
@@ -1223,13 +1226,13 @@ function MenuPreview({ categories, products }: { readonly categories: MenuCatego
                 <div className="mb-4">
                   <h4 className="text-md font-medium text-gray-300 mb-2">Subcategorías:</h4>
                   <div className="grid grid-cols-1 gap-2">
-                    {getSubcategories(selectedCategory.id).map((subcategory: any) => (
+                    {getSubcategories(selectedCategory.id).map((subcategory: MenuCategory) => (
                       <div key={subcategory.id} className="bg-gray-700 rounded-lg p-3">
                         <h5 className="font-medium text-white mb-2">{subcategory.nombre}</h5>
                         
                         {/* Productos de la subcategoría */}
                         <div className="space-y-2">
-                          {getProductsForCategory(subcategory.id).map((product: any) => (
+                          {getProductsForCategory(subcategory.id).map((product: MenuItem) => (
                             <div key={product.id} className="bg-gray-600 rounded-md p-3">
                               <div className="flex justify-between items-start">
                                 <div className="flex-1">
@@ -1272,7 +1275,7 @@ function MenuPreview({ categories, products }: { readonly categories: MenuCatego
               )}
               
               {/* Productos directos de la categoría principal */}
-              {getProductsForCategory(selectedCategory.id).map((product: any) => (
+              {getProductsForCategory(selectedCategory.id).map((product: MenuItem) => (
                 <div key={product.id} className="bg-gray-800 rounded-lg p-4">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
@@ -1324,19 +1327,19 @@ function MenuPreview({ categories, products }: { readonly categories: MenuCatego
 
 // Modal para crear/editar categorías
 function CategoryModal({ category, onSave, onClose }: Readonly<{
-  category: any;
-  onSave: (data: any) => void;
+  category: MenuCategory | null;
+  onSave: (data: CategoryFormData) => void;
   onClose: () => void;
-}>) {
-  const [formData, setFormData] = useState({
+}>): JSX.Element {
+  const [formData, setFormData] = useState<CategoryFormData>({
     nombre: category?.nombre || '',
     orden: category?.orden || 0,
     activo: category?.activo ?? true,
-    icono: category?.icono || '',
-    parentId: category?.parentId || ''
+    parentId: category?.parentId || null,
+    businessId: category?.businessId || 'business_1'
   });
 
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<MenuCategory[]>([]);
 
   // Cargar categorías para el selector de categoría padre
   useEffect(() => {
@@ -1346,7 +1349,7 @@ function CategoryModal({ category, onSave, onClose }: Readonly<{
         if (response.ok) {
           const data = await response.json();
           // Filtrar categorías que no sean subcategorías y que no sea la categoría actual (para evitar auto-referencia)
-          const parentCategories = (data.menu || []).filter((cat: any) => 
+          const parentCategories = (data.menu || []).filter((cat: MenuCategory) => 
             !cat.parentId && (!category || cat.id !== category.id)
           );
           setCategories(parentCategories);
@@ -1382,8 +1385,8 @@ function CategoryModal({ category, onSave, onClose }: Readonly<{
             </label>
             <select
               id="category-parent"
-              value={formData.parentId}
-              onChange={(e) => setFormData(prev => ({ ...prev, parentId: e.target.value }))}
+              value={formData.parentId || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, parentId: e.target.value || null }))}
               className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
             >
               <option value="">Categoría principal</option>
@@ -1622,9 +1625,11 @@ function ProductModal({ product, categories, onSave, onClose }: Readonly<{
             />
             {formData.imagenUrl && (
               <div className="mt-2">
-                <img 
+                <Image 
                   src={formData.imagenUrl} 
                   alt="Preview" 
+                  width={80}
+                  height={80}
                   className="w-20 h-20 object-cover rounded-md"
                 />
               </div>
@@ -1682,7 +1687,7 @@ function ProductModal({ product, categories, onSave, onClose }: Readonly<{
 // Portal Content Component - Gestión completa del portal del cliente
 function PortalContent() {
   const [activeTab, setActiveTab] = useState<'preview' | 'banners' | 'promociones' | 'recompensas' | 'favorito'>('preview');
-  const [previewMode, setPreviewMode] = useState<'portal' | 'login'>('portal'); // Estado para cambiar entre Portal y Login
+  const [previewMode, setPreviewMode] = useState<'portal' | 'login' | 'tarjetas'>('portal'); // Estado para cambiar entre Portal, Login y Tarjetas
   const [brandingConfig, setBrandingConfig] = useState<any>({ // Configuración de branding para el login
     businessName: 'Mi Empresa',
     primaryColor: '#3B82F6',
@@ -1697,24 +1702,10 @@ function PortalContent() {
     promociones: [],
     eventos: [],
     recompensas: [],
+    tarjetas: [],
     favoritoDelDia: null
   });
   const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    fetchConfig();
-  }, []);
-
-  // Auto-save when config changes
-  useEffect(() => {
-    if (config && Object.keys(config).length > 0) {
-      const timeoutId = setTimeout(() => {
-        handleSave();
-      }, 1000); // Auto-save después de 1 segundo de inactividad
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [config]);
 
   const fetchConfig = async () => {
     try {
@@ -1758,7 +1749,8 @@ function PortalContent() {
               activo: true,
               stock: 50
             }
-          ]
+          ],
+          tarjetas: []
         });
       }
     } catch (error) {
@@ -1768,7 +1760,7 @@ function PortalContent() {
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     try {
       console.log('💾 Admin - Guardando config:', config);
       const response = await fetch('/api/admin/portal-config', {
@@ -1791,7 +1783,22 @@ function PortalContent() {
     } catch (error) {
       console.error('❌ Admin - Error saving portal config:', error);
     }
-  };
+  }, [config]);
+
+  useEffect(() => {
+    fetchConfig();
+  }, []);
+
+  // Auto-save when config changes
+  useEffect(() => {
+    if (config && Object.keys(config).length > 0) {
+      const timeoutId = setTimeout(() => {
+        handleSave();
+      }, 1000); // Auto-save después de 1 segundo de inactividad
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [config, handleSave]);
 
   const handleBrandingChange = async (field: string, value: string | string[]) => {
     const newConfig = {
@@ -2068,7 +2075,7 @@ function PortalContentManager({
             Vista del Portal Cliente - ACTUALIZADA v2.0
           </h4>
           
-          {/* Botones Switch para Portal/Login */}
+          {/* Botones Switch para Portal/Login/Tarjetas */}
           <div className="flex bg-dark-700 rounded-lg p-1">
             <button
               onClick={() => setPreviewMode('portal')}
@@ -2089,6 +2096,16 @@ function PortalContentManager({
               }`}
             >
               Branding
+            </button>
+            <button
+              onClick={() => setPreviewMode('tarjetas')}
+              className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                previewMode === 'tarjetas' 
+                  ? 'bg-primary-600 text-white' 
+                  : 'text-dark-300 hover:text-white'
+              }`}
+            >
+              Tarjetas
             </button>
           </div>
         </div>
@@ -2186,59 +2203,66 @@ function PortalContentManager({
                 </div>
               )}
             </div>
-          ) : (
-            // Vista Previa del Portal del Cliente
-            <div className="bg-black text-white min-h-96 max-w-xs mx-auto rounded-xl overflow-hidden border border-dark-600">
-              {/* Header del portal del cliente */}
-              <div className="flex items-center justify-center p-4">
-                <span className="text-white font-bold text-lg">
-                  {brandingConfig.businessName || 'LEALTA'}
-                </span>
-              </div>
+          ) : (() => {
+            if (previewMode === 'login') {
+              // Vista Previa del Login del Cliente
+              return (
+                <div className="bg-black text-white min-h-96 max-w-xs mx-auto rounded-xl overflow-hidden border border-dark-600">
+                  {/* Header del portal del cliente */}
+                  <div className="flex items-center justify-center p-4">
+                    <span className="text-white font-bold text-lg">
+                      {brandingConfig.businessName || 'LEALTA'}
+                    </span>
+                  </div>
 
-              {/* Hero Section */}
-              <div className="relative h-40 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-900 via-blue-900 to-indigo-900" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
-                <div className="absolute inset-0 flex flex-col justify-center items-center text-center px-4">
-                  <h1 className="text-lg font-bold text-white mb-2">
-                    Descubre Nuestro Menú
-                  </h1>
-                  
-                  {/* Carrusel de imágenes - Vista previa (primeros 3) */}
-                  {brandingConfig.carouselImages?.length > 0 && (
-                    <div className="mb-3">
-                      <div className="flex space-x-1 justify-center">
-                        {brandingConfig.carouselImages.slice(0, 3).map((image: string, index: number) => (
-                          <div key={`carousel-preview-${index}-${image.substring(0, 10)}`} className="w-16 h-10 relative overflow-hidden rounded">
-                            <img 
-                              src={image} 
-                              alt={`Carrusel ${index + 1}`}
-                              className="w-full h-full object-cover"
-                            />
+                  {/* Hero Section */}
+                  <div className="relative h-40 overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-900 via-blue-900 to-indigo-900" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+                    <div className="absolute inset-0 flex flex-col justify-center items-center text-center px-4">
+                      <h1 className="text-lg font-bold text-white mb-2">
+                        Descubre Nuestro Menú
+                      </h1>
+                      
+                      {/* Carrusel de imágenes - Vista previa (primeros 3) */}
+                      {brandingConfig.carouselImages?.length > 0 && (
+                        <div className="mb-3">
+                          <div className="flex space-x-1 justify-center">
+                            {brandingConfig.carouselImages.slice(0, 3).map((image: string, index: number) => (
+                              <div key={`carousel-preview-${index}-${image.substring(0, 10)}`} className="w-16 h-10 relative overflow-hidden rounded">
+                                <img 
+                                  src={image} 
+                                  alt={`Carrusel ${index + 1}`}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ))}
+                            {brandingConfig.carouselImages.length > 3 && (
+                              <div className="w-16 h-10 bg-black/70 rounded flex items-center justify-center">
+                                <span className="text-white text-xs">+{brandingConfig.carouselImages.length - 3}</span>
+                              </div>
+                            )}
                           </div>
-                        ))}
-                        {brandingConfig.carouselImages.length > 3 && (
-                          <div className="w-16 h-10 bg-black/70 rounded flex items-center justify-center">
-                            <span className="text-white text-xs">+{brandingConfig.carouselImages.length - 3}</span>
-                          </div>
-                        )}
-                      </div>
-                      <p className="text-white/60 text-xs mt-1 text-center">Carrusel de Imágenes</p>
+                          <p className="text-white/60 text-xs mt-1 text-center">Carrusel de Imágenes</p>
+                        </div>
+                      )}
+                      
+                      <button 
+                        className="text-white px-3 py-1 rounded-lg font-medium transition-colors flex items-center space-x-1 text-xs"
+                        style={{ backgroundColor: brandingConfig.primaryColor || '#2563EB' }}
+                      >
+                        <IdCard className="w-3 h-3" />
+                        <span>Acceder con Cédula</span>
+                      </button>
                     </div>
-                  )}
-                  
-                  <button 
-                    className="text-white px-3 py-1 rounded-lg font-medium transition-colors flex items-center space-x-1 text-xs"
-                    style={{ backgroundColor: brandingConfig.primaryColor || '#2563EB' }}
-                  >
-                    <IdCard className="w-3 h-3" />
-                    <span>Acceder con Cédula</span>
-                  </button>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
+              );
+            } else {
+              // Vista Previa de Tarjetas
+              return <TarjetaPreviewComponent config={config} />;
+            }
+          })()}
         </div>
       </div>
 
@@ -2363,7 +2387,7 @@ function PortalContentManager({
                       />
                     </div>
                     <p className="text-dark-400 text-xs mt-1">
-                      Color del botón "Acceder con Cédula" y otros elementos
+                      Color del botón &ldquo;Acceder con Cédula&rdquo; y otros elementos
                     </p>
                   </div>
 
@@ -2472,6 +2496,14 @@ function PortalContentManager({
                     </p>
                   </div>
                 </div>
+              </div>
+            );
+          } else if (activeTab === 'preview' && previewMode === 'tarjetas') {
+            // Configuración de Tarjetas
+            return (
+              <div className="space-y-6">
+                <TarjetaEditorComponent config={config} setConfig={setConfig} />
+                <AsignacionTarjetasComponent config={config} setConfig={setConfig} />
               </div>
             );
           } else if (activeTab === 'preview') {
@@ -3397,6 +3429,810 @@ function StatsCard({ title, value, icon, gradient, change }: Readonly<{
         <p className="text-2xl font-bold text-white mb-1">{value}</p>
         <p className="text-dark-400 text-sm">{title}</p>
       </div>
+    </div>
+  );
+}
+
+// Componente TarjetaPreview - Separado del componente principal
+const TarjetaPreview = ({ tarjeta }: { tarjeta: any }) => {
+  const nivelesConfig = {
+    'Bronce': { icon: '🥉' },
+    'Plata': { icon: '🥈' },
+    'Oro': { icon: '🥇' },
+    'Diamante': { icon: '💎' },
+    'Platino': { icon: '👑' }
+  };
+  
+  const nivel = nivelesConfig[tarjeta.nivel as keyof typeof nivelesConfig];
+  
+  const getBoxShadow = (textura: string) => {
+    switch (textura) {
+      case 'brillante': return '0 0 20px rgba(255,215,0,0.3)';
+      case 'diamante': return '0 0 25px rgba(185,242,255,0.4)';
+      default: return '0 10px 25px rgba(0,0,0,0.3)';
+    }
+  };
+
+  const getPatronClass = (patron: string) => {
+    switch (patron) {
+      case 'clasico': return 'bg-gradient-to-br from-transparent to-black';
+      case 'moderno': return 'bg-gradient-to-r from-transparent via-white to-transparent';
+      case 'elegante': return 'bg-radial-gradient from-yellow-200 to-transparent';
+      case 'premium': return 'bg-gradient-to-br from-blue-200 to-transparent';
+      default: return 'bg-gradient-to-br from-white via-transparent to-white';
+    }
+  };
+  
+  return (
+    <div className="relative w-80 h-48 mx-auto mb-4">
+      <div 
+        className="absolute inset-0 rounded-xl shadow-2xl transform transition-all duration-300 hover:scale-105"
+        style={{
+          background: `linear-gradient(135deg, ${tarjeta.colores.gradiente[0]}, ${tarjeta.colores.gradiente[1]})`,
+          boxShadow: getBoxShadow(tarjeta.diseño.textura)
+        }}
+      >
+        <div className={`absolute inset-0 rounded-xl opacity-10 ${getPatronClass(tarjeta.diseño.patron)}`} />
+
+        <div className="relative p-6 h-full flex flex-col justify-between text-white">
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="text-xl font-bold">{tarjeta.nombrePersonalizado}</h3>
+              <p className="text-sm opacity-90">{tarjeta.textoCalidad}</p>
+            </div>
+            <div className="text-3xl">{nivel.icon}</div>
+          </div>
+
+          <div className="absolute top-16 left-6">
+            <div className="w-8 h-6 bg-gradient-to-br from-yellow-200 to-yellow-500 rounded-sm opacity-80" />
+          </div>
+
+          <div className="text-center">
+            <div className="text-lg font-semibold tracking-widest opacity-90">
+              {tarjeta.nivel.toUpperCase()}
+            </div>
+          </div>
+
+          <div className="flex justify-between items-end text-xs opacity-75">
+            <span>LEALTA 2.0</span>
+            <span>NIVEL {Object.keys(nivelesConfig).indexOf(tarjeta.nivel) + 1}</span>
+          </div>
+        </div>
+
+        {tarjeta.diseño.textura === 'brillante' && (
+          <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-transparent via-white to-transparent opacity-20 transform -skew-x-12" />
+        )}
+        
+        {tarjeta.diseño.textura === 'diamante' && (
+          <>
+            <div className="absolute top-4 right-4 w-2 h-2 bg-white rounded-full opacity-60 animate-pulse" />
+            <div className="absolute bottom-8 left-8 w-1 h-1 bg-white rounded-full opacity-40 animate-pulse delay-300" />
+            <div className="absolute top-12 left-12 w-1.5 h-1.5 bg-white rounded-full opacity-50 animate-pulse delay-700" />
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+//...existing code...
+
+// Componente para vista previa de tarjetas
+function TarjetaPreviewComponent({ config }: any) {
+  // Helper function para obtener colores del nivel
+  const getLevelColors = (level: string) => {
+    const colorMap: { [key: string]: string } = {
+      'Bronce': '#8B4513',
+      'Plata': '#808080',
+      'Oro': '#B8860B',
+      'Diamante': '#4169E1'
+    };
+    return colorMap[level] || '#71797E';
+  };
+
+  // Helper function para obtener el gradiente del nivel
+  const getLevelGradient = (level: string) => {
+    const gradientMap: { [key: string]: string } = {
+      'Bronce': 'linear-gradient(45deg, #DAA520, #B8860B)',
+      'Plata': 'linear-gradient(45deg, #E5E5E5, #C0C0C0)',
+      'Oro': 'linear-gradient(45deg, #FFD700, #FFA500)',
+      'Diamante': 'linear-gradient(45deg, #E0F6FF, #87CEEB)'
+    };
+    return gradientMap[level] || 'linear-gradient(45deg, #F5F5F5, #D3D3D3)';
+  };
+
+  const nivelesConfig = {
+    'Bronce': { colores: { gradiente: ['#CD7F32', '#8B4513'] }, textoDefault: 'Cliente Inicial' },
+    'Plata': { colores: { gradiente: ['#C0C0C0', '#808080'] }, textoDefault: 'Cliente Frecuente' },
+    'Oro': { colores: { gradiente: ['#FFD700', '#FFA500'] }, textoDefault: 'Cliente VIP' },
+    'Diamante': { colores: { gradiente: ['#B9F2FF', '#00CED1'] }, textoDefault: 'Cliente Elite' },
+    'Platino': { colores: { gradiente: ['#E5E4E2', '#C0C0C0'] }, textoDefault: 'Cliente Exclusivo' }
+  };
+
+  const [selectedLevel, setSelectedLevel] = useState('Oro');
+  const tarjeta = (config.tarjetas || []).find((t: any) => t.nivel === selectedLevel) || {
+    nivel: selectedLevel,
+    nombrePersonalizado: `Tarjeta ${selectedLevel}`,
+    textoCalidad: nivelesConfig[selectedLevel as keyof typeof nivelesConfig].textoDefault,
+    colores: nivelesConfig[selectedLevel as keyof typeof nivelesConfig].colores,
+    diseño: { patron: 'clasico', textura: 'mate', bordes: 'redondeados' },
+    condiciones: { puntosMinimos: 0, gastosMinimos: 0, visitasMinimas: 0 },
+    beneficios: 'Acceso a descuentos especiales'
+  };
+
+  // Nombre de empresa editable
+  const nombreEmpresa = config.nombreEmpresa || 'LEALTA 2.0';
+
+  return (
+    <div className="space-y-4">
+      {/* Selector de nivel */}
+      <div className="flex justify-center space-x-2">
+        {Object.entries(nivelesConfig).map(([nivel, config]) => (
+          <button
+            key={nivel}
+            onClick={() => setSelectedLevel(nivel)}
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              selectedLevel === nivel 
+                ? 'bg-primary-600 text-white' 
+                : 'bg-dark-700 text-dark-300 hover:text-white'
+            }`}
+          >
+            {nivel}
+          </button>
+        ))}
+      </div>
+
+      {/* Vista previa de la tarjeta */}
+      <div className="flex justify-center">
+        <div className="relative w-80 h-48">
+          <div 
+            className="absolute inset-0 rounded-xl shadow-2xl transform transition-all duration-300 border-2"
+            style={{
+              background: `linear-gradient(135deg, ${tarjeta.colores.gradiente[0]}, ${tarjeta.colores.gradiente[1]})`,
+              boxShadow: '0 10px 25px rgba(0,0,0,0.4)',
+              borderColor: getLevelColors(selectedLevel)
+            }}
+          >
+            {/* Overlay para contraste */}
+            <div className="absolute inset-0 rounded-xl bg-black opacity-15" />
+            
+            {/* Detalles únicos por nivel */}
+            {selectedLevel === 'Bronce' && (
+              <>
+                <div className="absolute inset-0 rounded-xl opacity-20 bg-gradient-to-br from-amber-200 via-transparent to-amber-800" />
+                {/* Partículas de bronce flotantes */}
+                <div className="absolute top-6 right-8 w-3 h-3 bg-amber-600 rounded-full opacity-40 animate-bounce" style={{ animationDelay: '0s' }} />
+                <div className="absolute top-12 right-12 w-2 h-2 bg-amber-500 rounded-full opacity-50 animate-bounce" style={{ animationDelay: '0.5s' }} />
+                <div className="absolute bottom-8 left-8 w-2.5 h-2.5 bg-amber-700 rounded-full opacity-45 animate-bounce" style={{ animationDelay: '1s' }} />
+                <div className="absolute bottom-12 right-6 w-1.5 h-1.5 bg-amber-400 rounded-full opacity-35 animate-bounce" style={{ animationDelay: '1.5s' }} />
+                {/* Líneas decorativas */}
+                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-30 animate-pulse" />
+              </>
+            )}
+            
+            {selectedLevel === 'Plata' && (
+              <>
+                <div className="absolute inset-0 rounded-xl opacity-15 bg-gradient-to-r from-gray-200 via-white to-gray-200" />
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white to-transparent opacity-30" />
+                {/* Efectos metálicos ondulantes */}
+                <div className="absolute top-4 left-4 w-20 h-0.5 bg-gradient-to-r from-transparent via-gray-300 to-transparent opacity-50 animate-pulse" style={{ animationDelay: '0s' }} />
+                <div className="absolute top-8 left-8 w-16 h-0.5 bg-gradient-to-r from-transparent via-gray-400 to-transparent opacity-40 animate-pulse" style={{ animationDelay: '0.7s' }} />
+                <div className="absolute top-12 left-12 w-12 h-0.5 bg-gradient-to-r from-transparent via-gray-200 to-transparent opacity-60 animate-pulse" style={{ animationDelay: '1.4s' }} />
+                {/* Reflejos metálicos */}
+                <div className="absolute top-6 right-6 w-24 h-24 bg-gradient-to-br from-white via-transparent to-gray-300 rounded-full opacity-10 animate-spin" style={{ animationDuration: '8s' }} />
+              </>
+            )}
+            
+            {selectedLevel === 'Oro' && (
+              <>
+                <div className="absolute inset-0 rounded-xl opacity-20 bg-gradient-to-br from-yellow-200 via-transparent to-yellow-600" />
+                <div className="absolute top-4 right-4 w-16 h-16 bg-gradient-to-br from-yellow-300 to-yellow-600 rounded-full opacity-10" />
+                <div className="absolute bottom-4 left-4 w-8 h-8 bg-gradient-to-br from-yellow-300 to-yellow-600 rounded-full opacity-15" />
+                {/* Partículas doradas brillantes */}
+                <div className="absolute top-8 right-16 w-2 h-2 bg-yellow-300 rounded-full opacity-70 animate-ping" style={{ animationDelay: '0s' }} />
+                <div className="absolute top-16 right-20 w-1.5 h-1.5 bg-yellow-400 rounded-full opacity-60 animate-ping" style={{ animationDelay: '0.8s' }} />
+                <div className="absolute bottom-16 left-16 w-2.5 h-2.5 bg-yellow-200 rounded-full opacity-50 animate-ping" style={{ animationDelay: '1.6s' }} />
+                <div className="absolute bottom-20 left-20 w-1 h-1 bg-yellow-500 rounded-full opacity-80 animate-ping" style={{ animationDelay: '2.4s' }} />
+                {/* Rayos dorados */}
+                <div className="absolute top-1/2 left-1/2 w-32 h-0.5 bg-gradient-to-r from-transparent via-yellow-300 to-transparent opacity-20 rotate-45 animate-pulse" />
+                <div className="absolute top-1/2 left-1/2 w-24 h-0.5 bg-gradient-to-r from-transparent via-yellow-400 to-transparent opacity-30 -rotate-45 animate-pulse" style={{ animationDelay: '1s' }} />
+              </>
+            )}
+            
+            {selectedLevel === 'Diamante' && (
+              <>
+                <div className="absolute inset-0 rounded-xl opacity-20 bg-gradient-to-br from-blue-200 via-transparent to-cyan-400" />
+                {/* Efectos de cristal diamante */}
+                <div className="absolute top-3 right-3 w-2 h-2 bg-white rounded-full opacity-70 animate-pulse" />
+                <div className="absolute top-8 right-8 w-1 h-1 bg-white rounded-full opacity-50 animate-pulse delay-300" />
+                <div className="absolute bottom-6 left-6 w-1.5 h-1.5 bg-white rounded-full opacity-60 animate-pulse delay-700" />
+                <div className="absolute top-1/2 left-1/3 w-1 h-1 bg-cyan-200 rounded-full opacity-40 animate-pulse delay-1000" />
+                <div className="absolute top-6 left-8 w-1.5 h-1.5 bg-blue-200 rounded-full opacity-55 animate-pulse delay-500" />
+                <div className="absolute bottom-8 right-12 w-2 h-2 bg-cyan-300 rounded-full opacity-45 animate-pulse delay-1200" />
+                {/* Facetas de diamante */}
+                <div className="absolute top-4 left-4 w-16 h-16 border border-cyan-200 opacity-20 rotate-45 animate-spin" style={{ animationDuration: '12s' }} />
+                <div className="absolute bottom-4 right-4 w-12 h-12 border border-blue-200 opacity-15 -rotate-12 animate-spin" style={{ animationDuration: '15s' }} />
+              </>
+            )}
+            
+            {selectedLevel === 'Platino' && (
+              <>
+                <div className="absolute inset-0 rounded-xl opacity-25 bg-gradient-to-br from-gray-100 via-white to-gray-300" />
+                <div className="absolute top-0 left-0 w-full h-full border-2 border-white rounded-xl opacity-10" />
+                <div className="absolute top-2 left-2 w-20 h-20 bg-gradient-to-br from-white to-gray-200 rounded-full opacity-5" />
+                {/* Efectos de lujo platino */}
+                <div className="absolute top-6 right-10 w-3 h-3 bg-gradient-to-br from-white to-gray-300 rounded-full opacity-60 animate-pulse" style={{ animationDelay: '0s' }} />
+                <div className="absolute top-12 right-6 w-2 h-2 bg-gradient-to-br from-gray-100 to-gray-400 rounded-full opacity-50 animate-pulse" style={{ animationDelay: '1s' }} />
+                <div className="absolute bottom-10 left-10 w-2.5 h-2.5 bg-gradient-to-br from-white to-gray-200 rounded-full opacity-70 animate-pulse" style={{ animationDelay: '2s' }} />
+                <div className="absolute bottom-6 left-16 w-1.5 h-1.5 bg-white rounded-full opacity-80 animate-pulse" style={{ animationDelay: '0.5s' }} />
+                {/* Líneas de elegancia */}
+                <div className="absolute top-8 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-gray-300 to-transparent opacity-25 animate-pulse" style={{ animationDelay: '1.5s' }} />
+                <div className="absolute bottom-8 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-pulse" style={{ animationDelay: '2.5s' }} />
+                {/* Corona de lujo */}
+                <div className="absolute top-1/2 left-1/2 w-40 h-40 border border-gray-200 rounded-full opacity-5 animate-spin" style={{ animationDuration: '20s' }} />
+              </>
+            )}
+            
+            <div className="relative p-6 h-full flex flex-col justify-between text-white">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-xl font-bold drop-shadow-lg text-white"
+                      style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}>
+                    {tarjeta.nombrePersonalizado}
+                  </h3>
+                </div>
+              </div>
+
+              {/* Chip con mejor contraste */}
+              <div className="absolute top-16 left-6">
+                <div 
+                  className="w-8 h-6 rounded-sm border"
+                  style={{
+                    background: getLevelGradient(selectedLevel),
+                    borderColor: 'rgba(255,255,255,0.3)',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                  }}
+                />
+              </div>
+
+              <div className="text-center">
+                <div className="text-lg font-bold tracking-widest mb-2 text-white"
+                     style={{ textShadow: '2px 2px 6px rgba(0,0,0,0.9)' }}>
+                  {tarjeta.nivel.toUpperCase()}
+                </div>
+                <p className="text-sm font-medium text-white"
+                   style={{ textShadow: '1px 1px 3px rgba(0,0,0,0.8)' }}>
+                  {tarjeta.textoCalidad}
+                </p>
+              </div>
+
+              <div className="flex justify-between items-end text-xs font-semibold text-white"
+                   style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.8)' }}>
+                <span>{nombreEmpresa}</span>
+                <span>NIVEL {Object.keys(nivelesConfig).indexOf(tarjeta.nivel) + 1}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Componente para edición de tarjetas
+function TarjetaEditorComponent({ config, setConfig }: any) {
+  const nivelesConfig = {
+    'Bronce': { textoDefault: 'Cliente Inicial', condicionesDefault: { puntosMinimos: 0, gastosMinimos: 0, visitasMinimas: 0 }, beneficioDefault: 'Acumulación de puntos básica' },
+    'Plata': { textoDefault: 'Cliente Frecuente', condicionesDefault: { puntosMinimos: 100, gastosMinimos: 500, visitasMinimas: 5 }, beneficioDefault: '5% descuento en compras' },
+    'Oro': { textoDefault: 'Cliente VIP', condicionesDefault: { puntosMinimos: 500, gastosMinimos: 1500, visitasMinimas: 10 }, beneficioDefault: '10% descuento + producto gratis mensual' },
+    'Diamante': { textoDefault: 'Cliente Elite', condicionesDefault: { puntosMinimos: 1500, gastosMinimos: 3000, visitasMinimas: 20 }, beneficioDefault: '15% descuento + acceso a eventos exclusivos' },
+    'Platino': { textoDefault: 'Cliente Exclusivo', condicionesDefault: { puntosMinimos: 3000, gastosMinimos: 5000, visitasMinimas: 30 }, beneficioDefault: '20% descuento + servicio VIP personalizado' }
+  };
+
+  const [selectedLevel, setSelectedLevel] = useState('Oro');
+  const [editingCard, setEditingCard] = useState<any>(null);
+
+  const currentTarjeta = (config.tarjetas || []).find((t: any) => t.nivel === selectedLevel) || {
+    nivel: selectedLevel,
+    nombrePersonalizado: `Tarjeta ${selectedLevel}`,
+    textoCalidad: nivelesConfig[selectedLevel as keyof typeof nivelesConfig].textoDefault,
+    condiciones: nivelesConfig[selectedLevel as keyof typeof nivelesConfig].condicionesDefault,
+    beneficio: nivelesConfig[selectedLevel as keyof typeof nivelesConfig].beneficioDefault,
+    activo: true
+  };
+
+  const handleSave = () => {
+    if (editingCard) {
+      const newTarjetas = [...(config.tarjetas || [])];
+      const existingIndex = newTarjetas.findIndex((t: any) => t.nivel === editingCard.nivel);
+      
+      if (existingIndex >= 0) {
+        newTarjetas[existingIndex] = editingCard;
+      } else {
+        newTarjetas.push(editingCard);
+      }
+      
+      setConfig({ ...config, tarjetas: newTarjetas });
+      setEditingCard(null);
+    }
+  };
+
+  const handleSaveEmpresa = (nombreEmpresa: string) => {
+    setConfig({ ...config, nombreEmpresa });
+  };
+
+  return (
+    <div>
+      <div className="flex items-center mb-6">
+        <CreditCard className="w-6 h-6 mr-2 text-primary-500" />
+        <h4 className="text-lg font-semibold text-white">Gestión de Tarjetas de Lealtad</h4>
+      </div>
+
+      {/* Configuración del nombre de empresa */}
+      <div className="bg-dark-800 rounded-lg p-4 mb-6">
+        <h5 className="text-white font-medium mb-3">Nombre de la Empresa en Tarjetas</h5>
+        <div className="flex space-x-2">
+          <input
+            type="text"
+            value={config.nombreEmpresa || 'LEALTA 2.0'}
+            onChange={(e) => handleSaveEmpresa(e.target.value)}
+            placeholder="Nombre de tu empresa"
+            className="flex-1 px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
+          />
+        </div>
+        <p className="text-dark-400 text-sm mt-2">Este nombre aparecerá en la esquina inferior izquierda de todas las tarjetas</p>
+      </div>
+
+      {/* Selector de nivel */}
+      <div className="mb-6">
+        <h5 className="text-white font-medium mb-3">Seleccionar Nivel</h5>
+        <div className="grid grid-cols-5 gap-2">
+          {Object.entries(nivelesConfig).map(([nivel, conf]) => (
+            <button
+              key={nivel}
+              onClick={() => setSelectedLevel(nivel)}
+              className={`p-3 rounded-lg text-center transition-colors ${
+                selectedLevel === nivel 
+                  ? 'bg-primary-600 text-white' 
+                  : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
+              }`}
+            >
+              <div className="text-sm font-medium">{nivel}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Editor */}
+      <div className="bg-dark-800 rounded-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h6 className="text-white font-medium">
+            Editando: Tarjeta {selectedLevel}
+          </h6>
+          {!editingCard && (
+            <button
+              onClick={() => setEditingCard({ ...currentTarjeta })}
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+            >
+              Editar
+            </button>
+          )}
+        </div>
+
+        {editingCard ? (
+          <div className="space-y-6">
+            {/* Información básica */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="nombre-personalizado" className="block text-sm font-medium text-dark-300 mb-2">Nombre Personalizado</label>
+                <input
+                  id="nombre-personalizado"
+                  type="text"
+                  value={editingCard.nombrePersonalizado}
+                  onChange={(e) => setEditingCard({ ...editingCard, nombrePersonalizado: e.target.value })}
+                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label htmlFor="texto-calidad" className="block text-sm font-medium text-dark-300 mb-2">Texto de Calidad</label>
+                <input
+                  id="texto-calidad"
+                  type="text"
+                  value={editingCard.textoCalidad}
+                  onChange={(e) => setEditingCard({ ...editingCard, textoCalidad: e.target.value })}
+                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Condiciones para obtener la tarjeta */}
+            <div>
+              <h6 className="text-white font-medium mb-3">Condiciones para Obtener este Nivel</h6>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="puntos-minimos" className="block text-sm text-dark-300 mb-1">Puntos mínimos</label>
+                  <input
+                    id="puntos-minimos"
+                    type="number"
+                    value={editingCard.condiciones?.puntosMinimos || 0}
+                    onChange={(e) => setEditingCard({ 
+                      ...editingCard, 
+                      condiciones: { ...editingCard.condiciones, puntosMinimos: Number(e.target.value) }
+                    })}
+                    className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="gastos-minimos" className="block text-sm text-dark-300 mb-1">Gastos mínimos ($)</label>
+                  <input
+                    id="gastos-minimos"
+                    type="number"
+                    value={editingCard.condiciones?.gastosMinimos || 0}
+                    onChange={(e) => setEditingCard({ 
+                      ...editingCard, 
+                      condiciones: { ...editingCard.condiciones, gastosMinimos: Number(e.target.value) }
+                    })}
+                    className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="visitas-minimas" className="block text-sm text-dark-300 mb-1">Visitas mínimas</label>
+                  <input
+                    id="visitas-minimas"
+                    type="number"
+                    value={editingCard.condiciones?.visitasMinimas || 0}
+                    onChange={(e) => setEditingCard({ 
+                      ...editingCard, 
+                      condiciones: { ...editingCard.condiciones, visitasMinimas: Number(e.target.value) }
+                    })}
+                    className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Beneficio del nivel */}
+            <div>
+              <h6 className="text-white font-medium mb-3">Beneficio de este Nivel</h6>
+              <textarea
+                value={editingCard.beneficio || ''}
+                onChange={(e) => setEditingCard({ ...editingCard, beneficio: e.target.value })}
+                placeholder="Describe el beneficio principal que obtienen los clientes con este nivel de tarjeta"
+                rows={3}
+                className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none resize-none"
+              />
+            </div>
+
+            {/* Estado activo */}
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="activo"
+                checked={editingCard.activo}
+                onChange={(e) => setEditingCard({ ...editingCard, activo: e.target.checked })}
+                className="w-4 h-4 text-primary-600 bg-dark-700 border-dark-600 rounded focus:ring-primary-500"
+              />
+              <label htmlFor="activo" className="text-dark-300">Tarjeta activa y visible para clientes</label>
+            </div>
+
+            {/* Botones */}
+            <div className="flex space-x-2 pt-4">
+              <button
+                onClick={handleSave}
+                className="px-4 py-2 bg-success-600 text-white rounded-lg hover:bg-success-700 transition-colors"
+              >
+                Guardar Cambios
+              </button>
+              <button
+                onClick={() => setEditingCard(null)}
+                className="px-4 py-2 bg-dark-600 text-white rounded-lg hover:bg-dark-500 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* Vista de información cuando no está editando */
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-dark-400">Nombre:</p>
+                <p className="text-white font-medium">{currentTarjeta.nombrePersonalizado}</p>
+              </div>
+              <div>
+                <p className="text-dark-400">Texto de calidad:</p>
+                <p className="text-white font-medium">{currentTarjeta.textoCalidad}</p>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-dark-400 text-sm mb-2">Condiciones:</p>
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div>
+                  <p className="text-dark-400">Puntos</p>
+                  <p className="text-white font-medium">{currentTarjeta.condiciones?.puntosMinimos || 0}</p>
+                </div>
+                <div>
+                  <p className="text-dark-400">Gastos</p>
+                  <p className="text-white font-medium">${currentTarjeta.condiciones?.gastosMinimos || 0}</p>
+                </div>
+                <div>
+                  <p className="text-dark-400">Visitas</p>
+                  <p className="text-white font-medium">{currentTarjeta.condiciones?.visitasMinimas || 0}</p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-dark-400 text-sm mb-2">Beneficio:</p>
+              <p className="text-white text-sm">{currentTarjeta.beneficio || 'Sin beneficio definido'}</p>
+            </div>
+
+            <div>
+              <span className={`inline-block px-2 py-1 rounded text-xs ${
+                currentTarjeta.activo ? 'bg-success-600 text-white' : 'bg-red-600 text-white'
+              }`}>
+                {currentTarjeta.activo ? 'Activa' : 'Inactiva'}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Componente para asignación manual de tarjetas a clientes
+// Componente para mostrar un cliente individual en la lista de búsqueda
+function ClientListItem({ client, selectedClient, onSelect, calculateClientLevel }: any) {
+  const nivelAutomatico = calculateClientLevel(client);
+  const cumpleCondiciones = nivelAutomatico !== 'Bronce';
+  
+  return (
+    <button
+      onClick={() => onSelect(client)}
+      className={`w-full p-3 rounded-lg cursor-pointer transition-colors text-left ${
+        selectedClient?.id === client.id
+          ? 'bg-primary-600 text-white'
+          : 'bg-dark-700 hover:bg-dark-600 text-dark-300'
+      }`}
+    >
+      <div className="flex justify-between items-start">
+        <div>
+          <p className="font-medium">{client.nombre}</p>
+          <p className="text-sm opacity-75">{client.email}</p>
+        </div>
+        <div className="text-right text-sm">
+          <p>Puntos: {client.puntos || 0}</p>
+          <p>Gastos: ${client.gastoTotal || 0}</p>
+          <p>Visitas: {client.visitas || 0}</p>
+          <p className={`font-medium ${cumpleCondiciones ? 'text-success-400' : 'text-yellow-400'}`}>
+            Nivel sugerido: {nivelAutomatico}
+          </p>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+// Componente para el formulario de asignación de tarjeta
+function CardAssignmentForm({ selectedClient, selectedLevel, setSelectedLevel, nivelesConfig, onAssign, onCancel }: any) {
+  return (
+    <div className="bg-dark-700 rounded-lg p-4">
+      <h6 className="text-white font-medium mb-3">
+        Asignar Tarjeta a: {selectedClient.nombre}
+      </h6>
+      
+      <div className="grid grid-cols-3 gap-4 mb-4">
+        <div>
+          <p className="text-dark-400 text-sm">Puntos Actuales</p>
+          <p className="text-white font-medium">{selectedClient.puntos || 0}</p>
+        </div>
+        <div>
+          <p className="text-dark-400 text-sm">Gastos Totales</p>
+          <p className="text-white font-medium">${selectedClient.gastoTotal || 0}</p>
+        </div>
+        <div>
+          <p className="text-dark-400 text-sm">Visitas</p>
+          <p className="text-white font-medium">{selectedClient.visitas || 0}</p>
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <label htmlFor="nivel-select" className="block text-sm font-medium text-dark-300 mb-2">
+          Seleccionar Nivel de Tarjeta
+        </label>
+        <select
+          id="nivel-select"
+          value={selectedLevel}
+          onChange={(e) => setSelectedLevel(e.target.value)}
+          className="w-full px-3 py-2 bg-dark-600 border border-dark-500 rounded-lg text-white focus:border-primary-500 focus:outline-none"
+        >
+          {Object.entries(nivelesConfig).map(([nivel, conf]: [string, any]) => {
+            const cumple = 
+              (selectedClient.puntos || 0) >= conf.condiciones.puntosMinimos &&
+              (selectedClient.gastoTotal || 0) >= conf.condiciones.gastosMinimos &&
+              (selectedClient.visitas || 0) >= conf.condiciones.visitasMinimas;
+            
+            return (
+              <option key={nivel} value={nivel}>
+                {nivel} {cumple ? '✓' : '⚠️'} 
+                (Req: {conf.condiciones.puntosMinimos}pts, ${conf.condiciones.gastosMinimos}, {conf.condiciones.visitasMinimas} visitas)
+              </option>
+            );
+          })}
+        </select>
+        <p className="text-dark-400 text-xs mt-1">
+          ✓ = Cumple condiciones automáticamente | ⚠️ = Asignación manual
+        </p>
+      </div>
+
+      <div className="flex space-x-2">
+        <button
+          onClick={onAssign}
+          className="px-4 py-2 bg-success-600 text-white rounded-lg hover:bg-success-700 transition-colors"
+        >
+          Asignar Tarjeta
+        </button>
+        <button
+          onClick={onCancel}
+          className="px-4 py-2 bg-dark-600 text-white rounded-lg hover:bg-dark-500 transition-colors"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AsignacionTarjetasComponent({ config, setConfig }: any) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [selectedLevel, setSelectedLevel] = useState('Bronce');
+  const [clients, setClients] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const nivelesConfig = {
+    'Bronce': { condiciones: { puntosMinimos: 0, gastosMinimos: 0, visitasMinimas: 0 } },
+    'Plata': { condiciones: { puntosMinimos: 100, gastosMinimos: 500, visitasMinimas: 5 } },
+    'Oro': { condiciones: { puntosMinimos: 500, gastosMinimos: 1500, visitasMinimas: 10 } },
+    'Diamante': { condiciones: { puntosMinimos: 1500, gastosMinimos: 3000, visitasMinimas: 20 } },
+    'Platino': { condiciones: { puntosMinimos: 3000, gastosMinimos: 5000, visitasMinimas: 30 } }
+  };
+
+  // Buscar clientes
+  const searchClients = async () => {
+    if (searchTerm.length < 2) return;
+    
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/clientes/search?q=${encodeURIComponent(searchTerm)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setClients(data);
+      }
+    } catch (error) {
+      console.error('Error buscando clientes:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Calcular nivel automático basado en historial del cliente
+  const calculateClientLevel = (client: any) => {
+    const puntos = client.puntos || 0;
+    const gastos = client.gastoTotal || 0;
+    const visitas = client.visitas || 0;
+
+    // Buscar el nivel más alto que cumple
+    const niveles = ['Platino', 'Diamante', 'Oro', 'Plata', 'Bronce'];
+    
+    for (const nivel of niveles) {
+      const condiciones = nivelesConfig[nivel as keyof typeof nivelesConfig].condiciones;
+      if (puntos >= condiciones.puntosMinimos && 
+          gastos >= condiciones.gastosMinimos && 
+          visitas >= condiciones.visitasMinimas) {
+        return nivel;
+      }
+    }
+    return 'Bronce';
+  };
+
+  // Asignar tarjeta manualmente
+  const assignCard = async () => {
+    if (!selectedClient) return;
+
+    try {
+      const response = await fetch('/api/tarjetas/asignar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clienteId: selectedClient.id,
+          nivel: selectedLevel,
+          asignacionManual: true
+        })
+      });
+
+      if (response.ok) {
+        alert(`Tarjeta ${selectedLevel} asignada exitosamente a ${selectedClient.nombre}`);
+        setSelectedClient(null);
+        setSearchTerm('');
+        setClients([]);
+      }
+    } catch (error) {
+      console.error('Error asignando tarjeta:', error);
+      alert('Error al asignar la tarjeta');
+    }
+  };
+
+  useEffect(() => {
+    const timeoutId = setTimeout(searchClients, 500);
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
+
+  return (
+    <div className="bg-dark-800 rounded-lg p-6">
+      <div className="flex items-center mb-6">
+        <Users className="w-6 h-6 mr-2 text-primary-500" />
+        <h4 className="text-lg font-semibold text-white">Asignación Manual de Tarjetas</h4>
+      </div>
+      
+      <p className="text-dark-400 text-sm mb-4">
+        Busca clientes existentes para asignarles una tarjeta de lealtad manualmente, 
+        especial para casos donde el negocio considera que el cliente merece el nivel.
+      </p>
+
+      {/* Buscador de clientes */}
+      <div className="mb-6">
+        <label htmlFor="search-client" className="block text-sm font-medium text-dark-300 mb-2">
+          Buscar Cliente
+        </label>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-dark-400" />
+          <input
+            id="search-client"
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar por nombre, email o teléfono..."
+            className="w-full pl-10 pr-4 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
+          />
+        </div>
+        
+        {loading && (
+          <div className="mt-2 text-dark-400 text-sm">Buscando clientes...</div>
+        )}
+      </div>
+
+      {/* Lista de clientes encontrados */}
+      {clients.length > 0 && (
+        <div className="mb-6">
+          <h6 className="text-white font-medium mb-3">Clientes Encontrados</h6>
+          <div className="space-y-2 max-h-40 overflow-y-auto">
+            {clients.map((client) => (
+              <ClientListItem
+                key={client.id}
+                client={client}
+                selectedClient={selectedClient}
+                onSelect={setSelectedClient}
+                calculateClientLevel={calculateClientLevel}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Selección de nivel y asignación */}
+      {selectedClient && (
+        <CardAssignmentForm
+          selectedClient={selectedClient}
+          selectedLevel={selectedLevel}
+          setSelectedLevel={setSelectedLevel}
+          nivelesConfig={nivelesConfig}
+          onAssign={assignCard}
+          onCancel={() => setSelectedClient(null)}
+        />
+      )}
     </div>
   );
 }

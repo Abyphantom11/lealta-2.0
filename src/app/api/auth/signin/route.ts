@@ -24,19 +24,17 @@ async function getBusinessFromRequest(request: NextRequest) {
   // Extraer subdomain o usar un business por defecto para desarrollo
   if (host.includes('localhost') || host.includes('127.0.0.1')) {
     // Para desarrollo local, usar el primer business o crear uno de demo
-    let business = await prisma.business.findFirst();
-    
-    if (!business) {
-      // Crear business demo para desarrollo
-      business = await prisma.business.create({
+    const business = await prisma.business.findFirst() ?? 
+      await prisma.business.create({
         data: {
           name: 'Demo Business',
           slug: 'demo-business',
           subdomain: 'demo',
-          contactEmail: 'demo@lealta.com'
+          settings: {
+            contactEmail: 'demo@lealta.com'
+          }
         }
       });
-    }
     
     return business;
   }
@@ -235,12 +233,16 @@ export async function POST(request: NextRequest) {
     const { email, password } = signInSchema.parse(body);
 
     const user = await findUser(email, request);
+    
+    // Si el usuario no existe o está inactivo, validateUser lanzará una excepción
     validateUser(user, request);
 
+    // En este punto sabemos que user no es nulo
     // Verify password
-    const isValid = await compare(password, user.passwordHash);
+    const isValid = await compare(password, user!.passwordHash);
     if (!isValid) {
-      await handleInvalidPassword(user);
+      await handleInvalidPassword(user!);
+      throw new Error('Credenciales inválidas');
     }
 
     // Crear sesión y respuesta

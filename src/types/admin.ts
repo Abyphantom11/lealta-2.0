@@ -32,8 +32,34 @@ export interface Cliente {
   puntos: number;
   totalGastado: number;
   totalVisitas: number;
-  nivel: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
+  nivel: 'Bronce' | 'Plata' | 'Oro' | 'Diamante' | 'Platino';
   registeredAt: Date;
+}
+
+export interface TarjetaConfig {
+  id: string;
+  nivel: 'Bronce' | 'Plata' | 'Oro' | 'Diamante' | 'Platino';
+  nombrePersonalizado: string;
+  textoCalidad: string;
+  condiciones: {
+    puntosMinimos: number;
+    gastosMinimos: number;
+    visitasMinimas: number;
+  };
+  beneficios: string[];
+  colores: {
+    primario: string;
+    secundario: string;
+    acento: string;
+    gradiente: string[];
+  };
+  diseño: {
+    patron: 'clasico' | 'moderno' | 'elegante' | 'premium' | 'exclusivo';
+    textura: 'lisa' | 'metalica' | 'brillante' | 'mate' | 'diamante';
+    bordes: 'redondeados' | 'cuadrados' | 'biselados';
+  };
+  activo: boolean;
+  businessId: string;
 }
 
 export interface Consumo {

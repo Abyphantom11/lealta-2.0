@@ -99,6 +99,7 @@ model Cliente {
   business     Business?  @relation("BusinessClientes", fields: [businessId], references: [id], onDelete: Cascade)
   consumos     Consumo[]
   visits       VisitLog[]
+  tarjetaLealtad TarjetaLealtad?
 
   // Temporalmente removemos la restricción compuesta
   // @@unique([businessId, cedula])
@@ -221,4 +222,55 @@ model MenuProduct {
   category     MenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   
   @@unique([categoryId, nombre])
+}
+
+// Modelo para tarjetas de lealtad
+model TarjetaLealtad {
+  id               String   @id @default(cuid())
+  clienteId        String   @unique // Un cliente solo puede tener una tarjeta
+  businessId       String?  // FK a Business
+  nivel            String   // "Bronce", "Plata", "Oro", "Diamante", "Platino"
+  fechaAsignacion  DateTime @default(now())
+  asignacionManual Boolean  @default(false) // true si fue asignada manualmente por admin
+  activa           Boolean  @default(true)
+  
+  // Historial de niveles
+  historicoNiveles Json?    // Array con historial de cambios de nivel
+  
+  // Metadatos
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  // Relaciones
+  cliente          Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+}
+
+// Modelo para configuración de niveles de tarjetas
+model ConfiguracionTarjeta {
+  id                String   @id @default(cuid())
+  businessId        String   @unique
+  nivel             String   // "Bronce", "Plata", "Oro", "Diamante", "Platino"
+  nombrePersonalizado String // "Tarjeta VIP Premium"
+  textoCalidad      String   // "Cliente Exclusivo"
+  
+  // Condiciones para obtener el nivel
+  puntosMinimos     Int      @default(0)
+  gastosMinimos     Float    @default(0)
+  visitasMinimas    Int      @default(0)
+  
+  // Beneficios
+  beneficio         String?  // Descripción del beneficio principal
+  beneficiosExtra   Json?    // Array de beneficios adicionales
+  
+  // Configuración visual
+  colores           Json     // { gradiente: ["#color1", "#color2"] }
+  
+  // Estado
+  activa            Boolean  @default(true)
+  
+  // Metadatos
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@unique([businessId, nivel])
 }

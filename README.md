@@ -8,6 +8,31 @@
 
 Implementa el concepto "registra antes del consumo, captura antes del cobro" para maximizar la captación de datos y fidelización de clientes.
 
+## 🛠️ Herramientas de Optimización de Código
+
+El proyecto incluye varias herramientas para optimizar el código y mejorar la mantenibilidad:
+
+### 📚 Servicios Utilitarios
+- **Logger**: Sistema de logging estructurado (`src/lib/logger.ts`)
+- **ApiService**: Centralización de llamadas API (`src/lib/apiService.ts`)
+- **DateUtils**: Utilidades para fechas (`src/lib/dateUtils.ts`)
+- **NumberUtils**: Formateo de números y precios (`src/lib/numberUtils.ts`)
+- **NotificationService**: Sistema de notificaciones (`src/lib/notificationService.ts`)
+- **Storage**: Gestión tipada de localStorage (`src/lib/storage.ts`)
+
+### 🧩 Extracción de Componentes
+- Herramienta para dividir archivos grandes en componentes reutilizables
+- Documentación: `src/docs/EXTRACCION_COMPONENTES.md`
+- Script: `src/scripts/extract-components.ts`
+
+### 📝 Gestión de Formularios
+- Sistema unificado para validación y manejo de formularios
+- API consistente para todos los formularios del proyecto
+
+### 📖 Guías de Refactorización
+- Guía detallada: `src/docs/REFACTORIZACION.md`
+- Ejemplos prácticos de antes/después
+
 ## 🏗️ Arquitectura Híbrida
 
 ### 📱 **Web App (Clientes)**
