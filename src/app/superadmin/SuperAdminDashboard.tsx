@@ -1340,6 +1340,40 @@ export default function SuperAdminPage() {
                     </div>
                   </div>
                 </div>
+                
+                {/* Estado de Tarjeta */}
+                <div className="bg-gray-800/50 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-white mb-3">Tarjeta de Lealtad</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-gray-400 text-sm">Nivel Actual</p>
+                      <p className="text-white font-semibold">
+                        {clienteDetalles.cliente.tarjetaLealtad?.nivel || 'Sin Tarjeta'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-sm">Fecha de Asignación</p>
+                      <p className="text-white font-semibold">
+                        {clienteDetalles.cliente.tarjetaLealtad?.fechaAsignacion ? 
+                          new Date(clienteDetalles.cliente.tarjetaLealtad.fechaAsignacion).toLocaleDateString() : 
+                          'N/A'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-sm">Tipo de Asignación</p>
+                      <p className="text-white font-semibold">
+                        {clienteDetalles.cliente.tarjetaLealtad?.asignacionManual ? 
+                          'Manual' : 'Automática'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-sm">Estado</p>
+                      <p className={`font-semibold ${clienteDetalles.cliente.tarjetaLealtad?.nivel ? 'text-green-400' : 'text-red-400'}`}>
+                        {clienteDetalles.cliente.tarjetaLealtad?.nivel ? 'Activa' : 'No Asignada'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Estadísticas */}
                 <div className="bg-gray-800/50 rounded-lg p-4">
