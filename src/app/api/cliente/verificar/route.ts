@@ -18,6 +18,9 @@ export async function POST(request: NextRequest) {
     const cliente = await prisma.cliente.findFirst({
       where: {
         cedula: cedula.toString()
+      },
+      include: {
+        tarjetaLealtad: true // Incluir información de la tarjeta
       }
     });
 
@@ -30,7 +33,12 @@ export async function POST(request: NextRequest) {
           cedula: cliente.cedula,
           nombre: cliente.nombre,
           puntos: cliente.puntos,
-          visitas: cliente.totalVisitas
+          visitas: cliente.totalVisitas,
+          tarjetaLealtad: cliente.tarjetaLealtad ? {
+            nivel: cliente.tarjetaLealtad.nivel,
+            activa: cliente.tarjetaLealtad.activa,
+            fechaAsignacion: cliente.tarjetaLealtad.fechaAsignacion
+          } : null
         }
       });
     } else {

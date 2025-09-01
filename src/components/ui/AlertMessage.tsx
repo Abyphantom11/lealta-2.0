@@ -7,9 +7,9 @@ import { AlertTriangle, CheckCircle, Info } from 'lucide-react';
 type AlertType = 'error' | 'success' | 'info' | 'warning';
 
 interface AlertMessageProps {
-  type: AlertType;
-  message: string | null;
-  className?: string;
+  readonly type: AlertType;
+  readonly message: string | null;
+  readonly className?: string;
 }
 
 export default function AlertMessage({ type, message, className = '' }: AlertMessageProps) {

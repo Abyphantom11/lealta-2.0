@@ -18,8 +18,8 @@ interface ApiContextType {
 const ApiContext = createContext<ApiContextType | undefined>(undefined);
 
 interface ApiProviderProps {
-  children: React.ReactNode;
-  baseUrl?: string;
+  readonly children: React.ReactNode;
+  readonly baseUrl?: string;
 }
 
 /**

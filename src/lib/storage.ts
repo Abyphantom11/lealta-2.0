@@ -90,7 +90,7 @@ export function clearAll(): boolean {
 
 // Clase Storage con tipado genérico para un uso más conveniente
 export class TypedStorage<T extends Record<string, any>> {
-  private prefix: string;
+  private readonly prefix: string;
   
   constructor(prefix: string = '') {
     this.prefix = prefix ? `${prefix}:` : '';

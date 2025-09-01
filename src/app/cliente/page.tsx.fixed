@@ -1,0 +1,273 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from '../../components/motion';
+import { 
+  Bell,
+  User,
+  UtensilsCrossed, 
+  Coffee, 
+  IdCard, 
+  UserPlus, 
+  ArrowRight,
+  Eye,
+  Gift,
+  Search,
+  Percent,
+  Menu,
+  Trophy,
+  Smartphone,
+  X
+} from 'lucide-react';
+import { Cliente, MenuItem, MenuCategory } from '@/types/admin';
+
+// Definir la interfaz para el evento de instalación PWA
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => void;
+  userChoice: Promise<{ outcome: string }>;
+}
+
+// Interfaces para el portal del cliente
+interface Banner {
+  id: string;
+  titulo: string;
+  descripcion?: string;
+  imagen: string;
+  imagenUrl?: string; // Añadido campo alternativo para mantener compatibilidad
+  activo: boolean;
+}
+
+interface Promocion {
+  id: string;
+  titulo: string;
+  descripcion?: string;
+  imagen?: string;
+  imagenUrl?: string; // Añadido campo alternativo para mantener compatibilidad
+  descuento: number;
+  activo: boolean;
+  dia?: string;
+  fechaInicio?: Date;
+  fechaFin?: Date;
+}
+
+interface Recompensa {
+  id: string;
+  titulo: string;
+  nombre: string; // Añadido campo nombre
+  descripcion?: string;
+  puntosRequeridos: number;
+  imagen?: string;
+  imagenUrl?: string; // Añadido campo alternativo para mantener compatibilidad
+  activo: boolean;
+  stock?: number; // Añadido campo stock
+}
+
+interface FavoritoDelDia {
+  id: string;
+  titulo: string;
+  descripcion?: string;
+  imagenUrl: string;
+  activo: boolean;
+}
+
+// Función para comparar niveles de tarjeta
+const isHigherLevel = (newLevel: string, oldLevel: string): boolean => {
+  const levels = ['Bronce', 'Plata', 'Oro', 'Diamante', 'Platino'];
+  return levels.indexOf(newLevel) > levels.indexOf(oldLevel);
+};
+
+// Nota: Las animaciones de confeti se han eliminado ya que no se utilizan actualmente
+
+export default function ClientePortalPage() {
+  const [step, setStep] = useState<'initial' | 'cedula' | 'register' | 'dashboard'>('initial');
+  const [cedula, setCedula] = useState('');
+  const [formData, setFormData] = useState({
+    nombre: '',
+    telefono: '',
+    correo: ''
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
+  const [clienteData, setClienteData] = useState<Cliente | null>(null);
+  
+  // Estado de carga inicial
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  
+  // Estado para mostrar u ocultar la tarjeta
+  const [showTarjeta, setShowTarjeta] = useState(false);
+  
+  // Estados para animaciones de ascenso de nivel
+  const [showLevelUpAnimation, setShowLevelUpAnimation] = useState(false);
+  const [oldLevel, setOldLevel] = useState<string | null>(null);
+  const [newLevel, setNewLevel] = useState<string | null>(null);
+  
+  // Estado para la opción de agregar al escritorio
+  const [showAddToHomeScreen, setShowAddToHomeScreen] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  
+  // Efecto para bloquear el scroll cuando se muestra la tarjeta
+  useEffect(() => {
+    if (showTarjeta) {
+      // Guardar la posición actual del scroll
+      const scrollY = window.scrollY;
+      // Bloquear el scroll
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+    } else {
+      // Recuperar la posición del scroll cuando se cierra el modal
+      const scrollY = document.body.style.top;
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      if (scrollY) {
+        window.scrollTo(0, parseInt(scrollY.replace('-', '')) || 0);
+      }
+    }
+  }, [showTarjeta]);
+  
+  // Escuchar el evento beforeinstallprompt para PWA
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: BeforeInstallPromptEvent) => {
+      // Prevenir que Chrome muestre el diálogo automáticamente
+      e.preventDefault();
+      // Guardar el evento para usarlo más tarde
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt as EventListener);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt as EventListener);
+    };
+  }, []);
+
+  // Función para mostrar instrucciones según el dispositivo
+  const showInstallInstructions = () => {
+    let message = '';
+    const userAgent = navigator.userAgent.toLowerCase();
+    
+    if (userAgent.includes('iphone') || userAgent.includes('ipad') || userAgent.includes('ipod')) {
+      message = 'En Safari, toca el botón "Compartir" y luego "Añadir a pantalla de inicio"';
+    } else if (userAgent.includes('android') && userAgent.includes('chrome')) {
+      message = 'Toca el botón de menú (tres puntos) y selecciona "Añadir a pantalla de inicio" o "Instalar aplicación"';
+    } else if (userAgent.includes('opera')) {
+      message = 'Toca el botón + en la barra de dirección para agregar esta app a tu pantalla de inicio';
+    } else {
+      message = 'Toca el botón de opciones de tu navegador y selecciona "Añadir a pantalla de inicio" o "Instalar aplicación"';
+    }
+    
+    // Mostrar las instrucciones en un mensaje
+    setError(message);
+    setTimeout(() => setError(''), 6000);
+  };
+  
+  // Función para intentar instalación manual con las APIs nativas del navegador
+  const attemptManualInstall = () => {
+    const userAgent = navigator.userAgent.toLowerCase();
+    
+    try {
+      // Para Safari en iOS
+      if (userAgent.includes('iphone') || userAgent.includes('ipad') || userAgent.includes('ipod')) {
+        // Usar Web Share API si está disponible
+        if (navigator.share) {
+          navigator.share({
+            title: 'Lealta 2.0',
+            text: 'Agregar Lealta 2.0 a tu pantalla de inicio',
+            url: window.location.href
+          })
+          .then(() => {
+            setInfo('Compartido exitosamente. Sigue las instrucciones para añadir a tu pantalla de inicio.');
+            setTimeout(() => setInfo(''), 5000);
+          })
+          .catch((error: Error) => {
+            console.error('Error al compartir:', error);
+            showInstallInstructions();
+          });
+        } else {
+          showInstallInstructions();
+        }
+      } else {
+        showInstallInstructions();
+      }
+    } catch (error) {
+      console.error('Error en instalación manual:', error);
+      showInstallInstructions();
+    }
+  };
+  
+  // Función para instalar la aplicación y mostrarla en la pantalla de inicio
+  const installApp = () => {
+    try {
+      // Mostrar el diálogo de instalación si está disponible mediante PWA
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        
+        // Usar then para manejar la promesa de userChoice
+        deferredPrompt.userChoice
+          .then((choiceResult: {outcome: string}) => {
+            if (choiceResult.outcome === 'accepted') {
+              console.log('El usuario aceptó instalar la app');
+              setInfo('¡Instalación exitosa! La app se ha añadido a tu pantalla de inicio');
+              // Limpiar el prompt guardado después de usarlo
+              setDeferredPrompt(null);
+              setTimeout(() => setInfo(''), 3000);
+            } else {
+              console.log('El usuario rechazó instalar la app');
+              setInfo('Instalación cancelada');
+              setTimeout(() => setInfo(''), 3000);
+            }
+            // Limpiar el prompt guardado
+            setDeferredPrompt(null);
+          })
+          .catch((error: Error) => {
+            console.error('Error al instalar la app:', error);
+            setError('No se pudo instalar la app. Intenta nuevamente más tarde.');
+            setTimeout(() => setError(''), 3000);
+          });
+      } else {
+        attemptManualInstall();
+      }
+    } catch (error) {
+      console.error('Error al instalar la app:', error);
+      setError('Hubo un problema al instalar la app. Intenta más tarde.');
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+  
+  // Estados del branding (se pueden cargar desde el admin o localStorage)
+  const [brandingConfig, setBrandingConfig] = useState(() => {
+    // Intentar cargar desde localStorage primero para evitar el flash
+    if (typeof window !== 'undefined') {
+      try {
+        const savedBranding = localStorage.getItem('portalBranding');
+        if (savedBranding) {
+          const parsed = JSON.parse(savedBranding);
+          return {
+            businessName: parsed.businessName || 'LEALTA',
+            primaryColor: parsed.primaryColor || '#2563EB',
+            carouselImages: [] as string[] // Las imágenes se cargarán después desde la API
+          };
+        }
+      } catch (error) {
+        console.error('Error cargando branding desde localStorage:', error);
+      }
+    }
+    
+    // Valores por defecto
+    return {
+      businessName: 'LEALTA',
+      primaryColor: '#2563EB',
+      carouselImages: [] as string[]
+    };
+  });
+  
+  // Resto del componente...
+  
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white">
+      {/* Contenido del componente */}
+    </div>
+  );
+}

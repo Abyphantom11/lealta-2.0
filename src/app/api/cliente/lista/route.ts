@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export async function GET(request: NextRequest) {
+export async function GET(_: NextRequest) {
   try {
     // Obtener todos los clientes registrados
     const clientes = await prisma.cliente.findMany({
@@ -18,8 +18,17 @@ export async function GET(request: NextRequest) {
         correo: true,
         puntos: true,
         totalVisitas: true,
+        totalGastado: true,
         registeredAt: true,
-        lastLogin: true
+        lastLogin: true,
+        tarjetaLealtad: {
+          select: {
+            nivel: true,
+            activa: true,
+            asignacionManual: true,
+            fechaAsignacion: true
+          }
+        }
       }
     });
 

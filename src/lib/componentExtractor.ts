@@ -172,7 +172,9 @@ function extractRelevantImports(sourceCode: string, componentCode: string): stri
   return allImports
     .filter(importStmt => {
       // Extraer los elementos importados
-      const importedElements = importStmt.match(/import\s+{([^}]*)}/)?.[1] || '';
+      const importRegex = /import\s+{([^}]*)}/;
+      const importMatch = importRegex.exec(importStmt);
+      const importedElements = importMatch?.[1] || '';
       const elements = importedElements.split(',').map(e => e.trim());
       
       // Verificar si algún elemento importado se usa en el componente
@@ -186,10 +188,12 @@ function extractRelevantImports(sourceCode: string, componentCode: string): stri
  */
 function getComponentNameFromCode(code: string): string {
   // Extraer el nombre de función o variable del componente
-  const functionMatch = code.match(/function\s+(\w+)/);
+  const functionRegex = /function\s+(\w+)/;
+  const functionMatch = functionRegex.exec(code);
   if (functionMatch) return functionMatch[1];
   
-  const constMatch = code.match(/const\s+(\w+)/);
+  const constRegex = /const\s+(\w+)/;
+  const constMatch = constRegex.exec(code);
   if (constMatch) return constMatch[1];
   
   return '';

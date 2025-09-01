@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     // Guardar en archivo
     fs.writeFileSync(BRANDING_FILE, JSON.stringify(branding, null, 2));
     
-    console.log('Branding saved:', branding);
+    // Se ha eliminado console.log por recomendación de SonarQube
     
     return NextResponse.json({ success: true, branding });
   } catch (error) {

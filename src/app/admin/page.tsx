@@ -4,8 +4,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRequireAuth } from '../../hooks/useAuth';
 import RoleSwitch from '../../components/RoleSwitch';
 import { MenuItem, MenuCategory, Cliente, StatsData } from '../../types/admin';
-import { CategoryFormData, ProductFormData, PortalConfig, ConfigSection } from '../../types/admin-extras';
+import { CategoryFormData } from '../../types/admin-extras';
 import Image from 'next/image';
+
+// Tipo para los niveles de las tarjetas
+type NivelTarjeta = 'success' | 'error' | 'info' | 'warning';
+
+// Tipo para los modos de vista previa
+type ModoVistaPrevia = 'portal' | 'login' | 'tarjetas';
+
 import { 
   Users, 
   Receipt, 
@@ -36,7 +43,9 @@ import {
   CheckCircle,
   AlertTriangle,
   Info,
-  CreditCard
+  CreditCard,
+  Pencil,
+  Check
 } from 'lucide-react';
 
 // Hook personalizado para manejar carga de archivos
@@ -60,6 +69,21 @@ const useFileUpload = <T extends Record<string, unknown>>(setFormData: (updater:
   return { selectedFile, handleFileChange, resetFile };
 };
 
+// Función para obtener la clase de color según el tipo de notificación
+const getNotificationColorClass = (type: NivelTarjeta): string => {
+  switch (type) {
+    case 'success':
+      return 'bg-green-600';
+    case 'error':
+      return 'bg-red-600';
+    case 'warning':
+      return 'bg-yellow-600';
+    case 'info':
+    default:
+      return 'bg-blue-600';
+  }
+};
+
 type AdminSection = 'dashboard' | 'clientes' | 'menu' | 'portal' | 'analytics' | 'configuracion';
 
 export default function AdminPage() {
@@ -72,6 +96,20 @@ export default function AdminPage() {
     totalRevenue: 0,
     unpaidCount: 0
   });
+  
+  // Sistema de notificaciones
+  const [notification, setNotification] = useState<{
+    message: string;
+    type: NivelTarjeta;
+    show: boolean;
+  }>({ message: '', type: 'info', show: false });
+
+  const showNotification = (message: string, type: NivelTarjeta = 'info') => {
+    setNotification({ message, type, show: true });
+    setTimeout(() => {
+      setNotification(prev => ({ ...prev, show: false }));
+    }, 3000);
+  };
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -182,6 +220,35 @@ export default function AdminPage() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
+        {/* Componente de notificación */}
+        {notification.show && (
+          <div 
+            className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-md transition-all duration-300 ${
+              getNotificationColorClass(notification.type)
+            }`}
+          >
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                {notification.type === 'success' && <CheckCircle className="w-5 h-5 text-white" />}
+                {notification.type === 'error' && <AlertTriangle className="w-5 h-5 text-white" />}
+                {notification.type === 'warning' && <AlertTriangle className="w-5 h-5 text-white" />}
+                {notification.type === 'info' && <Info className="w-5 h-5 text-white" />}
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-white">{notification.message}</p>
+              </div>
+              <div className="ml-auto pl-3">
+                <button
+                  onClick={() => setNotification(prev => ({ ...prev, show: false }))}
+                  className="inline-flex text-white hover:text-gray-200"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {/* Top Header */}
         <header className="bg-dark-900 border-b border-dark-700 px-6 py-4">
           <div className="flex items-center justify-between">
@@ -219,7 +286,7 @@ export default function AdminPage() {
           {activeSection === 'dashboard' && <DashboardContent stats={stats} />}
           {activeSection === 'clientes' && <ClientesContent />}
           {activeSection === 'menu' && <MenuContent />}
-          {activeSection === 'portal' && <PortalContent />}
+          {activeSection === 'portal' && <PortalContent showNotification={showNotification} />}
           {activeSection === 'analytics' && <AnalyticsContent />}
           {activeSection === 'configuracion' && <ConfiguracionContent />}
         </main>
@@ -325,7 +392,10 @@ function DashboardContent({ stats }: Readonly<{ stats: StatsData }>) {
 // Clientes Content Component
 function ClientesContent() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [filteredClientes, setFilteredClientes] = useState<Cliente[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     const fetchClientes = async () => {
@@ -334,6 +404,7 @@ function ClientesContent() {
         const data = await response.json();
         if (data.success) {
           setClientes(data.clientes);
+          setFilteredClientes(data.clientes);
         }
       } catch (error) {
         console.error('Error cargando clientes:', error);
@@ -344,6 +415,61 @@ function ClientesContent() {
 
     fetchClientes();
   }, []);
+  
+  // Función para buscar clientes en el servidor
+  const searchClientesAPI = useCallback(async (query: string) => {
+    if (!query || query.length < 2) return;
+    
+    setIsSearching(true);
+    try {
+      const response = await fetch(`/api/clientes/search?q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      
+      if (Array.isArray(data)) {
+        // Si tenemos resultados de la API, actualizar la lista filtrada
+        setFilteredClientes(data);
+      }
+    } catch (error) {
+      console.error('Error buscando clientes:', error);
+      // En caso de error, volver a la búsqueda local
+      filterClientsLocally(query);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+  
+  // Función para filtrar clientes localmente
+  const filterClientsLocally = useCallback((query: string) => {
+    if (!query.trim()) {
+      setFilteredClientes(clientes);
+      return;
+    }
+    
+    const searchLower = query.toLowerCase();
+    const filtered = clientes.filter(client => 
+      client.nombre.toLowerCase().includes(searchLower) ||
+      client.cedula?.toLowerCase().includes(searchLower) ||
+      client.telefono?.toLowerCase().includes(searchLower) ||
+      client.correo?.toLowerCase().includes(searchLower)
+    );
+    
+    setFilteredClientes(filtered);
+  }, [clientes]);
+  
+  // Efecto para manejar la búsqueda con debounce
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      if (searchTerm.length >= 3) {
+        // Para búsquedas más específicas, usar la API
+        searchClientesAPI(searchTerm);
+      } else {
+        // Para búsquedas cortas o vacías, filtrar localmente
+        filterClientsLocally(searchTerm);
+      }
+    }, 300);
+    
+    return () => clearTimeout(debounceTimer);
+  }, [searchTerm, filterClientsLocally, searchClientesAPI]);
 
   return (
     <div className="space-y-6">
@@ -359,12 +485,22 @@ function ClientesContent() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
             <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-dark-400" />
+              <Search className={`w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 ${isSearching ? 'text-primary-500 animate-pulse' : 'text-dark-400'}`} />
               <input 
                 type="text" 
                 placeholder="Buscar clientes..."
-                className="pl-10 pr-4 py-2 bg-dark-800 border border-dark-600 rounded-lg text-white placeholder-dark-400 focus:outline-none focus:border-primary-500"
+                className="pl-10 pr-10 py-2 bg-dark-800 border border-dark-600 rounded-lg text-white placeholder-dark-400 focus:outline-none focus:border-primary-500"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
+              {searchTerm && (
+                <button 
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-dark-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
             <button className="p-2 bg-dark-800 hover:bg-dark-700 rounded-lg transition-colors">
               <Filter className="w-4 h-4 text-dark-400" />
@@ -373,7 +509,7 @@ function ClientesContent() {
           <div className="text-dark-400 text-sm">
             {(() => {
               if (isLoading) return 'Cargando...';
-              return `${clientes.length} cliente${clientes.length !== 1 ? 's' : ''}`;
+              return `${filteredClientes.length} cliente${filteredClientes.length !== 1 ? 's' : ''}`;
             })()}
           </div>
         </div>
@@ -387,6 +523,7 @@ function ClientesContent() {
                 <th className="text-left py-3 text-dark-300 font-medium">Contacto</th>
                 <th className="text-left py-3 text-dark-300 font-medium">Puntos</th>
                 <th className="text-left py-3 text-dark-300 font-medium">Registro</th>
+                <th className="text-left py-3 text-dark-300 font-medium">Tarjeta</th>
                 <th className="text-left py-3 text-dark-300 font-medium">Estado</th>
                 <th className="text-left py-3 text-dark-300 font-medium">Acciones</th>
               </tr>
@@ -406,17 +543,17 @@ function ClientesContent() {
                   );
                 }
                 
-                if (clientes.length === 0) {
+                if (filteredClientes.length === 0) {
                   return (
                     <tr>
                       <td colSpan={7} className="py-8 text-center text-dark-400">
-                        No hay clientes registrados aún
+                        {clientes.length > 0 ? 'No se encontraron clientes con ese criterio de búsqueda' : 'No hay clientes registrados aún'}
                       </td>
                     </tr>
                   );
                 }
                 
-                return clientes.map((client) => (
+                return filteredClientes.map((client) => (
                   <tr key={client.id} className="border-b border-dark-800/50 hover:bg-dark-800/30">
                     <td className="py-4">
                       <div className="flex items-center space-x-3">
@@ -438,6 +575,20 @@ function ClientesContent() {
                     <td className="py-4 text-success-400 font-semibold">{client.puntos} pts</td>
                     <td className="py-4 text-dark-300">
                       {new Date(client.registeredAt).toLocaleDateString('es-ES')}
+                    </td>
+                    <td className="py-4">
+                      {client.tarjetaLealtad ? (
+                        <div className="flex flex-col">
+                          <span className={`text-sm font-medium ${client.tarjetaLealtad.activa ? 'text-success-400' : 'text-red-400'}`}>
+                            {client.tarjetaLealtad.nivel}
+                          </span>
+                          <span className="text-xs text-dark-400">
+                            {client.tarjetaLealtad.asignacionManual ? 'Manual' : 'Auto'}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-dark-400">Sin tarjeta</span>
+                      )}
                     </td>
                     <td className="py-4">
                       <span className="px-2 py-1 rounded-full text-xs bg-success-500/20 text-success-400">
@@ -1416,9 +1567,15 @@ function CategoryModal({ category, onSave, onClose }: Readonly<{
             </label>
             <input
               id="category-orden"
-              type="number"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={formData.orden}
-              onChange={(e) => setFormData(prev => ({ ...prev, orden: parseInt(e.target.value) || 0 }))}
+              onChange={(e) => {
+                if (/^\d*$/.test(e.target.value) || e.target.value === '') {
+                  setFormData(prev => ({ ...prev, orden: e.target.value === '' ? 0 : parseInt(e.target.value) }));
+                }
+              }}
               className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
             />
           </div>
@@ -1563,10 +1720,15 @@ function ProductModal({ product, categories, onSave, onClose }: Readonly<{
               </label>
               <input
                 id="product-precio"
-                type="number"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
                 value={formData.precio}
-                onChange={(e) => setFormData(prev => ({ ...prev, precio: e.target.value }))}
+                onChange={(e) => {
+                  // Permitir números y un punto decimal
+                  if (/^(\d*\.?\d*)$/.test(e.target.value) || e.target.value === '') {
+                    setFormData(prev => ({ ...prev, precio: e.target.value }));
+                  }
+                }}
                 className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
               />
             </div>
@@ -1580,10 +1742,15 @@ function ProductModal({ product, categories, onSave, onClose }: Readonly<{
                 </label>
                 <input
                   id="product-precio-vaso"
-                  type="number"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
                   value={formData.precioVaso}
-                  onChange={(e) => setFormData(prev => ({ ...prev, precioVaso: e.target.value }))}
+                  onChange={(e) => {
+                    // Permitir números y un punto decimal
+                    if (/^(\d*\.?\d*)$/.test(e.target.value) || e.target.value === '') {
+                      setFormData(prev => ({ ...prev, precioVaso: e.target.value }));
+                    }
+                  }}
                   className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
                 />
               </div>
@@ -1593,10 +1760,15 @@ function ProductModal({ product, categories, onSave, onClose }: Readonly<{
                 </label>
                 <input
                   id="product-precio-botella"
-                  type="number"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
                   value={formData.precioBotella}
-                  onChange={(e) => setFormData(prev => ({ ...prev, precioBotella: e.target.value }))}
+                  onChange={(e) => {
+                    // Permitir números y un punto decimal
+                    if (/^(\d*\.?\d*)$/.test(e.target.value) || e.target.value === '') {
+                      setFormData(prev => ({ ...prev, precioBotella: e.target.value }));
+                    }
+                  }}
                   className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
                 />
               </div>
@@ -1685,9 +1857,9 @@ function ProductModal({ product, categories, onSave, onClose }: Readonly<{
 }
 
 // Portal Content Component - Gestión completa del portal del cliente
-function PortalContent() {
+function PortalContent({ showNotification }: Readonly<{ showNotification: (message: string, type: NivelTarjeta) => void }>) {
   const [activeTab, setActiveTab] = useState<'preview' | 'banners' | 'promociones' | 'recompensas' | 'favorito'>('preview');
-  const [previewMode, setPreviewMode] = useState<'portal' | 'login' | 'tarjetas'>('portal'); // Estado para cambiar entre Portal, Login y Tarjetas
+  const [previewMode, setPreviewMode] = useState<ModoVistaPrevia>('portal'); // Estado para cambiar entre Portal, Login y Tarjetas
   const [brandingConfig, setBrandingConfig] = useState<any>({ // Configuración de branding para el login
     businessName: 'Mi Empresa',
     primaryColor: '#3B82F6',
@@ -2007,6 +2179,7 @@ function PortalContent() {
         handleBrandingChange={handleBrandingChange}
         handleCarouselImageUpload={handleCarouselImageUpload}
         handleRemoveCarouselImage={handleRemoveCarouselImage}
+        showNotification={showNotification}
       />
     </div>
   );
@@ -2023,8 +2196,21 @@ function PortalContentManager({
   setBrandingConfig, 
   handleBrandingChange,
   handleCarouselImageUpload,
-  handleRemoveCarouselImage 
-}: any) {
+  handleRemoveCarouselImage,
+  showNotification 
+}: Readonly<{ 
+  activeTab: string; 
+  config: any; 
+  setConfig: (config: any) => void; 
+  previewMode: ModoVistaPrevia; 
+  setPreviewMode: React.Dispatch<React.SetStateAction<ModoVistaPrevia>>; 
+  brandingConfig: any; 
+  setBrandingConfig: (config: any) => void; 
+  handleBrandingChange: (field: string, value: string | string[]) => Promise<void>;
+  handleCarouselImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleRemoveCarouselImage: (index: number) => void;
+  showNotification: (message: string, type: NivelTarjeta) => void;
+}>) {
   const addItem = (type: string, item: any) => {
     const newItem = {
       ...item,
@@ -2072,7 +2258,6 @@ function PortalContentManager({
         <div className="flex items-center justify-between mb-4">
           <h4 className="text-lg font-semibold text-white flex items-center">
             <Smartphone className="w-5 h-5 mr-2" />
-            Vista del Portal Cliente - ACTUALIZADA v2.0
           </h4>
           
           {/* Botones Switch para Portal/Login/Tarjetas */}
@@ -2502,8 +2687,8 @@ function PortalContentManager({
             // Configuración de Tarjetas
             return (
               <div className="space-y-6">
-                <TarjetaEditorComponent config={config} setConfig={setConfig} />
-                <AsignacionTarjetasComponent config={config} setConfig={setConfig} />
+                <TarjetaEditorComponent config={config} setConfig={setConfig} showNotification={showNotification} />
+                <AsignacionTarjetasComponent config={config} setConfig={setConfig} showNotification={showNotification} />
               </div>
             );
           } else if (activeTab === 'preview') {
@@ -2573,7 +2758,13 @@ function PortalContentManager({
 }
 
 // Componentes de gestión para cada sección
-function BannersManager({ banners, onAdd, onUpdate, onDelete, onToggle }: any) {
+function BannersManager({ banners, onAdd, onUpdate, onDelete, onToggle }: Readonly<{
+  banners: any[];
+  onAdd: (banner: any) => void;
+  onUpdate: (id: string, banner: any) => void;
+  onDelete: (id: string) => void;
+  onToggle: (id: string) => void;
+}>) {
   const [selectedDay, setSelectedDay] = useState('lunes');
   const [publishTime, setPublishTime] = useState('04:00');
   const [formData, setFormData] = useState({ dia: 'lunes', imagenUrl: '', horaPublicacion: '04:00' });
@@ -2770,7 +2961,10 @@ function BannersManager({ banners, onAdd, onUpdate, onDelete, onToggle }: any) {
   );
 }
 
-function FavoritoDelDiaManager({ favorito, onUpdate }: any) {
+function FavoritoDelDiaManager({ favorito, onUpdate }: Readonly<{
+  favorito: any;
+  onUpdate: (favorito: any) => void;
+}>) {
   const [formData, setFormData] = useState({
     imagenUrl: favorito?.imagenUrl || ''
   });
@@ -2856,8 +3050,15 @@ function FavoritoDelDiaManager({ favorito, onUpdate }: any) {
   );
 }
 
-function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }: any) {
+function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }: Readonly<{
+  promociones: any[];
+  onAdd: (promocion: any) => void;
+  onUpdate: (id: string, promocion: any) => void;
+  onDelete: (id: string) => void;
+  onToggle: (id: string) => void;
+}>) {
   const [selectedDay, setSelectedDay] = useState('lunes');
+  const [editingPromoId, setEditingPromoId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ 
     dia: 'lunes', 
     titulo: '', 
@@ -2865,6 +3066,7 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
     descuento: '', 
     horaTermino: '04:00' 
   });
+  const [isAddMode, setIsAddMode] = useState(true);
 
   const diasSemana = [
     { value: 'lunes', label: 'L' },
@@ -2886,7 +3088,7 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
     'domingo': 'Domingo'
   };
 
-  const promoPorDia = promociones.find((p: any) => p.dia === selectedDay);
+  const promosPorDia = promociones.filter((p: any) => p.dia === selectedDay);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2900,12 +3102,17 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
       activo: true
     };
     
-    if (promoPorDia) {
-      onUpdate(promoPorDia.id, dataToSubmit);
+    if (editingPromoId) {
+      onUpdate(editingPromoId, dataToSubmit);
     } else {
       onAdd(dataToSubmit);
     }
     
+    // Limpiar formulario y restablecer modo
+    resetForm();
+  };
+  
+  const resetForm = () => {
     setFormData({ 
       dia: selectedDay, 
       titulo: '', 
@@ -2913,32 +3120,25 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
       descuento: '', 
       horaTermino: '04:00' 
     });
+    setEditingPromoId(null);
+    setIsAddMode(true);
   };
 
-  const loadPromoData = (dia: string) => {
-    const promo = promociones.find((p: any) => p.dia === dia);
-    if (promo) {
-      setFormData({
-        dia: dia,
-        titulo: promo.titulo || '',
-        descripcion: promo.descripcion || '',
-        descuento: promo.descuento || '',
-        horaTermino: promo.horaTermino || '04:00'
-      });
-    } else {
-      setFormData({
-        dia: dia,
-        titulo: '',
-        descripcion: '',
-        descuento: '',
-        horaTermino: '04:00'
-      });
-    }
+  const handleEditPromo = (promo: any) => {
+    setFormData({
+      dia: promo.dia,
+      titulo: promo.titulo || '',
+      descripcion: promo.descripcion || '',
+      descuento: promo.descuento || '',
+      horaTermino: promo.horaTermino || '04:00'
+    });
+    setEditingPromoId(promo.id);
+    setIsAddMode(false);
   };
 
   const handleDaySelect = (dia: string) => {
     setSelectedDay(dia);
-    loadPromoData(dia);
+    resetForm();
   };
 
   return (
@@ -2976,10 +3176,74 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
         </div>
       </div>
 
-      {/* Formulario para el día seleccionado */}
+      {/* Lista de promociones para el día seleccionado */}
+      <div className="bg-dark-800 rounded-lg p-4 mb-4">
+        <div className="flex justify-between items-center mb-4">
+          <h5 className="text-white font-medium">
+            Promociones para {diasCompletos[selectedDay as keyof typeof diasCompletos]}
+          </h5>
+          <button 
+            onClick={() => {
+              resetForm();
+              setIsAddMode(true);
+            }}
+            className="px-3 py-1 bg-primary-600 text-white rounded-md text-sm hover:bg-primary-700 transition-colors"
+          >
+            Nueva Promoción
+          </button>
+        </div>
+        
+        {promosPorDia.length === 0 ? (
+          <div className="text-center py-4 text-dark-400 text-sm">
+            No hay promociones configuradas para {diasCompletos[selectedDay as keyof typeof diasCompletos]}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {promosPorDia.map((promo: any) => (
+              <div key={promo.id} className="p-3 bg-dark-700 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex-grow">
+                    <div className="text-white text-sm font-medium">{promo.titulo}</div>
+                    <div className="text-dark-300 text-xs mt-1">{promo.descripcion}</div>
+                    <div className="text-sm text-dark-300 mt-1">
+                      {promo.descuento}% descuento hasta las {promo.horaTermino}
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => handleEditPromo(promo)}
+                      className="p-1.5 rounded bg-dark-600 hover:bg-dark-500 text-dark-300 hover:text-white transition-colors"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => onDelete(promo.id)}
+                      className="p-1.5 rounded bg-dark-600 hover:bg-red-600 text-dark-300 hover:text-white transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => onToggle(promo.id)}
+                      className={`p-1.5 rounded ${
+                        promo.activo 
+                          ? 'bg-success-600 text-white' 
+                          : 'bg-dark-600 text-dark-300 hover:text-white hover:bg-dark-500'
+                      }`}
+                    >
+                      {promo.activo ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Formulario para añadir/editar promoción */}
       <div className="bg-dark-800 rounded-lg p-4">
         <h5 className="text-white font-medium mb-3">
-          Promoción para {diasCompletos[selectedDay as keyof typeof diasCompletos]}
+          {isAddMode ? 'Añadir nueva promoción' : 'Editar promoción'}
         </h5>
         
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -2990,7 +3254,7 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
             <input
               id="promoTitle"
               type="text"
-              placeholder="50"
+              placeholder="Ej: 2x1 en Cócteles"
               value={formData.titulo}
               onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
               className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded text-white placeholder-dark-400"
@@ -3020,13 +3284,24 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
               </label>
               <input
                 id="promoDiscount"
-                type="number"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 placeholder="50"
                 value={formData.descuento}
-                onChange={(e) => setFormData({ ...formData, descuento: e.target.value })}
+                onChange={(e) => {
+                  if (/^\d*$/.test(e.target.value) || e.target.value === '') {
+                    const inputValue = e.target.value === '' ? '' : Number(e.target.value);
+                    // Limitar valores entre 0 y 100
+                    if (inputValue === '' || (Number(inputValue) >= 0 && Number(inputValue) <= 100)) {
+                      setFormData({ 
+                        ...formData, 
+                        descuento: inputValue === '' ? '0' : inputValue.toString()
+                      });
+                    }
+                  }
+                }}
                 className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded text-white placeholder-dark-400"
-                min="0"
-                max="100"
                 required
               />
             </div>
@@ -3055,41 +3330,19 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
               type="submit"
               className="px-4 py-2 bg-success-600 hover:bg-success-700 text-white rounded transition-colors"
             >
-              {promoPorDia ? 'Actualizar' : 'Crear'} Promoción
+              {isAddMode ? 'Crear' : 'Actualizar'} Promoción
             </button>
-            {promoPorDia && (
+            {!isAddMode && (
               <button
                 type="button"
-                onClick={() => onDelete(promoPorDia.id)}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+                onClick={resetForm}
+                className="px-4 py-2 bg-dark-600 hover:bg-dark-500 text-white rounded transition-colors"
               >
-                Eliminar
+                Cancelar
               </button>
             )}
           </div>
         </form>
-
-        {promoPorDia && (
-          <div className="mt-4 p-3 bg-dark-700 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-sm text-dark-300">
-                  {promoPorDia.descuento}% descuento hasta {promoPorDia.horaTermino}
-                </span>
-              </div>
-              <button
-                onClick={() => onToggle(promoPorDia.id)}
-                className={`px-3 py-1 rounded text-xs font-medium ${
-                  promoPorDia.activo 
-                    ? 'bg-success-600 text-white' 
-                    : 'bg-dark-600 text-dark-300'
-                }`}
-              >
-                {promoPorDia.activo ? 'Activo' : 'Inactivo'}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Resumen de promociones de la semana */}
@@ -3117,7 +3370,13 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
   );
 }
 
-function RecompensasManager({ recompensas, onAdd, onUpdate, onDelete, onToggle }: any) {
+function RecompensasManager({ recompensas, onAdd, onUpdate, onDelete, onToggle }: Readonly<{
+  recompensas: any[];
+  onAdd: (recompensa: any) => void;
+  onUpdate: (id: string, recompensa: any) => void;
+  onDelete: (id: string) => void;
+  onToggle: (id: string) => void;
+}>) {
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [formData, setFormData] = useState({ nombre: '', descripcion: '', puntosRequeridos: '', stock: '' });
@@ -3215,10 +3474,16 @@ function RecompensasManager({ recompensas, onAdd, onUpdate, onDelete, onToggle }
                 </label>
                 <input
                   id="rewardPoints"
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   placeholder="100"
                   value={formData.puntosRequeridos}
-                  onChange={(e) => setFormData({ ...formData, puntosRequeridos: e.target.value })}
+                  onChange={(e) => {
+                    if (/^\d*$/.test(e.target.value) || e.target.value === '') {
+                      setFormData({ ...formData, puntosRequeridos: e.target.value });
+                    }
+                  }}
                   className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded text-white placeholder-dark-400"
                   required
                 />
@@ -3433,92 +3698,10 @@ function StatsCard({ title, value, icon, gradient, change }: Readonly<{
   );
 }
 
-// Componente TarjetaPreview - Separado del componente principal
-const TarjetaPreview = ({ tarjeta }: { tarjeta: any }) => {
-  const nivelesConfig = {
-    'Bronce': { icon: '🥉' },
-    'Plata': { icon: '🥈' },
-    'Oro': { icon: '🥇' },
-    'Diamante': { icon: '💎' },
-    'Platino': { icon: '👑' }
-  };
-  
-  const nivel = nivelesConfig[tarjeta.nivel as keyof typeof nivelesConfig];
-  
-  const getBoxShadow = (textura: string) => {
-    switch (textura) {
-      case 'brillante': return '0 0 20px rgba(255,215,0,0.3)';
-      case 'diamante': return '0 0 25px rgba(185,242,255,0.4)';
-      default: return '0 10px 25px rgba(0,0,0,0.3)';
-    }
-  };
-
-  const getPatronClass = (patron: string) => {
-    switch (patron) {
-      case 'clasico': return 'bg-gradient-to-br from-transparent to-black';
-      case 'moderno': return 'bg-gradient-to-r from-transparent via-white to-transparent';
-      case 'elegante': return 'bg-radial-gradient from-yellow-200 to-transparent';
-      case 'premium': return 'bg-gradient-to-br from-blue-200 to-transparent';
-      default: return 'bg-gradient-to-br from-white via-transparent to-white';
-    }
-  };
-  
-  return (
-    <div className="relative w-80 h-48 mx-auto mb-4">
-      <div 
-        className="absolute inset-0 rounded-xl shadow-2xl transform transition-all duration-300 hover:scale-105"
-        style={{
-          background: `linear-gradient(135deg, ${tarjeta.colores.gradiente[0]}, ${tarjeta.colores.gradiente[1]})`,
-          boxShadow: getBoxShadow(tarjeta.diseño.textura)
-        }}
-      >
-        <div className={`absolute inset-0 rounded-xl opacity-10 ${getPatronClass(tarjeta.diseño.patron)}`} />
-
-        <div className="relative p-6 h-full flex flex-col justify-between text-white">
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 className="text-xl font-bold">{tarjeta.nombrePersonalizado}</h3>
-              <p className="text-sm opacity-90">{tarjeta.textoCalidad}</p>
-            </div>
-            <div className="text-3xl">{nivel.icon}</div>
-          </div>
-
-          <div className="absolute top-16 left-6">
-            <div className="w-8 h-6 bg-gradient-to-br from-yellow-200 to-yellow-500 rounded-sm opacity-80" />
-          </div>
-
-          <div className="text-center">
-            <div className="text-lg font-semibold tracking-widest opacity-90">
-              {tarjeta.nivel.toUpperCase()}
-            </div>
-          </div>
-
-          <div className="flex justify-between items-end text-xs opacity-75">
-            <span>LEALTA 2.0</span>
-            <span>NIVEL {Object.keys(nivelesConfig).indexOf(tarjeta.nivel) + 1}</span>
-          </div>
-        </div>
-
-        {tarjeta.diseño.textura === 'brillante' && (
-          <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-transparent via-white to-transparent opacity-20 transform -skew-x-12" />
-        )}
-        
-        {tarjeta.diseño.textura === 'diamante' && (
-          <>
-            <div className="absolute top-4 right-4 w-2 h-2 bg-white rounded-full opacity-60 animate-pulse" />
-            <div className="absolute bottom-8 left-8 w-1 h-1 bg-white rounded-full opacity-40 animate-pulse delay-300" />
-            <div className="absolute top-12 left-12 w-1.5 h-1.5 bg-white rounded-full opacity-50 animate-pulse delay-700" />
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
-
-//...existing code...
-
 // Componente para vista previa de tarjetas
-function TarjetaPreviewComponent({ config }: any) {
+function TarjetaPreviewComponent({ config }: Readonly<{
+  config: any;
+}>) {
   // Helper function para obtener colores del nivel
   const getLevelColors = (level: string) => {
     const colorMap: { [key: string]: string } = {
@@ -3581,6 +3764,8 @@ function TarjetaPreviewComponent({ config }: any) {
           </button>
         ))}
       </div>
+
+      {/* El botón para mostrar nivel ha sido eliminado */}
 
       {/* Vista previa de la tarjeta */}
       <div className="flex justify-center">
@@ -3720,7 +3905,11 @@ function TarjetaPreviewComponent({ config }: any) {
 }
 
 // Componente para edición de tarjetas
-function TarjetaEditorComponent({ config, setConfig }: any) {
+function TarjetaEditorComponent({ config, setConfig, showNotification }: Readonly<{
+  config: any;
+  setConfig: (config: any) => void;
+  showNotification: (message: string, type: NivelTarjeta) => void;
+}>) {
   const nivelesConfig = {
     'Bronce': { textoDefault: 'Cliente Inicial', condicionesDefault: { puntosMinimos: 0, gastosMinimos: 0, visitasMinimas: 0 }, beneficioDefault: 'Acumulación de puntos básica' },
     'Plata': { textoDefault: 'Cliente Frecuente', condicionesDefault: { puntosMinimos: 100, gastosMinimos: 500, visitasMinimas: 5 }, beneficioDefault: '5% descuento en compras' },
@@ -3774,7 +3963,7 @@ function TarjetaEditorComponent({ config, setConfig }: any) {
         <div className="flex space-x-2">
           <input
             type="text"
-            value={config.nombreEmpresa || 'LEALTA 2.0'}
+            value={config.nombreEmpresa || ''}
             onChange={(e) => handleSaveEmpresa(e.target.value)}
             placeholder="Nombre de tu empresa"
             className="flex-1 px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
@@ -3853,12 +4042,19 @@ function TarjetaEditorComponent({ config, setConfig }: any) {
                   <label htmlFor="puntos-minimos" className="block text-sm text-dark-300 mb-1">Puntos mínimos</label>
                   <input
                     id="puntos-minimos"
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={editingCard.condiciones?.puntosMinimos || 0}
-                    onChange={(e) => setEditingCard({ 
-                      ...editingCard, 
-                      condiciones: { ...editingCard.condiciones, puntosMinimos: Number(e.target.value) }
-                    })}
+                    onChange={(e) => {
+                      // Validar que solo contenga números
+                      if (/^\d*$/.test(e.target.value) || e.target.value === '') {
+                        setEditingCard({ 
+                          ...editingCard, 
+                          condiciones: { ...editingCard.condiciones, puntosMinimos: e.target.value === '' ? 0 : Number(e.target.value) }
+                        });
+                      }
+                    }}
                     className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
                   />
                 </div>
@@ -3866,12 +4062,19 @@ function TarjetaEditorComponent({ config, setConfig }: any) {
                   <label htmlFor="gastos-minimos" className="block text-sm text-dark-300 mb-1">Gastos mínimos ($)</label>
                   <input
                     id="gastos-minimos"
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={editingCard.condiciones?.gastosMinimos || 0}
-                    onChange={(e) => setEditingCard({ 
-                      ...editingCard, 
-                      condiciones: { ...editingCard.condiciones, gastosMinimos: Number(e.target.value) }
-                    })}
+                    onChange={(e) => {
+                      // Validar que solo contenga números
+                      if (/^\d*$/.test(e.target.value) || e.target.value === '') {
+                        setEditingCard({ 
+                          ...editingCard, 
+                          condiciones: { ...editingCard.condiciones, gastosMinimos: e.target.value === '' ? 0 : Number(e.target.value) }
+                        });
+                      }
+                    }}
                     className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
                   />
                 </div>
@@ -3879,12 +4082,19 @@ function TarjetaEditorComponent({ config, setConfig }: any) {
                   <label htmlFor="visitas-minimas" className="block text-sm text-dark-300 mb-1">Visitas mínimas</label>
                   <input
                     id="visitas-minimas"
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={editingCard.condiciones?.visitasMinimas || 0}
-                    onChange={(e) => setEditingCard({ 
-                      ...editingCard, 
-                      condiciones: { ...editingCard.condiciones, visitasMinimas: Number(e.target.value) }
-                    })}
+                    onChange={(e) => {
+                      // Validar que solo contenga números
+                      if (/^\d*$/.test(e.target.value) || e.target.value === '') {
+                        setEditingCard({ 
+                          ...editingCard, 
+                          condiciones: { ...editingCard.condiciones, visitasMinimas: e.target.value === '' ? 0 : Number(e.target.value) }
+                        });
+                      }
+                    }}
                     className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
                   />
                 </div>
@@ -3984,9 +4194,15 @@ function TarjetaEditorComponent({ config, setConfig }: any) {
 
 // Componente para asignación manual de tarjetas a clientes
 // Componente para mostrar un cliente individual en la lista de búsqueda
-function ClientListItem({ client, selectedClient, onSelect, calculateClientLevel }: any) {
+function ClientListItem({ client, selectedClient, onSelect, calculateClientLevel }: Readonly<{
+  client: any;
+  selectedClient: any;
+  onSelect: (client: any) => void;
+  calculateClientLevel: (client: any) => string;
+}>) {
   const nivelAutomatico = calculateClientLevel(client);
   const cumpleCondiciones = nivelAutomatico !== 'Bronce';
+  const tieneTarjeta = client.tarjeta !== null;
   
   return (
     <button
@@ -4000,15 +4216,28 @@ function ClientListItem({ client, selectedClient, onSelect, calculateClientLevel
       <div className="flex justify-between items-start">
         <div>
           <p className="font-medium">{client.nombre}</p>
+          <p className="text-sm opacity-75">{client.cedula}</p>
           <p className="text-sm opacity-75">{client.email}</p>
         </div>
         <div className="text-right text-sm">
           <p>Puntos: {client.puntos || 0}</p>
           <p>Gastos: ${client.gastoTotal || 0}</p>
           <p>Visitas: {client.visitas || 0}</p>
-          <p className={`font-medium ${cumpleCondiciones ? 'text-success-400' : 'text-yellow-400'}`}>
-            Nivel sugerido: {nivelAutomatico}
-          </p>
+          
+          {tieneTarjeta ? (
+            <div className="mt-1">
+              <p className={`font-medium ${client.tarjeta.activa ? 'text-success-400' : 'text-red-400'}`}>
+                Tarjeta {client.tarjeta.nivel} {!client.tarjeta.activa && '(Inactiva)'}
+              </p>
+              <p className="text-xs opacity-75">
+                {client.tarjeta.asignacionManual ? 'Asignación manual' : 'Asignación automática'}
+              </p>
+            </div>
+          ) : (
+            <p className={`font-medium ${cumpleCondiciones ? 'text-success-400' : 'text-yellow-400'}`}>
+              Nivel sugerido: {nivelAutomatico}
+            </p>
+          )}
         </div>
       </div>
     </button>
@@ -4016,7 +4245,14 @@ function ClientListItem({ client, selectedClient, onSelect, calculateClientLevel
 }
 
 // Componente para el formulario de asignación de tarjeta
-function CardAssignmentForm({ selectedClient, selectedLevel, setSelectedLevel, nivelesConfig, onAssign, onCancel }: any) {
+function CardAssignmentForm({ selectedClient, selectedLevel, setSelectedLevel, nivelesConfig, onAssign, onCancel }: Readonly<{
+  selectedClient: any;
+  selectedLevel: string;
+  setSelectedLevel: (level: string) => void;
+  nivelesConfig: Record<string, any>;
+  onAssign: () => void;
+  onCancel: () => void;
+}>) {
   return (
     <div className="bg-dark-700 rounded-lg p-4">
       <h6 className="text-white font-medium mb-3">
@@ -4085,12 +4321,33 @@ function CardAssignmentForm({ selectedClient, selectedLevel, setSelectedLevel, n
   );
 }
 
-function AsignacionTarjetasComponent({ config, setConfig }: any) {
+function AsignacionTarjetasComponent({ config, setConfig, showNotification }: Readonly<{ 
+  config: any; 
+  setConfig: (config: any) => void; 
+  showNotification: (message: string, type: NivelTarjeta) => void 
+}>) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [selectedLevel, setSelectedLevel] = useState('Bronce');
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // Función para refrescar los clientes después de asignar una tarjeta
+  const onRefreshClients = useCallback(async () => {
+    if (searchTerm.trim().length > 0) {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/clientes/search?q=${encodeURIComponent(searchTerm)}`);
+        const data = await res.json();
+        setClients(data.clientes || []);
+      } catch (error) {
+        console.error('Error refrescando clientes:', error);
+        showNotification('Error al actualizar la lista de clientes', 'error');
+      } finally {
+        setLoading(false);
+      }
+    }
+  }, [searchTerm, showNotification]);
 
   const nivelesConfig = {
     'Bronce': { condiciones: { puntosMinimos: 0, gastosMinimos: 0, visitasMinimas: 0 } },
@@ -4102,17 +4359,30 @@ function AsignacionTarjetasComponent({ config, setConfig }: any) {
 
   // Buscar clientes
   const searchClients = async () => {
-    if (searchTerm.length < 2) return;
+    if (searchTerm.length < 2) {
+      setClients([]);
+      return;
+    }
     
     setLoading(true);
     try {
+      // Utilizamos encodeURIComponent para asegurar que la URL sea válida
       const response = await fetch(`/api/clientes/search?q=${encodeURIComponent(searchTerm)}`);
       if (response.ok) {
         const data = await response.json();
-        setClients(data);
+        if (Array.isArray(data)) {
+          setClients(data);
+        } else {
+          console.error('Formato de respuesta inesperado:', data);
+          setClients([]);
+        }
+      } else {
+        console.error('Error en la respuesta:', response.status);
+        setClients([]);
       }
     } catch (error) {
       console.error('Error buscando clientes:', error);
+      setClients([]);
     } finally {
       setLoading(false);
     }
@@ -4142,6 +4412,9 @@ function AsignacionTarjetasComponent({ config, setConfig }: any) {
   const assignCard = async () => {
     if (!selectedClient) return;
 
+    // Mostrar notificación inmediatamente para dar retroalimentación al usuario
+    showNotification(`Asignando tarjeta ${selectedLevel} a ${selectedClient.nombre}...`, 'info');
+
     try {
       const response = await fetch('/api/tarjetas/asignar', {
         method: 'POST',
@@ -4149,24 +4422,52 @@ function AsignacionTarjetasComponent({ config, setConfig }: any) {
         body: JSON.stringify({
           clienteId: selectedClient.id,
           nivel: selectedLevel,
-          asignacionManual: true
+          asignacionManual: true,
+          fastUpdate: true // Indicador para procesamiento rápido
         })
       });
 
       if (response.ok) {
-        alert(`Tarjeta ${selectedLevel} asignada exitosamente a ${selectedClient.nombre}`);
+        showNotification(`Tarjeta ${selectedLevel} asignada exitosamente a ${selectedClient.nombre}`, 'success');
+        
+        // Limpiar la selección y búsqueda inmediatamente para mejor UX
         setSelectedClient(null);
         setSearchTerm('');
         setClients([]);
+        
+        // Recargar la lista de clientes para reflejar los cambios
+        if (typeof onRefreshClients === 'function') {
+          onRefreshClients();
+        }
+        
+        // Notificar a otros clientes conectados sobre el cambio (simulado)
+        try {
+          fetch('/api/notificaciones/actualizar-clientes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tipo: 'actualizacion_tarjeta' })
+          }).catch(e => console.log('Error enviando notificación:', e));
+        } catch (e) {
+          console.log('Error en notificación:', e);
+        }
+      } else {
+        const errorData = await response.json();
+        showNotification(`Error al asignar tarjeta: ${errorData.error || 'Error desconocido'}`, 'error');
       }
     } catch (error) {
       console.error('Error asignando tarjeta:', error);
-      alert('Error al asignar la tarjeta');
+      showNotification('Error de conexión al asignar la tarjeta', 'error');
     }
   };
 
   useEffect(() => {
-    const timeoutId = setTimeout(searchClients, 500);
+    const timeoutId = setTimeout(() => {
+      if (searchTerm.trim().length >= 2) {
+        searchClients();
+      } else {
+        setClients([]);
+      }
+    }, 300);
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
 
@@ -4188,37 +4489,61 @@ function AsignacionTarjetasComponent({ config, setConfig }: any) {
           Buscar Cliente
         </label>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-dark-400" />
+          <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${loading ? 'text-primary-500 animate-pulse' : 'text-dark-400'}`} />
           <input
             id="search-client"
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por nombre, email o teléfono..."
-            className="w-full pl-10 pr-4 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
+            placeholder="Buscar por nombre, email, teléfono o cédula..."
+            className="w-full pl-10 pr-10 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
           />
+          {searchTerm && (
+            <button 
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-dark-400 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
         
         {loading && (
-          <div className="mt-2 text-dark-400 text-sm">Buscando clientes...</div>
+          <div className="mt-2 text-primary-500 text-sm flex items-center">
+            <div className="w-3 h-3 mr-2 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+            Buscando clientes...
+          </div>
         )}
       </div>
 
       {/* Lista de clientes encontrados */}
-      {clients.length > 0 && (
+      {searchTerm.length >= 2 && (
         <div className="mb-6">
-          <h6 className="text-white font-medium mb-3">Clientes Encontrados</h6>
-          <div className="space-y-2 max-h-40 overflow-y-auto">
-            {clients.map((client) => (
-              <ClientListItem
-                key={client.id}
-                client={client}
-                selectedClient={selectedClient}
-                onSelect={setSelectedClient}
-                calculateClientLevel={calculateClientLevel}
-              />
-            ))}
-          </div>
+          <h6 className="text-white font-medium mb-3">
+            {(() => {
+              if (loading) return 'Buscando...';
+              if (clients.length > 0) return 'Clientes Encontrados';
+              return 'Sin resultados';
+            })()}
+          </h6>
+          
+          {clients.length > 0 ? (
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {clients.map((client) => (
+                <ClientListItem
+                  key={client.id}
+                  client={client}
+                  selectedClient={selectedClient}
+                  onSelect={setSelectedClient}
+                  calculateClientLevel={calculateClientLevel}
+                />
+              ))}
+            </div>
+          ) : searchTerm.length >= 2 && !loading && (
+            <div className="py-3 text-center text-dark-400 bg-dark-800/50 rounded-lg">
+              No se encontraron clientes con ese criterio de búsqueda
+            </div>
+          )}
         </div>
       )}
 

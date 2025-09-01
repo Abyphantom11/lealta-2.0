@@ -51,7 +51,7 @@ export function getUserPermissions(role: string): Permission[] {
   return ROLE_PERMISSIONS[role] || [];
 }
 
-export function canUserManageRole(userRole: string, _targetRole: string): boolean {
+export function canUserManageRole(userRole: string): boolean {
   if (userRole === 'SUPERADMIN') {
     return true; // SuperAdmin puede gestionar cualquier rol
   }

@@ -36,7 +36,7 @@ const listeners: Array<(notifications: Notification[]) => void> = [];
  * Genera un ID único para notificaciones
  */
 function generateId(): string {
-  return `notification-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return `notification-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 }
 
 /**
@@ -68,9 +68,7 @@ function addNotification(notification: Notification): string {
  */
 export function removeNotification(id: string): void {
   const notification = notifications.find(n => n.id === id);
-  if (notification && notification.onClose) {
-    notification.onClose();
-  }
+  notification?.onClose?.();
   
   notifications = notifications.filter(n => n.id !== id);
   notifyListeners();
@@ -117,7 +115,7 @@ export function success(options: CreateNotificationOptions): string {
     type: 'success',
     title: options.title || 'Éxito',
     message: options.message,
-    duration: options.duration !== undefined ? options.duration : 5000,
+    duration: options.duration ?? 5000,
     onClose: options.onClose,
     isHTML: options.isHTML,
   });
@@ -132,7 +130,7 @@ export function error(options: CreateNotificationOptions): string {
     type: 'error',
     title: options.title || 'Error',
     message: options.message,
-    duration: options.duration !== undefined ? options.duration : 8000,
+    duration: options.duration ?? 8000,
     onClose: options.onClose,
     isHTML: options.isHTML,
   });
@@ -147,7 +145,7 @@ export function warning(options: CreateNotificationOptions): string {
     type: 'warning',
     title: options.title || 'Advertencia',
     message: options.message,
-    duration: options.duration !== undefined ? options.duration : 6000,
+    duration: options.duration ?? 6000,
     onClose: options.onClose,
     isHTML: options.isHTML,
   });
@@ -162,14 +160,14 @@ export function info(options: CreateNotificationOptions): string {
     type: 'info',
     title: options.title || 'Información',
     message: options.message,
-    duration: options.duration !== undefined ? options.duration : 5000,
+    duration: options.duration ?? 5000,
     onClose: options.onClose,
     isHTML: options.isHTML,
   });
 }
 
-// Exportar el objeto de notificaciones completo para facilitar su uso
-export default {
+// Crear un objeto de notificaciones para exportación
+const notificationService = {
   success,
   error,
   warning,
@@ -178,3 +176,6 @@ export default {
   clearNotifications,
   subscribe,
 };
+
+// Exportar el objeto de notificaciones
+export default notificationService;

@@ -5,7 +5,7 @@ import { ApiProvider } from '@/contexts/ApiContext';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
 interface ClienteLayoutProps {
-  children: React.ReactNode;
+  readonly children: React.ReactNode;
 }
 
 /**

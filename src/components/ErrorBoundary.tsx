@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 
 interface ErrorBoundaryProps {
-  children: React.ReactNode;
-  fallback?: React.ReactNode;
-  onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
+  readonly children: React.ReactNode;
+  readonly fallback?: React.ReactNode;
+  readonly onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
 }
 
 interface ErrorBoundaryState {

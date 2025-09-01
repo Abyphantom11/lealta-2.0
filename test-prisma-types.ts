@@ -5,15 +5,16 @@ const prisma = new PrismaClient()
 
 // Test de tipos de TarjetaLealtad
 async function testTarjetaLealtad() {
-  const tarjeta = await prisma.tarjetaLealtad.findUnique({
+  // Estos valores se utilizarán más adelante cuando se implemente la funcionalidad completa
+  await prisma.tarjetaLealtad.findUnique({
     where: { id: "test" }
   })
   
-  const configuracion = await prisma.configuracionTarjeta.findUnique({
+  await prisma.configuracionTarjeta.findUnique({
     where: { id: "test" }
   })
   
-  console.log(tarjeta, configuracion)
+  // Se ha eliminado console.log por recomendación de SonarQube
 }
 
 testTarjetaLealtad()

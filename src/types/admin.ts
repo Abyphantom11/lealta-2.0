@@ -11,6 +11,7 @@ export interface MenuItem {
   categoryId: string;
   tipoProducto: 'simple' | 'bebida';
   imagen?: string;
+  imagenUrl?: string; // Añadido para compatibilidad con cliente/page.tsx
 }
 
 export interface MenuCategory {
@@ -23,6 +24,16 @@ export interface MenuCategory {
   activo: boolean;
 }
 
+// Alias de tipo para los niveles de tarjeta
+export type NivelTarjeta = 'Bronce' | 'Plata' | 'Oro' | 'Diamante' | 'Platino';
+
+export interface TarjetaLealtad {
+  nivel: NivelTarjeta;
+  activa: boolean;
+  asignacionManual: boolean;
+  fechaAsignacion: Date;
+}
+
 export interface Cliente {
   id: string;
   cedula: string;
@@ -32,13 +43,14 @@ export interface Cliente {
   puntos: number;
   totalGastado: number;
   totalVisitas: number;
-  nivel: 'Bronce' | 'Plata' | 'Oro' | 'Diamante' | 'Platino';
+  nivel?: NivelTarjeta;
   registeredAt: Date;
+  tarjetaLealtad?: TarjetaLealtad | null;
 }
 
 export interface TarjetaConfig {
   id: string;
-  nivel: 'Bronce' | 'Plata' | 'Oro' | 'Diamante' | 'Platino';
+  nivel: NivelTarjeta;
   nombrePersonalizado: string;
   textoCalidad: string;
   condiciones: {

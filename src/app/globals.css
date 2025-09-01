@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Eliminar flechas de incremento/decremento en inputs numéricos */
+/* Para Chrome, Safari, Edge, Opera */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Para Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
 :root {
   /* Dark theme variables */
   --background-primary: #0f172a;

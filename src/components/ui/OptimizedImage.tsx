@@ -5,15 +5,15 @@ import NextImage from 'next/image';
 import { motion } from '../motion';
 
 interface OptimizedImageProps {
-  src: string;
-  alt: string;
-  width?: number;
-  height?: number;
-  className?: string;
-  sizes?: string;
-  priority?: boolean;
-  fallbackSrc?: string;
-  animate?: boolean;
+  readonly src: string;
+  readonly alt: string;
+  readonly width?: number;
+  readonly height?: number;
+  readonly className?: string;
+  readonly sizes?: string;
+  readonly priority?: boolean;
+  readonly fallbackSrc?: string;
+  readonly animate?: boolean;
 }
 
 /**

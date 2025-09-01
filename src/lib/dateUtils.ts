@@ -149,8 +149,8 @@ export function isSameDay(
   );
 }
 
-// Exportar el objeto dateUtils completo para facilitar su uso
-export default {
+// Crear un objeto para exportación por defecto
+const dateUtils = {
   formatDate,
   formatDateTime,
   formatShortDate,
@@ -162,3 +162,6 @@ export default {
   getLastDayOfMonth,
   isSameDay,
 };
+
+// Exportar el objeto dateUtils
+export default dateUtils;

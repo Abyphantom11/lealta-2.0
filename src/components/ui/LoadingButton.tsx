@@ -4,13 +4,13 @@ import React from 'react';
 import { motion } from '../motion';
 
 interface LoadingButtonProps {
-  isLoading: boolean;
-  children: React.ReactNode;
-  loadingText?: string;
-  className?: string;
-  type?: 'button' | 'submit' | 'reset';
-  disabled?: boolean;
-  onClick?: () => void;
+  readonly isLoading: boolean;
+  readonly children: React.ReactNode;
+  readonly loadingText?: string;
+  readonly className?: string;
+  readonly type?: 'button' | 'submit' | 'reset';
+  readonly disabled?: boolean;
+  readonly onClick?: () => void;
 }
 
 export default function LoadingButton({
