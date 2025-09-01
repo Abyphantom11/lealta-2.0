@@ -13,9 +13,17 @@ const nextConfig = {
   // Allow cross-origin requests from the local network
   allowedDevOrigins: [
     '192.168.1.5:3001',
+    '192.168.1.5:3000',
+    '192.168.1.5',
     'localhost:3001',
+    'localhost:3000',
+    'localhost',
     '127.0.0.1:3001',
+    '127.0.0.1:3000',
+    '127.0.0.1',
     '192.168.1.*:3001',
+    '192.168.1.*:3000',
+    '192.168.1.*',
   ],
 };
 
