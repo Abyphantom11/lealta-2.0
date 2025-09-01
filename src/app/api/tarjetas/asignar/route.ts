@@ -33,7 +33,6 @@ export async function POST(request: NextRequest) {
         data: {
           nivel,
           asignacionManual,
-          condicionesCumplidas: true, // Marcar como cumplidas cuando es asignación manual
           fechaAsignacion: new Date(),
           historicoNiveles: {
             ...(tarjetaExistente.historicoNiveles || {}),
@@ -77,7 +76,6 @@ export async function POST(request: NextRequest) {
           nivel,
           asignacionManual,
           activa: true,
-          condicionesCumplidas: true, // Marcar como cumplidas cuando es asignación manual
           historicoNiveles: {
             [new Date().toISOString()]: {
               nivelAnterior: null,
