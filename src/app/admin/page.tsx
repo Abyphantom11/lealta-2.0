@@ -1,6 +1,18 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+
+// Función simple para obtener business ID en desarrollo
+function getCurrentBusinessId(): string {
+  // En desarrollo usar ID hardcodeado
+  if (process.env.NODE_ENV === 'development') {
+    return 'business_1';
+  }
+  // En producción también usar business_1 por ahora (hasta implementar auth completo)
+  return 'business_1';
+}
+
+const BUSINESS_ID = getCurrentBusinessId(); // Centralizado para fácil transición
 import { useRequireAuth } from '../../hooks/useAuth';
 import RoleSwitch from '../../components/RoleSwitch';
 import { MenuItem, MenuCategory, Cliente, StatsData } from '../../types/admin';
@@ -13,11 +25,11 @@ type NivelTarjeta = 'success' | 'error' | 'info' | 'warning';
 // Tipo para los modos de vista previa
 type ModoVistaPrevia = 'portal' | 'login' | 'tarjetas';
 
-import { 
-  Users, 
-  Receipt, 
-  DollarSign, 
-  TrendingUp, 
+import {
+  Users,
+  Receipt,
+  DollarSign,
+  TrendingUp,
   Settings,
   Search,
   Filter,
@@ -45,11 +57,13 @@ import {
   Info,
   CreditCard,
   Pencil,
-  Check
+  Check,
 } from 'lucide-react';
 
 // Hook personalizado para manejar carga de archivos
-const useFileUpload = <T extends Record<string, unknown>>(setFormData: (updater: (prev: T) => T) => void) => {
+const useFileUpload = <T extends Record<string, unknown>>(
+  setFormData: (updater: (prev: T) => T) => void
+) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,7 +98,13 @@ const getNotificationColorClass = (type: NivelTarjeta): string => {
   }
 };
 
-type AdminSection = 'dashboard' | 'clientes' | 'menu' | 'portal' | 'analytics' | 'configuracion';
+type AdminSection =
+  | 'dashboard'
+  | 'clientes'
+  | 'menu'
+  | 'portal'
+  | 'analytics'
+  | 'configuracion';
 
 export default function AdminPage() {
   const { user, loading, logout, isAuthenticated } = useRequireAuth('ADMIN');
@@ -94,9 +114,9 @@ export default function AdminPage() {
     totalClients: 0,
     totalConsumos: 0,
     totalRevenue: 0,
-    unpaidCount: 0
+    unpaidCount: 0,
   });
-  
+
   // Sistema de notificaciones
   const [notification, setNotification] = useState<{
     message: string;
@@ -120,8 +140,8 @@ export default function AdminPage() {
           setStats({
             totalClients: data.clientes.length,
             totalConsumos: 423,
-            totalRevenue: 15678.50,
-            unpaidCount: 12
+            totalRevenue: 15678.5,
+            unpaidCount: 12,
           });
         }
       } catch (error) {
@@ -130,8 +150,8 @@ export default function AdminPage() {
         setStats({
           totalClients: 0,
           totalConsumos: 423,
-          totalRevenue: 15678.50,
-          unpaidCount: 12
+          totalRevenue: 15678.5,
+          unpaidCount: 12,
         });
       }
     };
@@ -157,13 +177,15 @@ export default function AdminPage() {
     { id: 'menu', label: 'Gestión de Menú', icon: UtensilsCrossed },
     { id: 'portal', label: 'Portal Cliente', icon: Smartphone },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-    { id: 'configuracion', label: 'Configuración', icon: Settings }
+    { id: 'configuracion', label: 'Configuración', icon: Settings },
   ];
 
   return (
     <div className="min-h-screen bg-dark-950 flex">
       {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'w-64' : 'w-16'} transition-all duration-300 bg-dark-900 border-r border-dark-700`}>
+      <div
+        className={`${sidebarOpen ? 'w-64' : 'w-16'} transition-all duration-300 bg-dark-900 border-r border-dark-700`}
+      >
         <div className="p-4">
           {/* Logo/Brand */}
           <div className="flex items-center space-x-3 mb-8">
@@ -180,17 +202,17 @@ export default function AdminPage() {
 
           {/* Navigation */}
           <nav className="space-y-2">
-            {navigationItems.map((item) => {
+            {navigationItems.map(item => {
               const Icon = item.icon;
               const isActive = activeSection === item.id;
-              
+
               return (
                 <button
                   key={item.id}
                   onClick={() => setActiveSection(item.id as AdminSection)}
                   className={`w-full flex items-center space-x-3 px-3 py-3 rounded-lg transition-all ${
-                    isActive 
-                      ? 'bg-primary-600/20 text-primary-400 border border-primary-600/30' 
+                    isActive
+                      ? 'bg-primary-600/20 text-primary-400 border border-primary-600/30'
                       : 'text-dark-300 hover:bg-dark-800 hover:text-white'
                   }`}
                 >
@@ -213,7 +235,11 @@ export default function AdminPage() {
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="w-full flex items-center justify-center p-2 text-dark-400 hover:text-white transition-colors"
           >
-            {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {sidebarOpen ? (
+              <X className="w-5 h-5" />
+            ) : (
+              <Menu className="w-5 h-5" />
+            )}
           </button>
         </div>
       </div>
@@ -222,24 +248,36 @@ export default function AdminPage() {
       <div className="flex-1 flex flex-col">
         {/* Componente de notificación */}
         {notification.show && (
-          <div 
-            className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-md transition-all duration-300 ${
-              getNotificationColorClass(notification.type)
-            }`}
+          <div
+            className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-md transition-all duration-300 ${getNotificationColorClass(
+              notification.type
+            )}`}
           >
             <div className="flex items-start">
               <div className="flex-shrink-0">
-                {notification.type === 'success' && <CheckCircle className="w-5 h-5 text-white" />}
-                {notification.type === 'error' && <AlertTriangle className="w-5 h-5 text-white" />}
-                {notification.type === 'warning' && <AlertTriangle className="w-5 h-5 text-white" />}
-                {notification.type === 'info' && <Info className="w-5 h-5 text-white" />}
+                {notification.type === 'success' && (
+                  <CheckCircle className="w-5 h-5 text-white" />
+                )}
+                {notification.type === 'error' && (
+                  <AlertTriangle className="w-5 h-5 text-white" />
+                )}
+                {notification.type === 'warning' && (
+                  <AlertTriangle className="w-5 h-5 text-white" />
+                )}
+                {notification.type === 'info' && (
+                  <Info className="w-5 h-5 text-white" />
+                )}
               </div>
               <div className="ml-3">
-                <p className="text-sm font-medium text-white">{notification.message}</p>
+                <p className="text-sm font-medium text-white">
+                  {notification.message}
+                </p>
               </div>
               <div className="ml-auto pl-3">
                 <button
-                  onClick={() => setNotification(prev => ({ ...prev, show: false }))}
+                  onClick={() =>
+                    setNotification(prev => ({ ...prev, show: false }))
+                  }
                   className="inline-flex text-white hover:text-gray-200"
                 >
                   <X className="w-5 h-5" />
@@ -248,7 +286,7 @@ export default function AdminPage() {
             </div>
           </div>
         )}
-        
+
         {/* Top Header */}
         <header className="bg-dark-900 border-b border-dark-700 px-6 py-4">
           <div className="flex items-center justify-between">
@@ -260,14 +298,14 @@ export default function AdminPage() {
                 {user?.business?.name || 'Gestiona tu negocio desde aquí'}
               </p>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               <div className="text-right mr-4">
                 <p className="text-white font-medium">{user?.name}</p>
                 <p className="text-dark-400 text-sm">{user?.email}</p>
               </div>
-              <RoleSwitch 
-                currentRole={user?.role || 'ADMIN'} 
+              <RoleSwitch
+                currentRole={user?.role || 'ADMIN'}
                 currentPath="/admin"
               />
               <button
@@ -286,7 +324,9 @@ export default function AdminPage() {
           {activeSection === 'dashboard' && <DashboardContent stats={stats} />}
           {activeSection === 'clientes' && <ClientesContent />}
           {activeSection === 'menu' && <MenuContent />}
-          {activeSection === 'portal' && <PortalContent showNotification={showNotification} />}
+          {activeSection === 'portal' && (
+            <PortalContent showNotification={showNotification} />
+          )}
           {activeSection === 'analytics' && <AnalyticsContent />}
           {activeSection === 'configuracion' && <ConfiguracionContent />}
         </main>
@@ -334,14 +374,36 @@ function DashboardContent({ stats }: Readonly<{ stats: StatsData }>) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Quick Stats */}
         <div className="premium-card">
-          <h3 className="text-lg font-semibold text-white mb-4">Actividad Reciente</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">
+            Actividad Reciente
+          </h3>
           <div className="space-y-3">
             {[
-              { id: 'cliente', type: 'cliente', text: 'Nuevo cliente registrado: Juan Pérez', time: '2 min' },
-              { id: 'consumo', type: 'consumo', text: 'Consumo registrado: $45.50', time: '5 min' },
-              { id: 'pago', type: 'pago', text: 'Pago confirmado: María García', time: '8 min' },
-              { id: 'promocion', type: 'promocion', text: 'Promoción vista 12 veces', time: '15 min' },
-            ].map((activity) => {
+              {
+                id: 'cliente',
+                type: 'cliente',
+                text: 'Nuevo cliente registrado: Juan Pérez',
+                time: '2 min',
+              },
+              {
+                id: 'consumo',
+                type: 'consumo',
+                text: 'Consumo registrado: $45.50',
+                time: '5 min',
+              },
+              {
+                id: 'pago',
+                type: 'pago',
+                text: 'Pago confirmado: María García',
+                time: '8 min',
+              },
+              {
+                id: 'promocion',
+                type: 'promocion',
+                text: 'Promoción vista 12 veces',
+                time: '15 min',
+              },
+            ].map(activity => {
               const getActivityColor = (type: string) => {
                 if (type === 'cliente') return 'bg-primary-500';
                 if (type === 'consumo') return 'bg-success-500';
@@ -350,8 +412,13 @@ function DashboardContent({ stats }: Readonly<{ stats: StatsData }>) {
               };
 
               return (
-                <div key={activity.id} className="flex items-center space-x-3 p-3 bg-dark-800/30 rounded-lg">
-                  <div className={`w-3 h-3 rounded-full ${getActivityColor(activity.type)}`} />
+                <div
+                  key={activity.id}
+                  className="flex items-center space-x-3 p-3 bg-dark-800/30 rounded-lg"
+                >
+                  <div
+                    className={`w-3 h-3 rounded-full ${getActivityColor(activity.type)}`}
+                  />
                   <div className="flex-1">
                     <p className="text-white text-sm">{activity.text}</p>
                   </div>
@@ -364,7 +431,9 @@ function DashboardContent({ stats }: Readonly<{ stats: StatsData }>) {
 
         {/* Quick Actions */}
         <div className="premium-card">
-          <h3 className="text-lg font-semibold text-white mb-4">Acciones Rápidas</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">
+            Acciones Rápidas
+          </h3>
           <div className="grid grid-cols-2 gap-3">
             <button className="p-4 bg-primary-600/10 border border-primary-600/30 rounded-lg hover:bg-primary-600/20 transition-colors">
               <Plus className="w-6 h-6 text-primary-400 mx-auto mb-2" />
@@ -415,16 +484,18 @@ function ClientesContent() {
 
     fetchClientes();
   }, []);
-  
+
   // Función para buscar clientes en el servidor
   const searchClientesAPI = useCallback(async (query: string) => {
     if (!query || query.length < 2) return;
-    
+
     setIsSearching(true);
     try {
-      const response = await fetch(`/api/clientes/search?q=${encodeURIComponent(query)}`);
+      const response = await fetch(
+        `/api/clientes/search?q=${encodeURIComponent(query)}`
+      );
       const data = await response.json();
-      
+
       if (Array.isArray(data)) {
         // Si tenemos resultados de la API, actualizar la lista filtrada
         setFilteredClientes(data);
@@ -437,25 +508,29 @@ function ClientesContent() {
       setIsSearching(false);
     }
   }, []);
-  
+
   // Función para filtrar clientes localmente
-  const filterClientsLocally = useCallback((query: string) => {
-    if (!query.trim()) {
-      setFilteredClientes(clientes);
-      return;
-    }
-    
-    const searchLower = query.toLowerCase();
-    const filtered = clientes.filter(client => 
-      client.nombre.toLowerCase().includes(searchLower) ||
-      client.cedula?.toLowerCase().includes(searchLower) ||
-      client.telefono?.toLowerCase().includes(searchLower) ||
-      client.correo?.toLowerCase().includes(searchLower)
-    );
-    
-    setFilteredClientes(filtered);
-  }, [clientes]);
-  
+  const filterClientsLocally = useCallback(
+    (query: string) => {
+      if (!query.trim()) {
+        setFilteredClientes(clientes);
+        return;
+      }
+
+      const searchLower = query.toLowerCase();
+      const filtered = clientes.filter(
+        client =>
+          client.nombre.toLowerCase().includes(searchLower) ||
+          client.cedula?.toLowerCase().includes(searchLower) ||
+          client.telefono?.toLowerCase().includes(searchLower) ||
+          client.correo?.toLowerCase().includes(searchLower)
+      );
+
+      setFilteredClientes(filtered);
+    },
+    [clientes]
+  );
+
   // Efecto para manejar la búsqueda con debounce
   useEffect(() => {
     const debounceTimer = setTimeout(() => {
@@ -467,14 +542,16 @@ function ClientesContent() {
         filterClientsLocally(searchTerm);
       }
     }, 300);
-    
+
     return () => clearTimeout(debounceTimer);
   }, [searchTerm, filterClientsLocally, searchClientesAPI]);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-xl font-semibold text-white">Gestión de Clientes</h3>
+        <h3 className="text-xl font-semibold text-white">
+          Gestión de Clientes
+        </h3>
         <button className="flex items-center space-x-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors">
           <Plus className="w-4 h-4 text-white" />
           <span className="text-white">Nuevo Cliente</span>
@@ -485,16 +562,18 @@ function ClientesContent() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
             <div className="relative">
-              <Search className={`w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 ${isSearching ? 'text-primary-500 animate-pulse' : 'text-dark-400'}`} />
-              <input 
-                type="text" 
+              <Search
+                className={`w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 ${isSearching ? 'text-primary-500 animate-pulse' : 'text-dark-400'}`}
+              />
+              <input
+                type="text"
                 placeholder="Buscar clientes..."
                 className="pl-10 pr-10 py-2 bg-dark-800 border border-dark-600 rounded-lg text-white placeholder-dark-400 focus:outline-none focus:border-primary-500"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={e => setSearchTerm(e.target.value)}
               />
               {searchTerm && (
-                <button 
+                <button
                   onClick={() => setSearchTerm('')}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-dark-400 hover:text-white"
                 >
@@ -518,14 +597,30 @@ function ClientesContent() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-dark-700">
-                <th className="text-left py-3 text-dark-300 font-medium">Cliente</th>
-                <th className="text-left py-3 text-dark-300 font-medium">Cédula</th>
-                <th className="text-left py-3 text-dark-300 font-medium">Contacto</th>
-                <th className="text-left py-3 text-dark-300 font-medium">Puntos</th>
-                <th className="text-left py-3 text-dark-300 font-medium">Registro</th>
-                <th className="text-left py-3 text-dark-300 font-medium">Tarjeta</th>
-                <th className="text-left py-3 text-dark-300 font-medium">Estado</th>
-                <th className="text-left py-3 text-dark-300 font-medium">Acciones</th>
+                <th className="text-left py-3 text-dark-300 font-medium">
+                  Cliente
+                </th>
+                <th className="text-left py-3 text-dark-300 font-medium">
+                  Cédula
+                </th>
+                <th className="text-left py-3 text-dark-300 font-medium">
+                  Contacto
+                </th>
+                <th className="text-left py-3 text-dark-300 font-medium">
+                  Puntos
+                </th>
+                <th className="text-left py-3 text-dark-300 font-medium">
+                  Registro
+                </th>
+                <th className="text-left py-3 text-dark-300 font-medium">
+                  Tarjeta
+                </th>
+                <th className="text-left py-3 text-dark-300 font-medium">
+                  Estado
+                </th>
+                <th className="text-left py-3 text-dark-300 font-medium">
+                  Acciones
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -533,7 +628,10 @@ function ClientesContent() {
                 if (isLoading) {
                   return (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-dark-400">
+                      <td
+                        colSpan={7}
+                        className="py-8 text-center text-dark-400"
+                      >
                         <div className="flex items-center justify-center space-x-2">
                           <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
                           <span>Cargando clientes...</span>
@@ -542,24 +640,36 @@ function ClientesContent() {
                     </tr>
                   );
                 }
-                
+
                 if (filteredClientes.length === 0) {
                   return (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-dark-400">
-                        {clientes.length > 0 ? 'No se encontraron clientes con ese criterio de búsqueda' : 'No hay clientes registrados aún'}
+                      <td
+                        colSpan={7}
+                        className="py-8 text-center text-dark-400"
+                      >
+                        {clientes.length > 0
+                          ? 'No se encontraron clientes con ese criterio de búsqueda'
+                          : 'No hay clientes registrados aún'}
                       </td>
                     </tr>
                   );
                 }
-                
-                return filteredClientes.map((client) => (
-                  <tr key={client.id} className="border-b border-dark-800/50 hover:bg-dark-800/30">
+
+                return filteredClientes.map(client => (
+                  <tr
+                    key={client.id}
+                    className="border-b border-dark-800/50 hover:bg-dark-800/30"
+                  >
                     <td className="py-4">
                       <div className="flex items-center space-x-3">
                         <div className="w-8 h-8 bg-gradient-to-r from-primary-600 to-purple-600 rounded-full flex items-center justify-center">
                           <span className="text-white font-semibold text-xs">
-                            {client.nombre.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                            {client.nombre
+                              .split(' ')
+                              .map((n: string) => n[0])
+                              .join('')
+                              .slice(0, 2)}
                           </span>
                         </div>
                         <span className="text-white">{client.nombre}</span>
@@ -572,22 +682,32 @@ function ClientesContent() {
                         <div className="text-dark-500">{client.correo}</div>
                       </div>
                     </td>
-                    <td className="py-4 text-success-400 font-semibold">{client.puntos} pts</td>
+                    <td className="py-4 text-success-400 font-semibold">
+                      {client.puntos} pts
+                    </td>
                     <td className="py-4 text-dark-300">
-                      {new Date(client.registeredAt).toLocaleDateString('es-ES')}
+                      {new Date(client.registeredAt).toLocaleDateString(
+                        'es-ES'
+                      )}
                     </td>
                     <td className="py-4">
                       {client.tarjetaLealtad ? (
                         <div className="flex flex-col">
-                          <span className={`text-sm font-medium ${client.tarjetaLealtad.activa ? 'text-success-400' : 'text-red-400'}`}>
+                          <span
+                            className={`text-sm font-medium ${client.tarjetaLealtad.activa ? 'text-success-400' : 'text-red-400'}`}
+                          >
                             {client.tarjetaLealtad.nivel}
                           </span>
                           <span className="text-xs text-dark-400">
-                            {client.tarjetaLealtad.asignacionManual ? 'Manual' : 'Auto'}
+                            {client.tarjetaLealtad.asignacionManual
+                              ? 'Manual'
+                              : 'Auto'}
                           </span>
                         </div>
                       ) : (
-                        <span className="text-xs text-dark-400">Sin tarjeta</span>
+                        <span className="text-xs text-dark-400">
+                          Sin tarjeta
+                        </span>
                       )}
                     </td>
                     <td className="py-4">
@@ -613,11 +733,13 @@ function ClientesContent() {
 
 // Menu Content Component
 function MenuContent() {
-  const [activeTab, setActiveTab] = useState<'categorias' | 'productos' | 'preview'>('preview');
+  const [activeTab, setActiveTab] = useState<
+    'categorias' | 'productos' | 'preview'
+  >('preview');
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [products, setProducts] = useState<MenuItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Estados para notificaciones elegantes
   const [notification, setNotification] = useState<{
     type: 'success' | 'error' | 'warning' | 'info';
@@ -626,17 +748,22 @@ function MenuContent() {
   }>({
     type: 'success',
     message: '',
-    show: false
+    show: false,
   });
-  
+
   // Estados para modales
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<MenuCategory | null>(null);
+  const [editingCategory, setEditingCategory] = useState<MenuCategory | null>(
+    null
+  );
   const [editingProduct, setEditingProduct] = useState<MenuItem | null>(null);
 
   // Función para mostrar notificaciones elegantes
-  const showNotification = (type: 'success' | 'error' | 'warning' | 'info', message: string) => {
+  const showNotification = (
+    type: 'success' | 'error' | 'warning' | 'info',
+    message: string
+  ) => {
     setNotification({ type, message, show: true });
     setTimeout(() => {
       setNotification(prev => ({ ...prev, show: false }));
@@ -657,21 +784,25 @@ function MenuContent() {
     message: '',
     onConfirm: () => {},
     confirmText: 'Confirmar',
-    type: 'danger'
+    type: 'danger',
   });
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         // Fetch categories
-        const categoriesResponse = await fetch('/api/admin/menu?businessId=business_1');
+        const categoriesResponse = await fetch(
+          `/api/admin/menu?businessId=${BUSINESS_ID}`
+        );
         if (categoriesResponse.ok) {
           const categoriesData = await categoriesResponse.json();
           setCategories(categoriesData.menu || []);
         }
 
         // Fetch products
-        const productsResponse = await fetch('/api/admin/menu/productos?businessId=business_1');
+        const productsResponse = await fetch(
+          `/api/admin/menu/productos?businessId=${BUSINESS_ID}`
+        );
         if (productsResponse.ok) {
           const productsData = await productsResponse.json();
           setProducts(productsData.productos || []);
@@ -696,14 +827,16 @@ function MenuContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: categoryId,
-          activo: !category.activo
-        })
+          activo: !category.activo,
+        }),
       });
 
       if (response.ok) {
-        setCategories(prev => prev.map((c: MenuCategory) => 
-          c.id === categoryId ? { ...c, activo: !c.activo } : c
-        ));
+        setCategories(prev =>
+          prev.map((c: MenuCategory) =>
+            c.id === categoryId ? { ...c, activo: !c.activo } : c
+          )
+        );
       }
     } catch (error) {
       console.error('Error updating category:', error);
@@ -720,14 +853,16 @@ function MenuContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: productId,
-          disponible: !product.disponible
-        })
+          disponible: !product.disponible,
+        }),
       });
 
       if (response.ok) {
-        setProducts(prev => prev.map((p: MenuItem) => 
-          p.id === productId ? { ...p, disponible: !p.disponible } : p
-        ));
+        setProducts(prev =>
+          prev.map((p: MenuItem) =>
+            p.id === productId ? { ...p, disponible: !p.disponible } : p
+          )
+        );
       }
     } catch (error) {
       console.error('Error updating product:', error);
@@ -736,11 +871,15 @@ function MenuContent() {
 
   // Función para eliminar categoría
   // Helper para filtrar productos después de eliminar categoría
-  const filterProductsAfterCategoryDelete = (products: MenuItem[], categoryIdToDelete: string) => {
+  const filterProductsAfterCategoryDelete = (
+    products: MenuItem[],
+    categoryIdToDelete: string
+  ) => {
     return products.filter((p: MenuItem) => {
       const category = categories.find(c => c.id === p.categoryId);
       const isFromDeletedCategory = category?.id === categoryIdToDelete;
-      const isFromDeletedSubcategory = category?.parentId === categoryIdToDelete;
+      const isFromDeletedSubcategory =
+        category?.parentId === categoryIdToDelete;
       return !isFromDeletedCategory && !isFromDeletedSubcategory;
     });
   };
@@ -749,20 +888,30 @@ function MenuContent() {
   const executeDeleteCategory = async (categoryId: string) => {
     try {
       setIsLoading(true);
-      
-      const response = await fetch(`/api/admin/menu?id=${encodeURIComponent(categoryId)}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' }
-      });
+
+      const response = await fetch(
+        `/api/admin/menu?id=${encodeURIComponent(categoryId)}`,
+        {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
 
       if (response.ok) {
-        setCategories(prev => prev.filter((c: MenuCategory) => c.id !== categoryId));
+        setCategories(prev =>
+          prev.filter((c: MenuCategory) => c.id !== categoryId)
+        );
         // También eliminar productos de esta categoría y subcategorías
-        setProducts(prev => filterProductsAfterCategoryDelete(prev, categoryId));
+        setProducts(prev =>
+          filterProductsAfterCategoryDelete(prev, categoryId)
+        );
         showNotification('success', 'Categoría eliminada exitosamente');
       } else {
         const errorData = await response.json();
-        showNotification('error', `Error eliminando categoría: ${errorData.error || 'Error desconocido'}`);
+        showNotification(
+          'error',
+          `Error eliminando categoría: ${errorData.error || 'Error desconocido'}`
+        );
       }
     } catch (error) {
       console.error('Error deleting category:', error);
@@ -782,12 +931,13 @@ function MenuContent() {
     setConfirmModal({
       show: true,
       title: 'Eliminar Categoría',
-      message: '¿Estás seguro de que quieres eliminar esta categoría? Esta acción eliminará también todos los productos y subcategorías asociados y no se puede deshacer.',
+      message:
+        '¿Estás seguro de que quieres eliminar esta categoría? Esta acción eliminará también todos los productos y subcategorías asociados y no se puede deshacer.',
       confirmText: 'Eliminar',
       type: 'danger',
       onConfirm: () => {
         executeDeleteCategory(categoryId);
-      }
+      },
     });
   };
 
@@ -795,18 +945,24 @@ function MenuContent() {
   const executeDeleteProduct = async (productId: string) => {
     try {
       setIsLoading(true);
-      
-      const response = await fetch(`/api/admin/menu/productos?id=${encodeURIComponent(productId)}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' }
-      });
+
+      const response = await fetch(
+        `/api/admin/menu/productos?id=${encodeURIComponent(productId)}`,
+        {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
 
       if (response.ok) {
         setProducts(prev => prev.filter((p: MenuItem) => p.id !== productId));
         showNotification('success', 'Producto eliminado exitosamente');
       } else {
         const errorData = await response.json();
-        showNotification('error', `Error eliminando producto: ${errorData.error || 'Error desconocido'}`);
+        showNotification(
+          'error',
+          `Error eliminando producto: ${errorData.error || 'Error desconocido'}`
+        );
       }
     } catch (error) {
       console.error('Error deleting product:', error);
@@ -827,12 +983,13 @@ function MenuContent() {
     setConfirmModal({
       show: true,
       title: 'Eliminar Producto',
-      message: '¿Estás seguro de que quieres eliminar este producto? Esta acción no se puede deshacer.',
+      message:
+        '¿Estás seguro de que quieres eliminar este producto? Esta acción no se puede deshacer.',
       confirmText: 'Eliminar',
       type: 'danger',
       onConfirm: () => {
         executeDeleteProduct(productId);
-      }
+      },
     });
   };
 
@@ -866,8 +1023,8 @@ function MenuContent() {
         <button
           onClick={() => setActiveTab('preview')}
           className={`px-4 py-2 rounded-md font-medium transition-colors ${
-            activeTab === 'preview' 
-              ? 'bg-green-600 text-white shadow-sm' 
+            activeTab === 'preview'
+              ? 'bg-green-600 text-white shadow-sm'
               : 'text-dark-300 hover:text-white'
           }`}
         >
@@ -877,8 +1034,8 @@ function MenuContent() {
         <button
           onClick={() => setActiveTab('categorias')}
           className={`px-4 py-2 rounded-md font-medium transition-colors ${
-            activeTab === 'categorias' 
-              ? 'bg-primary-600 text-white shadow-sm' 
+            activeTab === 'categorias'
+              ? 'bg-primary-600 text-white shadow-sm'
               : 'text-dark-300 hover:text-white'
           }`}
         >
@@ -888,8 +1045,8 @@ function MenuContent() {
         <button
           onClick={() => setActiveTab('productos')}
           className={`px-4 py-2 rounded-md font-medium transition-colors ${
-            activeTab === 'productos' 
-              ? 'bg-primary-600 text-white shadow-sm' 
+            activeTab === 'productos'
+              ? 'bg-primary-600 text-white shadow-sm'
               : 'text-dark-300 hover:text-white'
           }`}
         >
@@ -902,8 +1059,10 @@ function MenuContent() {
       {activeTab === 'categorias' && (
         <div className="premium-card">
           <div className="flex items-center justify-between mb-6">
-            <h4 className="text-lg font-semibold text-white">Categorías del Menú</h4>
-            <button 
+            <h4 className="text-lg font-semibold text-white">
+              Categorías del Menú
+            </h4>
+            <button
               onClick={() => {
                 setEditingCategory(null);
                 setShowCategoryModal(true);
@@ -914,7 +1073,7 @@ function MenuContent() {
               <span className="text-white">Nueva Categoría</span>
             </button>
           </div>
-          
+
           {categories.length === 0 ? (
             <div className="text-center text-dark-400 py-12">
               <UtensilsCrossed className="w-12 h-12 mx-auto mb-4 text-dark-500" />
@@ -924,103 +1083,154 @@ function MenuContent() {
           ) : (
             <div className="space-y-4">
               {/* Categorías principales */}
-              {categories.filter(cat => !cat.parentId).map((category: MenuCategory) => (
-                <div key={category.id}>
-                  {/* Categoría principal */}
-                  <div className="bg-dark-800/30 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <h5 className="text-lg font-medium text-white">{category.nombre}</h5>
-                        <p className="text-dark-300 text-sm mt-1">{category.descripcion}</p>
-                        <div className="flex items-center space-x-2 mt-2">
-                          <span className={`inline-block px-2 py-1 rounded-full text-xs ${
-                            category.activo ? 'bg-success-500/20 text-success-400' : 'bg-dark-600 text-dark-400'
-                          }`}>
-                            {category.activo ? 'Activo' : 'Inactivo'}
-                          </span>
-                          <span className="text-xs text-dark-400">Orden: {category.orden}</span>
-                          <span className="text-xs text-primary-400">Categoría Principal</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => toggleCategoryStatus(category.id)}
-                          className={`p-2 rounded-md ${
-                            category.activo
-                              ? 'text-success-400 hover:text-success-300 hover:bg-success-500/10'
-                              : 'text-dark-400 hover:text-dark-300 hover:bg-dark-600'
-                          }`}
-                        >
-                          {category.activo ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                        </button>
-                        <button 
-                          onClick={() => {
-                            setEditingCategory(category);
-                            setShowCategoryModal(true);
-                          }}
-                          className="text-primary-400 hover:text-primary-300 p-2 rounded-md hover:bg-primary-500/10">
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => deleteCategory(category.id)}
-                          className="text-red-400 hover:text-red-300 p-2 rounded-md hover:bg-red-500/10">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Subcategorías */}
-                  {categories.filter(subcat => subcat.parentId === category.id).length > 0 && (
-                    <div className="ml-8 mt-2 space-y-2">
-                      {categories.filter(subcat => subcat.parentId === category.id).map((subcategory: MenuCategory) => (
-                        <div key={subcategory.id} className="bg-dark-700/30 rounded-lg p-3 border-l-4 border-primary-500">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <h6 className="text-md font-medium text-white">{subcategory.nombre}</h6>
-                              <p className="text-dark-300 text-sm mt-1">{subcategory.descripcion}</p>
-                              <div className="flex items-center space-x-2 mt-2">
-                                <span className={`inline-block px-2 py-1 rounded-full text-xs ${
-                                  subcategory.activo ? 'bg-success-500/20 text-success-400' : 'bg-dark-600 text-dark-400'
-                                }`}>
-                                  {subcategory.activo ? 'Activo' : 'Inactivo'}
-                                </span>
-                                <span className="text-xs text-dark-400">Orden: {subcategory.orden}</span>
-                                <span className="text-xs text-yellow-400">Subcategoría</span>
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <button
-                                onClick={() => toggleCategoryStatus(subcategory.id)}
-                                className={`p-2 rounded-md ${
-                                  subcategory.activo
-                                    ? 'text-success-400 hover:text-success-300 hover:bg-success-500/10'
-                                    : 'text-dark-400 hover:text-dark-300 hover:bg-dark-600'
-                                }`}
-                              >
-                                {subcategory.activo ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                              </button>
-                              <button 
-                                onClick={() => {
-                                  setEditingCategory(subcategory);
-                                  setShowCategoryModal(true);
-                                }}
-                                className="text-primary-400 hover:text-primary-300 p-2 rounded-md hover:bg-primary-500/10">
-                                <Edit3 className="w-4 h-4" />
-                              </button>
-                              <button 
-                                onClick={() => deleteCategory(subcategory.id)}
-                                className="text-red-400 hover:text-red-300 p-2 rounded-md hover:bg-red-500/10">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
+              {categories
+                .filter(cat => !cat.parentId)
+                .map((category: MenuCategory) => (
+                  <div key={category.id}>
+                    {/* Categoría principal */}
+                    <div className="bg-dark-800/30 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h5 className="text-lg font-medium text-white">
+                            {category.nombre}
+                          </h5>
+                          <p className="text-dark-300 text-sm mt-1">
+                            {category.descripcion}
+                          </p>
+                          <div className="flex items-center space-x-2 mt-2">
+                            <span
+                              className={`inline-block px-2 py-1 rounded-full text-xs ${
+                                category.activo
+                                  ? 'bg-success-500/20 text-success-400'
+                                  : 'bg-dark-600 text-dark-400'
+                              }`}
+                            >
+                              {category.activo ? 'Activo' : 'Inactivo'}
+                            </span>
+                            <span className="text-xs text-dark-400">
+                              Orden: {category.orden}
+                            </span>
+                            <span className="text-xs text-primary-400">
+                              Categoría Principal
+                            </span>
                           </div>
                         </div>
-                      ))}
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => toggleCategoryStatus(category.id)}
+                            className={`p-2 rounded-md ${
+                              category.activo
+                                ? 'text-success-400 hover:text-success-300 hover:bg-success-500/10'
+                                : 'text-dark-400 hover:text-dark-300 hover:bg-dark-600'
+                            }`}
+                          >
+                            {category.activo ? (
+                              <Eye className="w-4 h-4" />
+                            ) : (
+                              <EyeOff className="w-4 h-4" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingCategory(category);
+                              setShowCategoryModal(true);
+                            }}
+                            className="text-primary-400 hover:text-primary-300 p-2 rounded-md hover:bg-primary-500/10"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => deleteCategory(category.id)}
+                            className="text-red-400 hover:text-red-300 p-2 rounded-md hover:bg-red-500/10"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
-              ))}
+
+                    {/* Subcategorías */}
+                    {categories.filter(
+                      subcat => subcat.parentId === category.id
+                    ).length > 0 && (
+                      <div className="ml-8 mt-2 space-y-2">
+                        {categories
+                          .filter(subcat => subcat.parentId === category.id)
+                          .map((subcategory: MenuCategory) => (
+                            <div
+                              key={subcategory.id}
+                              className="bg-dark-700/30 rounded-lg p-3 border-l-4 border-primary-500"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <h6 className="text-md font-medium text-white">
+                                    {subcategory.nombre}
+                                  </h6>
+                                  <p className="text-dark-300 text-sm mt-1">
+                                    {subcategory.descripcion}
+                                  </p>
+                                  <div className="flex items-center space-x-2 mt-2">
+                                    <span
+                                      className={`inline-block px-2 py-1 rounded-full text-xs ${
+                                        subcategory.activo
+                                          ? 'bg-success-500/20 text-success-400'
+                                          : 'bg-dark-600 text-dark-400'
+                                      }`}
+                                    >
+                                      {subcategory.activo
+                                        ? 'Activo'
+                                        : 'Inactivo'}
+                                    </span>
+                                    <span className="text-xs text-dark-400">
+                                      Orden: {subcategory.orden}
+                                    </span>
+                                    <span className="text-xs text-yellow-400">
+                                      Subcategoría
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <button
+                                    onClick={() =>
+                                      toggleCategoryStatus(subcategory.id)
+                                    }
+                                    className={`p-2 rounded-md ${
+                                      subcategory.activo
+                                        ? 'text-success-400 hover:text-success-300 hover:bg-success-500/10'
+                                        : 'text-dark-400 hover:text-dark-300 hover:bg-dark-600'
+                                    }`}
+                                  >
+                                    {subcategory.activo ? (
+                                      <Eye className="w-4 h-4" />
+                                    ) : (
+                                      <EyeOff className="w-4 h-4" />
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setEditingCategory(subcategory);
+                                      setShowCategoryModal(true);
+                                    }}
+                                    className="text-primary-400 hover:text-primary-300 p-2 rounded-md hover:bg-primary-500/10"
+                                  >
+                                    <Edit3 className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      deleteCategory(subcategory.id)
+                                    }
+                                    className="text-red-400 hover:text-red-300 p-2 rounded-md hover:bg-red-500/10"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
             </div>
           )}
         </div>
@@ -1030,8 +1240,10 @@ function MenuContent() {
       {activeTab === 'productos' && (
         <div className="premium-card">
           <div className="flex items-center justify-between mb-6">
-            <h4 className="text-lg font-semibold text-white mb-4">Productos del Menú</h4>
-            <button 
+            <h4 className="text-lg font-semibold text-white mb-4">
+              Productos del Menú
+            </h4>
+            <button
               onClick={() => {
                 setEditingProduct(null);
                 setShowProductModal(true);
@@ -1042,7 +1254,7 @@ function MenuContent() {
               <span className="text-white">Nuevo Producto</span>
             </button>
           </div>
-          
+
           {products.length === 0 ? (
             <div className="text-center text-dark-400 py-12">
               <DollarSign className="w-12 h-12 mx-auto mb-4 text-dark-500" />
@@ -1052,13 +1264,22 @@ function MenuContent() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {products.map((product: MenuItem) => {
-                const category = categories.find((c: MenuCategory) => c.id === product.categoryId);
+                const category = categories.find(
+                  (c: MenuCategory) => c.id === product.categoryId
+                );
                 return (
-                  <div key={product.id} className="bg-dark-800/30 rounded-lg p-4">
+                  <div
+                    key={product.id}
+                    className="bg-dark-800/30 rounded-lg p-4"
+                  >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
-                        <h6 className="font-medium text-white">{product.nombre}</h6>
-                        <p className="text-dark-300 text-sm mt-1">{product.descripcion}</p>
+                        <h6 className="font-medium text-white">
+                          {product.nombre}
+                        </h6>
+                        <p className="text-dark-300 text-sm mt-1">
+                          {product.descripcion}
+                        </p>
                         {category && (
                           <span className="inline-block px-2 py-1 bg-primary-500/20 text-primary-400 text-xs rounded-full mt-2">
                             {category.nombre}
@@ -1071,26 +1292,34 @@ function MenuContent() {
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="space-y-2 mb-3">
                       {product.precioVaso && (
                         <div className="flex justify-between text-sm">
                           <span className="text-dark-300">Vaso:</span>
-                          <span className="font-medium text-primary-400">${product.precioVaso}</span>
+                          <span className="font-medium text-primary-400">
+                            ${product.precioVaso}
+                          </span>
                         </div>
                       )}
                       {product.precioBotella && (
                         <div className="flex justify-between text-sm">
                           <span className="text-dark-300">Botella:</span>
-                          <span className="font-medium text-primary-400">${product.precioBotella}</span>
+                          <span className="font-medium text-primary-400">
+                            ${product.precioBotella}
+                          </span>
                         </div>
                       )}
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <span className={`inline-block px-2 py-1 rounded-full text-xs ${
-                        product.disponible ? 'bg-success-500/20 text-success-400' : 'bg-red-500/20 text-red-400'
-                      }`}>
+                      <span
+                        className={`inline-block px-2 py-1 rounded-full text-xs ${
+                          product.disponible
+                            ? 'bg-success-500/20 text-success-400'
+                            : 'bg-red-500/20 text-red-400'
+                        }`}
+                      >
                         {product.disponible ? 'Disponible' : 'No disponible'}
                       </span>
                       <div className="flex items-center space-x-1">
@@ -1102,19 +1331,25 @@ function MenuContent() {
                               : 'text-dark-400 hover:bg-dark-600'
                           }`}
                         >
-                          {product.disponible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                          {product.disponible ? (
+                            <Eye className="w-4 h-4" />
+                          ) : (
+                            <EyeOff className="w-4 h-4" />
+                          )}
                         </button>
-                        <button 
+                        <button
                           onClick={() => {
                             setEditingProduct(product);
                             setShowProductModal(true);
                           }}
-                          className="text-primary-400 hover:bg-primary-500/10 p-1 rounded">
+                          className="text-primary-400 hover:bg-primary-500/10 p-1 rounded"
+                        >
                           <Edit3 className="w-4 h-4" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => deleteProduct(product.id)}
-                          className="text-red-400 hover:bg-red-500/10 p-1 rounded">
+                          className="text-red-400 hover:bg-red-500/10 p-1 rounded"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -1131,13 +1366,15 @@ function MenuContent() {
       {activeTab === 'preview' && (
         <div className="premium-card">
           <div className="flex items-center justify-between mb-6">
-            <h4 className="text-lg font-semibold text-white">Vista Previa del Menú</h4>
+            <h4 className="text-lg font-semibold text-white">
+              Vista Previa del Menú
+            </h4>
             <div className="flex items-center space-x-2 text-sm text-dark-400">
               <Smartphone className="w-4 h-4" />
               <span>Vista del Cliente</span>
             </div>
           </div>
-          
+
           <MenuPreview categories={categories} products={products} />
         </div>
       )}
@@ -1146,38 +1383,51 @@ function MenuContent() {
       {showCategoryModal && (
         <CategoryModal
           category={editingCategory}
-          onSave={async (categoryData) => {
+          onSave={async categoryData => {
             try {
               setIsLoading(true);
               const method = editingCategory ? 'PUT' : 'POST';
-              const body = editingCategory 
+              const body = editingCategory
                 ? { ...categoryData, id: editingCategory.id }
-                : { ...categoryData, businessId: 'business_1' };
+                : { ...categoryData, businessId: BUSINESS_ID };
 
               const response = await fetch('/api/admin/menu', {
                 method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
+                body: JSON.stringify(body),
               });
 
               if (response.ok) {
                 setShowCategoryModal(false);
                 setEditingCategory(null);
-                showNotification('success', editingCategory ? 'Categoría actualizada exitosamente' : 'Categoría creada exitosamente');
-                
+                showNotification(
+                  'success',
+                  editingCategory
+                    ? 'Categoría actualizada exitosamente'
+                    : 'Categoría creada exitosamente'
+                );
+
                 // Refrescar categorías
-                const categoriesResponse = await fetch('/api/admin/menu?businessId=business_1');
+                const categoriesResponse = await fetch(
+                  `/api/admin/menu?businessId=${BUSINESS_ID}`
+                );
                 if (categoriesResponse.ok) {
                   const categoriesData = await categoriesResponse.json();
                   setCategories(categoriesData.menu || []);
                 }
               } else {
                 const errorData = await response.json();
-                showNotification('error', `Error guardando categoría: ${errorData.error || 'Error desconocido'}`);
+                showNotification(
+                  'error',
+                  `Error guardando categoría: ${errorData.error || 'Error desconocido'}`
+                );
               }
             } catch (error) {
               console.error('Error:', error);
-              showNotification('error', 'Error de conexión al guardar categoría');
+              showNotification(
+                'error',
+                'Error de conexión al guardar categoría'
+              );
             } finally {
               setIsLoading(false);
             }
@@ -1194,41 +1444,52 @@ function MenuContent() {
         <ProductModal
           product={editingProduct}
           categories={categories}
-          onSave={async (productData) => {
+          onSave={async productData => {
             try {
               setIsLoading(true);
-              
+
               // Validar que no existe un producto con el mismo nombre en la misma categoría
-              const existingProduct = products.find(p => 
-                p.categoryId === productData.categoryId && 
-                p.nombre.toLowerCase() === productData.nombre.toLowerCase() &&
-                (!editingProduct || p.id !== editingProduct.id)
+              const existingProduct = products.find(
+                p =>
+                  p.categoryId === productData.categoryId &&
+                  p.nombre.toLowerCase() === productData.nombre.toLowerCase() &&
+                  (!editingProduct || p.id !== editingProduct.id)
               );
-              
+
               if (existingProduct) {
-                showNotification('warning', 'Ya existe un producto con ese nombre en esta categoría. Por favor elige otro nombre.');
+                showNotification(
+                  'warning',
+                  'Ya existe un producto con ese nombre en esta categoría. Por favor elige otro nombre.'
+                );
                 setIsLoading(false);
                 return;
               }
 
               const method = editingProduct ? 'PUT' : 'POST';
-              const body = editingProduct 
+              const body = editingProduct
                 ? { ...productData, id: editingProduct.id }
                 : productData;
 
               const response = await fetch('/api/admin/menu/productos', {
                 method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
+                body: JSON.stringify(body),
               });
 
               if (response.ok) {
                 setShowProductModal(false);
                 setEditingProduct(null);
-                showNotification('success', editingProduct ? 'Producto actualizado exitosamente' : 'Producto creado exitosamente');
-                
+                showNotification(
+                  'success',
+                  editingProduct
+                    ? 'Producto actualizado exitosamente'
+                    : 'Producto creado exitosamente'
+                );
+
                 // Refrescar productos
-                const productsResponse = await fetch('/api/admin/menu/productos?businessId=business_1');
+                const productsResponse = await fetch(
+                  `/api/admin/menu/productos?businessId=${BUSINESS_ID}`
+                );
                 if (productsResponse.ok) {
                   const productsData = await productsResponse.json();
                   setProducts(productsData.productos || []);
@@ -1237,11 +1498,17 @@ function MenuContent() {
                 }
               } else {
                 const errorData = await response.json();
-                showNotification('error', `Error guardando producto: ${errorData.error || 'Error desconocido'}`);
+                showNotification(
+                  'error',
+                  `Error guardando producto: ${errorData.error || 'Error desconocido'}`
+                );
               }
             } catch (error) {
               console.error('Error:', error);
-              showNotification('error', 'Error de conexión al guardar el producto');
+              showNotification(
+                'error',
+                'Error de conexión al guardar el producto'
+              );
             } finally {
               setIsLoading(false);
             }
@@ -1255,15 +1522,27 @@ function MenuContent() {
 
       {/* Notificación elegante */}
       {notification.show && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transform transition-all duration-300 ${getNotificationClass(notification.type)}`}>
+        <div
+          className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transform transition-all duration-300 ${getNotificationClass(notification.type)}`}
+        >
           <div className="flex items-center space-x-3">
             <div className="flex-shrink-0">
-              {notification.type === 'success' && <CheckCircle className="w-5 h-5 text-white" />}
-              {notification.type === 'error' && <X className="w-5 h-5 text-white" />}
-              {notification.type === 'warning' && <AlertTriangle className="w-5 h-5 text-white" />}
-              {notification.type === 'info' && <Info className="w-5 h-5 text-white" />}
+              {notification.type === 'success' && (
+                <CheckCircle className="w-5 h-5 text-white" />
+              )}
+              {notification.type === 'error' && (
+                <X className="w-5 h-5 text-white" />
+              )}
+              {notification.type === 'warning' && (
+                <AlertTriangle className="w-5 h-5 text-white" />
+              )}
+              {notification.type === 'info' && (
+                <Info className="w-5 h-5 text-white" />
+              )}
             </div>
-            <p className="text-white text-sm font-medium">{notification.message}</p>
+            <p className="text-white text-sm font-medium">
+              {notification.message}
+            </p>
           </div>
         </div>
       )}
@@ -1273,24 +1552,33 @@ function MenuContent() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md mx-4 border border-gray-700">
             <div className="flex items-center space-x-3 mb-4">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                confirmModal.type === 'danger' ? 'bg-red-600/20' : 'bg-yellow-600/20'
-              }`}>
-                {confirmModal.type === 'danger' ? 
-                  <Trash2 className="w-5 h-5 text-red-400" /> : 
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  confirmModal.type === 'danger'
+                    ? 'bg-red-600/20'
+                    : 'bg-yellow-600/20'
+                }`}
+              >
+                {confirmModal.type === 'danger' ? (
+                  <Trash2 className="w-5 h-5 text-red-400" />
+                ) : (
                   <AlertTriangle className="w-5 h-5 text-yellow-400" />
-                }
+                )}
               </div>
-              <h3 className="text-lg font-semibold text-white">{confirmModal.title}</h3>
+              <h3 className="text-lg font-semibold text-white">
+                {confirmModal.title}
+              </h3>
             </div>
-            
+
             <p className="text-gray-300 text-sm mb-6 leading-relaxed">
               {confirmModal.message}
             </p>
-            
+
             <div className="flex space-x-3">
               <button
-                onClick={() => setConfirmModal(prev => ({ ...prev, show: false }))}
+                onClick={() =>
+                  setConfirmModal(prev => ({ ...prev, show: false }))
+                }
                 className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors font-medium"
               >
                 Cancelar
@@ -1298,8 +1586,8 @@ function MenuContent() {
               <button
                 onClick={confirmModal.onConfirm}
                 className={`flex-1 px-4 py-2 text-white rounded-lg transition-colors font-medium ${
-                  confirmModal.type === 'danger' 
-                    ? 'bg-red-600 hover:bg-red-700' 
+                  confirmModal.type === 'danger'
+                    ? 'bg-red-600 hover:bg-red-700'
                     : 'bg-yellow-600 hover:bg-yellow-700'
                 }`}
               >
@@ -1314,26 +1602,43 @@ function MenuContent() {
 }
 
 // Componente de Vista Previa del Menú
-function MenuPreview({ categories, products }: { readonly categories: MenuCategory[], readonly products: MenuItem[] }) {
-  const [selectedCategory, setSelectedCategory] = useState<MenuCategory | null>(null);
-  
-  const activeCategories = categories.filter(cat => cat.activo && !cat.parentId); // Solo categorías principales activas
+function MenuPreview({
+  categories,
+  products,
+}: {
+  readonly categories: MenuCategory[];
+  readonly products: MenuItem[];
+}) {
+  const [selectedCategory, setSelectedCategory] = useState<MenuCategory | null>(
+    null
+  );
+
+  const activeCategories = categories.filter(
+    cat => cat.activo && !cat.parentId
+  ); // Solo categorías principales activas
   const availableProducts = products.filter(prod => prod.disponible);
-  
+
   const getSubcategories = (parentId: string) => {
     return categories.filter(cat => cat.parentId === parentId && cat.activo);
   };
-  
+
   const getProductsForCategory = (categoryId: string) => {
-    return availableProducts.filter(product => product.categoryId === categoryId);
+    return availableProducts.filter(
+      product => product.categoryId === categoryId
+    );
   };
-  
+
   return (
-    <div className="bg-black rounded-xl p-6 max-w-md mx-auto text-white" style={{ minHeight: '600px' }}>
+    <div
+      className="bg-black rounded-xl p-6 max-w-md mx-auto text-white"
+      style={{ minHeight: '600px' }}
+    >
       {/* Header del menú */}
       <div className="text-center mb-6">
         <h1 className="text-2xl font-bold text-white mb-2">Nuestro Menú</h1>
-        <p className="text-gray-400 text-sm">Vista previa del menú del cliente</p>
+        <p className="text-gray-400 text-sm">
+          Vista previa del menú del cliente
+        </p>
       </div>
 
       {/* Categorías */}
@@ -1350,7 +1655,11 @@ function MenuPreview({ categories, products }: { readonly categories: MenuCatego
             {activeCategories.map((category: MenuCategory) => (
               <button
                 key={category.id}
-                onClick={() => setSelectedCategory(selectedCategory?.id === category.id ? null : category)}
+                onClick={() =>
+                  setSelectedCategory(
+                    selectedCategory?.id === category.id ? null : category
+                  )
+                }
                 className={`p-4 rounded-lg border transition-all ${
                   selectedCategory?.id === category.id
                     ? 'bg-primary-600 border-primary-500 text-white'
@@ -1359,7 +1668,9 @@ function MenuPreview({ categories, products }: { readonly categories: MenuCatego
               >
                 <div className="text-center">
                   <div className="text-lg font-medium">{category.nombre}</div>
-                  <div className="text-xs mt-1 opacity-75">{category.descripcion}</div>
+                  <div className="text-xs mt-1 opacity-75">
+                    {category.descripcion}
+                  </div>
                 </div>
               </button>
             ))}
@@ -1371,103 +1682,136 @@ function MenuPreview({ categories, products }: { readonly categories: MenuCatego
               <h3 className="text-lg font-semibold text-white mb-3">
                 {selectedCategory.nombre}
               </h3>
-              
+
               {/* Subcategorías si existen */}
               {getSubcategories(selectedCategory.id).length > 0 && (
                 <div className="mb-4">
-                  <h4 className="text-md font-medium text-gray-300 mb-2">Subcategorías:</h4>
+                  <h4 className="text-md font-medium text-gray-300 mb-2">
+                    Subcategorías:
+                  </h4>
                   <div className="grid grid-cols-1 gap-2">
-                    {getSubcategories(selectedCategory.id).map((subcategory: MenuCategory) => (
-                      <div key={subcategory.id} className="bg-gray-700 rounded-lg p-3">
-                        <h5 className="font-medium text-white mb-2">{subcategory.nombre}</h5>
-                        
-                        {/* Productos de la subcategoría */}
-                        <div className="space-y-2">
-                          {getProductsForCategory(subcategory.id).map((product: MenuItem) => (
-                            <div key={product.id} className="bg-gray-600 rounded-md p-3">
-                              <div className="flex justify-between items-start">
-                                <div className="flex-1">
-                                  <h6 className="font-medium text-white text-sm">{product.nombre}</h6>
-                                  {product.descripcion && (
-                                    <p className="text-gray-300 text-xs mt-1">{product.descripcion}</p>
-                                  )}
+                    {getSubcategories(selectedCategory.id).map(
+                      (subcategory: MenuCategory) => (
+                        <div
+                          key={subcategory.id}
+                          className="bg-gray-700 rounded-lg p-3"
+                        >
+                          <h5 className="font-medium text-white mb-2">
+                            {subcategory.nombre}
+                          </h5>
+
+                          {/* Productos de la subcategoría */}
+                          <div className="space-y-2">
+                            {getProductsForCategory(subcategory.id).map(
+                              (product: MenuItem) => (
+                                <div
+                                  key={product.id}
+                                  className="bg-gray-600 rounded-md p-3"
+                                >
+                                  <div className="flex justify-between items-start">
+                                    <div className="flex-1">
+                                      <h6 className="font-medium text-white text-sm">
+                                        {product.nombre}
+                                      </h6>
+                                      {product.descripcion && (
+                                        <p className="text-gray-300 text-xs mt-1">
+                                          {product.descripcion}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div className="text-right">
+                                      {product.precio && (
+                                        <div className="text-primary-400 font-bold text-sm">
+                                          ${product.precio.toFixed(2)}
+                                        </div>
+                                      )}
+                                      {product.precioVaso && (
+                                        <div className="text-primary-400 font-bold text-xs">
+                                          Vaso: ${product.precioVaso.toFixed(2)}
+                                        </div>
+                                      )}
+                                      {product.precioBotella && (
+                                        <div className="text-primary-400 font-bold text-xs">
+                                          Botella: $
+                                          {product.precioBotella.toFixed(2)}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="text-right">
-                                  {product.precio && (
-                                    <div className="text-primary-400 font-bold text-sm">
-                                      ${product.precio.toFixed(2)}
-                                    </div>
-                                  )}
-                                  {product.precioVaso && (
-                                    <div className="text-primary-400 font-bold text-xs">
-                                      Vaso: ${product.precioVaso.toFixed(2)}
-                                    </div>
-                                  )}
-                                  {product.precioBotella && (
-                                    <div className="text-primary-400 font-bold text-xs">
-                                      Botella: ${product.precioBotella.toFixed(2)}
-                                    </div>
-                                  )}
-                                </div>
+                              )
+                            )}
+
+                            {getProductsForCategory(subcategory.id).length ===
+                              0 && (
+                              <div className="text-center text-gray-400 py-4">
+                                <p className="text-xs">
+                                  No hay productos en esta subcategoría
+                                </p>
                               </div>
-                            </div>
-                          ))}
-                          
-                          {getProductsForCategory(subcategory.id).length === 0 && (
-                            <div className="text-center text-gray-400 py-4">
-                              <p className="text-xs">No hay productos en esta subcategoría</p>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    )}
                   </div>
                 </div>
               )}
-              
+
               {/* Productos directos de la categoría principal */}
-              {getProductsForCategory(selectedCategory.id).map((product: MenuItem) => (
-                <div key={product.id} className="bg-gray-800 rounded-lg p-4">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h4 className="font-medium text-white">{product.nombre}</h4>
-                      {product.descripcion && (
-                        <p className="text-gray-400 text-sm mt-1">{product.descripcion}</p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      {product.precio && (
-                        <div className="text-primary-400 font-bold">
-                          ${product.precio.toFixed(2)}
-                        </div>
-                      )}
-                      {product.precioVaso && (
-                        <div className="text-primary-400 font-bold text-sm">
-                          Vaso: ${product.precioVaso.toFixed(2)}
-                        </div>
-                      )}
-                      {product.precioBotella && (
-                        <div className="text-primary-400 font-bold text-sm">
-                          Botella: ${product.precioBotella.toFixed(2)}
-                        </div>
-                      )}
+              {getProductsForCategory(selectedCategory.id).map(
+                (product: MenuItem) => (
+                  <div key={product.id} className="bg-gray-800 rounded-lg p-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-white">
+                          {product.nombre}
+                        </h4>
+                        {product.descripcion && (
+                          <p className="text-gray-400 text-sm mt-1">
+                            {product.descripcion}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        {product.precio && (
+                          <div className="text-primary-400 font-bold">
+                            ${product.precio.toFixed(2)}
+                          </div>
+                        )}
+                        {product.precioVaso && (
+                          <div className="text-primary-400 font-bold text-sm">
+                            Vaso: ${product.precioVaso.toFixed(2)}
+                          </div>
+                        )}
+                        {product.precioBotella && (
+                          <div className="text-primary-400 font-bold text-sm">
+                            Botella: ${product.precioBotella.toFixed(2)}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-              
-              {getProductsForCategory(selectedCategory.id).length === 0 && getSubcategories(selectedCategory.id).length === 0 && (
-                <div className="text-center text-gray-400 py-8">
-                  <Coffee className="w-8 h-8 mx-auto mb-2 text-gray-500" />
-                  <p className="text-sm">No hay productos ni subcategorías en esta categoría</p>
-                </div>
+                )
               )}
+
+              {getProductsForCategory(selectedCategory.id).length === 0 &&
+                getSubcategories(selectedCategory.id).length === 0 && (
+                  <div className="text-center text-gray-400 py-8">
+                    <Coffee className="w-8 h-8 mx-auto mb-2 text-gray-500" />
+                    <p className="text-sm">
+                      No hay productos ni subcategorías en esta categoría
+                    </p>
+                  </div>
+                )}
             </div>
           )}
 
           {!selectedCategory && (
             <div className="text-center text-gray-400 py-8">
-              <p className="text-sm">Selecciona una categoría para ver los productos</p>
+              <p className="text-sm">
+                Selecciona una categoría para ver los productos
+              </p>
             </div>
           )}
         </div>
@@ -1477,7 +1821,11 @@ function MenuPreview({ categories, products }: { readonly categories: MenuCatego
 }
 
 // Modal para crear/editar categorías
-function CategoryModal({ category, onSave, onClose }: Readonly<{
+function CategoryModal({
+  category,
+  onSave,
+  onClose,
+}: Readonly<{
   category: MenuCategory | null;
   onSave: (data: CategoryFormData) => void;
   onClose: () => void;
@@ -1487,7 +1835,7 @@ function CategoryModal({ category, onSave, onClose }: Readonly<{
     orden: category?.orden || 0,
     activo: category?.activo ?? true,
     parentId: category?.parentId || null,
-    businessId: category?.businessId || 'business_1'
+    businessId: category?.businessId || BUSINESS_ID,
   });
 
   const [categories, setCategories] = useState<MenuCategory[]>([]);
@@ -1496,12 +1844,13 @@ function CategoryModal({ category, onSave, onClose }: Readonly<{
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch('/api/admin/menu?businessId=business_1');
+        const response = await fetch(`/api/admin/menu?businessId=${BUSINESS_ID}`);
         if (response.ok) {
           const data = await response.json();
           // Filtrar categorías que no sean subcategorías y que no sea la categoría actual (para evitar auto-referencia)
-          const parentCategories = (data.menu || []).filter((cat: MenuCategory) => 
-            !cat.parentId && (!category || cat.id !== category.id)
+          const parentCategories = (data.menu || []).filter(
+            (cat: MenuCategory) =>
+              !cat.parentId && (!category || cat.id !== category.id)
           );
           setCategories(parentCategories);
         }
@@ -1519,50 +1868,64 @@ function CategoryModal({ category, onSave, onClose }: Readonly<{
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div 
-        className="fixed inset-0" 
-        onClick={onClose}
-        aria-hidden="true"
-      />
+      <div className="fixed inset-0" onClick={onClose} aria-hidden="true" />
       <div className="bg-dark-800 rounded-lg p-6 w-full max-w-md mx-4 relative z-10">
         <h3 className="text-lg font-semibold text-white mb-4">
           {category ? 'Editar Categoría' : 'Nueva Categoría'}
         </h3>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="category-parent" className="block text-sm font-medium text-dark-300 mb-2">
+            <label
+              htmlFor="category-parent"
+              className="block text-sm font-medium text-dark-300 mb-2"
+            >
               Categoría Padre (opcional)
             </label>
             <select
               id="category-parent"
               value={formData.parentId || ''}
-              onChange={(e) => setFormData(prev => ({ ...prev, parentId: e.target.value || null }))}
+              onChange={e =>
+                setFormData(prev => ({
+                  ...prev,
+                  parentId: e.target.value || null,
+                }))
+              }
               className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
             >
               <option value="">Categoría principal</option>
               {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.nombre}</option>
+                <option key={cat.id} value={cat.id}>
+                  {cat.nombre}
+                </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label htmlFor="category-nombre" className="block text-sm font-medium text-dark-300 mb-2">
+            <label
+              htmlFor="category-nombre"
+              className="block text-sm font-medium text-dark-300 mb-2"
+            >
               Nombre
             </label>
             <input
               id="category-nombre"
               type="text"
               value={formData.nombre}
-              onChange={(e) => setFormData(prev => ({ ...prev, nombre: e.target.value }))}
+              onChange={e =>
+                setFormData(prev => ({ ...prev, nombre: e.target.value }))
+              }
               className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
               required
             />
           </div>
 
           <div>
-            <label htmlFor="category-orden" className="block text-sm font-medium text-dark-300 mb-2">
+            <label
+              htmlFor="category-orden"
+              className="block text-sm font-medium text-dark-300 mb-2"
+            >
               Orden
             </label>
             <input
@@ -1571,9 +1934,12 @@ function CategoryModal({ category, onSave, onClose }: Readonly<{
               inputMode="numeric"
               pattern="[0-9]*"
               value={formData.orden}
-              onChange={(e) => {
+              onChange={e => {
                 if (/^\d*$/.test(e.target.value) || e.target.value === '') {
-                  setFormData(prev => ({ ...prev, orden: e.target.value === '' ? 0 : parseInt(e.target.value) }));
+                  setFormData(prev => ({
+                    ...prev,
+                    orden: e.target.value === '' ? 0 : parseInt(e.target.value),
+                  }));
                 }
               }}
               className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
@@ -1585,7 +1951,9 @@ function CategoryModal({ category, onSave, onClose }: Readonly<{
               type="checkbox"
               id="activo"
               checked={formData.activo}
-              onChange={(e) => setFormData(prev => ({ ...prev, activo: e.target.checked }))}
+              onChange={e =>
+                setFormData(prev => ({ ...prev, activo: e.target.checked }))
+              }
               className="mr-2"
             />
             <label htmlFor="activo" className="text-sm text-dark-300">
@@ -1615,7 +1983,12 @@ function CategoryModal({ category, onSave, onClose }: Readonly<{
 }
 
 // Modal para crear/editar productos
-function ProductModal({ product, categories, onSave, onClose }: Readonly<{
+function ProductModal({
+  product,
+  categories,
+  onSave,
+  onClose,
+}: Readonly<{
   product: any;
   categories: any[];
   onSave: (data: any) => void;
@@ -1631,7 +2004,7 @@ function ProductModal({ product, categories, onSave, onClose }: Readonly<{
     tipoProducto: product?.tipoProducto || 'simple',
     disponible: product?.disponible ?? true,
     destacado: product?.destacado ?? false,
-    imagenUrl: product?.imagenUrl || ''
+    imagenUrl: product?.imagenUrl || '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -1641,70 +2014,88 @@ function ProductModal({ product, categories, onSave, onClose }: Readonly<{
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div 
-        className="fixed inset-0" 
-        onClick={onClose}
-        aria-hidden="true"
-      />
+      <div className="fixed inset-0" onClick={onClose} aria-hidden="true" />
       <div className="bg-dark-800 rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto relative z-10">
         <h3 className="text-lg font-semibold text-white mb-4">
           {product ? 'Editar Producto' : 'Nuevo Producto'}
         </h3>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="product-categoria" className="block text-sm font-medium text-dark-300 mb-2">
+            <label
+              htmlFor="product-categoria"
+              className="block text-sm font-medium text-dark-300 mb-2"
+            >
               Categoría
             </label>
             <select
               id="product-categoria"
               value={formData.categoryId}
-              onChange={(e) => setFormData(prev => ({ ...prev, categoryId: e.target.value }))}
+              onChange={e =>
+                setFormData(prev => ({ ...prev, categoryId: e.target.value }))
+              }
               className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
               required
             >
               <option value="">Seleccionar categoría</option>
               {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.nombre}</option>
+                <option key={cat.id} value={cat.id}>
+                  {cat.nombre}
+                </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label htmlFor="product-nombre" className="block text-sm font-medium text-dark-300 mb-2">
+            <label
+              htmlFor="product-nombre"
+              className="block text-sm font-medium text-dark-300 mb-2"
+            >
               Nombre
             </label>
             <input
               id="product-nombre"
               type="text"
               value={formData.nombre}
-              onChange={(e) => setFormData(prev => ({ ...prev, nombre: e.target.value }))}
+              onChange={e =>
+                setFormData(prev => ({ ...prev, nombre: e.target.value }))
+              }
               className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
               required
             />
           </div>
 
           <div>
-            <label htmlFor="product-descripcion" className="block text-sm font-medium text-dark-300 mb-2">
+            <label
+              htmlFor="product-descripcion"
+              className="block text-sm font-medium text-dark-300 mb-2"
+            >
               Descripción
             </label>
             <textarea
               id="product-descripcion"
               value={formData.descripcion}
-              onChange={(e) => setFormData(prev => ({ ...prev, descripcion: e.target.value }))}
+              onChange={e =>
+                setFormData(prev => ({ ...prev, descripcion: e.target.value }))
+              }
               className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
               rows={3}
             />
           </div>
 
           <div>
-            <label htmlFor="product-tipo" className="block text-sm font-medium text-dark-300 mb-2">
+            <label
+              htmlFor="product-tipo"
+              className="block text-sm font-medium text-dark-300 mb-2"
+            >
               Tipo de Producto
             </label>
             <select
               id="product-tipo"
               value={formData.tipoProducto}
-              onChange={(e) => setFormData(prev => ({ ...prev, tipoProducto: e.target.value }))}
+              onChange={e =>
+                setFormData(prev => ({ ...prev, tipoProducto: e.target.value }))
+              }
               className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
             >
               <option value="simple">Simple</option>
@@ -1715,7 +2106,10 @@ function ProductModal({ product, categories, onSave, onClose }: Readonly<{
 
           {formData.tipoProducto === 'simple' && (
             <div>
-              <label htmlFor="product-precio" className="block text-sm font-medium text-dark-300 mb-2">
+              <label
+                htmlFor="product-precio"
+                className="block text-sm font-medium text-dark-300 mb-2"
+              >
                 Precio
               </label>
               <input
@@ -1723,9 +2117,12 @@ function ProductModal({ product, categories, onSave, onClose }: Readonly<{
                 type="text"
                 inputMode="decimal"
                 value={formData.precio}
-                onChange={(e) => {
+                onChange={e => {
                   // Permitir números y un punto decimal
-                  if (/^(\d*\.?\d*)$/.test(e.target.value) || e.target.value === '') {
+                  if (
+                    /^(\d*\.?\d*)$/.test(e.target.value) ||
+                    e.target.value === ''
+                  ) {
                     setFormData(prev => ({ ...prev, precio: e.target.value }));
                   }
                 }}
@@ -1737,7 +2134,10 @@ function ProductModal({ product, categories, onSave, onClose }: Readonly<{
           {formData.tipoProducto === 'botella' && (
             <>
               <div>
-                <label htmlFor="product-precio-vaso" className="block text-sm font-medium text-dark-300 mb-2">
+                <label
+                  htmlFor="product-precio-vaso"
+                  className="block text-sm font-medium text-dark-300 mb-2"
+                >
                   Precio por Vaso
                 </label>
                 <input
@@ -1745,17 +2145,26 @@ function ProductModal({ product, categories, onSave, onClose }: Readonly<{
                   type="text"
                   inputMode="decimal"
                   value={formData.precioVaso}
-                  onChange={(e) => {
+                  onChange={e => {
                     // Permitir números y un punto decimal
-                    if (/^(\d*\.?\d*)$/.test(e.target.value) || e.target.value === '') {
-                      setFormData(prev => ({ ...prev, precioVaso: e.target.value }));
+                    if (
+                      /^(\d*\.?\d*)$/.test(e.target.value) ||
+                      e.target.value === ''
+                    ) {
+                      setFormData(prev => ({
+                        ...prev,
+                        precioVaso: e.target.value,
+                      }));
                     }
                   }}
                   className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
                 />
               </div>
               <div>
-                <label htmlFor="product-precio-botella" className="block text-sm font-medium text-dark-300 mb-2">
+                <label
+                  htmlFor="product-precio-botella"
+                  className="block text-sm font-medium text-dark-300 mb-2"
+                >
                   Precio por Botella
                 </label>
                 <input
@@ -1763,10 +2172,16 @@ function ProductModal({ product, categories, onSave, onClose }: Readonly<{
                   type="text"
                   inputMode="decimal"
                   value={formData.precioBotella}
-                  onChange={(e) => {
+                  onChange={e => {
                     // Permitir números y un punto decimal
-                    if (/^(\d*\.?\d*)$/.test(e.target.value) || e.target.value === '') {
-                      setFormData(prev => ({ ...prev, precioBotella: e.target.value }));
+                    if (
+                      /^(\d*\.?\d*)$/.test(e.target.value) ||
+                      e.target.value === ''
+                    ) {
+                      setFormData(prev => ({
+                        ...prev,
+                        precioBotella: e.target.value,
+                      }));
                     }
                   }}
                   className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white"
@@ -1776,19 +2191,25 @@ function ProductModal({ product, categories, onSave, onClose }: Readonly<{
           )}
 
           <div>
-            <label htmlFor="product-imagen" className="block text-sm font-medium text-dark-300 mb-2">
+            <label
+              htmlFor="product-imagen"
+              className="block text-sm font-medium text-dark-300 mb-2"
+            >
               Imagen del Producto
             </label>
             <input
               id="product-imagen"
               type="file"
               accept="image/*"
-              onChange={(e) => {
+              onChange={e => {
                 const file = e.target.files?.[0];
                 if (file) {
                   const reader = new FileReader();
-                  reader.onload = (event) => {
-                    setFormData(prev => ({ ...prev, imagenUrl: event.target?.result as string }));
+                  reader.onload = event => {
+                    setFormData(prev => ({
+                      ...prev,
+                      imagenUrl: event.target?.result as string,
+                    }));
                   };
                   reader.readAsDataURL(file);
                 }
@@ -1797,9 +2218,9 @@ function ProductModal({ product, categories, onSave, onClose }: Readonly<{
             />
             {formData.imagenUrl && (
               <div className="mt-2">
-                <Image 
-                  src={formData.imagenUrl} 
-                  alt="Preview" 
+                <Image
+                  src={formData.imagenUrl}
+                  alt="Preview"
                   width={80}
                   height={80}
                   className="w-20 h-20 object-cover rounded-md"
@@ -1814,7 +2235,12 @@ function ProductModal({ product, categories, onSave, onClose }: Readonly<{
                 type="checkbox"
                 id="disponible"
                 checked={formData.disponible}
-                onChange={(e) => setFormData(prev => ({ ...prev, disponible: e.target.checked }))}
+                onChange={e =>
+                  setFormData(prev => ({
+                    ...prev,
+                    disponible: e.target.checked,
+                  }))
+                }
                 className="mr-2"
               />
               <label htmlFor="disponible" className="text-sm text-dark-300">
@@ -1826,7 +2252,12 @@ function ProductModal({ product, categories, onSave, onClose }: Readonly<{
                 type="checkbox"
                 id="destacado"
                 checked={formData.destacado}
-                onChange={(e) => setFormData(prev => ({ ...prev, destacado: e.target.checked }))}
+                onChange={e =>
+                  setFormData(prev => ({
+                    ...prev,
+                    destacado: e.target.checked,
+                  }))
+                }
                 className="mr-2"
               />
               <label htmlFor="destacado" className="text-sm text-dark-300">
@@ -1857,17 +2288,25 @@ function ProductModal({ product, categories, onSave, onClose }: Readonly<{
 }
 
 // Portal Content Component - Gestión completa del portal del cliente
-function PortalContent({ showNotification }: Readonly<{ showNotification: (message: string, type: NivelTarjeta) => void }>) {
-  const [activeTab, setActiveTab] = useState<'preview' | 'banners' | 'promociones' | 'recompensas' | 'favorito'>('preview');
+function PortalContent({
+  showNotification,
+}: Readonly<{
+  showNotification: (message: string, type: NivelTarjeta) => void;
+}>) {
+  const [activeTab, setActiveTab] = useState<
+    'preview' | 'banners' | 'promociones' | 'recompensas' | 'favorito'
+  >('preview');
   const [previewMode, setPreviewMode] = useState<ModoVistaPrevia>('portal'); // Estado para cambiar entre Portal, Login y Tarjetas
-  const [brandingConfig, setBrandingConfig] = useState<any>({ // Configuración de branding para el login
+  const [brandingConfig, setBrandingConfig] = useState<any>({
+    // Configuración de branding para el login
     businessName: 'Mi Empresa',
     primaryColor: '#3B82F6',
-    carouselImages: [ // Imágenes del carrusel (máximo 6)
+    carouselImages: [
+      // Imágenes del carrusel (máximo 6)
       'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=250&fit=crop',
       'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&h=250&fit=crop',
-      'https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=250&fit=crop'
-    ]
+      'https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=250&fit=crop',
+    ],
   });
   const [config, setConfig] = useState<any>({
     banners: [],
@@ -1875,13 +2314,15 @@ function PortalContent({ showNotification }: Readonly<{ showNotification: (messa
     eventos: [],
     recompensas: [],
     tarjetas: [],
-    favoritoDelDia: null
+    favoritoDelDia: null,
   });
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchConfig = async () => {
     try {
-      const response = await fetch('/api/admin/portal-config?businessId=default');
+      const response = await fetch(
+        '/api/admin/portal-config?businessId=default'
+      );
       if (response.ok) {
         const data = await response.json();
         setConfig(data.config || data);
@@ -1893,7 +2334,7 @@ function PortalContent({ showNotification }: Readonly<{ showNotification: (messa
               titulo: 'Bienvenido a nuestro restaurante',
               descripcion: 'Disfruta de la mejor experiencia gastronómica',
               activo: true,
-            }
+            },
           ],
           promociones: [
             {
@@ -1902,15 +2343,15 @@ function PortalContent({ showNotification }: Readonly<{ showNotification: (messa
               descripcion: 'Válido hasta el domingo',
               descuento: 50,
               activo: true,
-            }
+            },
           ],
           eventos: [
             {
               id: '1',
               titulo: 'Música en vivo',
               descripcion: 'Todos los viernes a partir de las 8pm',
-              activo: true
-            }
+              activo: true,
+            },
           ],
           recompensas: [
             {
@@ -1919,10 +2360,10 @@ function PortalContent({ showNotification }: Readonly<{ showNotification: (messa
               descripcion: 'Elige cualquier postre de nuestra carta',
               puntosRequeridos: 150,
               activo: true,
-              stock: 50
-            }
+              stock: 50,
+            },
           ],
-          tarjetas: []
+          tarjetas: [],
         });
       }
     } catch (error) {
@@ -1942,7 +2383,7 @@ function PortalContent({ showNotification }: Readonly<{ showNotification: (messa
         },
         body: JSON.stringify({
           ...config,
-          businessId: 'default'
+          businessId: 'default',
         }),
       });
 
@@ -1972,14 +2413,17 @@ function PortalContent({ showNotification }: Readonly<{ showNotification: (messa
     }
   }, [config, handleSave]);
 
-  const handleBrandingChange = async (field: string, value: string | string[]) => {
+  const handleBrandingChange = async (
+    field: string,
+    value: string | string[]
+  ) => {
     const newConfig = {
       ...brandingConfig,
-      [field]: value
+      [field]: value,
     };
-    
+
     setBrandingConfig(newConfig);
-    
+
     try {
       // Guardar en la API (funcionará entre diferentes dominios/puertos)
       const response = await fetch('/api/branding', {
@@ -1989,25 +2433,31 @@ function PortalContent({ showNotification }: Readonly<{ showNotification: (messa
         },
         body: JSON.stringify(newConfig),
       });
-      
+
       if (response.ok) {
         // Crear una versión reducida para localStorage (sin imágenes base64)
         const lightConfig = {
           ...newConfig,
-          carouselImages: newConfig.carouselImages?.length || 0 // Solo guardar la cantidad
+          carouselImages: newConfig.carouselImages?.length || 0, // Solo guardar la cantidad
         };
-        
+
         try {
           localStorage.setItem('portalBranding', JSON.stringify(lightConfig));
         } catch (storageError) {
-          console.warn('localStorage lleno, limpiando datos antiguos:', storageError);
+          console.warn(
+            'localStorage lleno, limpiando datos antiguos:',
+            storageError
+          );
           // Limpiar localStorage y guardar solo lo esencial
           localStorage.removeItem('portalBranding');
-          localStorage.setItem('portalBranding', JSON.stringify({
-            businessName: newConfig.businessName,
-            primaryColor: newConfig.primaryColor,
-            carouselImages: [] // No guardar imágenes en localStorage
-          }));
+          localStorage.setItem(
+            'portalBranding',
+            JSON.stringify({
+              businessName: newConfig.businessName,
+              primaryColor: newConfig.primaryColor,
+              carouselImages: [], // No guardar imágenes en localStorage
+            })
+          );
         }
       } else {
         console.error('Admin: Error guardando branding en API');
@@ -2019,30 +2469,35 @@ function PortalContent({ showNotification }: Readonly<{ showNotification: (messa
         const basicConfig = {
           businessName: newConfig.businessName,
           primaryColor: newConfig.primaryColor,
-          carouselImages: [] // No guardar imágenes pesadas en localStorage
+          carouselImages: [], // No guardar imágenes pesadas en localStorage
         };
         localStorage.setItem('portalBranding', JSON.stringify(basicConfig));
       } catch (storageError) {
-        console.warn('No se pudo guardar en localStorage, espacio insuficiente:', storageError);
+        console.warn(
+          'No se pudo guardar en localStorage, espacio insuficiente:',
+          storageError
+        );
       }
     }
   };
 
   // Funciones para manejar las imágenes del carrusel
-  const handleCarouselImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCarouselImageUpload = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = async (e) => {
+      reader.onload = async e => {
         const imageUrl = e.target?.result as string;
         const currentImages = brandingConfig.carouselImages || [];
-        
+
         // Verificar que no exceda el límite de 6 imágenes
         if (currentImages.length >= 6) {
           alert('Máximo 6 imágenes permitidas');
           return;
         }
-        
+
         const newImages = [...currentImages, imageUrl];
         await handleBrandingChange('carouselImages', newImages);
       };
@@ -2052,7 +2507,9 @@ function PortalContent({ showNotification }: Readonly<{ showNotification: (messa
 
   const handleRemoveCarouselImage = async (index: number) => {
     const currentImages = brandingConfig.carouselImages || [];
-    const newImages = currentImages.filter((_: string, i: number) => i !== index);
+    const newImages = currentImages.filter(
+      (_: string, i: number) => i !== index
+    );
     await handleBrandingChange('carouselImages', newImages);
   };
 
@@ -2068,7 +2525,7 @@ function PortalContent({ showNotification }: Readonly<{ showNotification: (messa
           try {
             const lightConfig = {
               ...branding,
-              carouselImages: branding.carouselImages?.length || 0 // Solo guardar la cantidad
+              carouselImages: branding.carouselImages?.length || 0, // Solo guardar la cantidad
             };
             localStorage.setItem('portalBranding', JSON.stringify(lightConfig));
           } catch (storageError) {
@@ -2083,7 +2540,7 @@ function PortalContent({ showNotification }: Readonly<{ showNotification: (messa
             // Si localStorage solo tiene datos básicos, usar valores por defecto para imágenes
             setBrandingConfig({
               ...parsed,
-              carouselImages: parsed.carouselImages || []
+              carouselImages: parsed.carouselImages || [],
             });
           }
         }
@@ -2096,7 +2553,7 @@ function PortalContent({ showNotification }: Readonly<{ showNotification: (messa
             const parsed = JSON.parse(savedBranding);
             setBrandingConfig({
               ...parsed,
-              carouselImages: parsed.carouselImages || []
+              carouselImages: parsed.carouselImages || [],
             });
           } catch (parseError) {
             console.error('Admin: Error parsing localStorage:', parseError);
@@ -2123,16 +2580,11 @@ function PortalContent({ showNotification }: Readonly<{ showNotification: (messa
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-semibold text-white">Portal del Cliente</h3>
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center">
           <button
-            onClick={handleSave}
-            className="flex items-center space-x-2 px-4 py-2 bg-success-600 hover:bg-success-700 rounded-lg transition-colors"
-          >
-            <Save className="w-4 h-4 text-white" />
-            <span className="text-white">Guardar Cambios</span>
-          </button>
-          <button 
-            onClick={() => window.open('http://localhost:3001/cliente', '_blank')}
+            onClick={() =>
+              window.open('http://localhost:3001/cliente', '_blank')
+            }
             className="flex items-center space-x-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
           >
             <Eye className="w-4 h-4 text-white" />
@@ -2148,16 +2600,16 @@ function PortalContent({ showNotification }: Readonly<{ showNotification: (messa
           { id: 'banners', label: 'Banner Diario', icon: Smartphone },
           { id: 'promociones', label: 'Promociones', icon: Gift },
           { id: 'favorito', label: 'Favorito del Día', icon: TrendingUp },
-          { id: 'recompensas', label: 'Recompensas', icon: Gift }
-        ].map((tab) => {
+          { id: 'recompensas', label: 'Recompensas', icon: Gift },
+        ].map(tab => {
           const Icon = tab.icon;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
               className={`flex items-center space-x-2 px-3 py-2 rounded-md font-medium transition-colors text-sm ${
-                activeTab === tab.id 
-                  ? 'bg-primary-600 text-white shadow-sm' 
+                activeTab === tab.id
+                  ? 'bg-primary-600 text-white shadow-sm'
                   : 'text-dark-300 hover:text-white'
               }`}
             >
@@ -2168,7 +2620,7 @@ function PortalContent({ showNotification }: Readonly<{ showNotification: (messa
         })}
       </div>
 
-      <PortalContentManager 
+      <PortalContentManager
         activeTab={activeTab}
         config={config}
         setConfig={setConfig}
@@ -2186,87 +2638,201 @@ function PortalContent({ showNotification }: Readonly<{ showNotification: (messa
 }
 
 // Componente principal que maneja el contenido del portal según la pestaña activa
-function PortalContentManager({ 
-  activeTab, 
-  config, 
-  setConfig, 
-  previewMode, 
-  setPreviewMode, 
-  brandingConfig, 
-  setBrandingConfig, 
+function PortalContentManager({
+  activeTab,
+  config,
+  setConfig,
+  previewMode,
+  setPreviewMode,
+  brandingConfig,
+  setBrandingConfig,
   handleBrandingChange,
   handleCarouselImageUpload,
   handleRemoveCarouselImage,
-  showNotification 
-}: Readonly<{ 
-  activeTab: string; 
-  config: any; 
-  setConfig: (config: any) => void; 
-  previewMode: ModoVistaPrevia; 
-  setPreviewMode: React.Dispatch<React.SetStateAction<ModoVistaPrevia>>; 
-  brandingConfig: any; 
-  setBrandingConfig: (config: any) => void; 
-  handleBrandingChange: (field: string, value: string | string[]) => Promise<void>;
+  showNotification,
+}: Readonly<{
+  activeTab: string;
+  config: any;
+  setConfig: (config: any) => void;
+  previewMode: ModoVistaPrevia;
+  setPreviewMode: React.Dispatch<React.SetStateAction<ModoVistaPrevia>>;
+  brandingConfig: any;
+  setBrandingConfig: (config: any) => void;
+  handleBrandingChange: (
+    field: string,
+    value: string | string[]
+  ) => Promise<void>;
   handleCarouselImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleRemoveCarouselImage: (index: number) => void;
   showNotification: (message: string, type: NivelTarjeta) => void;
 }>) {
+  // Función para sincronización manual
+  const handleSyncToClient = async () => {
+    try {
+      console.log('🔄 Admin - Sincronizando promociones con el cliente:', config.promociones);
+      const response = await fetch('/api/admin/portal-config', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...config,
+          businessId: 'default',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al sincronizar con el cliente');
+      }
+
+      const result = await response.json();
+      console.log('✅ Admin - Promociones sincronizadas exitosamente:', result);
+      showNotification('✅ Promociones sincronizadas con el portal del cliente', 'success');
+    } catch (error) {
+      console.error('❌ Admin - Error sincronizando promociones:', error);
+      showNotification('❌ Error al sincronizar promociones', 'error');
+    }
+  };
+
   const addItem = (type: string, item: any) => {
     const newItem = {
       ...item,
-      id: Date.now().toString(),
-      activo: true
+      id: item.id || `${type}_${Date.now()}`,
+      activo: true,
     };
-    
-    setConfig((prev: any) => ({
-      ...prev,
-      [type]: [...prev[type], newItem]
-    }));
+
+    setConfig((prev: any) => {
+      // Caso especial para favoritoDelDia
+      if (type === 'favoritoDelDia') {
+        // Asegurar que favoritoDelDia sea un array
+        const currentFavoritos = Array.isArray(prev.favoritoDelDia) 
+          ? prev.favoritoDelDia 
+          : [];
+        
+        // Buscar si ya existe un favorito para este día
+        const existingIndex = currentFavoritos.findIndex(
+          (f: any) => f.dia === item.dia
+        );
+
+        if (existingIndex >= 0) {
+          // Actualizar favorito existente
+          const updatedFavoritos = [...currentFavoritos];
+          updatedFavoritos[existingIndex] = newItem;
+          return {
+            ...prev,
+            favoritoDelDia: updatedFavoritos,
+          };
+        } else {
+          // Agregar nuevo favorito
+          return {
+            ...prev,
+            favoritoDelDia: [...currentFavoritos, newItem],
+          };
+        }
+      }
+      
+      // Caso normal para otros tipos
+      return {
+        ...prev,
+        [type]: [...(prev[type] || []), newItem],
+      };
+    });
   };
 
   const updateItem = (type: string, itemId: string, updates: any) => {
-    setConfig((prev: any) => ({
-      ...prev,
-      [type]: prev[type].map((item: any) => 
-        item.id === itemId ? { ...item, ...updates } : item
-      )
-    }));
+    setConfig((prev: any) => {
+      // Caso especial para favoritoDelDia
+      if (type === 'favoritoDelDia') {
+        const currentFavoritos = Array.isArray(prev.favoritoDelDia) 
+          ? prev.favoritoDelDia 
+          : [];
+        
+        return {
+          ...prev,
+          favoritoDelDia: currentFavoritos.map((item: any) =>
+            item.id === itemId ? { ...item, ...updates } : item
+          ),
+        };
+      }
+      
+      // Caso normal para otros tipos
+      return {
+        ...prev,
+        [type]: (prev[type] || []).map((item: any) =>
+          item.id === itemId ? { ...item, ...updates } : item
+        ),
+      };
+    });
   };
 
   const deleteItem = (type: string, itemId: string) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar este elemento?')) {
-      setConfig((prev: any) => ({
-        ...prev,
-        [type]: prev[type].filter((item: any) => item.id !== itemId)
-      }));
+    if (
+      window.confirm('¿Estás seguro de que quieres eliminar este elemento?')
+    ) {
+      setConfig((prev: any) => {
+        // Caso especial para favoritoDelDia
+        if (type === 'favoritoDelDia') {
+          const currentFavoritos = Array.isArray(prev.favoritoDelDia) 
+            ? prev.favoritoDelDia 
+            : [];
+          
+          return {
+            ...prev,
+            favoritoDelDia: currentFavoritos.filter((item: any) => item.id !== itemId),
+          };
+        }
+        
+        // Caso normal para otros tipos
+        return {
+          ...prev,
+          [type]: (prev[type] || []).filter((item: any) => item.id !== itemId),
+        };
+      });
     }
   };
 
   const toggleActive = (type: string, itemId: string) => {
-    setConfig((prev: any) => ({
-      ...prev,
-      [type]: prev[type].map((item: any) => 
-        item.id === itemId ? { ...item, activo: !item.activo } : item
-      )
-    }));
+    setConfig((prev: any) => {
+      // Caso especial para favoritoDelDia
+      if (type === 'favoritoDelDia') {
+        const currentFavoritos = Array.isArray(prev.favoritoDelDia) 
+          ? prev.favoritoDelDia 
+          : [];
+        
+        return {
+          ...prev,
+          favoritoDelDia: currentFavoritos.map((item: any) =>
+            item.id === itemId ? { ...item, activo: !item.activo } : item
+          ),
+        };
+      }
+      
+      // Caso normal para otros tipos
+      return {
+        ...prev,
+        [type]: (prev[type] || []).map((item: any) =>
+          item.id === itemId ? { ...item, activo: !item.activo } : item
+        ),
+      };
+    });
   };
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
       {/* Vista Previa del Portal */}
       <div className="premium-card">
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="text-lg font-semibold text-white flex items-center">
+        <div className="flex items-center justify-center mb-4">
+          <h4 className="text-lg font-semibold text-white flex items-center absolute left-6">
             <Smartphone className="w-5 h-5 mr-2" />
           </h4>
-          
+
           {/* Botones Switch para Portal/Login/Tarjetas */}
           <div className="flex bg-dark-700 rounded-lg p-1">
             <button
               onClick={() => setPreviewMode('portal')}
               className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                previewMode === 'portal' 
-                  ? 'bg-primary-600 text-white' 
+                previewMode === 'portal'
+                  ? 'bg-primary-600 text-white'
                   : 'text-dark-300 hover:text-white'
               }`}
             >
@@ -2275,8 +2841,8 @@ function PortalContentManager({
             <button
               onClick={() => setPreviewMode('login')}
               className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                previewMode === 'login' 
-                  ? 'bg-primary-600 text-white' 
+                previewMode === 'login'
+                  ? 'bg-primary-600 text-white'
                   : 'text-dark-300 hover:text-white'
               }`}
             >
@@ -2285,8 +2851,8 @@ function PortalContentManager({
             <button
               onClick={() => setPreviewMode('tarjetas')}
               className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                previewMode === 'tarjetas' 
-                  ? 'bg-primary-600 text-white' 
+                previewMode === 'tarjetas'
+                  ? 'bg-primary-600 text-white'
                   : 'text-dark-300 hover:text-white'
               }`}
             >
@@ -2301,7 +2867,8 @@ function PortalContentManager({
               {/* Header del móvil */}
               <div className="flex items-center justify-between p-4">
                 <h1 className="text-lg">
-                  Hola, <span className="text-pink-500 font-semibold">Cliente</span>
+                  Hola,{' '}
+                  <span className="text-pink-500 font-semibold">Cliente</span>
                 </h1>
                 <div className="w-6 h-6 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full"></div>
               </div>
@@ -2309,145 +2876,237 @@ function PortalContentManager({
               {/* Balance Card */}
               <div className="mx-4 mb-4">
                 <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-xl p-4">
-                  <div className="text-white/80 text-sm mb-1">Balance de Puntos</div>
-                  <div className="text-2xl font-bold text-white mb-1">250</div>
-                  <div className="text-white/60 text-xs">Tarjeta ****1234</div>
+                  <div className="text-white/80 text-sm mb-1">
+                    Balance de Puntos
+                  </div>
+                  <div className="text-2xl font-bold text-white mb-1">---</div>
+                  <div className="text-white/60 text-xs">Vista previa del cliente</div>
                 </div>
               </div>
 
               {/* Evento del día */}
-              {config.banners.filter((b: any) => b.activo && b.imagenUrl).length > 0 && (
+              {config.banners?.filter((b: any) => b.activo && b.imagenUrl && b.imagenUrl.trim() !== '')
+                .length > 0 && (
                 <div className="mx-4 mb-3">
-                  <h3 className="text-white font-semibold text-sm mb-2">Evento del día</h3>
-                  {config.banners.filter((b: any) => b.activo && b.imagenUrl).slice(0, 1).map((banner: any) => (
-                    <div key={banner.id} className="relative overflow-hidden rounded-xl">
-                      <img 
-                        src={banner.imagenUrl} 
-                        alt="Evento del día"
-                        className="w-full h-36 object-cover"
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Favorito del Día */}
-              {config.favoritoDelDia?.activo && config.favoritoDelDia?.imagenUrl && (
-                <div className="mx-4 mb-3">
-                  <h3 className="text-white font-semibold text-sm mb-2">Favorito del día</h3>
-                  <div className="relative overflow-hidden rounded-xl">
-                    <img 
-                      src={config.favoritoDelDia.imagenUrl} 
-                      alt="Favorito del día" 
-                      className="w-full h-32 object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                    <div className="absolute bottom-2 left-3">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
-                          <span className="text-white text-xs">⭐</span>
-                        </div>
-                        <span className="text-white font-medium text-xs">Favorito del Día</span>
+                  <h3 className="text-white font-semibold text-sm mb-2">
+                    Evento del día
+                  </h3>
+                  {(config.banners || [])
+                    .filter((b: any) => b.activo && b.imagenUrl && b.imagenUrl.trim() !== '')
+                    .slice(0, 1)
+                    .map((banner: any) => (
+                      <div
+                        key={banner.id}
+                        className="relative overflow-hidden rounded-xl"
+                      >
+                        <img
+                          src={banner.imagenUrl}
+                          alt="Evento del día"
+                          className="w-full h-36 object-cover"
+                        />
                       </div>
-                    </div>
-                  </div>
+                    ))}
                 </div>
               )}
 
               {/* Promociones */}
-              {config.promociones.filter((p: any) => p.activo).length > 0 && (
+              {config.promociones?.filter((p: any) => p.activo && p.titulo && p.descripcion).length > 0 && (
                 <div className="mx-4 mb-3">
-                  <h3 className="text-white font-semibold text-sm mb-2">Promociones Especiales</h3>
-                  {config.promociones.filter((p: any) => p.activo).slice(0, 2).map((promo: any) => (
-                    <div key={promo.id} className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-lg p-3 mb-2">
-                      <h4 className="text-white font-medium text-sm">{promo.titulo}</h4>
-                      <p className="text-white/80 text-xs">{promo.descripcion}</p>
-                    </div>
-                  ))}
+                  <h3 className="text-white font-semibold text-sm mb-2">
+                    Promociones Especiales
+                  </h3>
+                  {(config.promociones || [])
+                    .filter((p: any) => p.activo && p.titulo && p.descripcion)
+                    .slice(0, 2)
+                    .map((promo: any) => (
+                      <div
+                        key={promo.id}
+                        className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-lg p-3 mb-2"
+                      >
+                        <h4 className="text-white font-medium text-sm">
+                          {promo.titulo}
+                        </h4>
+                        <p className="text-white/80 text-xs">
+                          {promo.descripcion}
+                        </p>
+                      </div>
+                    ))}
                 </div>
               )}
 
+              {/* Favorito del Día */}
+              {(() => {
+                // Obtener el día actual
+                const diasSemana = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                const diaActual = diasSemana[new Date().getDay()];
+                
+                // Buscar favorito para el día actual
+                const favoritoHoy = Array.isArray(config.favoritoDelDia) 
+                  ? config.favoritoDelDia.find((f: any) => 
+                      f.dia === diaActual && f.activo && f.imagenUrl && f.imagenUrl.trim() !== ''
+                    )
+                  : null;
+
+                // Si no hay favorito para hoy, buscar el primer favorito activo
+                const favoritoFallback = Array.isArray(config.favoritoDelDia)
+                  ? config.favoritoDelDia.find((f: any) => 
+                      f.activo && f.imagenUrl && f.imagenUrl.trim() !== ''
+                    )
+                  : null;
+
+                const favoritoMostrar = favoritoHoy || favoritoFallback;
+
+                return favoritoMostrar && (
+                  <div className="mx-4 mb-3">
+                    <h3 className="text-white font-semibold text-sm mb-2">
+                      Favorito del día
+                    </h3>
+                    <div className="relative overflow-hidden rounded-xl">
+                      <img
+                        src={favoritoMostrar.imagenUrl}
+                        alt="Favorito del día"
+                        className="w-full h-32 object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                      <div className="absolute bottom-2 left-3">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs">⭐</span>
+                          </div>
+                          <span className="text-white font-medium text-xs">
+                            Favorito del {favoritoHoy ? 'Día' : `${favoritoMostrar.dia}`}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Recompensas */}
-              {config.recompensas.filter((r: any) => r.activo).length > 0 && (
+              {config.recompensas?.filter((r: any) => r.activo && r.nombre && r.puntosRequeridos).length > 0 && (
                 <div className="mx-4 mb-3">
-                  <h3 className="text-white font-semibold text-sm mb-2">Recompensas</h3>
+                  <h3 className="text-white font-semibold text-sm mb-2">
+                    Recompensas
+                  </h3>
                   <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg p-3">
                     <div className="flex items-center space-x-2 mb-2">
                       <Gift className="w-4 h-4 text-white" />
-                      <span className="text-white font-medium text-sm">Programa de Puntos</span>
+                      <span className="text-white font-medium text-sm">
+                        Programa de Puntos
+                      </span>
                     </div>
                     <div className="flex overflow-x-auto space-x-2 pb-1">
-                      {config.recompensas.filter((r: any) => r.activo).slice(0, 3).map((recompensa: any) => (
-                        <div key={recompensa.id} className="bg-white/20 rounded-lg p-2 min-w-[120px]">
-                          <div className="text-white font-medium text-xs">{recompensa.nombre}</div>
-                          <div className="text-white font-bold text-xs">{recompensa.puntosRequeridos} pts</div>
-                        </div>
-                      ))}
+                      {(config.recompensas || [])
+                        .filter((r: any) => r.activo && r.nombre && r.puntosRequeridos)
+                        .slice(0, 3)
+                        .map((recompensa: any) => (
+                          <div
+                            key={recompensa.id}
+                            className="bg-white/20 rounded-lg p-2 min-w-[120px]"
+                          >
+                            <div className="text-white font-medium text-xs">
+                              {recompensa.nombre}
+                            </div>
+                            <div className="text-white font-bold text-xs">
+                              {recompensa.puntosRequeridos} pts
+                            </div>
+                          </div>
+                        ))}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Estado vacío cuando no hay contenido configurado */}
+              {(!config.banners?.filter((b: any) => b.activo && b.imagenUrl && b.imagenUrl.trim() !== '').length &&
+                !config.favoritoDelDia?.activo &&
+                !config.promociones?.filter((p: any) => p.activo && p.titulo && p.descripcion).length &&
+                !config.recompensas?.filter((r: any) => r.activo && r.nombre && r.puntosRequeridos).length) && (
+                <div className="mx-4 mb-4 text-center py-8">
+                  <div className="text-white/50 text-sm mb-2">
+                    👆 Configure contenido arriba
+                  </div>
+                  <div className="text-white/30 text-xs">
+                    El portal se mostrará limpio hasta que agregue banners, promociones, recompensas o favoritos del día
                   </div>
                 </div>
               )}
             </div>
-          ) : (() => {
-            if (previewMode === 'login') {
-              // Vista Previa del Login del Cliente
-              return (
-                <div className="bg-black text-white min-h-96 max-w-xs mx-auto rounded-xl overflow-hidden border border-dark-600">
-                  {/* Header del portal del cliente */}
-                  <div className="flex items-center justify-center p-4">
-                    <span className="text-white font-bold text-lg">
-                      {brandingConfig.businessName || 'LEALTA'}
-                    </span>
-                  </div>
+          ) : (
+            (() => {
+              if (previewMode === 'login') {
+                // Vista Previa del Login del Cliente
+                return (
+                  <div className="bg-black text-white min-h-96 max-w-xs mx-auto rounded-xl overflow-hidden border border-dark-600">
+                    {/* Header del portal del cliente */}
+                    <div className="flex items-center justify-center p-4">
+                      <span className="text-white font-bold text-lg">
+                        {brandingConfig.businessName || 'LEALTA'}
+                      </span>
+                    </div>
 
-                  {/* Hero Section */}
-                  <div className="relative h-40 overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-900 via-blue-900 to-indigo-900" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
-                    <div className="absolute inset-0 flex flex-col justify-center items-center text-center px-4">
-                      <h1 className="text-lg font-bold text-white mb-2">
-                        Descubre Nuestro Menú
-                      </h1>
-                      
-                      {/* Carrusel de imágenes - Vista previa (primeros 3) */}
-                      {brandingConfig.carouselImages?.length > 0 && (
-                        <div className="mb-3">
-                          <div className="flex space-x-1 justify-center">
-                            {brandingConfig.carouselImages.slice(0, 3).map((image: string, index: number) => (
-                              <div key={`carousel-preview-${index}-${image.substring(0, 10)}`} className="w-16 h-10 relative overflow-hidden rounded">
-                                <img 
-                                  src={image} 
-                                  alt={`Carrusel ${index + 1}`}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                            ))}
-                            {brandingConfig.carouselImages.length > 3 && (
-                              <div className="w-16 h-10 bg-black/70 rounded flex items-center justify-center">
-                                <span className="text-white text-xs">+{brandingConfig.carouselImages.length - 3}</span>
-                              </div>
-                            )}
+                    {/* Hero Section */}
+                    <div className="relative h-40 overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-r from-purple-900 via-blue-900 to-indigo-900" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+                      <div className="absolute inset-0 flex flex-col justify-center items-center text-center px-4">
+                        <h1 className="text-lg font-bold text-white mb-2">
+                          Descubre Nuestro Menú
+                        </h1>
+
+                        {/* Carrusel de imágenes - Vista previa (primeros 3) */}
+                        {brandingConfig.carouselImages?.length > 0 && (
+                          <div className="mb-3">
+                            <div className="flex space-x-1 justify-center">
+                              {brandingConfig.carouselImages
+                                .slice(0, 3)
+                                .map((image: string, index: number) => (
+                                  <div
+                                    key={`carousel-preview-${index}-${image.substring(0, 10)}`}
+                                    className="w-16 h-10 relative overflow-hidden rounded"
+                                  >
+                                    <img
+                                      src={image}
+                                      alt={`Carrusel ${index + 1}`}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                ))}
+                              {brandingConfig.carouselImages.length > 3 && (
+                                <div className="w-16 h-10 bg-black/70 rounded flex items-center justify-center">
+                                  <span className="text-white text-xs">
+                                    +{brandingConfig.carouselImages.length - 3}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <p className="text-white/60 text-xs mt-1 text-center">
+                              Carrusel de Imágenes
+                            </p>
                           </div>
-                          <p className="text-white/60 text-xs mt-1 text-center">Carrusel de Imágenes</p>
-                        </div>
-                      )}
-                      
-                      <button 
-                        className="text-white px-3 py-1 rounded-lg font-medium transition-colors flex items-center space-x-1 text-xs"
-                        style={{ backgroundColor: brandingConfig.primaryColor || '#2563EB' }}
-                      >
-                        <IdCard className="w-3 h-3" />
-                        <span>Acceder con Cédula</span>
-                      </button>
+                        )}
+
+                        <button
+                          className="text-white px-3 py-1 rounded-lg font-medium transition-colors flex items-center space-x-1 text-xs"
+                          style={{
+                            backgroundColor:
+                              brandingConfig.primaryColor || '#2563EB',
+                          }}
+                        >
+                          <IdCard className="w-3 h-3" />
+                          <span>Acceder con Cédula</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            } else {
-              // Vista Previa de Tarjetas
-              return <TarjetaPreviewComponent config={config} />;
-            }
-          })()}
+                );
+              } else {
+                // Vista Previa de Tarjetas
+                return <TarjetaPreviewComponent config={config} />;
+              }
+            })()
+          )}
         </div>
       </div>
 
@@ -2460,20 +3119,27 @@ function PortalContentManager({
               <div>
                 <div className="flex items-center mb-6">
                   <Building className="w-6 h-6 mr-2 text-primary-500" />
-                  <h4 className="text-lg font-semibold text-white">Branding del Portal Cliente</h4>
+                  <h4 className="text-lg font-semibold text-white">
+                    Branding del Portal Cliente
+                  </h4>
                 </div>
-                
+
                 <div className="space-y-6">
                   {/* Nombre del Negocio */}
                   <div>
-                    <label htmlFor="business-name" className="block text-sm font-medium text-white mb-2">
+                    <label
+                      htmlFor="business-name"
+                      className="block text-sm font-medium text-white mb-2"
+                    >
                       Nombre del Negocio
                     </label>
                     <input
                       type="text"
                       id="business-name"
                       value={brandingConfig.businessName}
-                      onChange={(e) => handleBrandingChange('businessName', e.target.value)}
+                      onChange={e =>
+                        handleBrandingChange('businessName', e.target.value)
+                      }
                       className="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded-lg text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       placeholder="LEALTA"
                     />
@@ -2490,27 +3156,33 @@ function PortalContentManager({
                     <div className="space-y-4">
                       {/* Grid de imágenes actuales */}
                       <div className="grid grid-cols-2 gap-3">
-                        {brandingConfig.carouselImages?.map((imageUrl: string, index: number) => (
-                          <div key={`carousel-${index}-${imageUrl.substring(0, 20)}`} className="relative group">
-                            <img 
-                              src={imageUrl} 
-                              alt={`Carrusel ${index + 1}`}
-                              className="w-full h-24 object-cover rounded-lg border border-dark-600"
-                            />
-                            <button
-                              onClick={() => handleRemoveCarouselImage(index)}
-                              className="absolute top-1 right-1 p-1 bg-red-600 text-white text-xs rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        {brandingConfig.carouselImages?.map(
+                          (imageUrl: string, index: number) => (
+                            <div
+                              key={`carousel-${index}-${imageUrl.substring(0, 20)}`}
+                              className="relative group"
                             >
-                              ×
-                            </button>
-                            <div className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-1 rounded">
-                              {index + 1}
+                              <img
+                                src={imageUrl}
+                                alt={`Carrusel ${index + 1}`}
+                                className="w-full h-24 object-cover rounded-lg border border-dark-600"
+                              />
+                              <button
+                                onClick={() => handleRemoveCarouselImage(index)}
+                                className="absolute top-1 right-1 p-1 bg-red-600 text-white text-xs rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                ×
+                              </button>
+                              <div className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-1 rounded">
+                                {index + 1}
+                              </div>
                             </div>
-                          </div>
-                        ))}
-                        
+                          )
+                        )}
+
                         {/* Botón para agregar nueva imagen */}
-                        {(!brandingConfig.carouselImages || brandingConfig.carouselImages.length < 6) && (
+                        {(!brandingConfig.carouselImages ||
+                          brandingConfig.carouselImages.length < 6) && (
                           <div className="relative">
                             <input
                               type="file"
@@ -2520,23 +3192,36 @@ function PortalContentManager({
                               className="absolute inset-0 opacity-0 cursor-pointer"
                             />
                             <div className="w-full h-24 border-2 border-dashed border-dark-600 rounded-lg flex flex-col items-center justify-center text-dark-400 hover:border-primary-500 hover:text-primary-400 transition-colors cursor-pointer">
-                              <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              <svg
+                                className="w-6 h-6 mb-1"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M12 4v16m8-8H4"
+                                />
                               </svg>
                               <span className="text-xs">Agregar</span>
                             </div>
                           </div>
                         )}
                       </div>
-                      
+
                       {/* Información y controles */}
                       <div className="bg-dark-800 rounded-lg p-3">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-white text-sm font-medium">
-                            {brandingConfig.carouselImages?.length || 0} / 6 imágenes
+                            {brandingConfig.carouselImages?.length || 0} / 6
+                            imágenes
                           </span>
                           <button
-                            onClick={() => handleBrandingChange('carouselImages', [])}
+                            onClick={() =>
+                              handleBrandingChange('carouselImages', [])
+                            }
                             className="text-red-400 hover:text-red-300 text-xs"
                             disabled={!brandingConfig.carouselImages?.length}
                           >
@@ -2544,7 +3229,8 @@ function PortalContentManager({
                           </button>
                         </div>
                         <p className="text-dark-400 text-xs">
-                          Las imágenes aparecen en el carrusel del login con rotación automática cada 6 segundos
+                          Las imágenes aparecen en el carrusel del login con
+                          rotación automática cada 6 segundos
                         </p>
                       </div>
                     </div>
@@ -2552,7 +3238,10 @@ function PortalContentManager({
 
                   {/* Color Primario */}
                   <div>
-                    <label htmlFor="primary-color" className="block text-sm font-medium text-white mb-2">
+                    <label
+                      htmlFor="primary-color"
+                      className="block text-sm font-medium text-white mb-2"
+                    >
                       Color Primario
                     </label>
                     <div className="flex items-center space-x-3">
@@ -2560,28 +3249,42 @@ function PortalContentManager({
                         type="color"
                         id="primary-color"
                         value={brandingConfig.primaryColor}
-                        onChange={(e) => handleBrandingChange('primaryColor', e.target.value)}
+                        onChange={e =>
+                          handleBrandingChange('primaryColor', e.target.value)
+                        }
                         className="w-12 h-10 rounded-lg border-2 border-dark-600 bg-dark-800"
                       />
                       <input
                         type="text"
                         value={brandingConfig.primaryColor}
-                        onChange={(e) => handleBrandingChange('primaryColor', e.target.value)}
+                        onChange={e =>
+                          handleBrandingChange('primaryColor', e.target.value)
+                        }
                         className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 rounded-lg text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                         placeholder="#2563EB"
                       />
                     </div>
                     <p className="text-dark-400 text-xs mt-1">
-                      Color del botón &ldquo;Acceder con Cédula&rdquo; y otros elementos
+                      Color del botón &ldquo;Acceder con Cédula&rdquo; y otros
+                      elementos
                     </p>
                   </div>
 
                   {/* Vista previa de cambios */}
                   <div className="bg-dark-800 rounded-lg p-4">
-                    <h5 className="text-white font-medium mb-2">Configuración Actual:</h5>
+                    <h5 className="text-white font-medium mb-2">
+                      Configuración Actual:
+                    </h5>
                     <ul className="space-y-1 text-sm text-dark-300">
-                      <li>• Nombre: {brandingConfig.businessName || 'LEALTA (predeterminado)'}</li>
-                      <li>• Carrusel: {brandingConfig.carouselImages?.length || 0} imágenes configuradas</li>
+                      <li>
+                        • Nombre:{' '}
+                        {brandingConfig.businessName ||
+                          'LEALTA (predeterminado)'}
+                      </li>
+                      <li>
+                        • Carrusel: {brandingConfig.carouselImages?.length || 0}{' '}
+                        imágenes configuradas
+                      </li>
                       <li>• Color: {brandingConfig.primaryColor}</li>
                     </ul>
                   </div>
@@ -2593,42 +3296,65 @@ function PortalContentManager({
                         // Crear versión ligera para localStorage (sin imágenes base64)
                         const lightConfig = {
                           ...brandingConfig,
-                          carouselImages: brandingConfig.carouselImages?.length || 0 // Solo guardar la cantidad
+                          carouselImages:
+                            brandingConfig.carouselImages?.length || 0, // Solo guardar la cantidad
                         };
-                        
+
                         try {
-                          localStorage.setItem('portalBranding', JSON.stringify(lightConfig));
+                          localStorage.setItem(
+                            'portalBranding',
+                            JSON.stringify(lightConfig)
+                          );
                         } catch (storageError) {
-                          console.warn('localStorage lleno, usando solo datos básicos:', storageError);
+                          console.warn(
+                            'localStorage lleno, usando solo datos básicos:',
+                            storageError
+                          );
                           // Guardar solo datos esenciales
                           const basicConfig = {
                             businessName: brandingConfig.businessName,
                             primaryColor: brandingConfig.primaryColor,
-                            carouselImages: []
+                            carouselImages: [],
                           };
                           try {
                             localStorage.removeItem('portalBranding');
-                            localStorage.setItem('portalBranding', JSON.stringify(basicConfig));
+                            localStorage.setItem(
+                              'portalBranding',
+                              JSON.stringify(basicConfig)
+                            );
                           } catch (finalError) {
-                            console.error('No se pudo actualizar localStorage:', finalError);
+                            console.error(
+                              'No se pudo actualizar localStorage:',
+                              finalError
+                            );
                           }
                         }
-                        
+
                         // Enviar evento personalizado para notificar a otras pestañas
-                        window.dispatchEvent(new CustomEvent('brandingUpdated', { 
-                          detail: brandingConfig 
-                        }));
-                        
-                        console.log('Evento brandingUpdated disparado con carrusel:', brandingConfig.carouselImages?.length || 0, 'imágenes');
-                        
+                        window.dispatchEvent(
+                          new CustomEvent('brandingUpdated', {
+                            detail: brandingConfig,
+                          })
+                        );
+
+                        console.log(
+                          'Evento brandingUpdated disparado con carrusel:',
+                          brandingConfig.carouselImages?.length || 0,
+                          'imágenes'
+                        );
+
                         // También usar storage event para otras pestañas
-                        localStorage.setItem('brandingTrigger', Date.now().toString());
-                        
+                        localStorage.setItem(
+                          'brandingTrigger',
+                          Date.now().toString()
+                        );
+
                         // Mostrar feedback visual
                         const btn = document.activeElement as HTMLButtonElement;
                         const originalText = btn?.textContent;
                         if (btn) {
-                          btn.textContent = '✅ Actualizado - Recarga el portal cliente';
+                          btn.textContent =
+                            '✅ Actualizado - Recarga el portal cliente';
                           btn.disabled = true;
                           setTimeout(() => {
                             btn.textContent = originalText;
@@ -2641,32 +3367,45 @@ function PortalContentManager({
                       <Save className="w-4 h-4" />
                       <span>Actualizar Portal Cliente</span>
                     </button>
-                    
+
                     <button
                       onClick={() => {
                         // Guardar versión ligera antes de abrir
                         const lightConfig = {
                           ...brandingConfig,
-                          carouselImages: brandingConfig.carouselImages?.length || 0
+                          carouselImages:
+                            brandingConfig.carouselImages?.length || 0,
                         };
-                        
+
                         try {
-                          localStorage.setItem('portalBranding', JSON.stringify(lightConfig));
+                          localStorage.setItem(
+                            'portalBranding',
+                            JSON.stringify(lightConfig)
+                          );
                         } catch (storageError) {
-                          console.warn('localStorage lleno, usando datos básicos para portal:', storageError);
+                          console.warn(
+                            'localStorage lleno, usando datos básicos para portal:',
+                            storageError
+                          );
                           const basicConfig = {
                             businessName: brandingConfig.businessName,
                             primaryColor: brandingConfig.primaryColor,
-                            carouselImages: []
+                            carouselImages: [],
                           };
                           try {
                             localStorage.removeItem('portalBranding');
-                            localStorage.setItem('portalBranding', JSON.stringify(basicConfig));
+                            localStorage.setItem(
+                              'portalBranding',
+                              JSON.stringify(basicConfig)
+                            );
                           } catch (finalError) {
-                            console.error('No se pudo preparar datos para el portal:', finalError);
+                            console.error(
+                              'No se pudo preparar datos para el portal:',
+                              finalError
+                            );
                           }
                         }
-                        
+
                         // Abrir portal del cliente en nueva pestaña
                         window.open('/cliente', '_blank');
                       }}
@@ -2675,9 +3414,10 @@ function PortalContentManager({
                       <Eye className="w-4 h-4" />
                       <span>Ver Portal Cliente Real</span>
                     </button>
-                    
+
                     <p className="text-dark-400 text-xs text-center">
-                      Usa "Actualizar" para sincronizar cambios, luego "Ver Portal" para verificar en una nueva pestaña.
+                      Usa "Actualizar" para sincronizar cambios, luego "Ver
+                      Portal" para verificar en una nueva pestaña.
                     </p>
                   </div>
                 </div>
@@ -2687,8 +3427,16 @@ function PortalContentManager({
             // Configuración de Tarjetas
             return (
               <div className="space-y-6">
-                <TarjetaEditorComponent config={config} setConfig={setConfig} showNotification={showNotification} />
-                <AsignacionTarjetasComponent config={config} setConfig={setConfig} showNotification={showNotification} />
+                <AsignacionTarjetasComponent
+                  config={config}
+                  setConfig={setConfig}
+                  showNotification={showNotification}
+                />
+                <TarjetaEditorComponent
+                  config={config}
+                  setConfig={setConfig}
+                  showNotification={showNotification}
+                />
               </div>
             );
           } else if (activeTab === 'preview') {
@@ -2696,18 +3444,34 @@ function PortalContentManager({
             return (
               <div className="text-center py-8">
                 <Eye className="w-12 h-12 mx-auto mb-4 text-primary-500" />
-                <h4 className="text-lg font-semibold text-white mb-2">Vista Previa en Tiempo Real</h4>
+                <h4 className="text-lg font-semibold text-white mb-2">
+                  Vista Previa en Tiempo Real
+                </h4>
                 <p className="text-dark-400 mb-4">
-                  Esta vista muestra cómo verán los clientes tu portal. Los cambios se reflejan automáticamente.
+                  Esta vista muestra cómo verán los clientes tu portal. Los
+                  cambios se reflejan automáticamente.
                 </p>
                 <div className="bg-dark-800 rounded-lg p-4 text-left">
-                  <h5 className="text-white font-medium mb-2">Elementos Activos:</h5>
+                  <h5 className="text-white font-medium mb-2">
+                    Elementos Activos:
+                  </h5>
                   <ul className="space-y-1 text-sm text-dark-300">
-                    <li>• {config.banners.filter((b: any) => b.activo).length} Banners activos</li>
-                    <li>• {config.promociones.filter((p: any) => p.activo).length} Promociones activas</li>
-                    <li>• {config.favoritoDelDia?.activo ? '1' : '0'} Favorito del día activo</li>
-                    <li>• {config.eventos.filter((e: any) => e.activo).length} Eventos activos</li>
-                    <li>• {config.recompensas.filter((r: any) => r.activo).length} Recompensas activas</li>
+                    <li>
+                      • {(config.banners || []).filter((b: any) => b.activo).length}{' '}
+                      Banners activos
+                    </li>
+                    <li>
+                      • {(config.promociones || []).filter((p: any) => p.activo).length}{' '}
+                      Promociones activas
+                    </li>
+                    <li>
+                      • {config.favoritoDelDia?.activo ? '1' : '0'} Favorito del
+                      día activo
+                    </li>
+                    <li>
+                      • {(config.recompensas || []).filter((r: any) => r.activo).length}{' '}
+                      Recompensas activas
+                    </li>
                   </ul>
                 </div>
               </div>
@@ -2717,37 +3481,83 @@ function PortalContentManager({
         })()}
 
         {activeTab === 'banners' && (
-          <BannersManager 
-            banners={config.banners}
+          <BannersManager
+            banners={config.banners || []}
             onAdd={(banner: any) => addItem('banners', banner)}
-            onUpdate={(id: string, updates: any) => updateItem('banners', id, updates)}
+            onUpdate={(id: string, updates: any) =>
+              updateItem('banners', id, updates)
+            }
             onDelete={(id: string) => deleteItem('banners', id)}
             onToggle={(id: string) => toggleActive('banners', id)}
           />
         )}
 
         {activeTab === 'promociones' && (
-          <PromocionesManager 
-            promociones={config.promociones}
-            onAdd={(promo: any) => addItem('promociones', promo)}
-            onUpdate={(id: string, updates: any) => updateItem('promociones', id, updates)}
-            onDelete={(id: string) => deleteItem('promociones', id)}
-            onToggle={(id: string) => toggleActive('promociones', id)}
-          />
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-white">Promociones</h2>
+              <button
+                onClick={handleSyncToClient}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Sincronizar con Cliente
+              </button>
+            </div>
+            <PromocionesManager
+              promociones={config.promociones || []}
+              onAdd={(promo: any) => addItem('promociones', promo)}
+              onUpdate={(id: string, updates: any) =>
+                updateItem('promociones', id, updates)
+              }
+              onDelete={(id: string) => deleteItem('promociones', id)}
+              onToggle={(id: string) => toggleActive('promociones', id)}
+            />
+          </div>
         )}
 
         {activeTab === 'favorito' && (
-          <FavoritoDelDiaManager 
-            favorito={config.favoritoDelDia}
-            onUpdate={(favorito: any) => setConfig((prev: any) => ({ ...prev, favoritoDelDia: favorito }))}
+          <FavoritoDelDiaManager
+            favoritos={config.favoritoDelDia || []}
+            onUpdate={(favorito: any) => {
+              // Verificar si ya existe un favorito para este día
+              const currentFavoritos = Array.isArray(config.favoritoDelDia) 
+                ? config.favoritoDelDia 
+                : [];
+              
+              const existingFavorito = currentFavoritos.find(
+                (f: any) => f.dia === favorito.dia
+              );
+
+              if (existingFavorito) {
+                // Actualizar favorito existente
+                updateItem('favoritoDelDia', existingFavorito.id, favorito);
+              } else {
+                // Crear nuevo favorito
+                addItem('favoritoDelDia', favorito);
+              }
+              showNotification('Favorito del día actualizado correctamente', 'success');
+            }}
+            onDelete={(favoritoId: string) => {
+              deleteItem('favoritoDelDia', favoritoId);
+              showNotification('Favorito del día eliminado correctamente', 'success');
+            }}
+            onToggle={(favoritoId: string) => {
+              toggleActive('favoritoDelDia', favoritoId);
+              showNotification('Estado del favorito del día actualizado', 'success');
+            }}
           />
         )}
 
         {activeTab === 'recompensas' && (
-          <RecompensasManager 
-            recompensas={config.recompensas}
+          <RecompensasManager
+            recompensas={config.recompensas || []}
             onAdd={(recompensa: any) => addItem('recompensas', recompensa)}
-            onUpdate={(id: string, updates: any) => updateItem('recompensas', id, updates)}
+            onUpdate={(id: string, updates: any) =>
+              updateItem('recompensas', id, updates)
+            }
             onDelete={(id: string) => deleteItem('recompensas', id)}
             onToggle={(id: string) => toggleActive('recompensas', id)}
           />
@@ -2758,7 +3568,13 @@ function PortalContentManager({
 }
 
 // Componentes de gestión para cada sección
-function BannersManager({ banners, onAdd, onUpdate, onDelete, onToggle }: Readonly<{
+function BannersManager({
+  banners,
+  onAdd,
+  onUpdate,
+  onDelete,
+  onToggle,
+}: Readonly<{
   banners: any[];
   onAdd: (banner: any) => void;
   onUpdate: (id: string, banner: any) => void;
@@ -2767,9 +3583,14 @@ function BannersManager({ banners, onAdd, onUpdate, onDelete, onToggle }: Readon
 }>) {
   const [selectedDay, setSelectedDay] = useState('lunes');
   const [publishTime, setPublishTime] = useState('04:00');
-  const [formData, setFormData] = useState({ dia: 'lunes', imagenUrl: '', horaPublicacion: '04:00' });
+  const [formData, setFormData] = useState({
+    dia: 'lunes',
+    imagenUrl: '',
+    horaPublicacion: '04:00',
+  });
   const [uploading, setUploading] = useState(false);
-  const { selectedFile, handleFileChange, resetFile } = useFileUpload(setFormData);
+  const { selectedFile, handleFileChange, resetFile } =
+    useFileUpload(setFormData);
 
   const diasSemana = [
     { value: 'lunes', label: 'L' },
@@ -2778,17 +3599,17 @@ function BannersManager({ banners, onAdd, onUpdate, onDelete, onToggle }: Readon
     { value: 'jueves', label: 'J' },
     { value: 'viernes', label: 'V' },
     { value: 'sabado', label: 'S' },
-    { value: 'domingo', label: 'D' }
+    { value: 'domingo', label: 'D' },
   ];
 
   const diasCompletos = {
-    'lunes': 'Lunes',
-    'martes': 'Martes', 
-    'miercoles': 'Miércoles',
-    'jueves': 'Jueves',
-    'viernes': 'Viernes',
-    'sabado': 'Sábado',
-    'domingo': 'Domingo'
+    lunes: 'Lunes',
+    martes: 'Martes',
+    miercoles: 'Miércoles',
+    jueves: 'Jueves',
+    viernes: 'Viernes',
+    sabado: 'Sábado',
+    domingo: 'Domingo',
   };
 
   const bannerPorDia = banners.find((b: any) => b.dia === selectedDay);
@@ -2796,20 +3617,20 @@ function BannersManager({ banners, onAdd, onUpdate, onDelete, onToggle }: Readon
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploading(true);
-    
+
     let imageUrl = formData.imagenUrl;
-    
+
     // Si hay un archivo seleccionado, subirlo primero
     if (selectedFile) {
       try {
         const formDataUpload = new FormData();
         formDataUpload.append('file', selectedFile);
-        
+
         const uploadResponse = await fetch('/api/admin/upload', {
           method: 'POST',
-          body: formDataUpload
+          body: formDataUpload,
         });
-        
+
         if (uploadResponse.ok) {
           const uploadData = await uploadResponse.json();
           imageUrl = uploadData.fileUrl;
@@ -2818,20 +3639,20 @@ function BannersManager({ banners, onAdd, onUpdate, onDelete, onToggle }: Readon
         console.error('Error uploading file:', error);
       }
     }
-    
-    const dataToSubmit = { 
-      dia: selectedDay, 
-      imagenUrl: imageUrl, 
+
+    const dataToSubmit = {
+      dia: selectedDay,
+      imagenUrl: imageUrl,
       horaPublicacion: publishTime,
-      activo: true
+      activo: true,
     };
-    
+
     if (bannerPorDia) {
       onUpdate(bannerPorDia.id, dataToSubmit);
     } else {
       onAdd(dataToSubmit);
     }
-    
+
     resetFile();
     setUploading(false);
   };
@@ -2841,7 +3662,8 @@ function BannersManager({ banners, onAdd, onUpdate, onDelete, onToggle }: Readon
       <div className="mb-4">
         <h4 className="text-lg font-semibold text-white mb-3">Banner Diario</h4>
         <p className="text-dark-400 text-sm mb-4">
-          Configura banners para cada día de la semana. Se publicarán automáticamente a la hora especificada.
+          Configura banners para cada día de la semana. Se publicarán
+          automáticamente a la hora especificada.
         </p>
       </div>
 
@@ -2849,7 +3671,7 @@ function BannersManager({ banners, onAdd, onUpdate, onDelete, onToggle }: Readon
       <div className="bg-dark-800 rounded-lg p-4 mb-4">
         <h5 className="text-white font-medium mb-3">Seleccionar Día</h5>
         <div className="grid grid-cols-7 gap-2">
-          {diasSemana.map((dia) => (
+          {diasSemana.map(dia => (
             <button
               key={dia.value}
               onClick={() => setSelectedDay(dia.value)}
@@ -2870,27 +3692,34 @@ function BannersManager({ banners, onAdd, onUpdate, onDelete, onToggle }: Readon
         <h5 className="text-white font-medium mb-3">
           Banner para {diasCompletos[selectedDay as keyof typeof diasCompletos]}
         </h5>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="publishTime" className="block text-sm font-medium text-dark-300 mb-2">
+            <label
+              htmlFor="publishTime"
+              className="block text-sm font-medium text-dark-300 mb-2"
+            >
               Hora de Publicación (día siguiente)
             </label>
             <input
               id="publishTime"
               type="time"
               value={publishTime}
-              onChange={(e) => setPublishTime(e.target.value)}
+              onChange={e => setPublishTime(e.target.value)}
               className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded text-white"
               required
             />
             <p className="text-xs text-dark-400 mt-1">
-              Se publicará el día siguiente a esta hora (trabajamos de 6pm a 3am)
+              Se publicará el día siguiente a esta hora (trabajamos de 6pm a
+              3am)
             </p>
           </div>
 
           <div>
-            <label htmlFor="bannerImage" className="block text-sm font-medium text-dark-300 mb-2">
+            <label
+              htmlFor="bannerImage"
+              className="block text-sm font-medium text-dark-300 mb-2"
+            >
               Imagen del Banner
             </label>
             <input
@@ -2906,9 +3735,9 @@ function BannersManager({ banners, onAdd, onUpdate, onDelete, onToggle }: Readon
           {(formData.imagenUrl || bannerPorDia?.imagenUrl) && (
             <div>
               <p className="text-sm text-dark-300 mb-2">Vista previa:</p>
-              <img 
-                src={formData.imagenUrl || bannerPorDia?.imagenUrl} 
-                alt="Preview" 
+              <img
+                src={formData.imagenUrl || bannerPorDia?.imagenUrl}
+                alt="Preview"
                 className="w-full h-32 object-cover rounded-lg border border-dark-600"
               />
             </div>
@@ -2946,8 +3775,8 @@ function BannersManager({ banners, onAdd, onUpdate, onDelete, onToggle }: Readon
               <button
                 onClick={() => onToggle(bannerPorDia.id)}
                 className={`px-3 py-1 rounded text-xs font-medium ${
-                  bannerPorDia.activo 
-                    ? 'bg-success-600 text-white' 
+                  bannerPorDia.activo
+                    ? 'bg-success-600 text-white'
                     : 'bg-dark-600 text-dark-300'
                 }`}
               >
@@ -2961,33 +3790,83 @@ function BannersManager({ banners, onAdd, onUpdate, onDelete, onToggle }: Readon
   );
 }
 
-function FavoritoDelDiaManager({ favorito, onUpdate }: Readonly<{
-  favorito: any;
+function FavoritoDelDiaManager({
+  favoritos,
+  onUpdate,
+  onDelete,
+  onToggle,
+}: Readonly<{
+  favoritos: any[];
   onUpdate: (favorito: any) => void;
+  onDelete: (favoritoId: string) => void;
+  onToggle: (favoritoId: string) => void;
 }>) {
+  const [selectedDay, setSelectedDay] = useState('lunes');
+  const [publishTime, setPublishTime] = useState('09:00');
   const [formData, setFormData] = useState({
-    imagenUrl: favorito?.imagenUrl || ''
+    imagenUrl: '',
   });
   const [uploading, setUploading] = useState(false);
   const { selectedFile, handleFileChange } = useFileUpload(setFormData);
 
+  // Días de la semana
+  const diasSemana = [
+    { value: 'lunes', label: 'Lun' },
+    { value: 'martes', label: 'Mar' },
+    { value: 'miercoles', label: 'Mié' },
+    { value: 'jueves', label: 'Jue' },
+    { value: 'viernes', label: 'Vie' },
+    { value: 'sabado', label: 'Sáb' },
+    { value: 'domingo', label: 'Dom' },
+  ];
+
+  const diasCompletos = {
+    lunes: 'Lunes',
+    martes: 'Martes',
+    miercoles: 'Miércoles',
+    jueves: 'Jueves',
+    viernes: 'Viernes',
+    sabado: 'Sábado',
+    domingo: 'Domingo',
+  };
+
+  // Encontrar favorito para el día seleccionado
+  const favoritoPorDia = Array.isArray(favoritos) 
+    ? favoritos.find(f => f.dia === selectedDay)
+    : null;
+
+  // Actualizar formulario cuando cambia el día seleccionado
+  useEffect(() => {
+    if (favoritoPorDia) {
+      setFormData({
+        imagenUrl: favoritoPorDia.imagenUrl || '',
+      });
+      setPublishTime(favoritoPorDia.horaPublicacion || '09:00');
+    } else {
+      setFormData({
+        imagenUrl: '',
+      });
+      setPublishTime('09:00');
+    }
+  }, [selectedDay, favoritoPorDia]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploading(true);
-    
+
     let imageUrl = formData.imagenUrl;
-    
+
     // Si hay un archivo seleccionado, subirlo primero
     if (selectedFile) {
       try {
         const formDataUpload = new FormData();
         formDataUpload.append('file', selectedFile);
-        
+
         const uploadResponse = await fetch('/api/admin/upload', {
           method: 'POST',
-          body: formDataUpload
+          body: formDataUpload,
         });
-        
+
         if (uploadResponse.ok) {
           const uploadData = await uploadResponse.json();
           imageUrl = uploadData.fileUrl;
@@ -2996,12 +3875,15 @@ function FavoritoDelDiaManager({ favorito, onUpdate }: Readonly<{
         console.error('Error uploading file:', error);
       }
     }
-    
-    const dataToSubmit = { 
+
+    const dataToSubmit = {
+      id: favoritoPorDia?.id,
+      dia: selectedDay,
       imagenUrl: imageUrl,
-      activo: true
+      horaPublicacion: publishTime,
+      activo: true,
     };
-    
+
     onUpdate(dataToSubmit);
     setUploading(false);
   };
@@ -3009,17 +3891,68 @@ function FavoritoDelDiaManager({ favorito, onUpdate }: Readonly<{
   return (
     <div>
       <div className="mb-4">
-        <h4 className="text-lg font-semibold text-white mb-3">Favorito del Día</h4>
+        <h4 className="text-lg font-semibold text-white mb-3">
+          Favorito del Día
+        </h4>
         <p className="text-dark-400 text-sm mb-4">
-          Sube una imagen destacada para mostrar en el portal del cliente.
+          Configura favoritos destacados para cada día de la semana. Se publicarán
+          automáticamente a la hora especificada.
         </p>
       </div>
 
+      {/* Selector de día */}
+      <div className="bg-dark-800 rounded-lg p-4 mb-4">
+        <h5 className="text-white font-medium mb-3">Seleccionar Día</h5>
+        <div className="grid grid-cols-7 gap-2">
+          {diasSemana.map(dia => (
+            <button
+              key={dia.value}
+              onClick={() => setSelectedDay(dia.value)}
+              className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
+                selectedDay === dia.value
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-dark-700 text-dark-300 hover:text-white hover:bg-dark-600'
+              }`}
+            >
+              {dia.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Formulario para el día seleccionado */}
       <div className="bg-dark-800 rounded-lg p-4">
+        <h5 className="text-white font-medium mb-3">
+          Favorito para {diasCompletos[selectedDay as keyof typeof diasCompletos]}
+        </h5>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="favoritoImage" className="block text-sm font-medium text-dark-300 mb-2">
-              Imagen del Favorito del Día
+            <label
+              htmlFor="publishTime"
+              className="block text-sm font-medium text-dark-300 mb-2"
+            >
+              Hora de Publicación
+            </label>
+            <input
+              id="publishTime"
+              type="time"
+              value={publishTime}
+              onChange={e => setPublishTime(e.target.value)}
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded text-white"
+              required
+            />
+            <p className="text-xs text-dark-400 mt-1">
+              Hora en la que se destacará el favorito del día
+            </p>
+          </div>
+
+          <div>
+            <label
+              htmlFor="favoritoImage"
+              className="block text-sm font-medium text-dark-300 mb-2"
+            >
+              Imagen del Favorito
             </label>
             <input
               id="favoritoImage"
@@ -3027,22 +3960,61 @@ function FavoritoDelDiaManager({ favorito, onUpdate }: Readonly<{
               accept="image/*"
               onChange={handleFileChange}
               className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded text-white file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-primary-600 file:text-white hover:file:bg-primary-700"
+              required={!favoritoPorDia?.imagenUrl}
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={uploading}
-            className="w-full px-4 py-2 bg-success-600 hover:bg-success-700 disabled:bg-success-400 text-white rounded transition-colors"
-          >
-            {uploading ? 'Subiendo...' : 'Guardar Favorito del Día'}
-          </button>
+          {(formData.imagenUrl || favoritoPorDia?.imagenUrl) && (
+            <div>
+              <p className="text-sm text-dark-300 mb-2">Vista previa:</p>
+              <img
+                src={formData.imagenUrl || favoritoPorDia?.imagenUrl}
+                alt="Preview"
+                className="w-full h-32 object-cover rounded-lg border border-dark-600"
+              />
+            </div>
+          )}
+
+          <div className="flex space-x-2">
+            <button
+              type="submit"
+              disabled={uploading}
+              className="px-4 py-2 bg-success-600 hover:bg-success-700 disabled:bg-success-400 text-white rounded transition-colors"
+            >
+              {(() => {
+                if (uploading) return 'Subiendo...';
+                return favoritoPorDia ? 'Actualizar' : 'Crear';
+              })()}
+            </button>
+            {favoritoPorDia && (
+              <button
+                type="button"
+                onClick={() => onDelete(favoritoPorDia.id)}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+              >
+                Eliminar
+              </button>
+            )}
+          </div>
         </form>
 
-        {favorito && (
+        {favoritoPorDia && (
           <div className="mt-4 p-3 bg-dark-700 rounded-lg">
-            <p className="text-sm text-success-400">✅ Favorito del día configurado</p>
-            <p className="text-xs text-dark-400 mt-1">Se mostrará prominentemente en el portal cliente</p>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-dark-300">
+                Configurado para: {favoritoPorDia.horaPublicacion}
+              </span>
+              <button
+                onClick={() => onToggle(favoritoPorDia.id)}
+                className={`px-3 py-1 rounded text-xs font-medium ${
+                  favoritoPorDia.activo
+                    ? 'bg-success-600 text-white'
+                    : 'bg-dark-600 text-dark-300'
+                }`}
+              >
+                {favoritoPorDia.activo ? 'Activo' : 'Inactivo'}
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -3050,7 +4022,13 @@ function FavoritoDelDiaManager({ favorito, onUpdate }: Readonly<{
   );
 }
 
-function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }: Readonly<{
+function PromocionesManager({
+  promociones,
+  onAdd,
+  onUpdate,
+  onDelete,
+  onToggle,
+}: Readonly<{
   promociones: any[];
   onAdd: (promocion: any) => void;
   onUpdate: (id: string, promocion: any) => void;
@@ -3059,12 +4037,12 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
 }>) {
   const [selectedDay, setSelectedDay] = useState('lunes');
   const [editingPromoId, setEditingPromoId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ 
-    dia: 'lunes', 
-    titulo: '', 
-    descripcion: '', 
-    descuento: '', 
-    horaTermino: '04:00' 
+  const [formData, setFormData] = useState({
+    dia: 'lunes',
+    titulo: '',
+    descripcion: '',
+    descuento: '',
+    horaTermino: '04:00',
   });
   const [isAddMode, setIsAddMode] = useState(true);
 
@@ -3075,50 +4053,50 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
     { value: 'jueves', label: 'J' },
     { value: 'viernes', label: 'V' },
     { value: 'sabado', label: 'S' },
-    { value: 'domingo', label: 'D' }
+    { value: 'domingo', label: 'D' },
   ];
 
   const diasCompletos = {
-    'lunes': 'Lunes',
-    'martes': 'Martes', 
-    'miercoles': 'Miércoles',
-    'jueves': 'Jueves',
-    'viernes': 'Viernes',
-    'sabado': 'Sábado',
-    'domingo': 'Domingo'
+    lunes: 'Lunes',
+    martes: 'Martes',
+    miercoles: 'Miércoles',
+    jueves: 'Jueves',
+    viernes: 'Viernes',
+    sabado: 'Sábado',
+    domingo: 'Domingo',
   };
 
   const promosPorDia = promociones.filter((p: any) => p.dia === selectedDay);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const dataToSubmit = { 
+
+    const dataToSubmit = {
       dia: selectedDay,
       titulo: formData.titulo,
       descripcion: formData.descripcion,
       descuento: formData.descuento,
       horaTermino: formData.horaTermino,
-      activo: true
+      activo: true,
     };
-    
+
     if (editingPromoId) {
       onUpdate(editingPromoId, dataToSubmit);
     } else {
       onAdd(dataToSubmit);
     }
-    
+
     // Limpiar formulario y restablecer modo
     resetForm();
   };
-  
+
   const resetForm = () => {
-    setFormData({ 
-      dia: selectedDay, 
-      titulo: '', 
-      descripcion: '', 
-      descuento: '', 
-      horaTermino: '04:00' 
+    setFormData({
+      dia: selectedDay,
+      titulo: '',
+      descripcion: '',
+      descuento: '',
+      horaTermino: '04:00',
     });
     setEditingPromoId(null);
     setIsAddMode(true);
@@ -3130,7 +4108,7 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
       titulo: promo.titulo || '',
       descripcion: promo.descripcion || '',
       descuento: promo.descuento || '',
-      horaTermino: promo.horaTermino || '04:00'
+      horaTermino: promo.horaTermino || '04:00',
     });
     setEditingPromoId(promo.id);
     setIsAddMode(false);
@@ -3144,9 +4122,12 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
   return (
     <div>
       <div className="mb-4">
-        <h4 className="text-lg font-semibold text-white mb-3">Promociones por Día</h4>
+        <h4 className="text-lg font-semibold text-white mb-3">
+          Promociones por Día
+        </h4>
         <p className="text-dark-400 text-sm mb-4">
-          Configura promociones específicas para cada día de la semana. Se actualizan automáticamente a las 4:00 AM.
+          Configura promociones específicas para cada día de la semana. Se
+          actualizan automáticamente a las 4:00 AM.
         </p>
       </div>
 
@@ -3154,8 +4135,10 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
       <div className="bg-dark-800 rounded-lg p-4 mb-4">
         <h5 className="text-white font-medium mb-3">Seleccionar Día</h5>
         <div className="grid grid-cols-7 gap-2">
-          {diasSemana.map((dia) => {
-            const tienePromo = promociones.some((p: any) => p.dia === dia.value);
+          {diasSemana.map(dia => {
+            const tienePromo = promociones.some(
+              (p: any) => p.dia === dia.value
+            );
             return (
               <button
                 key={dia.value}
@@ -3180,9 +4163,10 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
       <div className="bg-dark-800 rounded-lg p-4 mb-4">
         <div className="flex justify-between items-center mb-4">
           <h5 className="text-white font-medium">
-            Promociones para {diasCompletos[selectedDay as keyof typeof diasCompletos]}
+            Promociones para{' '}
+            {diasCompletos[selectedDay as keyof typeof diasCompletos]}
           </h5>
-          <button 
+          <button
             onClick={() => {
               resetForm();
               setIsAddMode(true);
@@ -3192,10 +4176,11 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
             Nueva Promoción
           </button>
         </div>
-        
+
         {promosPorDia.length === 0 ? (
           <div className="text-center py-4 text-dark-400 text-sm">
-            No hay promociones configuradas para {diasCompletos[selectedDay as keyof typeof diasCompletos]}
+            No hay promociones configuradas para{' '}
+            {diasCompletos[selectedDay as keyof typeof diasCompletos]}
           </div>
         ) : (
           <div className="space-y-2">
@@ -3203,8 +4188,12 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
               <div key={promo.id} className="p-3 bg-dark-700 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div className="flex-grow">
-                    <div className="text-white text-sm font-medium">{promo.titulo}</div>
-                    <div className="text-dark-300 text-xs mt-1">{promo.descripcion}</div>
+                    <div className="text-white text-sm font-medium">
+                      {promo.titulo}
+                    </div>
+                    <div className="text-dark-300 text-xs mt-1">
+                      {promo.descripcion}
+                    </div>
                     <div className="text-sm text-dark-300 mt-1">
                       {promo.descuento}% descuento hasta las {promo.horaTermino}
                     </div>
@@ -3225,12 +4214,16 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
                     <button
                       onClick={() => onToggle(promo.id)}
                       className={`p-1.5 rounded ${
-                        promo.activo 
-                          ? 'bg-success-600 text-white' 
+                        promo.activo
+                          ? 'bg-success-600 text-white'
                           : 'bg-dark-600 text-dark-300 hover:text-white hover:bg-dark-500'
                       }`}
                     >
-                      {promo.activo ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
+                      {promo.activo ? (
+                        <Check className="w-3.5 h-3.5" />
+                      ) : (
+                        <X className="w-3.5 h-3.5" />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -3245,10 +4238,13 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
         <h5 className="text-white font-medium mb-3">
           {isAddMode ? 'Añadir nueva promoción' : 'Editar promoción'}
         </h5>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="promoTitle" className="block text-sm font-medium text-dark-300 mb-2">
+            <label
+              htmlFor="promoTitle"
+              className="block text-sm font-medium text-dark-300 mb-2"
+            >
               Título de la Promoción
             </label>
             <input
@@ -3256,21 +4252,28 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
               type="text"
               placeholder="Ej: 2x1 en Cócteles"
               value={formData.titulo}
-              onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
+              onChange={e =>
+                setFormData({ ...formData, titulo: e.target.value })
+              }
               className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded text-white placeholder-dark-400"
               required
             />
           </div>
 
           <div>
-            <label htmlFor="promoDescription" className="block text-sm font-medium text-dark-300 mb-2">
+            <label
+              htmlFor="promoDescription"
+              className="block text-sm font-medium text-dark-300 mb-2"
+            >
               Descripción
             </label>
             <textarea
               id="promoDescription"
               placeholder="Descripción de la promoción..."
               value={formData.descripcion}
-              onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+              onChange={e =>
+                setFormData({ ...formData, descripcion: e.target.value })
+              }
               className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded text-white placeholder-dark-400"
               rows={2}
               required
@@ -3279,7 +4282,10 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="promoDiscount" className="block text-sm font-medium text-dark-300 mb-2">
+              <label
+                htmlFor="promoDiscount"
+                className="block text-sm font-medium text-dark-300 mb-2"
+              >
                 Descuento (%)
               </label>
               <input
@@ -3289,14 +4295,19 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
                 pattern="[0-9]*"
                 placeholder="50"
                 value={formData.descuento}
-                onChange={(e) => {
+                onChange={e => {
                   if (/^\d*$/.test(e.target.value) || e.target.value === '') {
-                    const inputValue = e.target.value === '' ? '' : Number(e.target.value);
+                    const inputValue =
+                      e.target.value === '' ? '' : Number(e.target.value);
                     // Limitar valores entre 0 y 100
-                    if (inputValue === '' || (Number(inputValue) >= 0 && Number(inputValue) <= 100)) {
-                      setFormData({ 
-                        ...formData, 
-                        descuento: inputValue === '' ? '0' : inputValue.toString()
+                    if (
+                      inputValue === '' ||
+                      (Number(inputValue) >= 0 && Number(inputValue) <= 100)
+                    ) {
+                      setFormData({
+                        ...formData,
+                        descuento:
+                          inputValue === '' ? '0' : inputValue.toString(),
                       });
                     }
                   }
@@ -3307,14 +4318,19 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
             </div>
 
             <div>
-              <label htmlFor="promoEndTime" className="block text-sm font-medium text-dark-300 mb-2">
+              <label
+                htmlFor="promoEndTime"
+                className="block text-sm font-medium text-dark-300 mb-2"
+              >
                 Hora de Término (día siguiente)
               </label>
               <input
                 id="promoEndTime"
                 type="time"
                 value={formData.horaTermino}
-                onChange={(e) => setFormData({ ...formData, horaTermino: e.target.value })}
+                onChange={e =>
+                  setFormData({ ...formData, horaTermino: e.target.value })
+                }
                 className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded text-white"
                 required
               />
@@ -3322,7 +4338,8 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
           </div>
 
           <p className="text-xs text-dark-400">
-            Horario de trabajo: 6pm a 3am. La promoción se actualiza automáticamente al día siguiente a las 4am.
+            Horario de trabajo: 6pm a 3am. La promoción se actualiza
+            automáticamente al día siguiente a las 4am.
           </p>
 
           <div className="flex space-x-2">
@@ -3349,16 +4366,18 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
       <div className="bg-dark-800 rounded-lg p-4 mt-4">
         <h6 className="text-white font-medium mb-3">Resumen de la Semana</h6>
         <div className="grid grid-cols-7 gap-2">
-          {diasSemana.map((dia) => {
+          {diasSemana.map(dia => {
             const promo = promociones.find((p: any) => p.dia === dia.value);
             return (
               <div key={dia.value} className="text-center">
                 <div className="text-xs text-dark-400 mb-1">{dia.label}</div>
-                <div className={`text-xs p-2 rounded ${
-                  promo 
-                    ? 'bg-success-600 text-white' 
-                    : 'bg-dark-700 text-dark-400'
-                }`}>
+                <div
+                  className={`text-xs p-2 rounded ${
+                    promo
+                      ? 'bg-success-600 text-white'
+                      : 'bg-dark-700 text-dark-400'
+                  }`}
+                >
                   {promo ? `${promo.descuento}%` : 'Sin promo'}
                 </div>
               </div>
@@ -3370,7 +4389,13 @@ function PromocionesManager({ promociones, onAdd, onUpdate, onDelete, onToggle }
   );
 }
 
-function RecompensasManager({ recompensas, onAdd, onUpdate, onDelete, onToggle }: Readonly<{
+function RecompensasManager({
+  recompensas,
+  onAdd,
+  onUpdate,
+  onDelete,
+  onToggle,
+}: Readonly<{
   recompensas: any[];
   onAdd: (recompensa: any) => void;
   onUpdate: (id: string, recompensa: any) => void;
@@ -3379,35 +4404,45 @@ function RecompensasManager({ recompensas, onAdd, onUpdate, onDelete, onToggle }
 }>) {
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
-  const [formData, setFormData] = useState({ nombre: '', descripcion: '', puntosRequeridos: '', stock: '' });
+  const [formData, setFormData] = useState({
+    nombre: '',
+    descripcion: '',
+    puntosRequeridos: '',
+    stock: '',
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const data = {
       ...formData,
       puntosRequeridos: parseInt(formData.puntosRequeridos),
-      stock: formData.stock ? parseInt(formData.stock) : null
+      stock: formData.stock ? parseInt(formData.stock) : null,
     };
-    
+
     if (editingItem) {
       onUpdate(editingItem.id, data);
       setEditingItem(null);
     } else {
       onAdd(data);
     }
-    
-    setFormData({ nombre: '', descripcion: '', puntosRequeridos: '', stock: '' });
+
+    setFormData({
+      nombre: '',
+      descripcion: '',
+      puntosRequeridos: '',
+      stock: '',
+    });
     setShowForm(false);
   };
 
   const startEdit = (item: any) => {
     setEditingItem(item);
-    setFormData({ 
-      nombre: item.nombre, 
-      descripcion: item.descripcion, 
+    setFormData({
+      nombre: item.nombre,
+      descripcion: item.descripcion,
       puntosRequeridos: item.puntosRequeridos?.toString() || '',
-      stock: item.stock?.toString() || ''
+      stock: item.stock?.toString() || '',
     });
     setShowForm(true);
   };
@@ -3415,9 +4450,12 @@ function RecompensasManager({ recompensas, onAdd, onUpdate, onDelete, onToggle }
   return (
     <div>
       <div className="mb-4">
-        <h4 className="text-lg font-semibold text-white mb-3">Sistema de Recompensas</h4>
+        <h4 className="text-lg font-semibold text-white mb-3">
+          Sistema de Recompensas
+        </h4>
         <p className="text-dark-400 text-sm mb-4">
-          Crea recompensas que los clientes pueden canjear usando sus puntos de lealtad acumulados.
+          Crea recompensas que los clientes pueden canjear usando sus puntos de
+          lealtad acumulados.
         </p>
       </div>
 
@@ -3438,7 +4476,10 @@ function RecompensasManager({ recompensas, onAdd, onUpdate, onDelete, onToggle }
           </h5>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="rewardName" className="block text-sm font-medium text-dark-300 mb-2">
+              <label
+                htmlFor="rewardName"
+                className="block text-sm font-medium text-dark-300 mb-2"
+              >
                 Nombre de la Recompensa
               </label>
               <input
@@ -3446,21 +4487,28 @@ function RecompensasManager({ recompensas, onAdd, onUpdate, onDelete, onToggle }
                 type="text"
                 placeholder="Ej: Bebida Gratis"
                 value={formData.nombre}
-                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                onChange={e =>
+                  setFormData({ ...formData, nombre: e.target.value })
+                }
                 className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded text-white placeholder-dark-400"
                 required
               />
             </div>
 
             <div>
-              <label htmlFor="rewardDescription" className="block text-sm font-medium text-dark-300 mb-2">
+              <label
+                htmlFor="rewardDescription"
+                className="block text-sm font-medium text-dark-300 mb-2"
+              >
                 Descripción
               </label>
               <textarea
                 id="rewardDescription"
                 placeholder="Describe los detalles de la recompensa..."
                 value={formData.descripcion}
-                onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                onChange={e =>
+                  setFormData({ ...formData, descripcion: e.target.value })
+                }
                 className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded text-white placeholder-dark-400"
                 rows={3}
                 required
@@ -3469,7 +4517,10 @@ function RecompensasManager({ recompensas, onAdd, onUpdate, onDelete, onToggle }
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="rewardPoints" className="block text-sm font-medium text-dark-300 mb-2">
+                <label
+                  htmlFor="rewardPoints"
+                  className="block text-sm font-medium text-dark-300 mb-2"
+                >
                   Puntos Requeridos
                 </label>
                 <input
@@ -3479,9 +4530,12 @@ function RecompensasManager({ recompensas, onAdd, onUpdate, onDelete, onToggle }
                   pattern="[0-9]*"
                   placeholder="100"
                   value={formData.puntosRequeridos}
-                  onChange={(e) => {
+                  onChange={e => {
                     if (/^\d*$/.test(e.target.value) || e.target.value === '') {
-                      setFormData({ ...formData, puntosRequeridos: e.target.value });
+                      setFormData({
+                        ...formData,
+                        puntosRequeridos: e.target.value,
+                      });
                     }
                   }}
                   className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded text-white placeholder-dark-400"
@@ -3490,7 +4544,10 @@ function RecompensasManager({ recompensas, onAdd, onUpdate, onDelete, onToggle }
               </div>
 
               <div>
-                <label htmlFor="rewardStock" className="block text-sm font-medium text-dark-300 mb-2">
+                <label
+                  htmlFor="rewardStock"
+                  className="block text-sm font-medium text-dark-300 mb-2"
+                >
                   Stock Disponible (Opcional)
                 </label>
                 <input
@@ -3498,7 +4555,9 @@ function RecompensasManager({ recompensas, onAdd, onUpdate, onDelete, onToggle }
                   type="number"
                   placeholder="Dejar vacío para ilimitado"
                   value={formData.stock}
-                  onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                  onChange={e =>
+                    setFormData({ ...formData, stock: e.target.value })
+                  }
                   className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded text-white placeholder-dark-400"
                 />
               </div>
@@ -3516,7 +4575,12 @@ function RecompensasManager({ recompensas, onAdd, onUpdate, onDelete, onToggle }
                 onClick={() => {
                   setShowForm(false);
                   setEditingItem(null);
-                  setFormData({ nombre: '', descripcion: '', puntosRequeridos: '', stock: '' });
+                  setFormData({
+                    nombre: '',
+                    descripcion: '',
+                    puntosRequeridos: '',
+                    stock: '',
+                  });
                 }}
                 className="px-4 py-2 bg-dark-600 hover:bg-dark-500 text-white rounded transition-colors"
               >
@@ -3532,7 +4596,9 @@ function RecompensasManager({ recompensas, onAdd, onUpdate, onDelete, onToggle }
           <div className="text-center py-8 bg-dark-800 rounded-lg border-2 border-dashed border-dark-600">
             <Gift className="w-8 h-8 mx-auto mb-3 text-dark-500" />
             <p className="text-dark-400">No hay recompensas creadas</p>
-            <p className="text-dark-500 text-sm">Agrega recompensas para incentivar la lealtad de tus clientes</p>
+            <p className="text-dark-500 text-sm">
+              Agrega recompensas para incentivar la lealtad de tus clientes
+            </p>
           </div>
         ) : (
           recompensas.map((recompensa: any) => (
@@ -3540,24 +4606,30 @@ function RecompensasManager({ recompensas, onAdd, onUpdate, onDelete, onToggle }
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center space-x-3 mb-2">
-                    <h5 className="text-white font-medium">{recompensa.nombre}</h5>
+                    <h5 className="text-white font-medium">
+                      {recompensa.nombre}
+                    </h5>
                     <span className="px-2 py-1 bg-primary-600 text-white rounded text-xs font-medium">
                       {recompensa.puntosRequeridos} pts
                     </span>
                     <button
                       onClick={() => onToggle(recompensa.id)}
                       className={`px-2 py-1 rounded text-xs font-medium ${
-                        recompensa.activo 
-                          ? 'bg-success-600 text-white' 
+                        recompensa.activo
+                          ? 'bg-success-600 text-white'
                           : 'bg-dark-600 text-dark-300'
                       }`}
                     >
                       {recompensa.activo ? 'Activa' : 'Inactiva'}
                     </button>
                   </div>
-                  <p className="text-dark-300 text-sm mb-1">{recompensa.descripcion}</p>
+                  <p className="text-dark-300 text-sm mb-1">
+                    {recompensa.descripcion}
+                  </p>
                   {recompensa.stock && (
-                    <p className="text-dark-400 text-xs">📦 Stock: {recompensa.stock}</p>
+                    <p className="text-dark-400 text-xs">
+                      📦 Stock: {recompensa.stock}
+                    </p>
                   )}
                 </div>
                 <div className="flex space-x-2">
@@ -3588,10 +4660,12 @@ function AnalyticsContent() {
   return (
     <div className="space-y-6">
       <h3 className="text-xl font-semibold text-white">Analytics y Reportes</h3>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="premium-card">
-          <h4 className="text-lg font-semibold text-white mb-4">Productos Más Vendidos</h4>
+          <h4 className="text-lg font-semibold text-white mb-4">
+            Productos Más Vendidos
+          </h4>
           <div className="space-y-4">
             <div className="text-center text-dark-400 py-8">
               <BarChart3 className="w-8 h-8 mx-auto mb-3 text-dark-500" />
@@ -3601,7 +4675,9 @@ function AnalyticsContent() {
         </div>
 
         <div className="premium-card">
-          <h4 className="text-lg font-semibold text-white mb-4">Ingresos Mensuales</h4>
+          <h4 className="text-lg font-semibold text-white mb-4">
+            Ingresos Mensuales
+          </h4>
           <div className="text-center text-dark-400 py-8">
             <TrendingUp className="w-8 h-8 mx-auto mb-3 text-dark-500" />
             <p>Reportes disponibles próximamente</p>
@@ -3609,7 +4685,9 @@ function AnalyticsContent() {
         </div>
 
         <div className="premium-card">
-          <h4 className="text-lg font-semibold text-white mb-4">Clientes Activos</h4>
+          <h4 className="text-lg font-semibold text-white mb-4">
+            Clientes Activos
+          </h4>
           <div className="text-center text-dark-400 py-8">
             <Users className="w-8 h-8 mx-auto mb-3 text-dark-500" />
             <p>Métricas disponibles próximamente</p>
@@ -3624,11 +4702,15 @@ function AnalyticsContent() {
 function ConfiguracionContent() {
   return (
     <div className="space-y-6">
-      <h3 className="text-xl font-semibold text-white">Configuración del Sistema</h3>
-      
+      <h3 className="text-xl font-semibold text-white">
+        Configuración del Sistema
+      </h3>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="premium-card">
-          <h4 className="text-lg font-semibold text-white mb-4">Configuración General</h4>
+          <h4 className="text-lg font-semibold text-white mb-4">
+            Configuración General
+          </h4>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-white">Nombre del Negocio</span>
@@ -3650,7 +4732,9 @@ function ConfiguracionContent() {
         </div>
 
         <div className="premium-card">
-          <h4 className="text-lg font-semibold text-white mb-4">Configuración del Portal</h4>
+          <h4 className="text-lg font-semibold text-white mb-4">
+            Configuración del Portal
+          </h4>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-white">Registro automático</span>
@@ -3671,7 +4755,13 @@ function ConfiguracionContent() {
   );
 }
 
-function StatsCard({ title, value, icon, gradient, change }: Readonly<{
+function StatsCard({
+  title,
+  value,
+  icon,
+  gradient,
+  change,
+}: Readonly<{
   title: string;
   value: string;
   icon: React.ReactNode;
@@ -3681,12 +4771,16 @@ function StatsCard({ title, value, icon, gradient, change }: Readonly<{
   return (
     <div className="premium-card">
       <div className="flex items-center justify-between mb-4">
-        <div className={`w-12 h-12 bg-gradient-to-r ${gradient} rounded-lg flex items-center justify-center text-white`}>
+        <div
+          className={`w-12 h-12 bg-gradient-to-r ${gradient} rounded-lg flex items-center justify-center text-white`}
+        >
           {icon}
         </div>
-        <span className={`text-sm font-medium ${
-          change.startsWith('+') ? 'text-success-400' : 'text-warning-400'
-        }`}>
+        <span
+          className={`text-sm font-medium ${
+            change.startsWith('+') ? 'text-success-400' : 'text-warning-400'
+          }`}
+        >
           {change}
         </span>
       </div>
@@ -3699,16 +4793,18 @@ function StatsCard({ title, value, icon, gradient, change }: Readonly<{
 }
 
 // Componente para vista previa de tarjetas
-function TarjetaPreviewComponent({ config }: Readonly<{
+function TarjetaPreviewComponent({
+  config,
+}: Readonly<{
   config: any;
 }>) {
   // Helper function para obtener colores del nivel
   const getLevelColors = (level: string) => {
     const colorMap: { [key: string]: string } = {
-      'Bronce': '#8B4513',
-      'Plata': '#808080',
-      'Oro': '#B8860B',
-      'Diamante': '#4169E1'
+      Bronce: '#8B4513',
+      Plata: '#808080',
+      Oro: '#B8860B',
+      Diamante: '#4169E1',
     };
     return colorMap[level] || '#71797E';
   };
@@ -3716,31 +4812,49 @@ function TarjetaPreviewComponent({ config }: Readonly<{
   // Helper function para obtener el gradiente del nivel
   const getLevelGradient = (level: string) => {
     const gradientMap: { [key: string]: string } = {
-      'Bronce': 'linear-gradient(45deg, #DAA520, #B8860B)',
-      'Plata': 'linear-gradient(45deg, #E5E5E5, #C0C0C0)',
-      'Oro': 'linear-gradient(45deg, #FFD700, #FFA500)',
-      'Diamante': 'linear-gradient(45deg, #E0F6FF, #87CEEB)'
+      Bronce: 'linear-gradient(45deg, #DAA520, #B8860B)',
+      Plata: 'linear-gradient(45deg, #E5E5E5, #C0C0C0)',
+      Oro: 'linear-gradient(45deg, #FFD700, #FFA500)',
+      Diamante: 'linear-gradient(45deg, #E0F6FF, #87CEEB)',
     };
     return gradientMap[level] || 'linear-gradient(45deg, #F5F5F5, #D3D3D3)';
   };
 
   const nivelesConfig = {
-    'Bronce': { colores: { gradiente: ['#CD7F32', '#8B4513'] }, textoDefault: 'Cliente Inicial' },
-    'Plata': { colores: { gradiente: ['#C0C0C0', '#808080'] }, textoDefault: 'Cliente Frecuente' },
-    'Oro': { colores: { gradiente: ['#FFD700', '#FFA500'] }, textoDefault: 'Cliente VIP' },
-    'Diamante': { colores: { gradiente: ['#B9F2FF', '#00CED1'] }, textoDefault: 'Cliente Elite' },
-    'Platino': { colores: { gradiente: ['#E5E4E2', '#C0C0C0'] }, textoDefault: 'Cliente Exclusivo' }
+    Bronce: {
+      colores: { gradiente: ['#CD7F32', '#8B4513'] },
+      textoDefault: 'Cliente Inicial',
+    },
+    Plata: {
+      colores: { gradiente: ['#C0C0C0', '#808080'] },
+      textoDefault: 'Cliente Frecuente',
+    },
+    Oro: {
+      colores: { gradiente: ['#FFD700', '#FFA500'] },
+      textoDefault: 'Cliente VIP',
+    },
+    Diamante: {
+      colores: { gradiente: ['#B9F2FF', '#00CED1'] },
+      textoDefault: 'Cliente Elite',
+    },
+    Platino: {
+      colores: { gradiente: ['#E5E4E2', '#C0C0C0'] },
+      textoDefault: 'Cliente Exclusivo',
+    },
   };
 
   const [selectedLevel, setSelectedLevel] = useState('Oro');
-  const tarjeta = (config.tarjetas || []).find((t: any) => t.nivel === selectedLevel) || {
+  const tarjeta = (config.tarjetas || []).find(
+    (t: any) => t.nivel === selectedLevel
+  ) || {
     nivel: selectedLevel,
     nombrePersonalizado: `Tarjeta ${selectedLevel}`,
-    textoCalidad: nivelesConfig[selectedLevel as keyof typeof nivelesConfig].textoDefault,
+    textoCalidad:
+      nivelesConfig[selectedLevel as keyof typeof nivelesConfig].textoDefault,
     colores: nivelesConfig[selectedLevel as keyof typeof nivelesConfig].colores,
     diseño: { patron: 'clasico', textura: 'mate', bordes: 'redondeados' },
     condiciones: { puntosMinimos: 0, gastosMinimos: 0, visitasMinimas: 0 },
-    beneficios: 'Acceso a descuentos especiales'
+    beneficios: 'Acceso a descuentos especiales',
   };
 
   // Nombre de empresa editable
@@ -3755,8 +4869,8 @@ function TarjetaPreviewComponent({ config }: Readonly<{
             key={nivel}
             onClick={() => setSelectedLevel(nivel)}
             className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-              selectedLevel === nivel 
-                ? 'bg-primary-600 text-white' 
+              selectedLevel === nivel
+                ? 'bg-primary-600 text-white'
                 : 'bg-dark-700 text-dark-300 hover:text-white'
             }`}
           >
@@ -3770,60 +4884,101 @@ function TarjetaPreviewComponent({ config }: Readonly<{
       {/* Vista previa de la tarjeta */}
       <div className="flex justify-center">
         <div className="relative w-80 h-48">
-          <div 
+          <div
             className="absolute inset-0 rounded-xl shadow-2xl transform transition-all duration-300 border-2"
             style={{
-              background: `linear-gradient(135deg, ${tarjeta.colores.gradiente[0]}, ${tarjeta.colores.gradiente[1]})`,
+              background: tarjeta.colores?.gradiente && tarjeta.colores.gradiente.length >= 2
+                ? `linear-gradient(135deg, ${tarjeta.colores.gradiente[0]}, ${tarjeta.colores.gradiente[1]})`
+                : `linear-gradient(135deg, ${nivelesConfig[selectedLevel as keyof typeof nivelesConfig].colores.gradiente[0]}, ${nivelesConfig[selectedLevel as keyof typeof nivelesConfig].colores.gradiente[1]})`,
               boxShadow: '0 10px 25px rgba(0,0,0,0.4)',
-              borderColor: getLevelColors(selectedLevel)
+              borderColor: getLevelColors(selectedLevel),
             }}
           >
             {/* Overlay para contraste */}
             <div className="absolute inset-0 rounded-xl bg-black opacity-15" />
-            
+
             {/* Detalles únicos por nivel */}
             {selectedLevel === 'Bronce' && (
               <>
                 <div className="absolute inset-0 rounded-xl opacity-20 bg-gradient-to-br from-amber-200 via-transparent to-amber-800" />
                 {/* Partículas de bronce flotantes */}
-                <div className="absolute top-6 right-8 w-3 h-3 bg-amber-600 rounded-full opacity-40 animate-bounce" style={{ animationDelay: '0s' }} />
-                <div className="absolute top-12 right-12 w-2 h-2 bg-amber-500 rounded-full opacity-50 animate-bounce" style={{ animationDelay: '0.5s' }} />
-                <div className="absolute bottom-8 left-8 w-2.5 h-2.5 bg-amber-700 rounded-full opacity-45 animate-bounce" style={{ animationDelay: '1s' }} />
-                <div className="absolute bottom-12 right-6 w-1.5 h-1.5 bg-amber-400 rounded-full opacity-35 animate-bounce" style={{ animationDelay: '1.5s' }} />
+                <div
+                  className="absolute top-6 right-8 w-3 h-3 bg-amber-600 rounded-full opacity-40 animate-bounce"
+                  style={{ animationDelay: '0s' }}
+                />
+                <div
+                  className="absolute top-12 right-12 w-2 h-2 bg-amber-500 rounded-full opacity-50 animate-bounce"
+                  style={{ animationDelay: '0.5s' }}
+                />
+                <div
+                  className="absolute bottom-8 left-8 w-2.5 h-2.5 bg-amber-700 rounded-full opacity-45 animate-bounce"
+                  style={{ animationDelay: '1s' }}
+                />
+                <div
+                  className="absolute bottom-12 right-6 w-1.5 h-1.5 bg-amber-400 rounded-full opacity-35 animate-bounce"
+                  style={{ animationDelay: '1.5s' }}
+                />
                 {/* Líneas decorativas */}
                 <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-30 animate-pulse" />
               </>
             )}
-            
+
             {selectedLevel === 'Plata' && (
               <>
                 <div className="absolute inset-0 rounded-xl opacity-15 bg-gradient-to-r from-gray-200 via-white to-gray-200" />
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white to-transparent opacity-30" />
                 {/* Efectos metálicos ondulantes */}
-                <div className="absolute top-4 left-4 w-20 h-0.5 bg-gradient-to-r from-transparent via-gray-300 to-transparent opacity-50 animate-pulse" style={{ animationDelay: '0s' }} />
-                <div className="absolute top-8 left-8 w-16 h-0.5 bg-gradient-to-r from-transparent via-gray-400 to-transparent opacity-40 animate-pulse" style={{ animationDelay: '0.7s' }} />
-                <div className="absolute top-12 left-12 w-12 h-0.5 bg-gradient-to-r from-transparent via-gray-200 to-transparent opacity-60 animate-pulse" style={{ animationDelay: '1.4s' }} />
+                <div
+                  className="absolute top-4 left-4 w-20 h-0.5 bg-gradient-to-r from-transparent via-gray-300 to-transparent opacity-50 animate-pulse"
+                  style={{ animationDelay: '0s' }}
+                />
+                <div
+                  className="absolute top-8 left-8 w-16 h-0.5 bg-gradient-to-r from-transparent via-gray-400 to-transparent opacity-40 animate-pulse"
+                  style={{ animationDelay: '0.7s' }}
+                />
+                <div
+                  className="absolute top-12 left-12 w-12 h-0.5 bg-gradient-to-r from-transparent via-gray-200 to-transparent opacity-60 animate-pulse"
+                  style={{ animationDelay: '1.4s' }}
+                />
                 {/* Reflejos metálicos */}
-                <div className="absolute top-6 right-6 w-24 h-24 bg-gradient-to-br from-white via-transparent to-gray-300 rounded-full opacity-10 animate-spin" style={{ animationDuration: '8s' }} />
+                <div
+                  className="absolute top-6 right-6 w-24 h-24 bg-gradient-to-br from-white via-transparent to-gray-300 rounded-full opacity-10 animate-spin"
+                  style={{ animationDuration: '8s' }}
+                />
               </>
             )}
-            
+
             {selectedLevel === 'Oro' && (
               <>
                 <div className="absolute inset-0 rounded-xl opacity-20 bg-gradient-to-br from-yellow-200 via-transparent to-yellow-600" />
                 <div className="absolute top-4 right-4 w-16 h-16 bg-gradient-to-br from-yellow-300 to-yellow-600 rounded-full opacity-10" />
                 <div className="absolute bottom-4 left-4 w-8 h-8 bg-gradient-to-br from-yellow-300 to-yellow-600 rounded-full opacity-15" />
                 {/* Partículas doradas brillantes */}
-                <div className="absolute top-8 right-16 w-2 h-2 bg-yellow-300 rounded-full opacity-70 animate-ping" style={{ animationDelay: '0s' }} />
-                <div className="absolute top-16 right-20 w-1.5 h-1.5 bg-yellow-400 rounded-full opacity-60 animate-ping" style={{ animationDelay: '0.8s' }} />
-                <div className="absolute bottom-16 left-16 w-2.5 h-2.5 bg-yellow-200 rounded-full opacity-50 animate-ping" style={{ animationDelay: '1.6s' }} />
-                <div className="absolute bottom-20 left-20 w-1 h-1 bg-yellow-500 rounded-full opacity-80 animate-ping" style={{ animationDelay: '2.4s' }} />
+                <div
+                  className="absolute top-8 right-16 w-2 h-2 bg-yellow-300 rounded-full opacity-70 animate-ping"
+                  style={{ animationDelay: '0s' }}
+                />
+                <div
+                  className="absolute top-16 right-20 w-1.5 h-1.5 bg-yellow-400 rounded-full opacity-60 animate-ping"
+                  style={{ animationDelay: '0.8s' }}
+                />
+                <div
+                  className="absolute bottom-16 left-16 w-2.5 h-2.5 bg-yellow-200 rounded-full opacity-50 animate-ping"
+                  style={{ animationDelay: '1.6s' }}
+                />
+                <div
+                  className="absolute bottom-20 left-20 w-1 h-1 bg-yellow-500 rounded-full opacity-80 animate-ping"
+                  style={{ animationDelay: '2.4s' }}
+                />
                 {/* Rayos dorados */}
                 <div className="absolute top-1/2 left-1/2 w-32 h-0.5 bg-gradient-to-r from-transparent via-yellow-300 to-transparent opacity-20 rotate-45 animate-pulse" />
-                <div className="absolute top-1/2 left-1/2 w-24 h-0.5 bg-gradient-to-r from-transparent via-yellow-400 to-transparent opacity-30 -rotate-45 animate-pulse" style={{ animationDelay: '1s' }} />
+                <div
+                  className="absolute top-1/2 left-1/2 w-24 h-0.5 bg-gradient-to-r from-transparent via-yellow-400 to-transparent opacity-30 -rotate-45 animate-pulse"
+                  style={{ animationDelay: '1s' }}
+                />
               </>
             )}
-            
+
             {selectedLevel === 'Diamante' && (
               <>
                 <div className="absolute inset-0 rounded-xl opacity-20 bg-gradient-to-br from-blue-200 via-transparent to-cyan-400" />
@@ -3835,34 +4990,63 @@ function TarjetaPreviewComponent({ config }: Readonly<{
                 <div className="absolute top-6 left-8 w-1.5 h-1.5 bg-blue-200 rounded-full opacity-55 animate-pulse delay-500" />
                 <div className="absolute bottom-8 right-12 w-2 h-2 bg-cyan-300 rounded-full opacity-45 animate-pulse delay-1200" />
                 {/* Facetas de diamante */}
-                <div className="absolute top-4 left-4 w-16 h-16 border border-cyan-200 opacity-20 rotate-45 animate-spin" style={{ animationDuration: '12s' }} />
-                <div className="absolute bottom-4 right-4 w-12 h-12 border border-blue-200 opacity-15 -rotate-12 animate-spin" style={{ animationDuration: '15s' }} />
+                <div
+                  className="absolute top-4 left-4 w-16 h-16 border border-cyan-200 opacity-20 rotate-45 animate-spin"
+                  style={{ animationDuration: '12s' }}
+                />
+                <div
+                  className="absolute bottom-4 right-4 w-12 h-12 border border-blue-200 opacity-15 -rotate-12 animate-spin"
+                  style={{ animationDuration: '15s' }}
+                />
               </>
             )}
-            
+
             {selectedLevel === 'Platino' && (
               <>
                 <div className="absolute inset-0 rounded-xl opacity-25 bg-gradient-to-br from-gray-100 via-white to-gray-300" />
                 <div className="absolute top-0 left-0 w-full h-full border-2 border-white rounded-xl opacity-10" />
                 <div className="absolute top-2 left-2 w-20 h-20 bg-gradient-to-br from-white to-gray-200 rounded-full opacity-5" />
                 {/* Efectos de lujo platino */}
-                <div className="absolute top-6 right-10 w-3 h-3 bg-gradient-to-br from-white to-gray-300 rounded-full opacity-60 animate-pulse" style={{ animationDelay: '0s' }} />
-                <div className="absolute top-12 right-6 w-2 h-2 bg-gradient-to-br from-gray-100 to-gray-400 rounded-full opacity-50 animate-pulse" style={{ animationDelay: '1s' }} />
-                <div className="absolute bottom-10 left-10 w-2.5 h-2.5 bg-gradient-to-br from-white to-gray-200 rounded-full opacity-70 animate-pulse" style={{ animationDelay: '2s' }} />
-                <div className="absolute bottom-6 left-16 w-1.5 h-1.5 bg-white rounded-full opacity-80 animate-pulse" style={{ animationDelay: '0.5s' }} />
+                <div
+                  className="absolute top-6 right-10 w-3 h-3 bg-gradient-to-br from-white to-gray-300 rounded-full opacity-60 animate-pulse"
+                  style={{ animationDelay: '0s' }}
+                />
+                <div
+                  className="absolute top-12 right-6 w-2 h-2 bg-gradient-to-br from-gray-100 to-gray-400 rounded-full opacity-50 animate-pulse"
+                  style={{ animationDelay: '1s' }}
+                />
+                <div
+                  className="absolute bottom-10 left-10 w-2.5 h-2.5 bg-gradient-to-br from-white to-gray-200 rounded-full opacity-70 animate-pulse"
+                  style={{ animationDelay: '2s' }}
+                />
+                <div
+                  className="absolute bottom-6 left-16 w-1.5 h-1.5 bg-white rounded-full opacity-80 animate-pulse"
+                  style={{ animationDelay: '0.5s' }}
+                />
                 {/* Líneas de elegancia */}
-                <div className="absolute top-8 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-gray-300 to-transparent opacity-25 animate-pulse" style={{ animationDelay: '1.5s' }} />
-                <div className="absolute bottom-8 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-pulse" style={{ animationDelay: '2.5s' }} />
+                <div
+                  className="absolute top-8 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-gray-300 to-transparent opacity-25 animate-pulse"
+                  style={{ animationDelay: '1.5s' }}
+                />
+                <div
+                  className="absolute bottom-8 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-pulse"
+                  style={{ animationDelay: '2.5s' }}
+                />
                 {/* Corona de lujo */}
-                <div className="absolute top-1/2 left-1/2 w-40 h-40 border border-gray-200 rounded-full opacity-5 animate-spin" style={{ animationDuration: '20s' }} />
+                <div
+                  className="absolute top-1/2 left-1/2 w-40 h-40 border border-gray-200 rounded-full opacity-5 animate-spin"
+                  style={{ animationDuration: '20s' }}
+                />
               </>
             )}
-            
+
             <div className="relative p-6 h-full flex flex-col justify-between text-white">
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="text-xl font-bold drop-shadow-lg text-white"
-                      style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}>
+                  <h3
+                    className="text-xl font-bold drop-shadow-lg text-white"
+                    style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}
+                  >
                     {tarjeta.nombrePersonalizado}
                   </h3>
                 </div>
@@ -3870,31 +5054,39 @@ function TarjetaPreviewComponent({ config }: Readonly<{
 
               {/* Chip con mejor contraste */}
               <div className="absolute top-16 left-6">
-                <div 
+                <div
                   className="w-8 h-6 rounded-sm border"
                   style={{
                     background: getLevelGradient(selectedLevel),
                     borderColor: 'rgba(255,255,255,0.3)',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
                   }}
                 />
               </div>
 
               <div className="text-center">
-                <div className="text-lg font-bold tracking-widest mb-2 text-white"
-                     style={{ textShadow: '2px 2px 6px rgba(0,0,0,0.9)' }}>
+                <div
+                  className="text-lg font-bold tracking-widest mb-2 text-white"
+                  style={{ textShadow: '2px 2px 6px rgba(0,0,0,0.9)' }}
+                >
                   {tarjeta.nivel.toUpperCase()}
                 </div>
-                <p className="text-sm font-medium text-white"
-                   style={{ textShadow: '1px 1px 3px rgba(0,0,0,0.8)' }}>
+                <p
+                  className="text-sm font-medium text-white"
+                  style={{ textShadow: '1px 1px 3px rgba(0,0,0,0.8)' }}
+                >
                   {tarjeta.textoCalidad}
                 </p>
               </div>
 
-              <div className="flex justify-between items-end text-xs font-semibold text-white"
-                   style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.8)' }}>
+              <div
+                className="flex justify-between items-end text-xs font-semibold text-white"
+                style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.8)' }}
+              >
                 <span>{nombreEmpresa}</span>
-                <span>NIVEL {Object.keys(nivelesConfig).indexOf(tarjeta.nivel) + 1}</span>
+                <span>
+                  NIVEL {Object.keys(nivelesConfig).indexOf(tarjeta.nivel) + 1}
+                </span>
               </div>
             </div>
           </div>
@@ -3905,71 +5097,311 @@ function TarjetaPreviewComponent({ config }: Readonly<{
 }
 
 // Componente para edición de tarjetas
-function TarjetaEditorComponent({ config, setConfig, showNotification }: Readonly<{
+function TarjetaEditorComponent({
+  config,
+  setConfig,
+  showNotification,
+}: Readonly<{
   config: any;
   setConfig: (config: any) => void;
   showNotification: (message: string, type: NivelTarjeta) => void;
 }>) {
   const nivelesConfig = {
-    'Bronce': { textoDefault: 'Cliente Inicial', condicionesDefault: { puntosMinimos: 0, gastosMinimos: 0, visitasMinimas: 0 }, beneficioDefault: 'Acumulación de puntos básica' },
-    'Plata': { textoDefault: 'Cliente Frecuente', condicionesDefault: { puntosMinimos: 100, gastosMinimos: 500, visitasMinimas: 5 }, beneficioDefault: '5% descuento en compras' },
-    'Oro': { textoDefault: 'Cliente VIP', condicionesDefault: { puntosMinimos: 500, gastosMinimos: 1500, visitasMinimas: 10 }, beneficioDefault: '10% descuento + producto gratis mensual' },
-    'Diamante': { textoDefault: 'Cliente Elite', condicionesDefault: { puntosMinimos: 1500, gastosMinimos: 3000, visitasMinimas: 20 }, beneficioDefault: '15% descuento + acceso a eventos exclusivos' },
-    'Platino': { textoDefault: 'Cliente Exclusivo', condicionesDefault: { puntosMinimos: 3000, gastosMinimos: 5000, visitasMinimas: 30 }, beneficioDefault: '20% descuento + servicio VIP personalizado' }
+    Bronce: {
+      colores: { gradiente: ['#CD7F32', '#8B4513'] },
+      textoDefault: 'Cliente Inicial',
+      condicionesDefault: {
+        puntosMinimos: 0,
+        gastosMinimos: 0,
+        visitasMinimas: 0,
+      },
+      beneficioDefault: 'Acumulación de puntos básica',
+    },
+    Plata: {
+      colores: { gradiente: ['#C0C0C0', '#A8A8A8'] },
+      textoDefault: 'Cliente Frecuente',
+      condicionesDefault: {
+        puntosMinimos: 100,
+        gastosMinimos: 500,
+        visitasMinimas: 5,
+      },
+      beneficioDefault: '5% descuento en compras',
+    },
+    Oro: {
+      colores: { gradiente: ['#FFD700', '#FFA500'] },
+      textoDefault: 'Cliente VIP',
+      condicionesDefault: {
+        puntosMinimos: 500,
+        gastosMinimos: 1500,
+        visitasMinimas: 10,
+      },
+      beneficioDefault: '10% descuento + producto gratis mensual',
+    },
+    Diamante: {
+      colores: { gradiente: ['#B9F2FF', '#00BFFF'] },
+      textoDefault: 'Cliente Elite',
+      condicionesDefault: {
+        puntosMinimos: 1500,
+        gastosMinimos: 3000,
+        visitasMinimas: 20,
+      },
+      beneficioDefault: '15% descuento + acceso a eventos exclusivos',
+    },
+    Platino: {
+      colores: { gradiente: ['#E5E4E2', '#C0C0C0'] },
+      textoDefault: 'Cliente Exclusivo',
+      condicionesDefault: {
+        puntosMinimos: 3000,
+        gastosMinimos: 5000,
+        visitasMinimas: 30,
+      },
+      beneficioDefault: '20% descuento + servicio VIP personalizado',
+    },
   };
 
   const [selectedLevel, setSelectedLevel] = useState('Oro');
   const [editingCard, setEditingCard] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const [savingEmpresa, setSavingEmpresa] = useState(false);
+  const [empresaChanged, setEmpresaChanged] = useState(false);
 
-  const currentTarjeta = (config.tarjetas || []).find((t: any) => t.nivel === selectedLevel) || {
+  const currentTarjeta = (config.tarjetas || []).find(
+    (t: any) => t.nivel === selectedLevel
+  ) || {
     nivel: selectedLevel,
     nombrePersonalizado: `Tarjeta ${selectedLevel}`,
-    textoCalidad: nivelesConfig[selectedLevel as keyof typeof nivelesConfig].textoDefault,
-    condiciones: nivelesConfig[selectedLevel as keyof typeof nivelesConfig].condicionesDefault,
-    beneficio: nivelesConfig[selectedLevel as keyof typeof nivelesConfig].beneficioDefault,
-    activo: true
+    textoCalidad:
+      nivelesConfig[selectedLevel as keyof typeof nivelesConfig].textoDefault,
+    colores: nivelesConfig[selectedLevel as keyof typeof nivelesConfig].colores,
+    condiciones:
+      nivelesConfig[selectedLevel as keyof typeof nivelesConfig]
+        .condicionesDefault,
+    beneficio:
+      nivelesConfig[selectedLevel as keyof typeof nivelesConfig]
+        .beneficioDefault,
+    activo: true,
   };
 
-  const handleSave = () => {
+  // Actualizar editingCard cuando cambie selectedLevel (solo si se está editando)
+  useEffect(() => {
     if (editingCard) {
-      const newTarjetas = [...(config.tarjetas || [])];
-      const existingIndex = newTarjetas.findIndex((t: any) => t.nivel === editingCard.nivel);
+      setEditingCard({ ...currentTarjeta });
+    }
+  }, [selectedLevel]);
+
+  // Definir jerarquía de niveles
+  const nivelesJerarquia = ['Bronce', 'Plata', 'Oro', 'Diamante', 'Platino'];
+
+  // Función para obtener límites máximos basados en el nivel superior
+  const getLimitesMaximos = (nivelActual: string) => {
+    const indexActual = nivelesJerarquia.indexOf(nivelActual);
+    if (indexActual >= nivelesJerarquia.length - 1) {
+      // Si es el nivel más alto, no hay límites
+      return { puntosMinimos: Infinity, gastosMinimos: Infinity, visitasMinimas: Infinity };
+    }
+
+    const nivelSuperior = nivelesJerarquia[indexActual + 1];
+    const tarjetaSuperior = (config.tarjetas || []).find((t: any) => t.nivel === nivelSuperior);
+    
+    if (tarjetaSuperior?.condiciones) {
+      return {
+        puntosMinimos: tarjetaSuperior.condiciones.puntosMinimos - 1,
+        gastosMinimos: tarjetaSuperior.condiciones.gastosMinimos - 1,
+        visitasMinimas: tarjetaSuperior.condiciones.visitasMinimas - 1,
+      };
+    }
+
+    // Si no hay tarjeta superior configurada, usar valores por defecto
+    const configSuperior = nivelesConfig[nivelSuperior as keyof typeof nivelesConfig];
+    return {
+      puntosMinimos: configSuperior.condicionesDefault.puntosMinimos - 1,
+      gastosMinimos: configSuperior.condicionesDefault.gastosMinimos - 1,
+      visitasMinimas: configSuperior.condicionesDefault.visitasMinimas - 1,
+    };
+  };
+
+  // Función para validar que el valor no exceda el límite jerárquico
+  const validarLimiteJerarquico = (valor: number, limite: number, campo: string): boolean => {
+    if (valor > limite) {
+      showNotification(`${campo} no puede ser mayor a ${limite} (límite del nivel superior)`, 'Oro' as NivelTarjeta);
+      return false;
+    }
+    return true;
+  };
+
+  const handleSave = async () => {
+    if (editingCard) {
+      setSaving(true);
       
-      if (existingIndex >= 0) {
-        newTarjetas[existingIndex] = editingCard;
-      } else {
-        newTarjetas.push(editingCard);
+      // Asegurar que los valores vacíos se conviertan a 0 antes de guardar
+      const cardToSave = {
+        ...editingCard,
+        id: editingCard.id || `tarjeta_${editingCard.nivel}_${Date.now()}`,
+        condiciones: {
+          ...editingCard.condiciones,
+          puntosMinimos: editingCard.condiciones?.puntosMinimos === '' ? 0 : editingCard.condiciones?.puntosMinimos || 0,
+          gastosMinimos: editingCard.condiciones?.gastosMinimos === '' ? 0 : editingCard.condiciones?.gastosMinimos || 0,
+          visitasMinimas: editingCard.condiciones?.visitasMinimas === '' ? 0 : editingCard.condiciones?.visitasMinimas || 0,
+        }
+      };
+
+      try {
+        // Actualizar configuración local inmediatamente para UX rápida
+        const newTarjetas = [...(config.tarjetas || [])];
+        const existingIndex = newTarjetas.findIndex(
+          (t: any) => t.nivel === cardToSave.nivel
+        );
+
+        if (existingIndex >= 0) {
+          newTarjetas[existingIndex] = cardToSave;
+        } else {
+          newTarjetas.push(cardToSave);
+        }
+
+        setConfig({ ...config, tarjetas: newTarjetas });
+
+        // Persistir cambios en la base de datos/API
+        const response = await fetch('/api/admin/portal-config', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...config,
+            tarjetas: newTarjetas,
+            businessId: 'default',
+          }),
+        });
+
+        if (response.ok) {
+          showNotification(`✅ Tarjeta ${cardToSave.nivel} guardada correctamente`, 'success');
+          setEditingCard(null);
+        } else {
+          throw new Error('Error al guardar en el servidor');
+        }
+      } catch (error) {
+        console.error('Error guardando tarjeta:', error);
+        showNotification('❌ Error al guardar los cambios de la tarjeta', 'error');
+        // Revertir cambios locales en caso de error
+        const originalTarjeta = (config.tarjetas || []).find(
+          (t: any) => t.nivel === cardToSave.nivel
+        );
+        if (originalTarjeta) {
+          setEditingCard(originalTarjeta);
+        }
+      } finally {
+        setSaving(false);
       }
-      
-      setConfig({ ...config, tarjetas: newTarjetas });
-      setEditingCard(null);
     }
   };
 
-  const handleSaveEmpresa = (nombreEmpresa: string) => {
+  const handleSaveEmpresa = async (nombreEmpresa: string) => {
+    // Solo actualizar estado local, marcar como cambiado
     setConfig({ ...config, nombreEmpresa });
+    setEmpresaChanged(true);
+  };
+
+  const handleSaveEmpresaManual = async () => {
+    try {
+      setSavingEmpresa(true);
+      
+      // Persistir en la base de datos
+      const response = await fetch('/api/admin/portal-config', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...config,
+          businessId: 'default',
+        }),
+      });
+
+      if (response.ok) {
+        // Actualizar todas las tarjetas existentes de clientes
+        const syncResponse = await fetch('/api/admin/sync-tarjetas-empresa', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            nombreEmpresa: config.nombreEmpresa,
+          }),
+        });
+
+        if (syncResponse.ok) {
+          const result = await syncResponse.json();
+          showNotification(`✅ Nombre guardado y ${result.updatedCards || 0} tarjetas de clientes actualizadas`, 'success');
+        } else {
+          showNotification('✅ Nombre guardado (sin sincronización de tarjetas existentes)', 'success');
+        }
+        
+        setEmpresaChanged(false);
+      } else {
+        throw new Error('Error al guardar en el servidor');
+      }
+    } catch (error) {
+      console.error('Error guardando nombre empresa:', error);
+      showNotification('❌ Error al guardar el nombre de la empresa', 'error');
+    } finally {
+      setSavingEmpresa(false);
+    }
   };
 
   return (
     <div>
       <div className="flex items-center mb-6">
         <CreditCard className="w-6 h-6 mr-2 text-primary-500" />
-        <h4 className="text-lg font-semibold text-white">Gestión de Tarjetas de Lealtad</h4>
+        <h4 className="text-lg font-semibold text-white">
+          Gestión de Tarjetas de Lealtad
+        </h4>
       </div>
 
       {/* Configuración del nombre de empresa */}
       <div className="bg-dark-800 rounded-lg p-4 mb-6">
-        <h5 className="text-white font-medium mb-3">Nombre de la Empresa en Tarjetas</h5>
-        <div className="flex space-x-2">
-          <input
-            type="text"
-            value={config.nombreEmpresa || ''}
-            onChange={(e) => handleSaveEmpresa(e.target.value)}
-            placeholder="Nombre de tu empresa"
-            className="flex-1 px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
-          />
+        <h5 className="text-white font-medium mb-3">
+          Nombre de la Empresa en Tarjetas
+        </h5>
+        <div className="flex space-x-2 items-center">
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={config.nombreEmpresa || ''}
+              onChange={e => handleSaveEmpresa(e.target.value)}
+              placeholder="Nombre de tu empresa"
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none pr-10"
+            />
+            {savingEmpresa && (
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+          </div>
         </div>
-        <p className="text-dark-400 text-sm mt-2">Este nombre aparecerá en la esquina inferior izquierda de todas las tarjetas</p>
+        
+        {empresaChanged && (
+          <div className="flex items-center justify-between mt-2 p-2 bg-amber-900/30 border border-amber-600/50 rounded-lg">
+            <span className="text-sm text-amber-300">⚠️ Hay cambios sin guardar</span>
+            <button
+              onClick={handleSaveEmpresaManual}
+              disabled={savingEmpresa}
+              className="px-3 py-1 bg-primary-500 text-white text-sm rounded-md hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+            >
+              {savingEmpresa ? (
+                <>
+                  <div className="animate-spin h-3 w-3 border border-white border-t-transparent rounded-full"></div>
+                  Guardando...
+                </>
+              ) : (
+                '💾 Guardar'
+              )}
+            </button>
+          </div>
+        )}
+        <p className="text-dark-400 text-sm mt-2">
+          Este nombre aparecerá en la esquina inferior izquierda de todas las
+          tarjetas. Los cambios se guardan automáticamente.
+        </p>
       </div>
 
       {/* Selector de nivel */}
@@ -3981,8 +5413,8 @@ function TarjetaEditorComponent({ config, setConfig, showNotification }: Readonl
               key={nivel}
               onClick={() => setSelectedLevel(nivel)}
               className={`p-3 rounded-lg text-center transition-colors ${
-                selectedLevel === nivel 
-                  ? 'bg-primary-600 text-white' 
+                selectedLevel === nivel
+                  ? 'bg-primary-600 text-white'
                   : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
               }`}
             >
@@ -4013,22 +5445,42 @@ function TarjetaEditorComponent({ config, setConfig, showNotification }: Readonl
             {/* Información básica */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="nombre-personalizado" className="block text-sm font-medium text-dark-300 mb-2">Nombre Personalizado</label>
+                <label
+                  htmlFor="nombre-personalizado"
+                  className="block text-sm font-medium text-dark-300 mb-2"
+                >
+                  Nombre Personalizado
+                </label>
                 <input
                   id="nombre-personalizado"
                   type="text"
                   value={editingCard.nombrePersonalizado}
-                  onChange={(e) => setEditingCard({ ...editingCard, nombrePersonalizado: e.target.value })}
+                  onChange={e =>
+                    setEditingCard({
+                      ...editingCard,
+                      nombrePersonalizado: e.target.value,
+                    })
+                  }
                   className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
                 />
               </div>
               <div>
-                <label htmlFor="texto-calidad" className="block text-sm font-medium text-dark-300 mb-2">Texto de Calidad</label>
+                <label
+                  htmlFor="texto-calidad"
+                  className="block text-sm font-medium text-dark-300 mb-2"
+                >
+                  Texto de Calidad
+                </label>
                 <input
                   id="texto-calidad"
                   type="text"
                   value={editingCard.textoCalidad}
-                  onChange={(e) => setEditingCard({ ...editingCard, textoCalidad: e.target.value })}
+                  onChange={e =>
+                    setEditingCard({
+                      ...editingCard,
+                      textoCalidad: e.target.value,
+                    })
+                  }
                   className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
                 />
               </div>
@@ -4036,22 +5488,45 @@ function TarjetaEditorComponent({ config, setConfig, showNotification }: Readonl
 
             {/* Condiciones para obtener la tarjeta */}
             <div>
-              <h6 className="text-white font-medium mb-3">Condiciones para Obtener este Nivel</h6>
+              <h6 className="text-white font-medium mb-3">
+                Condiciones para Obtener este Nivel
+              </h6>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label htmlFor="puntos-minimos" className="block text-sm text-dark-300 mb-1">Puntos mínimos</label>
+                  <label
+                    htmlFor="puntos-minimos"
+                    className="block text-sm text-dark-300 mb-1"
+                  >
+                    Puntos mínimos
+                  </label>
                   <input
                     id="puntos-minimos"
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    value={editingCard.condiciones?.puntosMinimos || 0}
-                    onChange={(e) => {
+                    value={editingCard.condiciones?.puntosMinimos ?? ''}
+                    onChange={e => {
                       // Validar que solo contenga números
-                      if (/^\d*$/.test(e.target.value) || e.target.value === '') {
-                        setEditingCard({ 
-                          ...editingCard, 
-                          condiciones: { ...editingCard.condiciones, puntosMinimos: e.target.value === '' ? 0 : Number(e.target.value) }
+                      if (
+                        /^\d*$/.test(e.target.value) ||
+                        e.target.value === ''
+                      ) {
+                        const nuevoValor = e.target.value === '' ? '' : Number(e.target.value);
+                        
+                        // Validar límites jerárquicos si no está vacío
+                        if (nuevoValor !== '' && nuevoValor > 0) {
+                          const limites = getLimitesMaximos(editingCard.nivel);
+                          if (!validarLimiteJerarquico(nuevoValor, limites.puntosMinimos, 'Puntos mínimos')) {
+                            return; // No actualizar si excede el límite
+                          }
+                        }
+
+                        setEditingCard({
+                          ...editingCard,
+                          condiciones: {
+                            ...editingCard.condiciones,
+                            puntosMinimos: nuevoValor,
+                          },
                         });
                       }
                     }}
@@ -4059,19 +5534,40 @@ function TarjetaEditorComponent({ config, setConfig, showNotification }: Readonl
                   />
                 </div>
                 <div>
-                  <label htmlFor="gastos-minimos" className="block text-sm text-dark-300 mb-1">Gastos mínimos ($)</label>
+                  <label
+                    htmlFor="gastos-minimos"
+                    className="block text-sm text-dark-300 mb-1"
+                  >
+                    Gastos mínimos ($)
+                  </label>
                   <input
                     id="gastos-minimos"
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    value={editingCard.condiciones?.gastosMinimos || 0}
-                    onChange={(e) => {
+                    value={editingCard.condiciones?.gastosMinimos ?? ''}
+                    onChange={e => {
                       // Validar que solo contenga números
-                      if (/^\d*$/.test(e.target.value) || e.target.value === '') {
-                        setEditingCard({ 
-                          ...editingCard, 
-                          condiciones: { ...editingCard.condiciones, gastosMinimos: e.target.value === '' ? 0 : Number(e.target.value) }
+                      if (
+                        /^\d*$/.test(e.target.value) ||
+                        e.target.value === ''
+                      ) {
+                        const nuevoValor = e.target.value === '' ? '' : Number(e.target.value);
+                        
+                        // Validar límites jerárquicos si no está vacío
+                        if (nuevoValor !== '' && nuevoValor > 0) {
+                          const limites = getLimitesMaximos(editingCard.nivel);
+                          if (!validarLimiteJerarquico(nuevoValor, limites.gastosMinimos, 'Gastos mínimos')) {
+                            return; // No actualizar si excede el límite
+                          }
+                        }
+
+                        setEditingCard({
+                          ...editingCard,
+                          condiciones: {
+                            ...editingCard.condiciones,
+                            gastosMinimos: nuevoValor,
+                          },
                         });
                       }
                     }}
@@ -4079,19 +5575,40 @@ function TarjetaEditorComponent({ config, setConfig, showNotification }: Readonl
                   />
                 </div>
                 <div>
-                  <label htmlFor="visitas-minimas" className="block text-sm text-dark-300 mb-1">Visitas mínimas</label>
+                  <label
+                    htmlFor="visitas-minimas"
+                    className="block text-sm text-dark-300 mb-1"
+                  >
+                    Visitas mínimas
+                  </label>
                   <input
                     id="visitas-minimas"
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    value={editingCard.condiciones?.visitasMinimas || 0}
-                    onChange={(e) => {
+                    value={editingCard.condiciones?.visitasMinimas ?? ''}
+                    onChange={e => {
                       // Validar que solo contenga números
-                      if (/^\d*$/.test(e.target.value) || e.target.value === '') {
-                        setEditingCard({ 
-                          ...editingCard, 
-                          condiciones: { ...editingCard.condiciones, visitasMinimas: e.target.value === '' ? 0 : Number(e.target.value) }
+                      if (
+                        /^\d*$/.test(e.target.value) ||
+                        e.target.value === ''
+                      ) {
+                        const nuevoValor = e.target.value === '' ? '' : Number(e.target.value);
+                        
+                        // Validar límites jerárquicos si no está vacío
+                        if (nuevoValor !== '' && nuevoValor > 0) {
+                          const limites = getLimitesMaximos(editingCard.nivel);
+                          if (!validarLimiteJerarquico(nuevoValor, limites.visitasMinimas, 'Visitas mínimas')) {
+                            return; // No actualizar si excede el límite
+                          }
+                        }
+
+                        setEditingCard({
+                          ...editingCard,
+                          condiciones: {
+                            ...editingCard.condiciones,
+                            visitasMinimas: nuevoValor,
+                          },
                         });
                       }
                     }}
@@ -4103,10 +5620,14 @@ function TarjetaEditorComponent({ config, setConfig, showNotification }: Readonl
 
             {/* Beneficio del nivel */}
             <div>
-              <h6 className="text-white font-medium mb-3">Beneficio de este Nivel</h6>
+              <h6 className="text-white font-medium mb-3">
+                Beneficio de este Nivel
+              </h6>
               <textarea
                 value={editingCard.beneficio || ''}
-                onChange={(e) => setEditingCard({ ...editingCard, beneficio: e.target.value })}
+                onChange={e =>
+                  setEditingCard({ ...editingCard, beneficio: e.target.value })
+                }
                 placeholder="Describe el beneficio principal que obtienen los clientes con este nivel de tarjeta"
                 rows={3}
                 className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none resize-none"
@@ -4119,23 +5640,32 @@ function TarjetaEditorComponent({ config, setConfig, showNotification }: Readonl
                 type="checkbox"
                 id="activo"
                 checked={editingCard.activo}
-                onChange={(e) => setEditingCard({ ...editingCard, activo: e.target.checked })}
+                onChange={e =>
+                  setEditingCard({ ...editingCard, activo: e.target.checked })
+                }
                 className="w-4 h-4 text-primary-600 bg-dark-700 border-dark-600 rounded focus:ring-primary-500"
               />
-              <label htmlFor="activo" className="text-dark-300">Tarjeta activa y visible para clientes</label>
+              <label htmlFor="activo" className="text-dark-300">
+                Tarjeta activa y visible para clientes
+              </label>
             </div>
 
             {/* Botones */}
             <div className="flex space-x-2 pt-4">
               <button
                 onClick={handleSave}
-                className="px-4 py-2 bg-success-600 text-white rounded-lg hover:bg-success-700 transition-colors"
+                disabled={saving}
+                className="px-4 py-2 bg-success-600 text-white rounded-lg hover:bg-success-700 disabled:bg-success-400 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
               >
-                Guardar Cambios
+                {saving && (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                )}
+                <span>{saving ? 'Guardando...' : 'Guardar Cambios'}</span>
               </button>
               <button
                 onClick={() => setEditingCard(null)}
-                className="px-4 py-2 bg-dark-600 text-white rounded-lg hover:bg-dark-500 transition-colors"
+                disabled={saving}
+                className="px-4 py-2 bg-dark-600 text-white rounded-lg hover:bg-dark-500 disabled:bg-dark-400 disabled:cursor-not-allowed transition-colors"
               >
                 Cancelar
               </button>
@@ -4147,11 +5677,15 @@ function TarjetaEditorComponent({ config, setConfig, showNotification }: Readonl
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-dark-400">Nombre:</p>
-                <p className="text-white font-medium">{currentTarjeta.nombrePersonalizado}</p>
+                <p className="text-white font-medium">
+                  {currentTarjeta.nombrePersonalizado}
+                </p>
               </div>
               <div>
                 <p className="text-dark-400">Texto de calidad:</p>
-                <p className="text-white font-medium">{currentTarjeta.textoCalidad}</p>
+                <p className="text-white font-medium">
+                  {currentTarjeta.textoCalidad}
+                </p>
               </div>
             </div>
 
@@ -4160,28 +5694,40 @@ function TarjetaEditorComponent({ config, setConfig, showNotification }: Readonl
               <div className="grid grid-cols-3 gap-4 text-sm">
                 <div>
                   <p className="text-dark-400">Puntos</p>
-                  <p className="text-white font-medium">{currentTarjeta.condiciones?.puntosMinimos || 0}</p>
+                  <p className="text-white font-medium">
+                    {currentTarjeta.condiciones?.puntosMinimos || 0}
+                  </p>
                 </div>
                 <div>
                   <p className="text-dark-400">Gastos</p>
-                  <p className="text-white font-medium">${currentTarjeta.condiciones?.gastosMinimos || 0}</p>
+                  <p className="text-white font-medium">
+                    ${currentTarjeta.condiciones?.gastosMinimos || 0}
+                  </p>
                 </div>
                 <div>
                   <p className="text-dark-400">Visitas</p>
-                  <p className="text-white font-medium">{currentTarjeta.condiciones?.visitasMinimas || 0}</p>
+                  <p className="text-white font-medium">
+                    {currentTarjeta.condiciones?.visitasMinimas || 0}
+                  </p>
                 </div>
               </div>
             </div>
 
             <div>
               <p className="text-dark-400 text-sm mb-2">Beneficio:</p>
-              <p className="text-white text-sm">{currentTarjeta.beneficio || 'Sin beneficio definido'}</p>
+              <p className="text-white text-sm">
+                {currentTarjeta.beneficio || 'Sin beneficio definido'}
+              </p>
             </div>
 
             <div>
-              <span className={`inline-block px-2 py-1 rounded text-xs ${
-                currentTarjeta.activo ? 'bg-success-600 text-white' : 'bg-red-600 text-white'
-              }`}>
+              <span
+                className={`inline-block px-2 py-1 rounded text-xs ${
+                  currentTarjeta.activo
+                    ? 'bg-success-600 text-white'
+                    : 'bg-red-600 text-white'
+                }`}
+              >
                 {currentTarjeta.activo ? 'Activa' : 'Inactiva'}
               </span>
             </div>
@@ -4194,7 +5740,12 @@ function TarjetaEditorComponent({ config, setConfig, showNotification }: Readonl
 
 // Componente para asignación manual de tarjetas a clientes
 // Componente para mostrar un cliente individual en la lista de búsqueda
-function ClientListItem({ client, selectedClient, onSelect, calculateClientLevel }: Readonly<{
+function ClientListItem({
+  client,
+  selectedClient,
+  onSelect,
+  calculateClientLevel,
+}: Readonly<{
   client: any;
   selectedClient: any;
   onSelect: (client: any) => void;
@@ -4203,7 +5754,7 @@ function ClientListItem({ client, selectedClient, onSelect, calculateClientLevel
   const nivelAutomatico = calculateClientLevel(client);
   const cumpleCondiciones = nivelAutomatico !== 'Bronce';
   const tieneTarjeta = client.tarjeta !== null;
-  
+
   return (
     <button
       onClick={() => onSelect(client)}
@@ -4223,18 +5774,25 @@ function ClientListItem({ client, selectedClient, onSelect, calculateClientLevel
           <p>Puntos: {client.puntos || 0}</p>
           <p>Gastos: ${client.gastoTotal || 0}</p>
           <p>Visitas: {client.visitas || 0}</p>
-          
+
           {tieneTarjeta ? (
             <div className="mt-1">
-              <p className={`font-medium ${client.tarjeta.activa ? 'text-success-400' : 'text-red-400'}`}>
-                Tarjeta {client.tarjeta.nivel} {!client.tarjeta.activa && '(Inactiva)'}
+              <p
+                className={`font-medium ${client.tarjeta.activa ? 'text-success-400' : 'text-red-400'}`}
+              >
+                Tarjeta {client.tarjeta.nivel}{' '}
+                {!client.tarjeta.activa && '(Inactiva)'}
               </p>
               <p className="text-xs opacity-75">
-                {client.tarjeta.asignacionManual ? 'Asignación manual' : 'Asignación automática'}
+                {client.tarjeta.asignacionManual
+                  ? 'Asignación manual'
+                  : 'Asignación automática'}
               </p>
             </div>
           ) : (
-            <p className={`font-medium ${cumpleCondiciones ? 'text-success-400' : 'text-yellow-400'}`}>
+            <p
+              className={`font-medium ${cumpleCondiciones ? 'text-success-400' : 'text-yellow-400'}`}
+            >
               Nivel sugerido: {nivelAutomatico}
             </p>
           )}
@@ -4245,7 +5803,14 @@ function ClientListItem({ client, selectedClient, onSelect, calculateClientLevel
 }
 
 // Componente para el formulario de asignación de tarjeta
-function CardAssignmentForm({ selectedClient, selectedLevel, setSelectedLevel, nivelesConfig, onAssign, onCancel }: Readonly<{
+function CardAssignmentForm({
+  selectedClient,
+  selectedLevel,
+  setSelectedLevel,
+  nivelesConfig,
+  onAssign,
+  onCancel,
+}: Readonly<{
   selectedClient: any;
   selectedLevel: string;
   setSelectedLevel: (level: string) => void;
@@ -4258,7 +5823,7 @@ function CardAssignmentForm({ selectedClient, selectedLevel, setSelectedLevel, n
       <h6 className="text-white font-medium mb-3">
         Asignar Tarjeta a: {selectedClient.nombre}
       </h6>
-      
+
       <div className="grid grid-cols-3 gap-4 mb-4">
         <div>
           <p className="text-dark-400 text-sm">Puntos Actuales</p>
@@ -4266,34 +5831,44 @@ function CardAssignmentForm({ selectedClient, selectedLevel, setSelectedLevel, n
         </div>
         <div>
           <p className="text-dark-400 text-sm">Gastos Totales</p>
-          <p className="text-white font-medium">${selectedClient.gastoTotal || 0}</p>
+          <p className="text-white font-medium">
+            ${selectedClient.gastoTotal || 0}
+          </p>
         </div>
         <div>
           <p className="text-dark-400 text-sm">Visitas</p>
-          <p className="text-white font-medium">{selectedClient.visitas || 0}</p>
+          <p className="text-white font-medium">
+            {selectedClient.visitas || 0}
+          </p>
         </div>
       </div>
 
       <div className="mb-4">
-        <label htmlFor="nivel-select" className="block text-sm font-medium text-dark-300 mb-2">
+        <label
+          htmlFor="nivel-select"
+          className="block text-sm font-medium text-dark-300 mb-2"
+        >
           Seleccionar Nivel de Tarjeta
         </label>
         <select
           id="nivel-select"
           value={selectedLevel}
-          onChange={(e) => setSelectedLevel(e.target.value)}
+          onChange={e => setSelectedLevel(e.target.value)}
           className="w-full px-3 py-2 bg-dark-600 border border-dark-500 rounded-lg text-white focus:border-primary-500 focus:outline-none"
         >
           {Object.entries(nivelesConfig).map(([nivel, conf]: [string, any]) => {
-            const cumple = 
+            const cumple =
               (selectedClient.puntos || 0) >= conf.condiciones.puntosMinimos &&
-              (selectedClient.gastoTotal || 0) >= conf.condiciones.gastosMinimos &&
+              (selectedClient.gastoTotal || 0) >=
+                conf.condiciones.gastosMinimos &&
               (selectedClient.visitas || 0) >= conf.condiciones.visitasMinimas;
-            
+
             return (
               <option key={nivel} value={nivel}>
-                {nivel} {cumple ? '✓' : '⚠️'} 
-                (Req: {conf.condiciones.puntosMinimos}pts, ${conf.condiciones.gastosMinimos}, {conf.condiciones.visitasMinimas} visitas)
+                {nivel} {cumple ? '✓' : '⚠️'}
+                (Req: {conf.condiciones.puntosMinimos}pts, $
+                {conf.condiciones.gastosMinimos},{' '}
+                {conf.condiciones.visitasMinimas} visitas)
               </option>
             );
           })}
@@ -4321,23 +5896,29 @@ function CardAssignmentForm({ selectedClient, selectedLevel, setSelectedLevel, n
   );
 }
 
-function AsignacionTarjetasComponent({ config, setConfig, showNotification }: Readonly<{ 
-  config: any; 
-  setConfig: (config: any) => void; 
-  showNotification: (message: string, type: NivelTarjeta) => void 
+function AsignacionTarjetasComponent({
+  config,
+  setConfig,
+  showNotification,
+}: Readonly<{
+  config: any;
+  setConfig: (config: any) => void;
+  showNotification: (message: string, type: NivelTarjeta) => void;
 }>) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [selectedLevel, setSelectedLevel] = useState('Bronce');
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  
+
   // Función para refrescar los clientes después de asignar una tarjeta
   const onRefreshClients = useCallback(async () => {
     if (searchTerm.trim().length > 0) {
       setLoading(true);
       try {
-        const res = await fetch(`/api/clientes/search?q=${encodeURIComponent(searchTerm)}`);
+        const res = await fetch(
+          `/api/clientes/search?q=${encodeURIComponent(searchTerm)}`
+        );
         const data = await res.json();
         setClients(data.clientes || []);
       } catch (error) {
@@ -4350,11 +5931,37 @@ function AsignacionTarjetasComponent({ config, setConfig, showNotification }: Re
   }, [searchTerm, showNotification]);
 
   const nivelesConfig = {
-    'Bronce': { condiciones: { puntosMinimos: 0, gastosMinimos: 0, visitasMinimas: 0 } },
-    'Plata': { condiciones: { puntosMinimos: 100, gastosMinimos: 500, visitasMinimas: 5 } },
-    'Oro': { condiciones: { puntosMinimos: 500, gastosMinimos: 1500, visitasMinimas: 10 } },
-    'Diamante': { condiciones: { puntosMinimos: 1500, gastosMinimos: 3000, visitasMinimas: 20 } },
-    'Platino': { condiciones: { puntosMinimos: 3000, gastosMinimos: 5000, visitasMinimas: 30 } }
+    Bronce: {
+      condiciones: { puntosMinimos: 0, gastosMinimos: 0, visitasMinimas: 0 },
+    },
+    Plata: {
+      condiciones: {
+        puntosMinimos: 100,
+        gastosMinimos: 500,
+        visitasMinimas: 5,
+      },
+    },
+    Oro: {
+      condiciones: {
+        puntosMinimos: 500,
+        gastosMinimos: 1500,
+        visitasMinimas: 10,
+      },
+    },
+    Diamante: {
+      condiciones: {
+        puntosMinimos: 1500,
+        gastosMinimos: 3000,
+        visitasMinimas: 20,
+      },
+    },
+    Platino: {
+      condiciones: {
+        puntosMinimos: 3000,
+        gastosMinimos: 5000,
+        visitasMinimas: 30,
+      },
+    },
   };
 
   // Buscar clientes
@@ -4363,11 +5970,13 @@ function AsignacionTarjetasComponent({ config, setConfig, showNotification }: Re
       setClients([]);
       return;
     }
-    
+
     setLoading(true);
     try {
       // Utilizamos encodeURIComponent para asegurar que la URL sea válida
-      const response = await fetch(`/api/clientes/search?q=${encodeURIComponent(searchTerm)}`);
+      const response = await fetch(
+        `/api/clientes/search?q=${encodeURIComponent(searchTerm)}`
+      );
       if (response.ok) {
         const data = await response.json();
         if (Array.isArray(data)) {
@@ -4396,12 +6005,15 @@ function AsignacionTarjetasComponent({ config, setConfig, showNotification }: Re
 
     // Buscar el nivel más alto que cumple
     const niveles = ['Platino', 'Diamante', 'Oro', 'Plata', 'Bronce'];
-    
+
     for (const nivel of niveles) {
-      const condiciones = nivelesConfig[nivel as keyof typeof nivelesConfig].condiciones;
-      if (puntos >= condiciones.puntosMinimos && 
-          gastos >= condiciones.gastosMinimos && 
-          visitas >= condiciones.visitasMinimas) {
+      const condiciones =
+        nivelesConfig[nivel as keyof typeof nivelesConfig].condiciones;
+      if (
+        puntos >= condiciones.puntosMinimos &&
+        gastos >= condiciones.gastosMinimos &&
+        visitas >= condiciones.visitasMinimas
+      ) {
         return nivel;
       }
     }
@@ -4413,7 +6025,10 @@ function AsignacionTarjetasComponent({ config, setConfig, showNotification }: Re
     if (!selectedClient) return;
 
     // Mostrar notificación inmediatamente para dar retroalimentación al usuario
-    showNotification(`Asignando tarjeta ${selectedLevel} a ${selectedClient.nombre}...`, 'info');
+    showNotification(
+      `Asignando tarjeta ${selectedLevel} a ${selectedClient.nombre}...`,
+      'info'
+    );
 
     try {
       const response = await fetch('/api/tarjetas/asignar', {
@@ -4423,36 +6038,42 @@ function AsignacionTarjetasComponent({ config, setConfig, showNotification }: Re
           clienteId: selectedClient.id,
           nivel: selectedLevel,
           asignacionManual: true,
-          fastUpdate: true // Indicador para procesamiento rápido
-        })
+          fastUpdate: true, // Indicador para procesamiento rápido
+        }),
       });
 
       if (response.ok) {
-        showNotification(`Tarjeta ${selectedLevel} asignada exitosamente a ${selectedClient.nombre}`, 'success');
-        
+        showNotification(
+          `Tarjeta ${selectedLevel} asignada exitosamente a ${selectedClient.nombre}`,
+          'success'
+        );
+
         // Limpiar la selección y búsqueda inmediatamente para mejor UX
         setSelectedClient(null);
         setSearchTerm('');
         setClients([]);
-        
+
         // Recargar la lista de clientes para reflejar los cambios
         if (typeof onRefreshClients === 'function') {
           onRefreshClients();
         }
-        
+
         // Notificar a otros clientes conectados sobre el cambio (simulado)
         try {
           fetch('/api/notificaciones/actualizar-clientes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tipo: 'actualizacion_tarjeta' })
+            body: JSON.stringify({ tipo: 'actualizacion_tarjeta' }),
           }).catch(e => console.log('Error enviando notificación:', e));
         } catch (e) {
           console.log('Error en notificación:', e);
         }
       } else {
         const errorData = await response.json();
-        showNotification(`Error al asignar tarjeta: ${errorData.error || 'Error desconocido'}`, 'error');
+        showNotification(
+          `Error al asignar tarjeta: ${errorData.error || 'Error desconocido'}`,
+          'error'
+        );
       }
     } catch (error) {
       console.error('Error asignando tarjeta:', error);
@@ -4475,31 +6096,39 @@ function AsignacionTarjetasComponent({ config, setConfig, showNotification }: Re
     <div className="bg-dark-800 rounded-lg p-6">
       <div className="flex items-center mb-6">
         <Users className="w-6 h-6 mr-2 text-primary-500" />
-        <h4 className="text-lg font-semibold text-white">Asignación Manual de Tarjetas</h4>
+        <h4 className="text-lg font-semibold text-white">
+          Asignación Manual de Tarjetas
+        </h4>
       </div>
-      
+
       <p className="text-dark-400 text-sm mb-4">
-        Busca clientes existentes para asignarles una tarjeta de lealtad manualmente, 
-        especial para casos donde el negocio considera que el cliente merece el nivel.
+        Busca clientes existentes para asignarles una tarjeta de lealtad
+        manualmente, especial para casos donde el negocio considera que el
+        cliente merece el nivel.
       </p>
 
       {/* Buscador de clientes */}
       <div className="mb-6">
-        <label htmlFor="search-client" className="block text-sm font-medium text-dark-300 mb-2">
+        <label
+          htmlFor="search-client"
+          className="block text-sm font-medium text-dark-300 mb-2"
+        >
           Buscar Cliente
         </label>
         <div className="relative">
-          <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${loading ? 'text-primary-500 animate-pulse' : 'text-dark-400'}`} />
+          <Search
+            className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${loading ? 'text-primary-500 animate-pulse' : 'text-dark-400'}`}
+          />
           <input
             id="search-client"
             type="text"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
             placeholder="Buscar por nombre, email, teléfono o cédula..."
             className="w-full pl-10 pr-10 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
           />
           {searchTerm && (
-            <button 
+            <button
               onClick={() => setSearchTerm('')}
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-dark-400 hover:text-white"
             >
@@ -4507,7 +6136,7 @@ function AsignacionTarjetasComponent({ config, setConfig, showNotification }: Re
             </button>
           )}
         </div>
-        
+
         {loading && (
           <div className="mt-2 text-primary-500 text-sm flex items-center">
             <div className="w-3 h-3 mr-2 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
@@ -4526,10 +6155,10 @@ function AsignacionTarjetasComponent({ config, setConfig, showNotification }: Re
               return 'Sin resultados';
             })()}
           </h6>
-          
+
           {clients.length > 0 ? (
             <div className="space-y-2 max-h-60 overflow-y-auto">
-              {clients.map((client) => (
+              {clients.map(client => (
                 <ClientListItem
                   key={client.id}
                   client={client}
@@ -4539,10 +6168,13 @@ function AsignacionTarjetasComponent({ config, setConfig, showNotification }: Re
                 />
               ))}
             </div>
-          ) : searchTerm.length >= 2 && !loading && (
-            <div className="py-3 text-center text-dark-400 bg-dark-800/50 rounded-lg">
-              No se encontraron clientes con ese criterio de búsqueda
-            </div>
+          ) : (
+            searchTerm.length >= 2 &&
+            !loading && (
+              <div className="py-3 text-center text-dark-400 bg-dark-800/50 rounded-lg">
+                No se encontraron clientes con ese criterio de búsqueda
+              </div>
+            )
           )}
         </div>
       )}
