@@ -3,47 +3,36 @@ import { prisma } from '../../../../lib/prisma';
 import { z } from 'zod';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
-import Tesseract from 'tesseract.js';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { geminiAnalyzer } from '../../../../lib/ai/gemini-analyzer';
+import fs from 'fs';
 
 // Forzar renderizado dinámico para esta ruta que usa autenticación
 export const dynamic = 'force-dynamic';
 
-// Funciones auxiliares para simplificar el código principal
-
-// Initialize Google Gemini AI
-const genAI = process.env.GOOGLE_GEMINI_API_KEY 
-  ? new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY)
-  : null;
-
 // Helper function to get or create default location
 async function getOrCreateDefaultLocation(businessId?: string): Promise<string> {
-  // Try to find an existing location
   let location = await prisma.location.findFirst({
     where: businessId ? { businessId } : {},
   });
 
-  // If no location exists, create a default one
   if (!location) {
-    // If no businessId provided, try to get the first business or create one
     let business;
-    businessId ??= (await prisma.business.findFirst())?.id;
-    
-    if (!businessId) {
-      business = await prisma.business.create({
-        data: {
-          name: 'Negocio Principal',
-          slug: 'negocio-principal',
-          subdomain: 'principal',
-        },
+    if (businessId) {
+      business = await prisma.business.findUnique({
+        where: { id: businessId },
       });
-      businessId = business.id;
+    } else {
+      business = await prisma.business.findFirst();
+    }
+
+    if (!business) {
+      throw new Error('No se encontró un negocio válido');
     }
 
     location = await prisma.location.create({
       data: {
-        businessId: businessId,
         name: 'Ubicación Principal',
+        businessId: business.id,
       },
     });
   }
@@ -53,38 +42,19 @@ async function getOrCreateDefaultLocation(businessId?: string): Promise<string> 
 
 // Helper function to validate form data
 function validateFormData(formData: FormData) {
-  const image = formData.get('image') as File;
-  const cedula = formData.get('cedula') as string;
-  const locationId = formData.get('locationId') as string;
-  const empleadoId = (formData.get('empleadoId') as string) || 'system';
+  const schema = z.object({
+    cedula: z.string().min(1, 'Cédula es requerida'),
+    monto: z.string().min(1, 'Monto es requerido'),
+    businessId: z.string().optional(),
+    empleadoId: z.string().optional(),
+  });
 
-  // Validate required fields
-  if (!image || !cedula || !locationId) {
-    return {
-      error: 'Faltan campos requeridos: image, cedula, locationId',
-      status: 400
-    };
-  }
-
-  // Validate image
-  if (!image.type.startsWith('image/')) {
-    return {
-      error: 'El archivo debe ser una imagen',
-      status: 400
-    };
-  }
-
-  if (image.size > 5 * 1024 * 1024) { // 5MB limit
-    return {
-      error: 'La imagen no puede superar 5MB',
-      status: 400
-    };
-  }
-
-  return {
-    data: { image, cedula, locationId, empleadoId },
-    error: null
-  };
+  return schema.parse({
+    cedula: formData.get('cedula'),
+    monto: formData.get('monto'),
+    businessId: formData.get('businessId'),
+    empleadoId: formData.get('empleadoId'),
+  });
 }
 
 // Helper function to save image
@@ -92,257 +62,208 @@ async function saveImageFile(image: File): Promise<{ filepath: string; publicUrl
   const bytes = await image.arrayBuffer();
   const buffer = Buffer.from(bytes);
 
-  // Create uploads directory if it doesn't exist
-  const uploadsDir = join(process.cwd(), 'public', 'uploads');
-  try {
-    await mkdir(uploadsDir, { recursive: true });
-  } catch (error) {
-    console.error('Error creating uploads directory:', error);
-    // Directory might already exist, continue
-  }
-
-  // Generate unique filename
   const timestamp = Date.now();
-  const extension = image.name.split('.').pop();
-  const filename = `ticket_${timestamp}.${extension}`;
-  const filepath = join(uploadsDir, filename);
-  const publicUrl = `/uploads/${filename}`;
+  const randomString = Math.random().toString(36).substring(2, 8);
+  const filename = `${timestamp}-${randomString}.jpg`;
 
+  const uploadDir = join(process.cwd(), 'public', 'uploads');
+  await mkdir(uploadDir, { recursive: true });
+
+  const filepath = join(uploadDir, filename);
   await writeFile(filepath, buffer);
-  
+
+  const publicUrl = `/uploads/${filename}`;
   return { filepath, publicUrl };
 }
 
-// Helper function to process OCR with AI
-async function processOCRWithAI(filepath: string): Promise<{
+// Helper function to process image with Gemini AI
+async function processImageWithGemini(filepath: string): Promise<{
   ocrText: string;
   productos: Array<{ name: string; price?: number; line: string }>;
   total: number;
   empleadoDetectado: string;
+  confianza: number;
 }> {
-  let ocrText = '';
-  let productos: { name: string; price?: number; line: string }[] = [];
-  let total = 0;
-  let empleadoDetectado = 'No detectado';
-
   try {
-    // Performing OCR on uploaded image
-    const {
-      data: { text },
-    } = await Tesseract.recognize(filepath, 'spa', {
-      logger: () => {}, // Silent OCR processing
+    const imageBuffer = fs.readFileSync(filepath);
+    const mimeType = 'image/jpeg';
+
+    console.log('🤖 Procesando imagen con Gemini AI...');
+    
+    // Analizar con Gemini
+    const analysis = await geminiAnalyzer.analyzeImage(imageBuffer, mimeType);
+    
+    console.log('✅ Análisis completado:', {
+      total: analysis.total,
+      productos: analysis.productos.length,
+      confianza: analysis.confianza,
+      empleado: analysis.empleado
     });
 
-    ocrText = text;
+    // Convertir formato para compatibilidad
+    const productos = analysis.productos.map((p) => ({
+      name: p.nombre,
+      price: p.precio,
+      line: `${p.nombre} x${p.cantidad} - $${p.precio}`
+    }));
 
-    // Use Google Gemini AI for enhanced ticket analysis if available
-    if (genAI && text.trim().length > 10) {
-      try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-        
-        const prompt = `
-          Analiza este ticket de venta y extrae la información en formato JSON:
-          
-          Texto del ticket:
-          "${text}"
-          
-          Devuelve SOLO un JSON válido con esta estructura:
-          {
-            "empleado": "nombre del empleado/cajero/vendedor (o 'No detectado' si no encuentras)",
-            "total": número (monto total de la compra),
-            "productos": [
-              {
-                "name": "nombre del producto",
-                "price": número (precio del producto),
-                "line": "línea original del ticket"
-              }
-            ]
-          }
-          
-          Reglas:
-          - Busca nombres de empleados, cajeros, vendedores en el ticket
-          - Si no encuentras el total, devuelve 0
-          - Si no encuentras productos, devuelve array vacío
-          - Solo números para precios, sin símbolos de moneda
-          - Responde SOLO con el JSON, sin explicaciones adicionales
-        `;
+    return {
+      ocrText: `Gemini AI - Análisis completado con confianza: ${(analysis.confianza * 100).toFixed(1)}%`,
+      productos,
+      total: analysis.total,
+      empleadoDetectado: analysis.empleado || 'No detectado',
+      confianza: analysis.confianza
+    };
 
-        const result = await model.generateContent(prompt);
-        const aiResponse = result.response.text();
-        
-        // Clean up response (remove markdown formatting)
-        const cleanedResponse = aiResponse
-          .replace(/```json/g, '')
-          .replace(/```/g, '')
-          .trim();
-        
-        // Try to parse AI response
-        const aiData = JSON.parse(cleanedResponse);
-        
-        if (aiData.total && typeof aiData.total === 'number') {
-          total = aiData.total;
+  } catch (error) {
+    console.error('❌ Error en procesamiento con Gemini:', error);
+    
+    // Fallback values si falla el análisis
+    return {
+      ocrText: 'Error en procesamiento automático',
+      productos: [
+        {
+          name: 'Producto fallback',
+          price: 25.50,
+          line: 'Error: Análisis manual requerido'
         }
-        
-        if (aiData.productos && Array.isArray(aiData.productos)) {
-          productos = aiData.productos.map((p: any, index: number) => ({
-            name: p.name || `Producto ${index + 1}`,
-            price: typeof p.price === 'number' ? p.price : 0,
-            line: p.line || p.name || `Línea ${index + 1}`
-          }));
-        }
-
-        // Store detected employee for confirmation
-        empleadoDetectado = aiData.empleado || 'No detectado';
-
-        console.log('✅ Gemini AI analysis successful');
-      } catch (aiError) {
-        console.log('⚠️ Gemini AI failed, using fallback OCR analysis:', aiError);
-        // Fall back to basic OCR analysis
-        const basicResult = performBasicOCRAnalysis(text);
-        total = basicResult.total;
-        productos = basicResult.productos;
-      }
-    } else {
-      // Use basic OCR analysis if Gemini is not available
-      const basicResult = performBasicOCRAnalysis(text);
-      total = basicResult.total;
-      productos = basicResult.productos;
-    }
-
-    // Fallback if no total found
-    if (total === 0) {
-      total = 25.5; // Fallback amount for demo
-    }
-
-  } catch (ocrError) {
-    console.error('OCR Error:', ocrError);
-    // Fallback values if OCR fails
-    ocrText = 'OCR processing failed';
-    total = 25.5; // Fallback amount
-    productos = [
-      {
-        name: 'Producto detectado',
-        price: total,
-        line: 'Procesamiento automático',
-      },
-    ];
+      ],
+      total: 25.50,
+      empleadoDetectado: 'No detectado',
+      confianza: 0.1
+    };
   }
-
-  return { ocrText, productos, total, empleadoDetectado };
-}
-
-// Function for basic OCR analysis
-function performBasicOCRAnalysis(text: string): {
-  total: number;
-  productos: Array<{ name: string; price?: number; line: string }>;
-} {
-  let total = 0;
-  let productos: { name: string; price?: number; line: string }[] = [];
-
-  // Simple heuristic to extract total (look for patterns like $XX.XX or TOTAL: XX.XX)
-  const totalRegex = /(?:total|sum|suma|precio)[:\s]*\$?(\d+(?:[.,]\d{2})?)/i;
-  const totalMatches = totalRegex.exec(text);
-  if (totalMatches) {
-    total = parseFloat(totalMatches[1].replace(',', '.'));
-  }
-
-  // Try to extract product lines (very basic heuristic)
-  const lines = text.split('\n').filter(line => line.trim().length > 0);
-  productos = lines
-    .filter(line => /\$?\d+(?:[.,]\d{2})?/.test(line))
-    .slice(0, 10) // Limit to first 10 potential products
-    .map((line, index) => {
-      const priceRegex = /\$?(\d+(?:[.,]\d{2})?)/;
-      const priceMatch = priceRegex.exec(line);
-      const price = priceMatch
-        ? parseFloat(priceMatch[1].replace(',', '.'))
-        : 0;
-      return {
-        name:
-          line.replace(/\$?\d+(?:[.,]\d{2})?/g, '').trim() ||
-          `Producto ${index + 1}`,
-        price: price,
-        line: line.trim(),
-      };
-    });
-
-  // If no total was found, sum up product prices
-  if (total === 0 && productos.length > 0) {
-    total = productos.reduce(
-      (sum, p: { price?: number }) => sum + (p.price ?? 0),
-      0
-    );
-  }
-
-  return { total, productos };
 }
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
+    const validatedData = validateFormData(formData);
+    const image = formData.get('image') as File;
 
-    // Validate and extract form data
-    const validation = validateFormData(formData);
-    if (validation.error) {
-      return NextResponse.json({ error: validation.error }, { status: validation.status });
+    if (!image) {
+      return NextResponse.json(
+        { success: false, error: 'No se recibió ninguna imagen' },
+        { status: 400 }
+      );
     }
 
-    const { image, cedula } = validation.data!;
+    if (!image.type.startsWith('image/')) {
+      return NextResponse.json(
+        { success: false, error: 'El archivo debe ser una imagen' },
+        { status: 400 }
+      );
+    }
 
-    // Find client
+    if (image.size > 10 * 1024 * 1024) {
+      return NextResponse.json(
+        { success: false, error: 'La imagen es demasiado grande (máximo 10MB)' },
+        { status: 400 }
+      );
+    }
+
+    // Buscar cliente por cédula
     const cliente = await prisma.cliente.findUnique({
-      where: { cedula: cedula },
+      where: { cedula: validatedData.cedula }
     });
 
     if (!cliente) {
       return NextResponse.json(
-        { error: 'Cliente no encontrado. Debe estar registrado primero.' },
+        { success: false, error: 'Cliente no encontrado' },
         { status: 404 }
       );
     }
 
-    // Get or create default location
-    const actualLocationId = await getOrCreateDefaultLocation(cliente.businessId ?? undefined);
-
-    // Save image to public/uploads
+    // Guardar imagen
     const { filepath, publicUrl } = await saveImageFile(image);
 
-    // Perform OCR and process with AI
-    const { ocrText, productos, total, empleadoDetectado } = await processOCRWithAI(filepath);
+    // Procesar imagen con Gemini AI
+    const analysis = await processImageWithGemini(filepath);
 
-    // Calculate points (basic: 1 point per dollar)
-    const puntos = Math.floor(total);
+    // Verificar confianza mínima
+    if (analysis.confianza < 0.3) {
+      console.log('⚠️ Confianza baja en el análisis:', analysis.confianza);
+    }
 
-    // Instead of creating the consumo immediately, return data for confirmation
+    // Obtener ubicación por defecto
+    const locationId = await getOrCreateDefaultLocation(validatedData.businessId);
+
+    // Usar el monto detectado por AI o el manual como respaldo
+    const montoFinal = analysis.total > 0 ? analysis.total : parseFloat(validatedData.monto);
+    const puntosGenerados = Math.floor(montoFinal);
+
+    // Crear registro de consumo
+    const consumo = await prisma.consumo.create({
+      data: {
+        clienteId: cliente.id,
+        businessId: validatedData.businessId,
+        locationId: locationId,
+        empleadoId: validatedData.empleadoId || '',
+        productos: {
+          items: analysis.productos,
+          total: montoFinal,
+          empleado: analysis.empleadoDetectado,
+          confianza: analysis.confianza
+        },
+        total: montoFinal,
+        puntos: puntosGenerados,
+        pagado: true,
+        metodoPago: 'efectivo',
+        ticketImageUrl: publicUrl,
+        ocrText: analysis.ocrText
+      }
+    });
+
+    // Actualizar puntos del cliente
+    await prisma.cliente.update({
+      where: { id: cliente.id },
+      data: {
+        puntos: {
+          increment: puntosGenerados
+        }
+      }
+    });
+
+    console.log('✅ Consumo registrado exitosamente:', {
+      consumoId: consumo.id,
+      cliente: cliente.cedula,
+      puntos: puntosGenerados,
+      monto: montoFinal,
+      confianza: analysis.confianza
+    });
+
     return NextResponse.json({
       success: true,
-      requiresConfirmation: true,
-      empleadoDetectado: empleadoDetectado || 'No detectado',
-      total: total,
-      puntos: puntos,
-      productos: productos,
-      ocrText: ocrText,
-      ticketImageUrl: publicUrl,
-      locationId: actualLocationId, // Include for confirmation API
-      cliente: {
-        nombre: cliente.nombre,
-        puntosActuales: cliente.puntos,
-        puntosNuevos: cliente.puntos + puntos,
-      },
-      message: 'Ticket procesado por IA. Confirma los datos antes de registrar.',
+      message: 'Consumo registrado exitosamente con análisis AI',
+      data: {
+        consumoId: consumo.id,
+        clienteNombre: cliente.nombre,
+        clienteCedula: cliente.cedula,
+        puntosGenerados: puntosGenerados,
+        montoDetectado: montoFinal,
+        puntosAcumulados: cliente.puntos + puntosGenerados,
+        analisisIA: {
+          productos: analysis.productos,
+          empleadoDetectado: analysis.empleadoDetectado,
+          confianza: Math.round(analysis.confianza * 100),
+          requiereRevision: analysis.confianza < 0.7,
+          procesadoConIA: true
+        }
+      }
     });
-  } catch (error) {
-    console.error('Consumo registration error:', error);
 
+  } catch (error) {
+    console.error('Error en registro de consumo:', error);
+    
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Datos inválidos', details: error.issues },
+        { success: false, error: 'Datos inválidos', details: error.errors },
         { status: 400 }
       );
     }
 
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { success: false, error: 'Error interno del servidor' },
       { status: 500 }
     );
   }

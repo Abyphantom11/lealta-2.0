@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sin conexión - Lealta</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f7f7f7;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            max-width: 500px;
+            padding: 30px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #5B21B6;
+            margin-bottom: 20px;
+        }
+        p {
+            font-size: 18px;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+        .icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+        .retry-button {
+            background-color: #5B21B6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .retry-button:hover {
+            background-color: #4C1D95;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">📡</div>
+        <h1>Sin conexión a Internet</h1>
+        <p>No pudimos cargar la página que buscas porque parece que no tienes conexión a Internet.</p>
+        <p>Comprueba tu conexión y vuelve a intentarlo.</p>
+        <button class="retry-button" onclick="window.location.reload()">Intentar nuevamente</button>
+    </div>
+
+    <script>
+        // Verificar periódicamente si la conexión ha sido restaurada
+        function checkConnection() {
+            if (navigator.onLine) {
+                // Si la conexión está disponible, esperar un momento
+                // y luego intentar recargar
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                // Verificar nuevamente en 5 segundos
+                setTimeout(checkConnection, 5000);
+            }
+        }
+
+        // Iniciar la verificación
+        checkConnection();
+
+        // Escuchar el evento online
+        window.addEventListener('online', () => {
+            window.location.reload();
+        });
+    </script>
+</body>
+</html>

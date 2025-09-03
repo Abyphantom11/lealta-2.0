@@ -1,4 +1,9 @@
-﻿/** @type {import('next').NextConfig} */
+﻿// eslint-disable-next-line @typescript-eslint/no-require-imports
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+});
+
+/** @type {import('next').NextConfig} */
 const nextConfig = {
   // Electron support
   output:
@@ -9,10 +14,32 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Performance optimizations
+  poweredByHeader: false,
+  compress: true,
+  
+  // Bundle optimization
+  webpack: (config, { isServer }) => {
+    // Optimize bundle size
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        os: false,
+      };
+    }
+    return config;
+  },
+  
   // API routes won't work in static export, but we'll handle this conditionally
   experimental: {
+    // Disabled esmExternals to fix worker script issues
     esmExternals: false,
+    // Temporarily disabled due to critters module issue
+    // optimizeCss: true,
   },
+  
   // Allow cross-origin requests from the local network
   allowedDevOrigins: [
     '192.168.1.5:3001',
@@ -28,6 +55,51 @@ const nextConfig = {
     '192.168.1.*:3000',
     '192.168.1.*',
   ],
+  
+  // Headers for security and performance
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+        ],
+      },
+      {
+        source: '/api/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate',
+          },
+        ],
+      },
+      {
+        source: '/_next/static/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+    ];
+  },
 };
 
-module.exports = nextConfig;
+module.exports = withBundleAnalyzer(nextConfig);

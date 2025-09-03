@@ -3,11 +3,17 @@
 import React from 'react';
 import { StatsContextType, DateRange } from '../../../../types/admin/stats';
 
+interface StatsFilters {
+  dateRange: DateRange;
+  nivel?: string;
+  categoria?: string;
+}
+
 interface StatsFilterProps {
   dateRange: DateRange;
   nivel?: string;
   categoria?: string;
-  onFilterChange: (filters: any) => void;
+  onFilterChange: (filters: StatsFilters) => void;
 }
 
 const StatsFilter: React.FC<Readonly<StatsFilterProps>> = ({
@@ -39,6 +45,8 @@ const StatsFilter: React.FC<Readonly<StatsFilterProps>> = ({
                   ...dateRange,
                   startDate: newStartDate,
                 },
+                nivel,
+                categoria: undefined,
               });
             }}
           />
@@ -62,6 +70,8 @@ const StatsFilter: React.FC<Readonly<StatsFilterProps>> = ({
                   ...dateRange,
                   endDate: newEndDate,
                 },
+                nivel,
+                categoria: undefined,
               });
             }}
           />
@@ -78,7 +88,11 @@ const StatsFilter: React.FC<Readonly<StatsFilterProps>> = ({
             className="w-full p-2 border rounded-md"
             value={nivel || ''}
             onChange={e =>
-              onFilterChange({ nivel: e.target.value || undefined })
+              onFilterChange({ 
+                dateRange, 
+                nivel: e.target.value || undefined,
+                categoria: undefined
+              })
             }
           >
             <option value="">Todos</option>
@@ -113,7 +127,7 @@ export const StatsPanel: React.FC<Readonly<StatsPanelProps>> = ({
   } = statsContext;
 
   // Función para aplicar filtros
-  const handleFilterChange = (newFilters: any) => {
+  const handleFilterChange = (newFilters: StatsFilters) => {
     setFilters(newFilters);
   };
 

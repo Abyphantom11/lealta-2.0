@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from '../../components/motion';
 import { useRequireAuth } from '../../hooks/useAuth';
@@ -48,6 +48,15 @@ export default function StaffPage() {
     total: number;
   } | null>(null);
 
+  // Función para mostrar notificaciones
+  const showNotification = (
+    type: 'success' | 'error' | 'info',
+    message: string
+  ) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 5000);
+  };
+
   // Estados para registro manual
   const [modoManual, setModoManual] = useState(false);
   const [empleadoVenta, setEmpleadoVenta] = useState('');
@@ -75,6 +84,11 @@ export default function StaffPage() {
   useEffect(() => {
     loadRecentTickets();
   }, []);
+
+  // Debug para el cuadro de confirmación
+  useEffect(() => {
+    console.log('🎨 Estado de confirmación cambió:', { showConfirmation, editableData });
+  }, [showConfirmation, editableData]);
 
   // Función para buscar información del cliente en la base de datos REAL
   const searchCustomer = async (cedulaValue: string) => {
@@ -296,20 +310,25 @@ export default function StaffPage() {
     }
   };
 
-  // Función para abrir la herramienta de recorte de Windows
+  // Función para mostrar instrucciones de captura optimizadas
   const openSnippingTool = () => {
     showNotification(
       'info',
-      '💡 Presiona Win + Shift + S para abrir la herramienta de recorte, captura tu POS y luego sube la imagen aquí'
+      '💡 Usa Win + PrtScr para captura automática, o Win + Shift + S para seleccionar área específica'
     );
 
-    // Mostrar instrucciones adicionales en la consola para debugging
-    console.log('Instrucciones para captura:');
+    // Mostrar instrucciones mejoradas en la consola
+    console.log('=== INSTRUCCIONES DE CAPTURA OPTIMIZADAS ===');
+    console.log('🚀 MÉTODO RÁPIDO (Recomendado):');
+    console.log('1. Ve a tu POS');
+    console.log('2. Presiona Win + Print Screen');
+    console.log('3. ¡LISTO! Se guarda automáticamente');
+    console.log('4. Regresa a Lealta y pega con Ctrl+V');
+    console.log('');
+    console.log('📐 MÉTODO PRECISIÓN (Área específica):');
     console.log('1. Presiona Win + Shift + S');
-    console.log('2. Selecciona el área de la cuenta en tu POS');
-    console.log('3. La captura se guarda en el portapapeles');
-    console.log('4. Pégala en Paint o guárdala como archivo');
-    console.log('5. Usa "Subir Captura" para cargar la imagen');
+    console.log('2. Selecciona el área del ticket en tu POS');
+    console.log('3. Regresa a Lealta y pega con Ctrl+V');
   };
 
   // Estado para capturas automáticas
@@ -335,19 +354,27 @@ export default function StaffPage() {
     setCaptureStartTime(Date.now());
     setLastClipboardCheck(null);
 
-    // Mostrar instrucciones claras
+    // Mostrar instrucciones mejoradas
     showNotification(
       'info',
-      '🎯 Modo captura activo. Ve a tu POS y usa Win + Shift + S. Luego regresa a Lealta'
+      '🎯 Modo captura activo. Ve a tu POS y usa Win + PrtScr o Win + Shift + S. Luego regresa a Lealta'
     );
 
     // Instrucciones detalladas en consola
     console.log('=== CAPTURA AUTOMÁTICA INICIADA ===');
+    console.log('🚀 OPCIÓN 1 - Win + Print Screen (MÁS RÁPIDO):');
+    console.log('1. Ve a tu sistema POS');
+    console.log('2. Presiona Win + Print Screen');
+    console.log('3. ¡Se guarda automáticamente en portapapeles!');
+    console.log('4. Regresa a Lealta (se detecta automáticamente)');
+    console.log('');
+    console.log('📐 OPCIÓN 2 - Win + Shift + S (ÁREA ESPECÍFICA):');
     console.log('1. Ve a tu sistema POS');
     console.log('2. Presiona Win + Shift + S');
-    console.log('3. Selecciona el área de la cuenta');
-    console.log('4. REGRESA A LEALTA para que se detecte');
-    console.log('IMPORTANTE: Debes regresar a Lealta después de capturar');
+    console.log('3. Selecciona el área del ticket');
+    console.log('4. Regresa a Lealta (se detecta automáticamente)');
+    console.log('');
+    console.log('⚡ IMPORTANTE: NO necesitas guardar archivo, solo regresa a Lealta');
 
     // Timeout de 5 minutos para dar tiempo suficiente
     setTimeout(() => {
@@ -362,27 +389,6 @@ export default function StaffPage() {
       }
     }, 300000); // 5 minutos
   };
-
-  // Función para detectar cuando el usuario regresa a la ventana
-  const handleWindowFocus = async () => {
-    if (!isWaitingForCapture) return;
-
-    console.log('👀 Ventana enfocada - verificando portapapeles...');
-
-    // Esperar un momento para que el portapapeles se actualice
-    setTimeout(async () => {
-      await checkClipboardForImage();
-    }, 500);
-  };
-
-  // Agregar listener para cuando la ventana gana foco
-  useEffect(() => {
-    window.addEventListener('focus', handleWindowFocus);
-
-    return () => {
-      window.removeEventListener('focus', handleWindowFocus);
-    };
-  }, [isWaitingForCapture, handleWindowFocus]);
 
   // Función para verificar si debe procesar la imagen
   const shouldProcessImage = (
@@ -415,7 +421,7 @@ export default function StaffPage() {
   };
 
   // Función para leer imagen del portapapeles
-  const checkClipboardForImage = async () => {
+  const checkClipboardForImage = useCallback(async () => {
     if (!isWaitingForCapture) return false;
 
     try {
@@ -457,16 +463,28 @@ export default function StaffPage() {
       console.error('Error leyendo portapapeles:', error);
       return false;
     }
-  };
+  }, [isWaitingForCapture, processClipboardImage, shouldProcessImage, lastClipboardCheck]);
 
-  // Función para mostrar notificaciones
-  const showNotification = (
-    type: 'success' | 'error' | 'info',
-    message: string
-  ) => {
-    setNotification({ type, message });
-    setTimeout(() => setNotification(null), 5000);
-  };
+  // Función para detectar cuando el usuario regresa a la ventana
+  const handleWindowFocus = useCallback(async () => {
+    if (!isWaitingForCapture) return;
+
+    console.log('👀 Ventana enfocada - verificando portapapeles...');
+
+    // Esperar un momento para que el portapapeles se actualice
+    setTimeout(async () => {
+      await checkClipboardForImage();
+    }, 500);
+  }, [isWaitingForCapture, checkClipboardForImage]);
+
+  // Agregar listener para cuando la ventana gana foco
+  useEffect(() => {
+    window.addEventListener('focus', handleWindowFocus);
+
+    return () => {
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, [isWaitingForCapture, handleWindowFocus]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -540,40 +558,60 @@ export default function StaffPage() {
     }
 
     setIsProcessing(true);
+    showNotification('info', '📸 Subiendo imagen y procesando con IA...');
 
     try {
       const formData = new FormData();
       formData.append('image', selectedFile);
       formData.append('cedula', cedula);
-      formData.append('locationId', 'default-location');
-      formData.append('empleadoId', 'current-user-id'); // In real app, get from session
+      formData.append('businessId', user?.businessId || '');
+      formData.append('empleadoId', user?.id || '');
 
-      const response = await fetch('/api/staff/consumo', {
+      // Aumentar timeout para procesamiento con IA
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos
+
+      // Usar el nuevo endpoint de análisis (NO guarda, solo analiza)
+      const response = await fetch('/api/staff/consumo/analyze', {
         method: 'POST',
         body: formData,
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
       const data = await response.json();
 
-      if (response.ok) {
-        // En lugar de guardar directamente, mostrar confirmación
-        setAiResult(data);
+      console.log('🔍 Respuesta del servidor:', data);
+      console.log('🔍 response.ok:', response.ok);
+      console.log('🔍 data.requiresConfirmation:', data.requiresConfirmation);
+
+      if (response.ok && data.requiresConfirmation) {
+        console.log('✅ Mostrando cuadro de confirmación...');
+        // Mostrar datos para confirmación
+        setAiResult(data.data);
         setEditableData({
-          empleado: data.empleadoDetectado || 'No detectado',
-          productos: data.productos || [],
-          total: data.total || 0,
+          empleado: data.data.analisis.empleadoDetectado || 'No detectado',
+          productos: data.data.analisis.productos.map((p: any) => ({
+            name: p.nombre,
+            price: p.precio,
+            line: `${p.nombre} x${p.cantidad} - $${p.precio.toFixed(2)}`
+          })),
+          total: data.data.analisis.total,
         });
         setShowConfirmation(true);
-        showNotification('info', '🤖 IA procesó el ticket. Revisa y confirma los datos.');
+        console.log('🔍 showConfirmation establecido a true');
+        showNotification('success', `🤖 IA procesó el ticket con ${data.data.analisis.confianza}% de confianza. Revisa y confirma los datos.`);
       } else {
-        showNotification('error', `Error: ${data.error}`);
+        console.log('❌ No se cumplió la condición para mostrar confirmación');
+        showNotification('error', `Error al procesar: ${data.error || 'Respuesta inesperada'}`);
       }
     } catch (error) {
       console.error('Error de conexión:', error);
-      showNotification(
-        'error',
-        'Error de conexión: No se pudo procesar la solicitud'
-      );
+      if (error instanceof Error && error.name === 'AbortError') {
+        showNotification('error', '⏰ El procesamiento tomó demasiado tiempo. Intenta de nuevo.');
+      } else {
+        showNotification('error', 'Error de conexión: No se pudo procesar la solicitud');
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -585,56 +623,63 @@ export default function StaffPage() {
 
     setIsProcessing(true);
     try {
-      // Crear el consumo con los datos confirmados/editados
-      const consumoData = {
-        cedula: cedula,
-        empleadoVenta: editableData.empleado,
-        productos: editableData.productos.map((p, index) => ({
-          id: String(index + 1),
+      // Enviar datos confirmados al endpoint de confirmación
+      const confirmationData = {
+        clienteId: aiResult.cliente.id,
+        businessId: aiResult.metadata.businessId,
+        empleadoId: aiResult.metadata.empleadoId,
+        productos: editableData.productos.map((p: any) => ({
           nombre: p.name,
-          cantidad: 1,
+          cantidad: 1, // Por ahora asumimos cantidad 1
           precio: p.price,
+          categoria: 'otro', // Categoría por defecto
         })),
-        totalManual: editableData.total,
-        ocrText: aiResult.ocrText,
-        ticketImageUrl: aiResult.ticketImageUrl,
+        total: editableData.total,
+        puntos: Math.floor(editableData.total), // 1 punto por peso
+        empleadoDetectado: editableData.empleado,
+        confianza: aiResult.analisis.confianza / 100, // Convertir a decimal
+        imagenUrl: aiResult.metadata.imagenUrl,
+        metodoPago: 'efectivo',
+        notas: `Confirmado por staff - Confianza IA: ${aiResult.analisis.confianza}%`,
       };
 
-      const response = await fetch('/api/staff/consumo/manual', {
+      const response = await fetch('/api/staff/consumo/confirm', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(consumoData),
+        body: JSON.stringify(confirmationData),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        setResult(data);
-        showNotification('success', '✅ Consumo confirmado y registrado');
+        setResult(data.data);
+        showNotification('success', '✅ Consumo confirmado y registrado exitosamente');
 
         // Actualizar estadísticas del día
         setTodayStats(prev => ({
           ...prev,
           ticketsProcessed: prev.ticketsProcessed + 1,
-          totalPoints: prev.totalPoints + (data.puntos || 0),
-          totalAmount: prev.totalAmount + (editableData.total || 0),
+          totalPoints: prev.totalPoints + data.data.puntosGenerados,
+          totalAmount: prev.totalAmount + data.data.totalRegistrado,
         }));
 
         // Agregar a tickets recientes
         const newTicket = {
-          id: Date.now(),
-          cedula,
-          cliente: customerInfo?.nombre || 'Cliente',
-          monto: editableData.total || 0,
-          puntos: data.puntos || 0,
+          id: data.data.consumoId,
+          cedula: data.data.clienteCedula,
+          cliente: data.data.clienteNombre,
+          monto: data.data.totalRegistrado,
+          puntos: data.data.puntosGenerados,
           hora: new Date().toLocaleTimeString('es-ES', {
             hour: '2-digit',
             minute: '2-digit',
           }),
           items: editableData.productos?.map((p: any) => p.name) || [],
+          tipo: 'IA',
         };
+
         setRecentTickets(prev => [newTicket, ...prev.slice(0, 4)]);
 
         // Limpiar formulario después de confirmación exitosa
@@ -668,59 +713,6 @@ export default function StaffPage() {
     setEditableData(null);
   };
 
-  const actualizarDatoEditable = (campo: string, valor: any) => {
-    if (!editableData) return;
-    
-    setEditableData({
-      ...editableData,
-      [campo]: valor,
-    });
-  };
-
-  const actualizarProductoEditable = (index: number, campo: string, valor: any) => {
-    if (!editableData) return;
-    
-    const nuevosProductos = [...editableData.productos];
-    nuevosProductos[index] = {
-      ...nuevosProductos[index],
-      [campo]: valor,
-    };
-    
-    // Recalcular total automáticamente
-    const nuevoTotal = nuevosProductos.reduce((sum, p) => sum + (p.price || 0), 0);
-    
-    setEditableData({
-      ...editableData,
-      productos: nuevosProductos,
-      total: nuevoTotal,
-    });
-  };
-
-  const eliminarProductoEditable = (index: number) => {
-    if (!editableData || editableData.productos.length <= 1) return;
-    
-    const nuevosProductos = editableData.productos.filter((_, i) => i !== index);
-    const nuevoTotal = nuevosProductos.reduce((sum, p) => sum + (p.price || 0), 0);
-    
-    setEditableData({
-      ...editableData,
-      productos: nuevosProductos,
-      total: nuevoTotal,
-    });
-  };
-
-  const agregarProductoEditable = () => {
-    if (!editableData) return;
-    
-    setEditableData({
-      ...editableData,
-      productos: [
-        ...editableData.productos,
-        { name: '', price: 0, line: 'Agregado manualmente' }
-      ],
-    });
-  };
-
   const getNotificationClasses = (type: 'success' | 'error' | 'info') => {
     switch (type) {
       case 'success':
@@ -743,6 +735,12 @@ export default function StaffPage() {
       default:
         return 'bg-amber-600/20 text-amber-400';
     }
+  };
+
+  const getConfianzaColor = (confianza: number) => {
+    if (confianza >= 80) return 'text-green-400';
+    if (confianza >= 60) return 'text-yellow-400';
+    return 'text-red-400';
   };
 
   // Mostrar loading mientras se verifica autenticación
@@ -1012,7 +1010,7 @@ export default function StaffPage() {
                         <AlertCircle className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                         <div className="text-sm text-blue-300">
                           <p className="font-medium mb-1">
-                            🚀 Captura Automática - Flujo Optimizado
+                            🚀 Captura Automática - Flujo Súper Optimizado
                           </p>
                           <ul className="space-y-1 text-xs">
                             <li>
@@ -1023,11 +1021,18 @@ export default function StaffPage() {
                               • <strong>Paso 2:</strong> Ve a tu sistema POS
                             </li>
                             <li>
-                              • <strong>Paso 3:</strong> Presiona{' '}
+                              • <strong>Paso 3 (RÁPIDO):</strong> Presiona{' '}
+                              <kbd className="px-1 py-0.5 bg-green-600/20 rounded text-green-300">
+                                Win + PrtScr
+                              </kbd>{' '}
+                              para captura completa
+                            </li>
+                            <li>
+                              • <strong>Paso 3 (PRECISO):</strong> Presiona{' '}
                               <kbd className="px-1 py-0.5 bg-blue-600/20 rounded">
                                 Win + Shift + S
                               </kbd>{' '}
-                              y captura la cuenta
+                              para seleccionar área
                             </li>
                             <li>
                               • <strong>Paso 4:</strong>{' '}
@@ -1044,6 +1049,35 @@ export default function StaffPage() {
                             <strong>💡 Importante:</strong> Debes regresar a
                             Lealta después de capturar para que se detecte
                             automáticamente.
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Destacar opciones de captura */}
+                      <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/30 rounded-lg p-4 mb-4">
+                        <p className="text-white font-medium mb-2 text-center">
+                          🎯 Elige tu método de captura preferido:
+                        </p>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div className="bg-green-500/20 border border-green-500/40 rounded-lg p-3">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className="text-green-400">🚀</span>
+                              <span className="text-green-300 font-bold">MÁS RÁPIDO</span>
+                            </div>
+                            <p className="text-green-200 text-xs">
+                              <kbd className="bg-green-600/30 px-1 py-0.5 rounded">Win + PrtScr</kbd>
+                              <br />Captura completa instantánea
+                            </p>
+                          </div>
+                          <div className="bg-blue-500/20 border border-blue-500/40 rounded-lg p-3">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className="text-blue-400">📐</span>
+                              <span className="text-blue-300 font-bold">MÁS PRECISO</span>
+                            </div>
+                            <p className="text-blue-200 text-xs">
+                              <kbd className="bg-blue-600/30 px-1 py-0.5 rounded">Win + Shift + S</kbd>
+                              <br />Selecciona área específica
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -1072,26 +1106,35 @@ export default function StaffPage() {
                         ) : (
                           <>
                             <Zap className="w-5 h-5" />
-                            <span>🚀 Captura Automática Inteligente</span>
+                            <span>🚀 Captura Automática (Win + PrtScr)</span>
                           </>
                         )}
                       </button>
 
                       {/* Botones tradicionales */}
-                      <div className="flex gap-4">
+                      <div className="flex gap-2">
                         <button
                           type="button"
                           onClick={openSnippingTool}
-                          className="flex-1 flex items-center justify-center space-x-2 p-4 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors"
+                          className="flex-1 flex items-center justify-center space-x-2 p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
                         >
-                          <Camera className="w-5 h-5" />
+                          <Zap className="w-4 h-4" />
+                          <span>Win + PrtScr</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={openSnippingTool}
+                          className="flex-1 flex items-center justify-center space-x-2 p-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors text-sm"
+                        >
+                          <Camera className="w-4 h-4" />
                           <span>Win + Shift + S</span>
                         </button>
 
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
-                          className="flex-1 flex items-center justify-center space-x-2 p-4 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colors"
+                          className="flex-1 flex items-center justify-center space-x-2 p-3 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colors text-sm"
                         >
                           <Upload className="w-5 h-5" />
                           <span>Subir Captura</span>
@@ -1562,148 +1605,122 @@ export default function StaffPage() {
         </div>
       </div>
 
-      {/* Vista de confirmación de IA */}
-      {showConfirmation && editableData && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="mt-6 bg-amber-500/10 border border-amber-500/30 rounded-xl p-6"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-white flex items-center">
-              <AlertCircle className="w-6 h-6 mr-2 text-amber-400" />
-              🤖 Revisar Datos Detectados por IA
-            </h3>
-            <button
-              onClick={cancelarConfirmacion}
-              className="text-dark-400 hover:text-white transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-4 mb-4">
-            <p className="text-amber-300 text-sm">
-              ⚠️ La IA procesó el ticket. <strong>Revisa los datos antes de confirmar</strong> para asegurar precisión.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            {/* Empleado detectado */}
-            <div>
-              <label htmlFor="empleado-detectado" className="block text-sm font-medium text-dark-300 mb-2">
-                Empleado del POS
-              </label>
-              <input
-                id="empleado-detectado"
-                type="text"
-                value={editableData.empleado}
-                onChange={(e) => actualizarDatoEditable('empleado', e.target.value)}
-                className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                placeholder="Corrige el nombre si es necesario"
-              />
+      {/* Modal de confirmación de IA */}
+      {showConfirmation && editableData && aiResult && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            className="bg-gradient-to-br from-gray-900 to-gray-800 border border-yellow-500/50 rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+          >
+            {/* Header del modal */}
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-white flex items-center">
+                🤖 <span className="ml-2">DATOS DETECTADOS POR IA</span>
+              </h3>
+              <button
+                onClick={cancelarConfirmacion}
+                disabled={isProcessing}
+                className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-gray-700 rounded-lg"
+              >
+                <X className="w-6 h-6" />
+              </button>
             </div>
 
-            {/* Productos detectados */}
-            <div>
-              <label htmlFor="productos-detectados" className="block text-sm font-medium text-dark-300 mb-2">
-                Productos Detectados
-              </label>
-              <div id="productos-detectados" className="space-y-2">
-                {editableData.productos.map((producto, index) => (
-                  <div key={`producto-${index}-${producto.name}`} className="flex space-x-2 items-center bg-dark-700/50 rounded-lg p-3">
-                    <div className="flex-1">
-                      <input
-                        type="text"
-                        value={producto.name}
-                        onChange={(e) => actualizarProductoEditable(index, 'name', e.target.value)}
-                        className="w-full bg-dark-800 border border-dark-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
-                        placeholder="Nombre del producto"
-                      />
-                    </div>
-                    <div className="w-24">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={producto.price}
-                        onChange={(e) => actualizarProductoEditable(index, 'price', parseFloat(e.target.value) || 0)}
-                        className="w-full bg-dark-800 border border-dark-600 rounded px-3 py-2 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-amber-500"
-                        placeholder="Precio"
-                      />
-                    </div>
-                    {editableData.productos.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => eliminarProductoEditable(index)}
-                        className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                
-                <button
-                  type="button"
-                  onClick={agregarProductoEditable}
-                  className="w-full py-2 border-2 border-dashed border-amber-500/30 rounded-lg text-amber-400 hover:text-amber-300 hover:border-amber-500/50 transition-colors text-sm"
-                >
-                  + Agregar Producto
-                </button>
-              </div>
-            </div>
-
-            {/* Total detectado */}
-            <div>
-              <label htmlFor="total-detectado" className="block text-sm font-medium text-dark-300 mb-2">
-                Total Detectado
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-dark-400">$</span>
-                <input
-                  id="total-detectado"
-                  type="number"
-                  step="0.01"
-                  value={editableData.total}
-                  onChange={(e) => actualizarDatoEditable('total', parseFloat(e.target.value) || 0)}
-                  className="w-full bg-dark-700 border border-dark-600 rounded-lg pl-8 pr-4 py-3 text-white placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                />
-              </div>
-              <p className="text-xs text-dark-400 mt-1">
-                Puntos a otorgar: <span className="text-yellow-400 font-medium">{Math.floor(editableData.total * 2)}</span>
+            {/* Alerta de revisión */}
+            <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-4 mb-6">
+              <p className="text-yellow-300 text-center font-medium">
+                ⚠️ <strong>Revisa los datos antes de confirmar</strong> para asegurar precisión
               </p>
             </div>
-          </div>
-
-          {/* Botones de confirmación */}
-          <div className="flex space-x-3 mt-6">
-            <button
-              onClick={confirmarDatosIA}
-              disabled={isProcessing}
-              className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center space-x-2"
-            >
-              {isProcessing ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  <span>Confirmando...</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="w-5 h-5" />
-                  <span>✅ Confirmar y Registrar</span>
-                </>
-              )}
-            </button>
-            <button
-              onClick={cancelarConfirmacion}
-              disabled={isProcessing}
-              className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center space-x-2"
-            >
-              <X className="w-5 h-5" />
-              <span>❌ Cancelar</span>
-            </button>
-          </div>
-        </motion.div>
+            
+            {/* Contenido principal */}
+            <div className="bg-gray-800/80 backdrop-blur-sm p-6 rounded-xl mb-6 border border-gray-700">
+              {/* Cliente y Empleado */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="space-y-2">
+                  <p className="text-gray-400 text-sm uppercase tracking-wider">Cliente</p>
+                  <p className="text-white text-xl font-bold">{aiResult.cliente.nombre}</p>
+                  <p className="text-gray-400">Cédula: {aiResult.cliente.cedula}</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-gray-400 text-sm uppercase tracking-wider">Empleado POS</p>
+                  <p className="text-white text-xl font-bold">{editableData.empleado || 'No detectado'}</p>
+                </div>
+              </div>
+              
+              {/* Productos */}
+              <div className="mb-6">
+                <p className="text-gray-400 text-sm uppercase tracking-wider mb-3">Productos detectados</p>
+                <div className="bg-gray-900/50 rounded-lg border border-gray-600 overflow-hidden">
+                  {editableData.productos.map((p: any, i: number) => (
+                    <div key={`producto-${p.name}-${i}`} className="flex justify-between items-center py-3 px-4 border-b border-gray-700 last:border-b-0">
+                      <span className="text-gray-300 flex items-center">
+                        <span className="w-2 h-2 bg-green-400 rounded-full mr-3"></span>
+                        {p.name}
+                      </span>
+                      <span className="text-green-400 font-mono text-lg font-bold">${p.price.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Totales */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div className="text-center p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                  <p className="text-blue-400 text-sm uppercase tracking-wider">Total</p>
+                  <p className="text-white text-3xl font-bold">${editableData.total.toFixed(2)}</p>
+                </div>
+                <div className="text-center p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+                  <p className="text-green-400 text-sm uppercase tracking-wider">Puntos</p>
+                  <p className="text-green-400 text-3xl font-bold">{Math.floor(editableData.total)}</p>
+                </div>
+                <div className="text-center p-4 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                  <p className="text-purple-400 text-sm uppercase tracking-wider">Confianza IA</p>
+                  <p className={`text-3xl font-bold ${getConfianzaColor(aiResult.analisis.confianza)}`}>
+                    {aiResult.analisis.confianza}%
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Botones de acción */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button
+                onClick={confirmarDatosIA}
+                disabled={isProcessing}
+                className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-4 px-6 rounded-xl text-lg transition-all duration-200 flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl"
+              >
+                {isProcessing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                    <span>Guardando...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-6 h-6" />
+                    <span>CONFIRMAR Y GUARDAR</span>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={cancelarConfirmacion}
+                disabled={isProcessing}
+                className="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-4 px-6 rounded-xl text-lg transition-all duration-200 flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl"
+              >
+                <X className="w-6 h-6" />
+                <span>CANCELAR</span>
+              </button>
+            </div>
+            
+            {/* Tip */}
+            <p className="text-center text-gray-500 text-sm mt-6 flex items-center justify-center space-x-2">
+              <span>💡</span>
+              <span>Si los datos no son correctos, cancela y vuelve a capturar la imagen</span>
+            </p>
+          </motion.div>
+        </div>
       )}
     </div>
   );

@@ -10,6 +10,137 @@ import { MenuItem, MenuCategory, Cliente, StatsData } from '../../types/admin';
 import { CategoryFormData } from '../../types/admin-extras';
 import Image from 'next/image';
 
+// Tipo para productos
+interface ProductData {
+  id?: string;
+  nombre: string;
+  descripcion: string;
+  precio: number;
+  categoria: string;
+  categoryId?: string;
+  precioVaso?: number;
+  precioBotella?: number;
+  tipoProducto?: string;
+  disponible?: boolean;
+  destacado?: boolean;
+  imagen?: string;
+  imagenUrl?: string;
+  tags?: string[];
+}
+
+// Tipo para categorías de productos
+interface CategoryData {
+  id?: string;
+  nombre: string;
+  descripcion?: string;
+}
+
+// Tipo para banners
+interface Banner {
+  id?: string;
+  activo: boolean;
+  imagenUrl?: string;
+  dia?: string;
+  [key: string]: any;
+}
+
+// Tipo para promociones
+interface Promocion {
+  id?: string;
+  activo: boolean;
+  titulo?: string;
+  descripcion?: string;
+  dia?: string;
+  [key: string]: any;
+}
+
+// Tipo para recompensas
+interface Recompensa {
+  id?: string;
+  activo: boolean;
+  nombre?: string;
+  puntosRequeridos?: number;
+  [key: string]: any;
+}
+
+// Tipo para configuración de branding
+interface BrandingConfig {
+  businessName: string;
+  primaryColor: string;
+  carouselImages: string[];
+}
+
+// Tipo para favorito del día (puede tener diferentes estructuras)
+type FavoritoDelDia = 
+  | {
+      id: string;
+      nombre: string;
+      descripcion?: string;
+      precio?: number;
+      imagenUrl?: string;
+      activo?: boolean;
+    }
+  | {
+      id: string;
+      dia?: string;
+      imagenUrl?: string;
+      horaPublicacion?: string;
+      activo?: boolean;
+    }
+  | Record<string, unknown>; // Objeto con propiedades dinámicas
+
+// Funciones auxiliares para type guards
+const isFavoritoWithDia = (item: FavoritoDelDia): item is { dia: string } & Record<string, unknown> => {
+  return item !== null && typeof item === 'object' && 'dia' in item && typeof item.dia === 'string';
+};
+
+const isFavoritoWithId = (item: FavoritoDelDia): item is { id: string } & Record<string, unknown> => {
+  return item !== null && typeof item === 'object' && 'id' in item && typeof item.id === 'string';
+};
+
+const getFavoritoProperty = (item: FavoritoDelDia, prop: string): unknown => {
+  if (item && typeof item === 'object' && prop in item) {
+    return (item as Record<string, unknown>)[prop];
+  }
+  return undefined;
+};
+
+const isFavoritoActivo = (favorito: FavoritoDelDia | FavoritoDelDia[] | null | undefined): boolean => {
+  if (!favorito) return false;
+  if (Array.isArray(favorito)) {
+    return favorito.some(f => getFavoritoProperty(f, 'activo') === true);
+  }
+  return getFavoritoProperty(favorito, 'activo') === true;
+};
+
+const getFavoritosList = (favorito: FavoritoDelDia | FavoritoDelDia[] | null | undefined): FavoritoDelDia[] => {
+  if (!favorito) return [];
+  if (Array.isArray(favorito)) {
+    return favorito;
+  }
+  return [favorito];
+};
+
+// Tipo para configuración general
+interface GeneralConfig {
+  [key: string]: any;
+  tarjetaVirtual?: {
+    habilitada: boolean;
+    requerirTelefono: boolean;
+  };
+  promociones?: Promocion[];
+  recompensas?: Recompensa[];
+  banners?: Banner[];
+  favoritoDelDia?: FavoritoDelDia[] | FavoritoDelDia | null;
+  eventos?: {
+    id: string;
+    titulo: string;
+    descripcion?: string;
+    fecha: string;
+    activo: boolean;
+  }[];
+}
+
 // Tipo para los niveles de las tarjetas
 type NivelTarjeta = 'success' | 'error' | 'info' | 'warning';
 
@@ -96,6 +227,21 @@ type AdminSection =
   | 'portal'
   | 'analytics'
   | 'configuracion';
+
+// Funciones helper para manejar arrays de promociones y recompensas
+const getPromocionesList = (promociones: unknown): Promocion[] => {
+  if (Array.isArray(promociones)) {
+    return promociones as Promocion[];
+  }
+  return [];
+};
+
+const getRecompensasList = (recompensas: unknown): Recompensa[] => {
+  if (Array.isArray(recompensas)) {
+    return recompensas as Recompensa[];
+  }
+  return [];
+};
 
 export default function AdminPage() {
   const { user, loading, logout, isAuthenticated } = useRequireAuth('ADMIN');
@@ -476,6 +622,28 @@ function ClientesContent() {
     fetchClientes();
   }, []);
 
+  // Función para filtrar clientes localmente
+  const filterClientsLocally = useCallback(
+    (query: string) => {
+      if (!query.trim()) {
+        setFilteredClientes(clientes);
+        return;
+      }
+
+      const searchLower = query.toLowerCase();
+      const filtered = clientes.filter(
+        client =>
+          client.nombre.toLowerCase().includes(searchLower) ||
+          client.cedula?.toLowerCase().includes(searchLower) ||
+          client.telefono?.toLowerCase().includes(searchLower) ||
+          client.correo?.toLowerCase().includes(searchLower)
+      );
+
+      setFilteredClientes(filtered);
+    },
+    [clientes]
+  );
+
   // Función para buscar clientes en el servidor
   const searchClientesAPI = useCallback(async (query: string) => {
     if (!query || query.length < 2) return;
@@ -498,29 +666,7 @@ function ClientesContent() {
     } finally {
       setIsSearching(false);
     }
-  }, []);
-
-  // Función para filtrar clientes localmente
-  const filterClientsLocally = useCallback(
-    (query: string) => {
-      if (!query.trim()) {
-        setFilteredClientes(clientes);
-        return;
-      }
-
-      const searchLower = query.toLowerCase();
-      const filtered = clientes.filter(
-        client =>
-          client.nombre.toLowerCase().includes(searchLower) ||
-          client.cedula?.toLowerCase().includes(searchLower) ||
-          client.telefono?.toLowerCase().includes(searchLower) ||
-          client.correo?.toLowerCase().includes(searchLower)
-      );
-
-      setFilteredClientes(filtered);
-    },
-    [clientes]
-  );
+  }, [filterClientsLocally]);
 
   // Efecto para manejar la búsqueda con debounce
   useEffect(() => {
@@ -1433,7 +1579,12 @@ function MenuContent() {
       {/* Modal para crear/editar producto */}
       {showProductModal && (
         <ProductModal
-          product={editingProduct}
+          product={editingProduct ? {
+            ...editingProduct,
+            categoria: categories.find(c => c.id === editingProduct.categoryId)?.nombre || '',
+            descripcion: editingProduct.descripcion || '',
+            precio: editingProduct.precio || 0
+          } : null}
           categories={categories}
           onSave={async productData => {
             try {
@@ -1980,9 +2131,9 @@ function ProductModal({
   onSave,
   onClose,
 }: Readonly<{
-  product: any;
-  categories: any[];
-  onSave: (data: any) => void;
+  product: ProductData | null;
+  categories: CategoryData[];
+  onSave: (data: ProductData) => void;
   onClose: () => void;
 }>) {
   const [formData, setFormData] = useState({
@@ -2000,7 +2151,16 @@ function ProductModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    // Agregar la categoria basada en categoryId
+    const selectedCategory = categories.find(cat => cat.id === formData.categoryId);
+    const submitData = {
+      ...formData,
+      categoria: selectedCategory?.nombre || formData.categoryId,
+      precio: typeof formData.precio === 'string' ? parseFloat(formData.precio) || 0 : formData.precio,
+      precioVaso: typeof formData.precioVaso === 'string' ? parseFloat(formData.precioVaso) || undefined : formData.precioVaso,
+      precioBotella: typeof formData.precioBotella === 'string' ? parseFloat(formData.precioBotella) || undefined : formData.precioBotella
+    };
+    onSave(submitData);
   };
 
   return (
@@ -2288,7 +2448,7 @@ function PortalContent({
     'preview' | 'banners' | 'promociones' | 'recompensas' | 'favorito'
   >('preview');
   const [previewMode, setPreviewMode] = useState<ModoVistaPrevia>('portal'); // Estado para cambiar entre Portal, Login y Tarjetas
-  const [brandingConfig, setBrandingConfig] = useState<any>({
+  const [brandingConfig, setBrandingConfig] = useState<BrandingConfig>({
     // Configuración de branding para el login
     businessName: 'Mi Empresa',
     primaryColor: '#3B82F6',
@@ -2299,13 +2459,13 @@ function PortalContent({
       'https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=250&fit=crop',
     ],
   });
-  const [config, setConfig] = useState<any>({
+  const [config, setConfig] = useState<GeneralConfig>({
     banners: [],
     promociones: [],
     eventos: [],
     recompensas: [],
     tarjetas: [],
-    favoritoDelDia: null,
+    favoritoDelDia: [],
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -2341,6 +2501,7 @@ function PortalContent({
               id: '1',
               titulo: 'Música en vivo',
               descripcion: 'Todos los viernes a partir de las 8pm',
+              fecha: '2025-09-03',
               activo: true,
             },
           ],
@@ -2643,12 +2804,12 @@ function PortalContentManager({
   showNotification,
 }: Readonly<{
   activeTab: string;
-  config: any;
-  setConfig: (config: any) => void;
+  config: GeneralConfig;
+  setConfig: (config: GeneralConfig) => void;
   previewMode: ModoVistaPrevia;
   setPreviewMode: React.Dispatch<React.SetStateAction<ModoVistaPrevia>>;
-  brandingConfig: any;
-  setBrandingConfig: (config: any) => void;
+  brandingConfig: BrandingConfig;
+  setBrandingConfig: (config: BrandingConfig) => void;
   handleBrandingChange: (
     field: string,
     value: string | string[]
@@ -2685,14 +2846,27 @@ function PortalContentManager({
     }
   };
 
-  const addItem = (type: string, item: any) => {
+// Tipos para items de configuración
+type ConfigurableItem = Banner | Promocion | Recompensa | {
+  id: string;
+  dia: string;
+  nombre: string;
+  descripcion?: string;
+  precio?: number;
+  imagenUrl?: string;
+  activo?: boolean;
+};
+
+type ConfigurableItemType = 'banners' | 'promociones' | 'recompensas' | 'favoritoDelDia' | 'eventos';
+
+  const addItem = (type: ConfigurableItemType, item: ConfigurableItem) => {
     const newItem = {
       ...item,
       id: item.id || `${type}_${Date.now()}`,
       activo: true,
     };
 
-    setConfig((prev: any) => {
+    setConfig((prev: GeneralConfig) => {
       // Caso especial para favoritoDelDia
       if (type === 'favoritoDelDia') {
         // Asegurar que favoritoDelDia sea un array
@@ -2702,7 +2876,7 @@ function PortalContentManager({
         
         // Buscar si ya existe un favorito para este día
         const existingIndex = currentFavoritos.findIndex(
-          (f: any) => f.dia === item.dia
+          (f: FavoritoDelDia) => isFavoritoWithDia(f) && f.dia === getFavoritoProperty(item, 'dia')
         );
 
         if (existingIndex >= 0) {
@@ -2730,8 +2904,8 @@ function PortalContentManager({
     });
   };
 
-  const updateItem = (type: string, itemId: string, updates: any) => {
-    setConfig((prev: any) => {
+  const updateItem = (type: ConfigurableItemType, itemId: string, updates: Partial<ConfigurableItem>) => {
+    setConfig((prev: GeneralConfig) => {
       // Caso especial para favoritoDelDia
       if (type === 'favoritoDelDia') {
         const currentFavoritos = Array.isArray(prev.favoritoDelDia) 
@@ -2740,8 +2914,8 @@ function PortalContentManager({
         
         return {
           ...prev,
-          favoritoDelDia: currentFavoritos.map((item: any) =>
-            item.id === itemId ? { ...item, ...updates } : item
+          favoritoDelDia: currentFavoritos.map((item: FavoritoDelDia) =>
+            isFavoritoWithId(item) && item.id === itemId ? { ...item, ...updates } : item
           ),
         };
       }
@@ -2749,18 +2923,18 @@ function PortalContentManager({
       // Caso normal para otros tipos
       return {
         ...prev,
-        [type]: (prev[type] || []).map((item: any) =>
+        [type]: (prev[type] || []).map((item: { id?: string }) =>
           item.id === itemId ? { ...item, ...updates } : item
         ),
       };
     });
   };
 
-  const deleteItem = (type: string, itemId: string) => {
+  const deleteItem = (type: ConfigurableItemType, itemId: string) => {
     if (
       window.confirm('¿Estás seguro de que quieres eliminar este elemento?')
     ) {
-      setConfig((prev: any) => {
+      setConfig((prev: GeneralConfig) => {
         // Caso especial para favoritoDelDia
         if (type === 'favoritoDelDia') {
           const currentFavoritos = Array.isArray(prev.favoritoDelDia) 
@@ -2769,21 +2943,23 @@ function PortalContentManager({
           
           return {
             ...prev,
-            favoritoDelDia: currentFavoritos.filter((item: any) => item.id !== itemId),
+            favoritoDelDia: currentFavoritos.filter((item: FavoritoDelDia) => 
+              !isFavoritoWithId(item) || item.id !== itemId
+            ),
           };
         }
         
         // Caso normal para otros tipos
         return {
           ...prev,
-          [type]: (prev[type] || []).filter((item: any) => item.id !== itemId),
+          [type]: (prev[type] || []).filter((item: { id?: string }) => item.id !== itemId),
         };
       });
     }
   };
 
-  const toggleActive = (type: string, itemId: string) => {
-    setConfig((prev: any) => {
+  const toggleActive = (type: ConfigurableItemType, itemId: string) => {
+    setConfig((prev: GeneralConfig) => {
       // Caso especial para favoritoDelDia
       if (type === 'favoritoDelDia') {
         const currentFavoritos = Array.isArray(prev.favoritoDelDia) 
@@ -2876,16 +3052,16 @@ function PortalContentManager({
               </div>
 
               {/* Evento del día */}
-              {config.banners?.filter((b: any) => b.activo && b.imagenUrl && b.imagenUrl.trim() !== '')
+              {(config.banners || []).filter((b: Banner) => b.activo && b.imagenUrl && b.imagenUrl.trim() !== '')
                 .length > 0 && (
                 <div className="mx-4 mb-3">
                   <h3 className="text-white font-semibold text-sm mb-2">
                     Evento del día
                   </h3>
                   {(config.banners || [])
-                    .filter((b: any) => b.activo && b.imagenUrl && b.imagenUrl.trim() !== '')
+                    .filter((b: Banner) => b.activo && b.imagenUrl && b.imagenUrl.trim() !== '')
                     .slice(0, 1)
-                    .map((banner: any) => (
+                    .map((banner: Banner) => (
                       <div
                         key={banner.id}
                         className="relative overflow-hidden rounded-xl"
@@ -2901,13 +3077,13 @@ function PortalContentManager({
               )}
 
               {/* Promociones */}
-              {config.promociones?.filter((p: any) => p.activo && p.titulo && p.descripcion).length > 0 && (
+              {getPromocionesList(config.promociones).filter((p: Promocion) => p.activo && p.titulo && p.descripcion).length > 0 && (
                 <div className="mx-4 mb-3">
                   <h3 className="text-white font-semibold text-sm mb-2">
                     Promociones Especiales
                   </h3>
-                  {(config.promociones || [])
-                    .filter((p: any) => p.activo && p.titulo && p.descripcion)
+                  {(getPromocionesList(config.promociones) || [])
+                    .filter((p: Promocion) => p.activo && p.titulo && p.descripcion)
                     .slice(0, 2)
                     .map((promo: any) => (
                       <div
@@ -2954,7 +3130,7 @@ function PortalContentManager({
                     </h3>
                     <div className="relative overflow-hidden rounded-xl">
                       <img
-                        src={favoritoMostrar.imagenUrl}
+                        src={getFavoritoProperty(favoritoMostrar, 'imagenUrl') as string}
                         alt="Favorito del día"
                         className="w-full h-32 object-cover"
                       />
@@ -2965,7 +3141,7 @@ function PortalContentManager({
                             <span className="text-white text-xs">⭐</span>
                           </div>
                           <span className="text-white font-medium text-xs">
-                            Favorito del {favoritoHoy ? 'Día' : `${favoritoMostrar.dia}`}
+                            Favorito del {favoritoHoy ? 'Día' : `${String(getFavoritoProperty(favoritoMostrar, 'dia')) || 'Día'}`}
                           </span>
                         </div>
                       </div>
@@ -2975,7 +3151,7 @@ function PortalContentManager({
               })()}
 
               {/* Recompensas */}
-              {config.recompensas?.filter((r: any) => r.activo && r.nombre && r.puntosRequeridos).length > 0 && (
+              {getRecompensasList(config.recompensas).filter((r: Recompensa) => r.activo && r.nombre && r.puntosRequeridos).length > 0 && (
                 <div className="mx-4 mb-3">
                   <h3 className="text-white font-semibold text-sm mb-2">
                     Recompensas
@@ -2988,8 +3164,8 @@ function PortalContentManager({
                       </span>
                     </div>
                     <div className="flex overflow-x-auto space-x-2 pb-1">
-                      {(config.recompensas || [])
-                        .filter((r: any) => r.activo && r.nombre && r.puntosRequeridos)
+                      {getRecompensasList(config.recompensas)
+                        .filter((r: Recompensa) => r.activo && r.nombre && r.puntosRequeridos)
                         .slice(0, 3)
                         .map((recompensa: any) => (
                           <div
@@ -3010,10 +3186,10 @@ function PortalContentManager({
               )}
 
               {/* Estado vacío cuando no hay contenido configurado */}
-              {(!config.banners?.filter((b: any) => b.activo && b.imagenUrl && b.imagenUrl.trim() !== '').length &&
-                !config.favoritoDelDia?.activo &&
-                !config.promociones?.filter((p: any) => p.activo && p.titulo && p.descripcion).length &&
-                !config.recompensas?.filter((r: any) => r.activo && r.nombre && r.puntosRequeridos).length) && (
+              {(!config.banners?.filter((b: Banner) => b.activo && b.imagenUrl && b.imagenUrl.trim() !== '').length &&
+                !isFavoritoActivo(config.favoritoDelDia) &&
+                !getPromocionesList(config.promociones).filter((p: Promocion) => p.activo && p.titulo && p.descripcion).length &&
+                !getRecompensasList(config.recompensas).filter((r: Recompensa) => r.activo && r.nombre && r.puntosRequeridos).length) && (
                 <div className="mx-4 mb-4 text-center py-8">
                   <div className="text-white/50 text-sm mb-2">
                     👆 Configure contenido arriba
@@ -3419,8 +3595,6 @@ function PortalContentManager({
             return (
               <div className="space-y-6">
                 <AsignacionTarjetasComponent
-                  config={config}
-                  setConfig={setConfig}
                   showNotification={showNotification}
                 />
                 <TarjetaEditorComponent
@@ -3448,19 +3622,19 @@ function PortalContentManager({
                   </h5>
                   <ul className="space-y-1 text-sm text-dark-300">
                     <li>
-                      • {(config.banners || []).filter((b: any) => b.activo).length}{' '}
+                      • {(config.banners || []).filter((b: Banner) => b.activo).length}{' '}
                       Banners activos
                     </li>
                     <li>
-                      • {(config.promociones || []).filter((p: any) => p.activo).length}{' '}
+                      • {getPromocionesList(config.promociones).filter((p: Promocion) => p.activo).length}{' '}
                       Promociones activas
                     </li>
                     <li>
-                      • {config.favoritoDelDia?.activo ? '1' : '0'} Favorito del
+                      • {isFavoritoActivo(config.favoritoDelDia) ? '1' : '0'} Favorito del
                       día activo
                     </li>
                     <li>
-                      • {(config.recompensas || []).filter((r: any) => r.activo).length}{' '}
+                      • {getRecompensasList(config.recompensas).filter((r: Recompensa) => r.activo).length}{' '}
                       Recompensas activas
                     </li>
                   </ul>
@@ -3498,7 +3672,7 @@ function PortalContentManager({
               </button>
             </div>
             <PromocionesManager
-              promociones={config.promociones || []}
+              promociones={getPromocionesList(config.promociones)}
               onAdd={(promo: any) => addItem('promociones', promo)}
               onUpdate={(id: string, updates: any) =>
                 updateItem('promociones', id, updates)
@@ -3511,7 +3685,7 @@ function PortalContentManager({
 
         {activeTab === 'favorito' && (
           <FavoritoDelDiaManager
-            favoritos={config.favoritoDelDia || []}
+            favoritos={getFavoritosList(config.favoritoDelDia)}
             onUpdate={(favorito: any) => {
               // Verificar si ya existe un favorito para este día
               const currentFavoritos = Array.isArray(config.favoritoDelDia) 
@@ -3524,7 +3698,8 @@ function PortalContentManager({
 
               if (existingFavorito) {
                 // Actualizar favorito existente
-                updateItem('favoritoDelDia', existingFavorito.id, favorito);
+                const existingId = getFavoritoProperty(existingFavorito, 'id') as string;
+                updateItem('favoritoDelDia', existingId, favorito);
               } else {
                 // Crear nuevo favorito
                 addItem('favoritoDelDia', favorito);
@@ -3544,7 +3719,7 @@ function PortalContentManager({
 
         {activeTab === 'recompensas' && (
           <RecompensasManager
-            recompensas={config.recompensas || []}
+            recompensas={getRecompensasList(config.recompensas)}
             onAdd={(recompensa: any) => addItem('recompensas', recompensa)}
             onUpdate={(id: string, updates: any) =>
               updateItem('recompensas', id, updates)
@@ -3603,7 +3778,7 @@ function BannersManager({
     domingo: 'Domingo',
   };
 
-  const bannerPorDia = banners.find((b: any) => b.dia === selectedDay);
+  const bannerPorDia = banners.find((b: Banner) => b.dia === selectedDay);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -4057,7 +4232,7 @@ function PromocionesManager({
     domingo: 'Domingo',
   };
 
-  const promosPorDia = promociones.filter((p: any) => p.dia === selectedDay);
+  const promosPorDia = promociones.filter((p: Promocion) => p.dia === selectedDay);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -4128,7 +4303,7 @@ function PromocionesManager({
         <div className="grid grid-cols-7 gap-2">
           {diasSemana.map(dia => {
             const tienePromo = promociones.some(
-              (p: any) => p.dia === dia.value
+              (p: Promocion) => p.dia === dia.value
             );
             return (
               <button
@@ -4358,7 +4533,7 @@ function PromocionesManager({
         <h6 className="text-white font-medium mb-3">Resumen de la Semana</h6>
         <div className="grid grid-cols-7 gap-2">
           {diasSemana.map(dia => {
-            const promo = promociones.find((p: any) => p.dia === dia.value);
+            const promo = promociones.find((p: Promocion) => p.dia === dia.value);
             return (
               <div key={dia.value} className="text-center">
                 <div className="text-xs text-dark-400 mb-1">{dia.label}</div>
@@ -5178,7 +5353,7 @@ function TarjetaEditorComponent({
     if (editingCard) {
       setEditingCard({ ...currentTarjeta });
     }
-  }, [selectedLevel]);
+  }, [selectedLevel, editingCard, currentTarjeta]);
 
   // Definir jerarquía de niveles
   const nivelesJerarquia = ['Bronce', 'Plata', 'Oro', 'Diamante', 'Platino'];
@@ -5411,7 +5586,7 @@ function TarjetaEditorComponent({
       <div className="mb-6">
         <h5 className="text-white font-medium mb-3">Seleccionar Nivel</h5>
         <div className="grid grid-cols-5 gap-2">
-          {Object.entries(nivelesConfig).map(([nivel, conf]) => (
+          {Object.keys(nivelesConfig).map((nivel) => (
             <button
               key={nivel}
               onClick={() => setSelectedLevel(nivel)}
@@ -5900,12 +6075,8 @@ function CardAssignmentForm({
 }
 
 function AsignacionTarjetasComponent({
-  config,
-  setConfig,
   showNotification,
 }: Readonly<{
-  config: any;
-  setConfig: (config: any) => void;
   showNotification: (message: string, type: NivelTarjeta) => void;
 }>) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -5968,7 +6139,7 @@ function AsignacionTarjetasComponent({
   };
 
   // Buscar clientes
-  const searchClients = async () => {
+  const searchClients = useCallback(async () => {
     if (searchTerm.length < 2) {
       setClients([]);
       return;
@@ -5998,7 +6169,7 @@ function AsignacionTarjetasComponent({
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchTerm, setClients, setLoading]);
 
   // Calcular nivel automático basado en historial del cliente
   const calculateClientLevel = (client: any) => {
@@ -6093,7 +6264,7 @@ function AsignacionTarjetasComponent({
       }
     }, 300);
     return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
+  }, [searchTerm, searchClients]);
 
   return (
     <div className="bg-dark-800 rounded-lg p-6">

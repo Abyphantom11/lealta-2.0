@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     });
 
     const body = await request.json();
-    const { cedula, empleadoVenta, productos, totalManual } = body;
+    const { cedula, empleadoVenta, productos, totalManual, ocrText, ticketImageUrl } = body;
 
     // Validaciones básicas
     if (!cedula || !empleadoVenta || !productos || !totalManual) {
@@ -147,7 +147,8 @@ export async function POST(request: NextRequest) {
           puntos: puntosGanados,
           empleadoId: userId, // ID del usuario que registra
           registeredAt: new Date(),
-          ocrText: `MANUAL: Empleado POS: ${empleadoVenta}`,
+          ocrText: ocrText || `MANUAL: Empleado POS: ${empleadoVenta}`,
+          ticketImageUrl: ticketImageUrl,
           businessId: businessId,
         },
       });

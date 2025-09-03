@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from '../../components/motion';
 import { useRequireAuth } from '../../hooks/useAuth';
 import RoleSwitch from '../../components/RoleSwitch';
@@ -8,16 +8,47 @@ import {
   BarChart3,
   Users,
   TrendingUp,
-  AlertTriangle,
   Activity,
   DollarSign,
   UserPlus,
-  Shield,
   Server,
   LogOut,
   Trash2,
   Eye,
 } from 'lucide-react';
+import DateRangePicker from '../../components/DateRangePicker';
+import AdvancedMetrics from '../../components/AdvancedMetrics';
+import TopClients from '../../components/TopClients';
+
+// Estilos CSS para dark theme en calendarios
+const calendarStyles = `
+  /* Estilos para input[type="month"] en dark theme */
+  input[type="month"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 0.8;
+  }
+  
+  input[type="month"]::-webkit-inner-spin-button,
+  input[type="month"]::-webkit-clear-button {
+    display: none;
+  }
+  
+  /* Personalizar el calendario desplegable */
+  input[type="month"] {
+    color-scheme: dark;
+  }
+  
+  input[type="number"] {
+    color-scheme: dark;
+  }
+`;
+
+// Inyectar estilos
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement('style');
+  styleSheet.innerText = calendarStyles;
+  document.head.appendChild(styleSheet);
+}
 
 // Helper functions
 const getActivityColor = (type: string) => {
@@ -89,7 +120,7 @@ export default function SuperAdminPage() {
   const { user, loading, logout, isAuthenticated } =
     useRequireAuth('SUPERADMIN');
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'analytics' | 'users' | 'risk' | 'system' | 'historial'
+    'overview' | 'analytics' | 'users' | 'system' | 'historial'
   >('overview');
 
   // Estados para datos reales
@@ -130,6 +161,58 @@ export default function SuperAdminPage() {
     role: 'STAFF',
   });
   const [isCreatingUser, setIsCreatingUser] = useState(false);
+  
+  // Estado para datos de estadísticas
+  const [statsData, setStatsData] = useState<any>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
+  
+  // Estado para el selector de fechas
+  const [selectedDateRange, setSelectedDateRange] = useState('today');
+
+  // Definir las funciones con useCallback primero
+  const fetchEstadisticas = useCallback(async () => {
+    if (!isAuthenticated) return;
+    
+    setIsLoadingStats(true);
+    try {
+      const response = await fetch(`/api/admin/estadisticas?periodo=${selectedDateRange}`);
+      if (response.ok) {
+        const data = await response.json();
+        setStatsData(data);
+      }
+    } catch (error) {
+      console.error('Error fetching estadísticas:', error);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  }, [isAuthenticated, selectedDateRange]);
+
+  const fetchGraficoDatos = useCallback(async () => {
+    setIsLoadingGrafico(true);
+    try {
+      let url = `/api/admin/grafico-ingresos?tipo=${tipoGrafico}`;
+
+      // Agregar filtros específicos si están definidos
+      if (filtroMes && filtroMes.length > 0) {
+        url += `&mes=${filtroMes}`;
+      } else if (filtroAño && filtroAño.length > 0) {
+        url += `&año=${filtroAño}`;
+      }
+
+      console.log('🔍 Solicitando datos del gráfico:', url);
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data.success) {
+        setDatosGrafico(data);
+        console.log('📈 Datos gráfico cargados:', data);
+      }
+    } catch (error) {
+      console.error('Error loading gráfico datos:', error);
+    } finally {
+      setIsLoadingGrafico(false);
+    }
+  }, [tipoGrafico, filtroMes, filtroAño]);
 
   // Cargar datos cuando se monta el componente o cambia la pestaña
   useEffect(() => {
@@ -143,7 +226,7 @@ export default function SuperAdminPage() {
         fetchClientesConTransacciones();
       }
     }
-  }, [activeTab, isAuthenticated, tipoGrafico]);
+  }, [activeTab, isAuthenticated, tipoGrafico, fetchGraficoDatos]);
 
   // Effect separado para recargar cuando cambien los filtros específicos
   useEffect(() => {
@@ -153,7 +236,14 @@ export default function SuperAdminPage() {
     ) {
       fetchGraficoDatos();
     }
-  }, [filtroMes, filtroAño, isAuthenticated, activeTab]);
+  }, [filtroMes, filtroAño, isAuthenticated, activeTab, fetchGraficoDatos]);
+
+  // Cargar estadísticas cuando cambie el período o tab analytics
+  useEffect(() => {
+    if (activeTab === 'analytics' && isAuthenticated) {
+      fetchEstadisticas();
+    }
+  }, [selectedDateRange, activeTab, isAuthenticated, fetchEstadisticas]);
 
   const fetchAnalytics = async (periodo: string = '7days') => {
     try {
@@ -206,33 +296,6 @@ export default function SuperAdminPage() {
       }
     } catch (error) {
       console.error('Error loading analytics:', error);
-    }
-  };
-
-  const fetchGraficoDatos = async () => {
-    setIsLoadingGrafico(true);
-    try {
-      let url = `/api/admin/grafico-ingresos?tipo=${tipoGrafico}`;
-
-      // Agregar filtros específicos si están definidos
-      if (filtroMes && filtroMes.length > 0) {
-        url += `&mes=${filtroMes}`;
-      } else if (filtroAño && filtroAño.length > 0) {
-        url += `&año=${filtroAño}`;
-      }
-
-      console.log('🔍 Solicitando datos del gráfico:', url);
-      const response = await fetch(url);
-      const data = await response.json();
-
-      if (data.success) {
-        setDatosGrafico(data);
-        console.log('📈 Datos gráfico cargados:', data);
-      }
-    } catch (error) {
-      console.error('Error loading gráfico datos:', error);
-    } finally {
-      setIsLoadingGrafico(false);
     }
   };
 
@@ -644,7 +707,6 @@ export default function SuperAdminPage() {
     { id: 'analytics', label: 'Analytics', icon: TrendingUp },
     { id: 'users', label: 'Usuarios', icon: Users },
     { id: 'historial', label: 'Historial Clientes', icon: Eye },
-    { id: 'risk', label: 'Riesgo', icon: AlertTriangle },
     { id: 'system', label: 'Sistema', icon: Server },
   ];
 
@@ -721,7 +783,7 @@ export default function SuperAdminPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+              className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
             >
               <MetricCard
                 title="Total Clientes"
@@ -747,14 +809,6 @@ export default function SuperAdminPage() {
                 change="+18.2%"
                 subtitle="hoy"
               />
-              <MetricCard
-                title="Tasa de Riesgo"
-                value={`${currentAnalytics.defaultRate}%`}
-                icon={<AlertTriangle className="w-6 h-6" />}
-                gradient="from-orange-600 to-red-600"
-                change="-0.8%"
-                subtitle="mejora continua"
-              />
             </motion.div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -771,16 +825,30 @@ export default function SuperAdminPage() {
                     Ingresos por{' '}
                     {tipoGrafico.charAt(0).toUpperCase() + tipoGrafico.slice(1)}
                   </h2>
-                  <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => {
+                      setFiltroMes('');
+                      setFiltroAño('');
+                      setTipoGrafico('semana');
+                    }}
+                    className="px-3 py-1.5 bg-gray-800/50 hover:bg-gray-700/50 text-gray-400 hover:text-white border border-gray-700/50 rounded-lg text-sm transition-all duration-200"
+                  >
+                    Restablecer
+                  </button>
+                </div>
+
+                {/* Selector de período mejorado */}
+                <div className="mb-6">
+                  <div className="flex items-center space-x-3 mb-4">
                     {(['semana', 'mes', 'semestre', 'año'] as const).map(
                       tipo => (
                         <button
                           key={tipo}
                           onClick={() => setTipoGrafico(tipo)}
-                          className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                             tipoGrafico === tipo
-                              ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
-                              : 'bg-gray-800/50 text-gray-400 hover:bg-gray-700/50'
+                              ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-600/25'
+                              : 'bg-gray-800/50 text-gray-400 hover:bg-gray-700/50 hover:text-white border border-gray-700/50'
                           }`}
                         >
                           {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
@@ -788,52 +856,57 @@ export default function SuperAdminPage() {
                       )
                     )}
                   </div>
-                </div>
 
-                {/* Filtros específicos */}
-                <div className="mb-4 flex items-center space-x-4">
-                  <div className="flex items-center space-x-2">
-                    <label
-                      htmlFor="filtro-mes"
-                      className="text-sm text-gray-400"
-                    >
-                      Mes específico:
-                    </label>
-                    <input
-                      id="filtro-mes"
-                      type="month"
-                      value={filtroMes}
-                      onChange={e => setFiltroMes(e.target.value)}
-                      className="px-3 py-1 bg-gray-800/50 border border-gray-700 rounded-lg text-white text-sm"
-                    />
+                  {/* Filtros específicos mejorados */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label htmlFor="filtro-mes" className="text-sm font-medium text-gray-300 flex items-center">
+                        <span className="mr-2">📅</span> Filtrar por mes específico
+                      </label>
+                      <input
+                        id="filtro-mes"
+                        type="month"
+                        value={filtroMes}
+                        onChange={e => setFiltroMes(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-gray-900/70 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 [color-scheme:dark]"
+                        style={{ colorScheme: 'dark' }}
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label htmlFor="filtro-año" className="text-sm font-medium text-gray-300 flex items-center">
+                        <span className="mr-2">🗓️</span> Filtrar por año específico
+                      </label>
+                      <input
+                        id="filtro-año"
+                        type="number"
+                        placeholder="Ej: 2025"
+                        value={filtroAño}
+                        onChange={e => setFiltroAño(e.target.value)}
+                        min="2020"
+                        max="2030"
+                        className="w-full px-4 py-2.5 bg-gray-900/70 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 [color-scheme:dark]"
+                        style={{ colorScheme: 'dark' }}
+                      />
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <label
-                      htmlFor="filtro-año"
-                      className="text-sm text-gray-400"
-                    >
-                      Año específico:
-                    </label>
-                    <input
-                      id="filtro-año"
-                      type="number"
-                      placeholder="2025"
-                      value={filtroAño}
-                      onChange={e => setFiltroAño(e.target.value)}
-                      min="2020"
-                      max="2030"
-                      className="px-3 py-1 bg-gray-800/50 border border-gray-700 rounded-lg text-white text-sm w-20"
-                    />
-                  </div>
-                  <button
-                    onClick={() => {
-                      setFiltroMes('');
-                      setFiltroAño('');
-                    }}
-                    className="px-3 py-1 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-600/30 rounded-lg text-sm transition-colors"
-                  >
-                    Limpiar
-                  </button>
+                  
+                  {/* Indicador de filtros activos */}
+                  {(filtroMes || filtroAño) && (
+                    <div className="mt-4 flex items-center space-x-2">
+                      <span className="text-xs font-medium text-blue-400">Filtros activos:</span>
+                      {filtroMes && (
+                        <span className="px-3 py-1 bg-blue-600/20 text-blue-300 text-xs rounded-full border border-blue-600/30">
+                          📅 {new Date(filtroMes + '-01').toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+                        </span>
+                      )}
+                      {filtroAño && (
+                        <span className="px-3 py-1 bg-blue-600/20 text-blue-300 text-xs rounded-full border border-blue-600/30">
+                          🗓️ {filtroAño}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Estadísticas del período */}
@@ -1056,7 +1129,7 @@ export default function SuperAdminPage() {
               >
                 <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
                   <TrendingUp className="w-5 h-5 mr-2 text-green-400" />
-                  Top Productos
+                  Top Productos por Cantidad
                 </h2>
 
                 <div className="space-y-4">
@@ -1066,7 +1139,7 @@ export default function SuperAdminPage() {
                       className="flex items-center justify-between p-4 bg-black/20 rounded-xl border border-gray-800/30 hover:border-gray-700/50 transition-all"
                     >
                       <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                        <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-lg">
                           {index + 1}
                         </div>
                         <div>
@@ -1074,19 +1147,17 @@ export default function SuperAdminPage() {
                             {product.name}
                           </p>
                           <p className="text-gray-400 text-xs">
-                            {product.sales} ventas
+                            Producto más vendido
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-green-400 font-semibold text-sm">
-                          {formatCurrency(product.revenue)}
+                        <p className="text-green-400 font-semibold text-lg">
+                          {product.sales}
                         </p>
-                        {product.trend && (
-                          <p className="text-blue-400 text-xs">
-                            {product.trend}
-                          </p>
-                        )}
+                        <p className="text-gray-400 text-xs">
+                          unidades vendidas
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -1741,22 +1812,136 @@ export default function SuperAdminPage() {
           </div>
         )}
 
+        {/* Analytics Tab */}
+        {activeTab === 'analytics' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-8"
+          >
+            {/* Filtro de Fechas */}
+            <div className="bg-gray-900/60 backdrop-blur-sm rounded-2xl p-6 border border-gray-800/50 shadow-2xl">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                  <BarChart3 className="w-8 h-8 text-blue-400" />
+                  Analytics Dashboard
+                </h2>
+                <div className="flex items-center gap-4">
+                  <DateRangePicker 
+                    selectedRange={selectedDateRange}
+                    onRangeChange={setSelectedDateRange}
+                  />
+                </div>
+              </div>
+              
+              {/* Métricas Avanzadas */}
+              <AdvancedMetrics 
+                data={statsData?.estadisticas?.metricas}
+              />
+            </div>
+
+            {/* Top Clientes y Gráficos */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Top Clientes */}
+              <div className="bg-gray-900/60 backdrop-blur-sm rounded-2xl p-6 border border-gray-800/50 shadow-2xl">
+                <TopClients 
+                  clients={statsData?.estadisticas?.topClientes || []}
+                  isLoading={isLoadingStats}
+                />
+              </div>
+
+              {/* Gráfico de Tendencias */}
+              <div className="bg-gray-900/60 backdrop-blur-sm rounded-2xl p-6 border border-gray-800/50 shadow-2xl">
+                <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-3">
+                  <TrendingUp className="w-6 h-6 text-emerald-400" />
+                  Tendencias de Ventas
+                </h3>
+                
+                {isLoadingGrafico ? (
+                  <div className="h-64 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
+                  </div>
+                ) : (
+                  <div className="h-64 flex items-center justify-center">
+                    <div className="text-center text-gray-400">
+                      <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>Gráfico de tendencias en desarrollo</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Métricas Adicionales */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-gray-900/60 backdrop-blur-sm rounded-2xl p-6 border border-gray-800/50 shadow-2xl">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-purple-700 rounded-xl flex items-center justify-center">
+                    <Users className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-white">Clientes Activos</h4>
+                    <p className="text-sm text-gray-400">Últimos 30 días</p>
+                  </div>
+                </div>
+                <div className="text-3xl font-bold text-white mb-2">
+                  {isLoadingStats ? '...' : statsData?.estadisticas?.resumen?.clientesActivos || 0}
+                </div>
+                <div className="text-sm text-emerald-400">
+                  +12% vs período anterior
+                </div>
+              </div>
+
+              <div className="bg-gray-900/60 backdrop-blur-sm rounded-2xl p-6 border border-gray-800/50 shadow-2xl">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-xl flex items-center justify-center">
+                    <DollarSign className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-white">Ticket Promedio</h4>
+                    <p className="text-sm text-gray-400">Por transacción</p>
+                  </div>
+                </div>
+                <div className="text-3xl font-bold text-white mb-2">
+                  ${isLoadingStats ? '...' : statsData?.estadisticas?.resumen?.promedioVenta?.toFixed(0) || 0}
+                </div>
+                <div className="text-sm text-emerald-400">
+                  +5% vs período anterior
+                </div>
+              </div>
+
+              <div className="bg-gray-900/60 backdrop-blur-sm rounded-2xl p-6 border border-gray-800/50 shadow-2xl">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center">
+                    <Activity className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-white">Transacciones</h4>
+                    <p className="text-sm text-gray-400">Total del período</p>
+                  </div>
+                </div>
+                <div className="text-3xl font-bold text-white mb-2">
+                  {isLoadingStats ? '...' : statsData?.estadisticas?.resumen?.totalConsumos || 0}
+                </div>
+                <div className="text-sm text-emerald-400">
+                  +18% vs período anterior
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Other Tabs Placeholder */}
         {activeTab !== 'overview' &&
           activeTab !== 'users' &&
-          activeTab !== 'historial' && (
+          activeTab !== 'historial' &&
+          activeTab !== 'analytics' && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="bg-gray-900/60 backdrop-blur-sm rounded-2xl p-8 border border-gray-800/50 shadow-2xl"
             >
               <div className="text-center py-16">
-                {activeTab === 'analytics' && (
-                  <BarChart3 className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                )}
-                {activeTab === 'risk' && (
-                  <Shield className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                )}
                 {activeTab === 'system' && (
                   <Server className="w-16 h-16 text-gray-600 mx-auto mb-4" />
                 )}
@@ -1769,32 +1954,6 @@ export default function SuperAdminPage() {
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-gray-500 max-w-lg mx-auto">
-                  {activeTab === 'analytics' && (
-                    <>
-                      <div className="p-3 bg-black/20 rounded-lg border border-gray-800/30">
-                        <p>• Gráficos detallados</p>
-                      </div>
-                      <div className="p-3 bg-black/20 rounded-lg border border-gray-800/30">
-                        <p>• Métricas avanzadas</p>
-                      </div>
-                      <div className="p-3 bg-black/20 rounded-lg border border-gray-800/30">
-                        <p>• Exportar reportes</p>
-                      </div>
-                    </>
-                  )}
-                  {activeTab === 'risk' && (
-                    <>
-                      <div className="p-3 bg-black/20 rounded-lg border border-gray-800/30">
-                        <p>• Análisis de riesgo</p>
-                      </div>
-                      <div className="p-3 bg-black/20 rounded-lg border border-gray-800/30">
-                        <p>• Alertas automáticas</p>
-                      </div>
-                      <div className="p-3 bg-black/20 rounded-lg border border-gray-800/30">
-                        <p>• Configurar límites</p>
-                      </div>
-                    </>
-                  )}
                   {activeTab === 'system' && (
                     <>
                       <div className="p-3 bg-black/20 rounded-lg border border-gray-800/30">

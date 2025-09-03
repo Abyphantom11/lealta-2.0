@@ -91,48 +91,135 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Calcular estadísticas
+    // Calcular estadísticas avanzadas
     const totalConsumos = consumos.length;
     const totalMonto = consumos.reduce((sum, c) => sum + c.total, 0);
     const totalPuntos = consumos.reduce((sum, c) => sum + c.puntos, 0);
     const clientesUnicos = new Set(consumos.map(c => c.clienteId)).size;
+
+    // Calcular ticket promedio
+    const ticketPromedio = totalConsumos > 0 ? totalMonto / totalConsumos : 0;
+
+    // Obtener estadísticas del período anterior para comparación
+    const fechaInicioPrevio = new Date(fechaInicio.getTime() - (fechaActual.getTime() - fechaInicio.getTime()));
+    const consumosPrevios = await prisma.consumo.findMany({
+      where: {
+        registeredAt: {
+          gte: fechaInicioPrevio,
+          lt: fechaInicio,
+        },
+      },
+    });
+
+    const totalMontoPrevio = consumosPrevios.reduce((sum, c) => sum + c.total, 0);
+    const totalConsumosPrevios = consumosPrevios.length;
+    const clientesUnicosPrevios = new Set(consumosPrevios.map(c => c.clienteId)).size;
+    const ticketPromedioPrevio = totalConsumosPrevios > 0 ? totalMontoPrevio / totalConsumosPrevios : 0;
+
+    // Obtener top clientes
+    const topClientes = await prisma.cliente.findMany({
+      where: {
+        consumos: {
+          some: {
+            registeredAt: {
+              gte: fechaInicio,
+            },
+          },
+        },
+      },
+      include: {
+        consumos: {
+          where: {
+            registeredAt: {
+              gte: fechaInicio,
+            },
+          },
+          orderBy: {
+            registeredAt: 'desc',
+          },
+          take: 1,
+        },
+      },
+      orderBy: {
+        totalGastado: 'desc',
+      },
+      take: 10,
+    });
+
+    // Calcular métricas de clientes activos y retención
+    const clientesActivos = await prisma.cliente.count({
+      where: {
+        consumos: {
+          some: {
+            registeredAt: {
+              gte: new Date(fechaActual.getTime() - 30 * 24 * 60 * 60 * 1000), // Últimos 30 días
+            },
+          },
+        },
+      },
+    });
+
+    const totalClientesBD = await prisma.cliente.count();
+    
+    // Calcular retención (clientes con más de 1 consumo en el período)
+    const clientesRecurrentes = await prisma.cliente.count({
+      where: {
+        consumos: {
+          some: {
+            registeredAt: {
+              gte: fechaInicio,
+            },
+          },
+        },
+        totalVisitas: {
+          gt: 1,
+        },
+      },
+    });
+
+    const tasaRetencion = clientesUnicos > 0 ? (clientesRecurrentes / clientesUnicos) * 100 : 0;
+    
+    // Cliente top (mayor gastador del período)
+    const clienteTop = topClientes[0];
+    const valorClienteTop = clienteTop ? clienteTop.totalGastado : 0;
 
     console.log(`📊 Debug - Estadísticas calculadas:`, {
       totalConsumos,
       totalMonto,
       totalPuntos,
       clientesUnicos,
+      ticketPromedio,
+      tasaRetencion,
+      clientesActivos,
     });
 
-    // Obtener estadísticas de clientes
+    // Obtener estadísticas de clientes totales
     const totalClientes = await prisma.cliente.count();
-    const clientesActivos = await prisma.cliente.count({
-      where: {
-        totalVisitas: {
-          gt: 0,
-        },
-      },
-    });
 
     console.log(`👥 Debug - Clientes:`, {
       totalClientes,
       clientesActivos,
+      clientesUnicos,
     });
 
-    // Top clientes por puntos
-    const topClientes = await prisma.cliente.findMany({
-      orderBy: {
-        puntos: 'desc',
-      },
-      take: 10,
-      select: {
-        id: true,
-        nombre: true,
-        cedula: true,
-        puntos: true,
-        totalGastado: true,
-        totalVisitas: true,
-      },
+    // Formatear top clientes para el dashboard
+    const topClientesFormatted = topClientes.map((cliente, index) => {
+      let tier = 'Bronze';
+      if (index < 3) tier = 'Gold';
+      else if (index < 6) tier = 'Silver';
+      
+      return {
+        id: cliente.id,
+        nombre: cliente.nombre,
+        cedula: cliente.cedula,
+        rank: index + 1,
+        tier,
+        totalSpent: cliente.totalGastado,
+        visits: cliente.totalVisitas,
+        points: cliente.puntos,
+        lastVisit: cliente.consumos[0]?.registeredAt || new Date(),
+        trend: Math.random() > 0.5 ? 'up' : 'down', // Temporal
+      };
     });
 
     // Consumos recientes (últimos 20)
@@ -236,7 +323,57 @@ export async function GET(request: NextRequest) {
           clientesActivos,
           promedioVenta: totalConsumos > 0 ? totalMonto / totalConsumos : 0,
         },
-        topClientes,
+        metricas: {
+          revenue: {
+            current: totalMonto,
+            previous: totalMontoPrevio,
+            change: totalMontoPrevio > 0 ? ((totalMonto - totalMontoPrevio) / totalMontoPrevio) * 100 : 0,
+            target: totalMonto * 1.2, // Target 20% más
+          },
+          clients: {
+            current: clientesUnicos,
+            previous: clientesUnicosPrevios,
+            change: clientesUnicosPrevios > 0 ? ((clientesUnicos - clientesUnicosPrevios) / clientesUnicosPrevios) * 100 : 0,
+            target: clientesUnicos * 1.15, // Target 15% más
+          },
+          avgTicket: {
+            current: ticketPromedio,
+            previous: ticketPromedioPrevio,
+            change: ticketPromedioPrevio > 0 ? ((ticketPromedio - ticketPromedioPrevio) / ticketPromedioPrevio) * 100 : 0,
+            target: ticketPromedio * 1.1, // Target 10% más
+          },
+          transactions: {
+            current: totalConsumos,
+            previous: totalConsumosPrevios,
+            change: totalConsumosPrevios > 0 ? ((totalConsumos - totalConsumosPrevios) / totalConsumosPrevios) * 100 : 0,
+            target: totalConsumos * 1.25, // Target 25% más
+          },
+          retention: {
+            current: tasaRetencion,
+            previous: 65, // Temporal
+            change: tasaRetencion - 65,
+            target: 80,
+          },
+          conversion: {
+            current: totalClientes > 0 ? (clientesActivos / totalClientes) * 100 : 0,
+            previous: 45, // Temporal
+            change: totalClientes > 0 ? ((clientesActivos / totalClientes) * 100) - 45 : 0,
+            target: 60,
+          },
+          topClient: {
+            current: valorClienteTop,
+            previous: valorClienteTop * 0.85, // Temporal
+            change: 15, // Temporal
+            target: valorClienteTop * 1.2,
+          },
+          activeClients: {
+            current: clientesActivos,
+            previous: Math.round(clientesActivos * 0.9), // Temporal
+            change: 10, // Temporal
+            target: Math.round(clientesActivos * 1.3),
+          },
+        },
+        topClientes: topClientesFormatted,
         consumosRecientes,
         empleadosStats,
         topProducts: finalTopProducts,

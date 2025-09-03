@@ -1,51 +1,69 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GeminiAnalysisResult } from '@/types/analytics';
 
-// Inicializar Gemini
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
+// Inicializar Gemini con manejo de múltiples variables de entorno
+const apiKey = process.env.GOOGLE_GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+if (!apiKey) {
+  console.warn('⚠️ No se encontró API key de Google Gemini. Algunas funciones no estarán disponibles.');
+}
+
+const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 export class GeminiPOSAnalyzer {
-  private readonly model = genAI.getGenerativeModel({
-    model: 'gemini-pro-vision',
+  private readonly model = genAI?.getGenerativeModel({
+    model: 'gemini-2.0-flash', // Modelo más moderno con mejor visión
   });
 
   async analyzeImage(
     imageBuffer: Buffer,
     mimeType: string
   ): Promise<GeminiAnalysisResult> {
+    if (!this.model) {
+      throw new Error('Google Gemini no está configurado. Verifica tu API key.');
+    }
+    
     try {
       const prompt = `
-        Analiza esta captura de pantalla del sistema POS (Point of Sale) y extrae la información de la venta.
+        Analiza esta imagen de un ticket de venta, recibo o pantalla POS y extrae TODA la información visible con máxima precisión.
 
-        INSTRUCCIONES ESPECÍFICAS:
-        1. Identifica TODOS los productos vendidos con sus cantidades y precios
-        2. Encuentra el TOTAL FINAL de la venta
-        3. Extrae la fecha y hora si está visible
-        4. Calcula los puntos de fidelización (1 punto = 1 peso)
+        INSTRUCCIONES DETALLADAS:
+        1. 🔍 Examina CUIDADOSAMENTE toda la imagen
+        2. 📝 Identifica TODOS los productos/servicios vendidos
+        3. 💰 Encuentra el TOTAL FINAL exacto de la venta
+        4. ⏰ Busca fecha, hora y empleado/cajero
+        5. 🎯 Determina la confianza basada en la claridad de la imagen
 
-        FORMATO DE RESPUESTA REQUERIDO (JSON):
+        FORMATO DE RESPUESTA REQUERIDO (SOLO JSON, SIN MARKDOWN):
         {
           "productos": [
             {
-              "nombre": "Nombre exacto del producto",
+              "nombre": "Nombre exacto del producto como aparece",
               "cantidad": número_entero,
               "precio": precio_unitario_decimal,
-              "categoria": "bebida|comida|postre|otro"
+              "categoria": "bebida|comida|postre|servicio|otro"
             }
           ],
-          "total": total_decimal,
+          "total": total_final_decimal,
           "fecha": "YYYY-MM-DD HH:MM:SS o null si no visible",
+          "empleado": "Nombre del empleado/cajero o null si no visible",
           "puntosGenerados": total_redondeado_entero,
-          "confianza": decimal_0_a_1,
-          "errores": ["lista de errores si los hay"]
+          "confianza": decimal_entre_0_y_1,
+          "errores": ["lista de problemas encontrados si los hay"],
+          "metadata": {
+            "tipoDocumento": "ticket|recibo|pantalla_pos|factura|otro",
+            "negocio": "nombre del negocio si es visible o null",
+            "metodoPago": "efectivo|tarjeta|transferencia|otro|null"
+          }
         }
 
-        REGLAS IMPORTANTES:
-        - Si no puedes leer algún texto claramente, incluye en "errores"
-        - Los precios deben ser números decimales
-        - Las cantidades deben ser números enteros
-        - La confianza debe reflejar qué tan seguro estás de la lectura
-        - Si es una imagen borrosa o no es un POS, indica confianza baja
+        REGLAS CRÍTICAS:
+        - 🚨 Responde ÚNICAMENTE con el JSON, sin texto adicional
+        - 📊 Si no encuentras productos, devuelve array vacío
+        - 💯 Si no encuentras total, devuelve 0
+        - 🎯 Confianza alta (>0.8) solo si la imagen es muy clara
+        - ❌ Si la imagen no es un ticket/POS, confianza debe ser < 0.3
+        - 🔢 Todos los precios deben ser números sin símbolos de moneda
+        - ✅ Sé conservador con la confianza si tienes dudas
       `;
 
       const imagePart = {
@@ -59,16 +77,32 @@ export class GeminiPOSAnalyzer {
       const response = result.response;
       const text = response.text();
 
-      // Extraer JSON de la respuesta
+      console.log('📥 Respuesta raw de Gemini:', text);
+
+      // Limpiar la respuesta de markdown y extraer JSON
+      const cleanedText = text
+        .replace(/```json/g, '')
+        .replace(/```/g, '')
+        .trim();
+
+      // Buscar el JSON en la respuesta
       const jsonRegex = /\{[\s\S]*\}/;
-      const jsonMatch = jsonRegex.exec(text);
+      const jsonMatch = jsonRegex.exec(cleanedText);
+      
       if (!jsonMatch) {
-        throw new Error(
-          'No se pudo extraer JSON válido de la respuesta de Gemini'
-        );
+        console.error('❌ No se encontró JSON válido en la respuesta:', text);
+        throw new Error('No se pudo extraer JSON válido de la respuesta de Gemini');
       }
 
-      const analysisResult: GeminiAnalysisResult = JSON.parse(jsonMatch[0]);
+      let analysisResult: GeminiAnalysisResult;
+      try {
+        analysisResult = JSON.parse(jsonMatch[0]);
+        console.log('✅ JSON parseado exitosamente:', analysisResult);
+      } catch (parseError) {
+        console.error('❌ Error parseando JSON:', parseError);
+        console.error('Texto que falló al parsear:', jsonMatch[0]);
+        throw new Error(`Error parseando respuesta JSON: ${parseError}`);
+      }
 
       // Validaciones básicas
       this.validateAnalysisResult(analysisResult);

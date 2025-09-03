@@ -1,0 +1,774 @@
+openapi: 3.0.3
+info:
+  title: Lealta 2.0 API
+  description: |
+    Sistema de fidelización multi-tenant con funcionalidades de IA y gestión avanzada de clientes.
+    
+    ## Características principales:
+    - Sistema multi-tenant con aislamiento de datos
+    - Autenticación robusta con control de roles
+    - Sistema de tarjetas de lealtad automatizado
+    - Integración con IA para procesamiento de tickets
+    - APIs RESTful con validación completa
+    
+    ## Autenticación:
+    La API utiliza autenticación basada en sesiones con cookies httpOnly.
+    Roles disponibles: SUPERADMIN, ADMIN, STAFF
+    
+  version: 1.0.0
+  contact:
+    name: Lealta Development Team
+    email: support@lealta.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3001/api
+    description: Desarrollo local
+  - url: https://api.lealta.com
+    description: Producción
+
+paths:
+  /auth/signin:
+    post:
+      summary: Iniciar sesión
+      description: Autentica un usuario y crea una sesión
+      tags:
+        - Autenticación
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: admin@empresa.com
+                password:
+                  type: string
+                  minLength: 6
+                  example: password123
+      responses:
+        '200':
+          description: Autenticación exitosa
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  user:
+                    $ref: '#/components/schemas/User'
+                  role:
+                    type: string
+                    enum: [SUPERADMIN, ADMIN, STAFF]
+          headers:
+            Set-Cookie:
+              description: Session cookie
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '423':
+          description: Cuenta bloqueada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/signup:
+    post:
+      summary: Registrar nueva empresa
+      description: Crea una nueva empresa y un usuario SUPERADMIN
+      tags:
+        - Autenticación
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - businessName
+                - subdomain
+                - contactEmail
+                - adminName
+                - adminEmail
+                - adminPassword
+              properties:
+                businessName:
+                  type: string
+                  minLength: 2
+                  example: "Mi Restaurante"
+                subdomain:
+                  type: string
+                  minLength: 3
+                  pattern: "^[a-z0-9-]+$"
+                  example: "mi-restaurante"
+                contactEmail:
+                  type: string
+                  format: email
+                  example: "contacto@mi-restaurante.com"
+                contactPhone:
+                  type: string
+                  example: "+1234567890"
+                adminName:
+                  type: string
+                  minLength: 2
+                  example: "Juan Pérez"
+                adminEmail:
+                  type: string
+                  format: email
+                  example: "admin@mi-restaurante.com"
+                adminPassword:
+                  type: string
+                  minLength: 6
+                  example: "password123"
+      responses:
+        '200':
+          description: Empresa creada exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                  business:
+                    $ref: '#/components/schemas/Business'
+                  admin:
+                    $ref: '#/components/schemas/User'
+        '409':
+          description: Subdominio o email ya existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/me:
+    get:
+      summary: Obtener datos del usuario actual
+      description: Retorna información del usuario autenticado
+      tags:
+        - Autenticación
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Datos del usuario
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /cliente/verificar:
+    post:
+      summary: Verificar existencia de cliente
+      description: Busca un cliente por cédula
+      tags:
+        - Clientes
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - cedula
+              properties:
+                cedula:
+                  type: string
+                  example: "12345678"
+      responses:
+        '200':
+          description: Resultado de la verificación
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  existe:
+                    type: boolean
+                  cliente:
+                    $ref: '#/components/schemas/Cliente'
+
+  /cliente/registro:
+    post:
+      summary: Registrar nuevo cliente
+      description: Crea un nuevo cliente en el sistema
+      tags:
+        - Clientes
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClienteInput'
+      responses:
+        '201':
+          description: Cliente creado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  cliente:
+                    $ref: '#/components/schemas/Cliente'
+        '400':
+          description: Cliente ya existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /staff/consumo:
+    post:
+      summary: Procesar ticket con IA
+      description: Procesa un ticket usando OCR y Google Gemini AI
+      tags:
+        - Consumos
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - image
+                - cedula
+                - locationId
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: Imagen del ticket
+                cedula:
+                  type: string
+                  description: Cédula del cliente
+                locationId:
+                  type: string
+                  description: ID de la ubicación
+                empleadoId:
+                  type: string
+                  description: ID del empleado (opcional)
+      responses:
+        '200':
+          description: Ticket procesado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  requiresConfirmation:
+                    type: boolean
+                  empleadoDetectado:
+                    type: string
+                  total:
+                    type: number
+                  puntos:
+                    type: number
+                  productos:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductoDetectado'
+                  ocrText:
+                    type: string
+                  ticketImageUrl:
+                    type: string
+                  cliente:
+                    type: object
+                    properties:
+                      nombre:
+                        type: string
+                      puntosActuales:
+                        type: number
+                      puntosNuevos:
+                        type: number
+
+  /staff/consumo/manual:
+    post:
+      summary: Registrar consumo manual
+      description: Registra un consumo manualmente confirmado
+      tags:
+        - Consumos
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - cedula
+                - empleadoVenta
+                - productos
+                - totalManual
+              properties:
+                cedula:
+                  type: string
+                empleadoVenta:
+                  type: string
+                productos:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      nombre:
+                        type: string
+                      cantidad:
+                        type: number
+                      precio:
+                        type: number
+                totalManual:
+                  type: number
+                ocrText:
+                  type: string
+                ticketImageUrl:
+                  type: string
+      responses:
+        '200':
+          description: Consumo registrado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  consumo:
+                    $ref: '#/components/schemas/Consumo'
+                  cliente:
+                    $ref: '#/components/schemas/Cliente'
+
+  /admin/menu:
+    get:
+      summary: Obtener menú completo
+      description: Retorna todas las categorías y productos del menú
+      tags:
+        - Menú
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: businessId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Menú obtenido exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  categorias:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MenuCategory'
+    post:
+      summary: Crear nueva categoría
+      description: Crea una nueva categoría en el menú
+      tags:
+        - Menú
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuCategoryInput'
+      responses:
+        '200':
+          description: Categoría creada exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  categoria:
+                    $ref: '#/components/schemas/MenuCategory'
+
+  /users:
+    get:
+      summary: Listar usuarios
+      description: Obtiene lista de usuarios del business
+      tags:
+        - Usuarios
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Lista de usuarios
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+    post:
+      summary: Crear usuario
+      description: Crea un nuevo usuario en el business
+      tags:
+        - Usuarios
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInput'
+      responses:
+        '201':
+          description: Usuario creado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  user:
+                    $ref: '#/components/schemas/User'
+
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: session
+      description: Autenticación basada en sesiones con cookies httpOnly
+
+  schemas:
+    Business:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        subdomain:
+          type: string
+        subscriptionPlan:
+          type: string
+          enum: [BASIC, PRO, ENTERPRISE]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          type: string
+          enum: [SUPERADMIN, ADMIN, STAFF]
+        businessId:
+          type: string
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        business:
+          $ref: '#/components/schemas/Business'
+
+    UserInput:
+      type: object
+      required:
+        - email
+        - password
+        - name
+        - role
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        name:
+          type: string
+          minLength: 1
+        role:
+          type: string
+          enum: [ADMIN, STAFF]
+
+    Cliente:
+      type: object
+      properties:
+        id:
+          type: string
+        cedula:
+          type: string
+        nombre:
+          type: string
+        telefono:
+          type: string
+        correo:
+          type: string
+          format: email
+        puntos:
+          type: number
+        totalVisitas:
+          type: number
+        totalGastado:
+          type: number
+        fechaRegistro:
+          type: string
+          format: date-time
+        tarjetaLealtad:
+          $ref: '#/components/schemas/TarjetaLealtad'
+
+    ClienteInput:
+      type: object
+      required:
+        - cedula
+        - nombre
+        - telefono
+        - correo
+      properties:
+        cedula:
+          type: string
+          minLength: 6
+          maxLength: 20
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 100
+        telefono:
+          type: string
+          minLength: 8
+          maxLength: 20
+        correo:
+          type: string
+          format: email
+
+    TarjetaLealtad:
+      type: object
+      properties:
+        id:
+          type: string
+        nivel:
+          type: string
+          enum: [BRONCE, PLATA, ORO, PLATINO, DIAMANTE]
+        activa:
+          type: boolean
+        fechaAsignacion:
+          type: string
+          format: date-time
+        beneficios:
+          type: array
+          items:
+            type: string
+
+    Consumo:
+      type: object
+      properties:
+        id:
+          type: string
+        clienteId:
+          type: string
+        monto:
+          type: number
+        puntos:
+          type: number
+        productos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductoDetectado'
+        empleadoVenta:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    ProductoDetectado:
+      type: object
+      properties:
+        nombre:
+          type: string
+        cantidad:
+          type: number
+        precio:
+          type: number
+
+    MenuCategory:
+      type: object
+      properties:
+        id:
+          type: string
+        nombre:
+          type: string
+        descripcion:
+          type: string
+        icono:
+          type: string
+        orden:
+          type: number
+        activo:
+          type: boolean
+        parentId:
+          type: string
+        productos:
+          type: array
+          items:
+            $ref: '#/components/schemas/MenuItem'
+
+    MenuCategoryInput:
+      type: object
+      required:
+        - businessId
+        - nombre
+      properties:
+        businessId:
+          type: string
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 100
+        descripcion:
+          type: string
+        icono:
+          type: string
+        orden:
+          type: number
+          minimum: 0
+        parentId:
+          type: string
+
+    MenuItem:
+      type: object
+      properties:
+        id:
+          type: string
+        nombre:
+          type: string
+        descripcion:
+          type: string
+        precio:
+          type: number
+        precioVaso:
+          type: number
+        precioBotella:
+          type: number
+        tipoProducto:
+          type: string
+          enum: [simple, bebida, botella]
+        disponible:
+          type: boolean
+        destacado:
+          type: boolean
+        orden:
+          type: number
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        details:
+          type: object
+
+  responses:
+    Unauthorized:
+      description: No autorizado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "No autenticado"
+
+    Forbidden:
+      description: Acceso denegado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Permisos insuficientes"
+
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Recurso no encontrado"
+
+    ValidationError:
+      description: Error de validación
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              details:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    path:
+                      type: array
+                      items:
+                        type: string
+                    message:
+                      type: string
+
+tags:
+  - name: Autenticación
+    description: Endpoints para login, registro y gestión de sesiones
+  - name: Clientes
+    description: Gestión de clientes y verificación
+  - name: Consumos
+    description: Procesamiento de tickets y registro de consumos
+  - name: Menú
+    description: Gestión de categorías y productos del menú
+  - name: Usuarios
+    description: Gestión de usuarios del sistema

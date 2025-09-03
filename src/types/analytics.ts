@@ -45,7 +45,13 @@ export interface GeminiAnalysisResult {
   productos: ProductoVenta[];
   total: number;
   fecha: string | null;
+  empleado?: string | null;
   puntosGenerados: number;
   confianza: number;
   errores?: string[];
+  metadata?: {
+    tipoDocumento?: string;
+    negocio?: string | null;
+    metodoPago?: string | null;
+  };
 }
