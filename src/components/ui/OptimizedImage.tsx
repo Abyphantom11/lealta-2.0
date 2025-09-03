@@ -29,18 +29,19 @@ export default function OptimizedImage({
   sizes,
   priority = false,
   fallbackSrc = '/placeholder-image.png',
-  animate = false
+  animate = false,
 }: OptimizedImageProps) {
   const [error, setError] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   // Determinar la fuente de la imagen (original o fallback)
   const imageSrc = error ? fallbackSrc : src;
-  
+
   // Para URLs relativas sin / inicial
-  const fullSrc = imageSrc.startsWith('http') || imageSrc.startsWith('/') 
-    ? imageSrc 
-    : `/${imageSrc}`;
+  const fullSrc =
+    imageSrc.startsWith('http') || imageSrc.startsWith('/')
+      ? imageSrc
+      : `/${imageSrc}`;
 
   // Componente base de imagen
   const ImageComponent = (

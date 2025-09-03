@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('imagen') as File;
-    
+
     if (!file) {
       return NextResponse.json(
         { error: 'No se proporcionó ninguna imagen' },
@@ -36,7 +36,8 @@ export async function POST(request: NextRequest) {
     let imageBuffer: Buffer = Buffer.from(new Uint8Array(arrayBuffer));
 
     // Optimizar imagen si es necesario
-    if (file.size > 2 * 1024 * 1024) { // Si es mayor a 2MB
+    if (file.size > 2 * 1024 * 1024) {
+      // Si es mayor a 2MB
       imageBuffer = await sharp(Buffer.from(new Uint8Array(arrayBuffer)))
         .resize({ width: 1920, height: 1080, fit: 'inside' })
         .jpeg({ quality: 85 })
@@ -44,19 +45,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Analizar con Gemini
-    const analysis = await geminiAnalyzer.analyzeImage(
-      imageBuffer, 
-      file.type
-    );
+    const analysis = await geminiAnalyzer.analyzeImage(imageBuffer, file.type);
 
     // Verificar confianza mínima
     if (analysis.confianza < 0.5) {
-      return NextResponse.json({
-        success: false,
-        error: 'La imagen no se pudo analizar con suficiente confianza',
-        confianza: analysis.confianza,
-        errores: analysis.errores
-      }, { status: 422 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'La imagen no se pudo analizar con suficiente confianza',
+          confianza: analysis.confianza,
+          errores: analysis.errores,
+        },
+        { status: 422 }
+      );
     }
 
     // Crear registro de transacción
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
       puntosGenerados: analysis.puntosGenerados,
       estadoAnalisis: 'procesado',
       imagenOriginal: imageBuffer.toString('base64'),
-      confianza: analysis.confianza
+      confianza: analysis.confianza,
     };
 
     // Guardar en almacenamiento temporal (en producción sería BD)
@@ -82,21 +83,24 @@ export async function POST(request: NextRequest) {
         total: transaccion.totalPesos,
         puntos: transaccion.puntosGenerados,
         confianza: transaccion.confianza,
-        fecha: transaccion.fechaTransaccion
+        fecha: transaccion.fechaTransaccion,
       },
-      message: `Transacción procesada correctamente. ${analysis.productos.length} productos detectados.`
+      message: `Transacción procesada correctamente. ${analysis.productos.length} productos detectados.`,
     });
-
   } catch (error) {
     console.error('Error procesando imagen POS:', error);
-    
-    const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-    
-    return NextResponse.json({
-      success: false,
-      error: 'Error interno del servidor al procesar la imagen',
-      details: errorMessage
-    }, { status: 500 });
+
+    const errorMessage =
+      error instanceof Error ? error.message : 'Error desconocido';
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Error interno del servidor al procesar la imagen',
+        details: errorMessage,
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -106,15 +110,17 @@ function generateId(): string {
 }
 
 // Función para almacenamiento temporal de transacciones
-async function saveTransactionToDatabase(_: TransaccionAnalizada): Promise<void> {
+async function saveTransactionToDatabase(
+  _: TransaccionAnalizada
+): Promise<void> {
   // En un MVP, guardamos en memoria/localStorage simulado
   // En producción: implementar guardado real en PostgreSQL/MongoDB
-  
+
   // Se ha eliminado console.log por recomendación de SonarQube
-  
+
   // Simular delay de base de datos
   await new Promise(resolve => setTimeout(resolve, 100));
-  
+
   // Aquí iría la lógica de guardado real:
   // await prisma.transaccion.create({ data: transaccion });
 }

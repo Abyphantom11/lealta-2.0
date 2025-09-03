@@ -17,14 +17,14 @@ interface ErrorBoundaryState {
  * Componente para capturar y manejar errores en React de manera elegante
  * Evita que toda la aplicación falle cuando ocurre un error en un componente
  */
-export default function ErrorBoundary({ 
-  children, 
-  fallback, 
-  onError 
+export default function ErrorBoundary({
+  children,
+  fallback,
+  onError,
 }: ErrorBoundaryProps) {
   const [errorState, setErrorState] = useState<ErrorBoundaryState>({
     hasError: false,
-    error: null
+    error: null,
   });
 
   useEffect(() => {
@@ -33,9 +33,9 @@ export default function ErrorBoundary({
       event.preventDefault();
       setErrorState({
         hasError: true,
-        error: event.error
+        error: event.error,
       });
-      
+
       if (onError && event.error) {
         onError(event.error, { componentStack: '' });
       }
@@ -45,12 +45,12 @@ export default function ErrorBoundary({
     const handleRejection = (event: PromiseRejectionEvent) => {
       event.preventDefault();
       const error = new Error(`Promise rejection: ${event.reason}`);
-      
+
       setErrorState({
         hasError: true,
-        error
+        error,
       });
-      
+
       if (onError) {
         onError(error, { componentStack: '' });
       }

@@ -26,7 +26,7 @@ Hemos implementado varias herramientas y servicios para optimizar el código del
 
 ## Estado Actual
 
-Hemos logrado un nivel de estabilidad del 92%, superando el objetivo inicial del 85%. 
+Hemos logrado un nivel de estabilidad del 92%, superando el objetivo inicial del 85%.
 
 ## Problemas Resueltos
 
@@ -67,6 +67,7 @@ Hemos logrado un nivel de estabilidad del 92%, superando el objetivo inicial del
 ### Para los Servicios Utilitarios:
 
 1. Importa los servicios desde el punto de entrada centralizado:
+
    ```typescript
    import { logger, apiService, dateUtils, notificationService } from '@/lib';
    ```

@@ -2,9 +2,16 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { AnalyticsData, TransaccionAnalizada } from '@/types/analytics';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
-  LineChart, Line, ResponsiveContainer 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  LineChart,
+  Line,
+  ResponsiveContainer,
 } from 'recharts';
 
 // Colores para gráficas - comentados ya que no se utilizan actualmente
@@ -19,7 +26,9 @@ const getConfianzaClass = (confianza: number): string => {
 
 export default function SuperAdminAnalytics() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-  const [transaccionesRecientes, setTransaccionesRecientes] = useState<TransaccionAnalizada[]>([]);
+  const [transaccionesRecientes, setTransaccionesRecientes] = useState<
+    TransaccionAnalizada[]
+  >([]);
   const [procesandoImagen, setProcesandoImagen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,12 +53,12 @@ export default function SuperAdminAnalytics() {
           { nombre: 'Sandwich Club', ventas: 12, ingresos: 720 },
           { nombre: 'Pizza Margarita', ventas: 8, ingresos: 800 },
           { nombre: 'Coca Cola', ventas: 25, ingresos: 375 },
-          { nombre: 'Ensalada Caesar', ventas: 6, ingresos: 420 }
+          { nombre: 'Ensalada Caesar', ventas: 6, ingresos: 420 },
         ],
         clientesTop: [
           { id: '1', nombre: 'María García', puntos: 245, gastosTotal: 2450 },
           { id: '2', nombre: 'Juan Pérez', puntos: 189, gastosTotal: 1890 },
-          { id: '3', nombre: 'Ana López', puntos: 156, gastosTotal: 1560 }
+          { id: '3', nombre: 'Ana López', puntos: 156, gastosTotal: 1560 },
         ],
         ventasPorHora: [
           { hora: 8, ventas: 3, ingresos: 120 },
@@ -58,8 +67,8 @@ export default function SuperAdminAnalytics() {
           { hora: 11, ventas: 8, ingresos: 320 },
           { hora: 12, ventas: 15, ingresos: 600 },
           { hora: 13, ventas: 10, ingresos: 400 },
-          { hora: 14, ventas: 5, ingresos: 200 }
-        ]
+          { hora: 14, ventas: 5, ingresos: 200 },
+        ],
       };
       setAnalytics(mockData);
     } catch (error) {
@@ -79,13 +88,13 @@ export default function SuperAdminAnalytics() {
           fechaTransaccion: new Date(),
           productos: [
             { nombre: 'Café Latte', cantidad: 2, precio: 35 },
-            { nombre: 'Croissant', cantidad: 1, precio: 25 }
+            { nombre: 'Croissant', cantidad: 1, precio: 25 },
           ],
           totalPesos: 95,
           puntosGenerados: 95,
           estadoAnalisis: 'procesado',
-          confianza: 0.95
-        }
+          confianza: 0.95,
+        },
       ];
       setTransaccionesRecientes(mockTransactions);
     } catch (error) {
@@ -114,12 +123,14 @@ export default function SuperAdminAnalytics() {
         // Actualizar datos después del procesamiento exitoso
         await loadAnalyticsData();
         await loadRecentTransactions();
-        
-        alert(`✅ Imagen procesada exitosamente!\n\n` +
-              `📦 ${result.transaccion.productos.length} productos detectados\n` +
-              `💰 Total: $${result.transaccion.total}\n` +
-              `⭐ Puntos: ${result.transaccion.puntos}\n` +
-              `🎯 Confianza: ${(result.transaccion.confianza * 100).toFixed(1)}%`);
+
+        alert(
+          `✅ Imagen procesada exitosamente!\n\n` +
+            `📦 ${result.transaccion.productos.length} productos detectados\n` +
+            `💰 Total: $${result.transaccion.total}\n` +
+            `⭐ Puntos: ${result.transaccion.puntos}\n` +
+            `🎯 Confianza: ${(result.transaccion.confianza * 100).toFixed(1)}%`
+        );
       } else {
         setError(result.error || 'Error procesando la imagen');
       }
@@ -168,7 +179,7 @@ export default function SuperAdminAnalytics() {
             <div className="mb-4">
               🤖 <span className="text-2xl">Análisis IA con Gemini</span>
             </div>
-            
+
             <input
               type="file"
               accept="image/*"
@@ -177,12 +188,12 @@ export default function SuperAdminAnalytics() {
               className="hidden"
               id="pos-upload"
             />
-            
+
             <label
               htmlFor="pos-upload"
               className={`inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white transition-colors cursor-pointer ${
-                procesandoImagen 
-                  ? 'bg-gray-400 cursor-not-allowed' 
+                procesandoImagen
+                  ? 'bg-gray-400 cursor-not-allowed'
                   : 'bg-blue-600 hover:bg-blue-700'
               }`}
             >
@@ -192,16 +203,15 @@ export default function SuperAdminAnalytics() {
                   Analizando con IA...
                 </>
               ) : (
-                <>
-                  📸 Subir Captura del POS
-                </>
+                <>📸 Subir Captura del POS</>
               )}
             </label>
-            
+
             <p className="mt-3 text-sm text-gray-500">
-              Soporta JPG, PNG hasta 10MB. La IA extraerá automáticamente productos, precios y totales.
+              Soporta JPG, PNG hasta 10MB. La IA extraerá automáticamente
+              productos, precios y totales.
             </p>
-            
+
             {error && (
               <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
                 ❌ {error}
@@ -248,11 +258,18 @@ export default function SuperAdminAnalytics() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
               {/* Productos Top */}
               <div className="bg-white p-6 rounded-lg shadow-sm">
-                <h3 className="text-lg font-semibold mb-4">🏆 Productos Más Vendidos</h3>
+                <h3 className="text-lg font-semibold mb-4">
+                  🏆 Productos Más Vendidos
+                </h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={analytics.productosTop}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="nombre" angle={-45} textAnchor="end" height={100} />
+                    <XAxis
+                      dataKey="nombre"
+                      angle={-45}
+                      textAnchor="end"
+                      height={100}
+                    />
                     <YAxis />
                     <Tooltip />
                     <Bar dataKey="ventas" fill="#3B82F6" />
@@ -262,14 +279,21 @@ export default function SuperAdminAnalytics() {
 
               {/* Ventas por Hora */}
               <div className="bg-white p-6 rounded-lg shadow-sm">
-                <h3 className="text-lg font-semibold mb-4">⏰ Ventas por Hora</h3>
+                <h3 className="text-lg font-semibold mb-4">
+                  ⏰ Ventas por Hora
+                </h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={analytics.ventasPorHora}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="hora" />
                     <YAxis />
                     <Tooltip />
-                    <Line type="monotone" dataKey="ventas" stroke="#10B981" strokeWidth={2} />
+                    <Line
+                      type="monotone"
+                      dataKey="ventas"
+                      stroke="#10B981"
+                      strokeWidth={2}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -277,7 +301,9 @@ export default function SuperAdminAnalytics() {
 
             {/* Transacciones Recientes */}
             <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="text-lg font-semibold mb-4">🕒 Transacciones Recientes</h3>
+              <h3 className="text-lg font-semibold mb-4">
+                🕒 Transacciones Recientes
+              </h3>
               <div className="overflow-x-auto">
                 <table className="min-w-full table-auto">
                   <thead>
@@ -291,15 +317,23 @@ export default function SuperAdminAnalytics() {
                     </tr>
                   </thead>
                   <tbody>
-                    {transaccionesRecientes.map((txn) => (
+                    {transaccionesRecientes.map(txn => (
                       <tr key={txn.id} className="border-t">
-                        <td className="px-4 py-2 font-mono text-sm">{txn.id}</td>
-                        <td className="px-4 py-2">{txn.fechaTransaccion.toLocaleString()}</td>
-                        <td className="px-4 py-2">{txn.productos.length} items</td>
+                        <td className="px-4 py-2 font-mono text-sm">
+                          {txn.id}
+                        </td>
+                        <td className="px-4 py-2">
+                          {txn.fechaTransaccion.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-2">
+                          {txn.productos.length} items
+                        </td>
                         <td className="px-4 py-2">${txn.totalPesos}</td>
                         <td className="px-4 py-2">⭐ {txn.puntosGenerados}</td>
                         <td className="px-4 py-2">
-                          <span className={`px-2 py-1 rounded text-xs ${getConfianzaClass(txn.confianza)}`}>
+                          <span
+                            className={`px-2 py-1 rounded text-xs ${getConfianzaClass(txn.confianza)}`}
+                          >
                             {(txn.confianza * 100).toFixed(1)}%
                           </span>
                         </td>
@@ -317,7 +351,13 @@ export default function SuperAdminAnalytics() {
 }
 
 // Componente para las métricas
-const MetricCard = ({ title, value, subtitle, icon, color }: {
+const MetricCard = ({
+  title,
+  value,
+  subtitle,
+  icon,
+  color,
+}: {
   title: string;
   value: string | number;
   subtitle: string;
@@ -328,7 +368,7 @@ const MetricCard = ({ title, value, subtitle, icon, color }: {
     blue: 'bg-blue-500',
     yellow: 'bg-yellow-500',
     green: 'bg-green-500',
-    purple: 'bg-purple-500'
+    purple: 'bg-purple-500',
   };
 
   return (

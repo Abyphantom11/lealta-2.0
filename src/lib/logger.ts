@@ -48,7 +48,11 @@ function shouldLog(level: LogLevel): boolean {
 /**
  * Crea una entrada de log estructurada
  */
-function createLogEntry(level: LogLevel, message: string, data?: any): LogEntry {
+function createLogEntry(
+  level: LogLevel,
+  message: string,
+  data?: any
+): LogEntry {
   return {
     level,
     message,
@@ -70,7 +74,7 @@ function formatLogMessage(entry: LogEntry): string {
  */
 export function debug(message: string, data?: any): void {
   if (!shouldLog('debug')) return;
-  
+
   const entry = createLogEntry('debug', message, data);
   console.debug(
     `%c${formatLogMessage(entry)}`,
@@ -84,7 +88,7 @@ export function debug(message: string, data?: any): void {
  */
 export function info(message: string, data?: any): void {
   if (!shouldLog('info')) return;
-  
+
   const entry = createLogEntry('info', message, data);
   console.info(
     `%c${formatLogMessage(entry)}`,
@@ -98,7 +102,7 @@ export function info(message: string, data?: any): void {
  */
 export function warn(message: string, data?: any): void {
   if (!shouldLog('warn')) return;
-  
+
   const entry = createLogEntry('warn', message, data);
   console.warn(
     `%c${formatLogMessage(entry)}`,
@@ -112,7 +116,7 @@ export function warn(message: string, data?: any): void {
  */
 export function error(message: string, data?: any): void {
   if (!shouldLog('error')) return;
-  
+
   const entry = createLogEntry('error', message, data);
   console.error(
     `%c${formatLogMessage(entry)}`,
@@ -126,7 +130,7 @@ export function error(message: string, data?: any): void {
  */
 export function success(message: string, data?: any): void {
   if (!shouldLog('success')) return;
-  
+
   const entry = createLogEntry('success', message, data);
   console.info(
     `%c${formatLogMessage(entry)}`,
@@ -140,7 +144,7 @@ export function success(message: string, data?: any): void {
  */
 export function time<T>(name: string, fn: () => T): T {
   if (!shouldLog('debug')) return fn();
-  
+
   console.time(`⏱️ ${name}`);
   const result = fn();
   console.timeEnd(`⏱️ ${name}`);
@@ -150,9 +154,12 @@ export function time<T>(name: string, fn: () => T): T {
 /**
  * Registra el tiempo de ejecución de una función asíncrona
  */
-export async function timeAsync<T>(name: string, fn: () => Promise<T>): Promise<T> {
+export async function timeAsync<T>(
+  name: string,
+  fn: () => Promise<T>
+): Promise<T> {
   if (!shouldLog('debug')) return fn();
-  
+
   console.time(`⏱️ ${name}`);
   const result = await fn();
   console.timeEnd(`⏱️ ${name}`);

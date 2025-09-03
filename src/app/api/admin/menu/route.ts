@@ -4,43 +4,79 @@ import { PrismaClient } from '@prisma/client';
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
 
+// Función temporal para validar business access (moveremos a utils después)
+function validateBusinessAccess(businessId: string): string {
+  if (!businessId) {
+    throw new Error('Business ID is required');
+  }
+  
+  // En desarrollo, solo permitir business_1
+  if (process.env.NODE_ENV === 'development') {
+    if (businessId !== 'business_1') {
+      throw new Error('Access denied to this business');
+    }
+    return businessId;
+  }
+  
+  // TODO: En producción, verificar permisos del usuario
+  throw new Error('Business ID logic not implemented for production');
+}
+
 const prisma = new PrismaClient();
 
 // GET - Obtener menú completo con categorías y productos
 export async function GET(request: NextRequest) {
   try {
+    console.log('📋 GET /api/admin/menu - Obteniendo menú...');
+    
     const { searchParams } = new URL(request.url);
     const businessId = searchParams.get('businessId');
-    
+    console.log('🏢 BusinessId recibido:', businessId);
+
     if (!businessId) {
+      console.log('❌ BusinessId no proporcionado');
       return NextResponse.json(
         { error: 'BusinessId es requerido' },
         { status: 400 }
       );
     }
 
+    // Validar acceso al business
+    try {
+      validateBusinessAccess(businessId);
+    } catch (error) {
+      console.log('❌ Acceso denegado al business:', businessId);
+      return NextResponse.json(
+        { error: 'Acceso denegado' },
+        { status: 403 }
+      );
+    }
+
+    console.log('🔍 Consultando categorías en la base de datos...');
     const categorias = await prisma.menuCategory.findMany({
-      where: { 
-        businessId
+      where: {
+        businessId,
       },
       include: {
         productos: {
           where: { disponible: true } as any,
-          orderBy: { orden: 'asc' }
-        }
+          orderBy: { orden: 'asc' },
+        },
       },
-      orderBy: { orden: 'asc' }
+      orderBy: { orden: 'asc' },
     });
+
+    console.log('✅ Categorías encontradas:', categorias.length);
 
     return NextResponse.json({
       success: true,
-      menu: categorias
+      menu: categorias,
     });
-
   } catch (error) {
-    console.error('Error obteniendo menú:', error);
+    console.error('❌ Error obteniendo menú:', error);
+    console.error('Stack trace:', (error as Error).stack);
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { error: 'Error interno del servidor: ' + (error as Error).message },
       { status: 500 }
     );
   }
@@ -49,16 +85,34 @@ export async function GET(request: NextRequest) {
 // POST - Crear nueva categoría
 export async function POST(request: NextRequest) {
   try {
+    console.log('📝 POST /api/admin/menu - Iniciando creación de categoría...');
+    
     const body = await request.json();
+    console.log('📦 Datos recibidos:', body);
+    
     const { businessId, nombre, descripcion, icono, orden, parentId } = body;
 
     if (!businessId || !nombre) {
+      console.log('❌ Faltan datos requeridos:', { businessId, nombre });
       return NextResponse.json(
         { error: 'BusinessId y nombre son requeridos' },
         { status: 400 }
       );
     }
 
+    // Validar acceso al business
+    try {
+      validateBusinessAccess(businessId);
+    } catch (error) {
+      console.log('❌ Acceso denegado al business:', businessId);
+      return NextResponse.json(
+        { error: 'Acceso denegado' },
+        { status: 403 }
+      );
+    }
+
+    console.log('✅ Validación inicial pasada, creando categoría...');
+    
     const categoria = await prisma.menuCategory.create({
       data: {
         businessId,
@@ -66,19 +120,21 @@ export async function POST(request: NextRequest) {
         descripcion: descripcion || null,
         icono: icono || null,
         orden: orden || 0,
-        parentId: parentId || null
-      } as any // Casting temporal para resolver el problema de tipos de Prisma
+        parentId: parentId || null,
+      } as any, // Casting temporal para resolver el problema de tipos de Prisma
     });
+
+    console.log('✅ Categoría creada exitosamente:', categoria);
 
     return NextResponse.json({
       success: true,
-      categoria
+      categoria,
     });
-
   } catch (error) {
-    console.error('Error creando categoría:', error);
+    console.error('❌ Error creando categoría:', error);
+    console.error('Stack trace:', (error as Error).stack);
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { error: 'Error interno del servidor: ' + (error as Error).message },
       { status: 500 }
     );
   }
@@ -107,14 +163,13 @@ export async function PUT(request: NextRequest) {
 
     const categoria = await prisma.menuCategory.update({
       where: { id },
-      data: updateData
+      data: updateData,
     });
 
     return NextResponse.json({
       success: true,
-      categoria
+      categoria,
     });
-
   } catch (error) {
     console.error('Error actualizando categoría:', error);
     return NextResponse.json(
@@ -129,7 +184,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    
+
     if (!id) {
       return NextResponse.json(
         { error: 'ID de la categoría es requerido' },
@@ -139,24 +194,23 @@ export async function DELETE(request: NextRequest) {
 
     // Primero eliminar todos los productos asociados a esta categoría
     await prisma.menuProduct.deleteMany({
-      where: { categoryId: id }
+      where: { categoryId: id },
     });
 
     // Luego eliminar las subcategorías
     await prisma.menuCategory.deleteMany({
-      where: { parentId: id }
+      where: { parentId: id },
     });
 
     // Finalmente eliminar la categoría principal
     await prisma.menuCategory.delete({
-      where: { id }
+      where: { id },
     });
 
     return NextResponse.json({
       success: true,
-      message: 'Categoría eliminada correctamente'
+      message: 'Categoría eliminada correctamente',
     });
-
   } catch (error) {
     console.error('Error eliminando categoría:', error);
     return NextResponse.json(

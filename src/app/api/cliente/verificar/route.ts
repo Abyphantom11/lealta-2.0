@@ -17,11 +17,11 @@ export async function POST(request: NextRequest) {
     // Buscar cliente por cédula (sin restricción de business por ahora)
     const cliente = await prisma.cliente.findFirst({
       where: {
-        cedula: cedula.toString()
+        cedula: cedula.toString(),
       },
       include: {
-        tarjetaLealtad: true // Incluir información de la tarjeta
-      }
+        tarjetaLealtad: true, // Incluir información de la tarjeta
+      },
     });
 
     if (cliente) {
@@ -34,20 +34,21 @@ export async function POST(request: NextRequest) {
           nombre: cliente.nombre,
           puntos: cliente.puntos,
           visitas: cliente.totalVisitas,
-          tarjetaLealtad: cliente.tarjetaLealtad ? {
-            nivel: cliente.tarjetaLealtad.nivel,
-            activa: cliente.tarjetaLealtad.activa,
-            fechaAsignacion: cliente.tarjetaLealtad.fechaAsignacion
-          } : null
-        }
+          tarjetaLealtad: cliente.tarjetaLealtad
+            ? {
+                nivel: cliente.tarjetaLealtad.nivel,
+                activa: cliente.tarjetaLealtad.activa,
+                fechaAsignacion: cliente.tarjetaLealtad.fechaAsignacion,
+              }
+            : null,
+        },
       });
     } else {
       // Cliente no existe
       return NextResponse.json({
-        existe: false
+        existe: false,
       });
     }
-
   } catch (error) {
     console.error('Error verificando cliente:', error);
     return NextResponse.json(

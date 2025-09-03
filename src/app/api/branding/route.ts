@@ -15,7 +15,7 @@ export async function GET() {
       const defaultBranding = {
         businessName: 'LEALTA',
         primaryColor: '#2563EB',
-        carouselImages: []
+        carouselImages: [],
       };
       return NextResponse.json(defaultBranding);
     }
@@ -31,7 +31,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const branding = await request.json();
-    
+
     // Validar datos
     if (!branding.businessName || !branding.primaryColor) {
       return NextResponse.json(
@@ -47,9 +47,9 @@ export async function POST(request: NextRequest) {
 
     // Guardar en archivo
     fs.writeFileSync(BRANDING_FILE, JSON.stringify(branding, null, 2));
-    
+
     // Se ha eliminado console.log por recomendación de SonarQube
-    
+
     return NextResponse.json({ success: true, branding });
   } catch (error) {
     console.error('Error saving branding:', error);

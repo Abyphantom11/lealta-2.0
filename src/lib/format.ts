@@ -10,10 +10,10 @@
  */
 export function formatDate(
   date: Date | string | number,
-  options: Intl.DateTimeFormatOptions = { 
-    day: '2-digit', 
-    month: '2-digit', 
-    year: 'numeric' 
+  options: Intl.DateTimeFormatOptions = {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
   }
 ): string {
   const dateObj = date instanceof Date ? date : new Date(date);
@@ -34,7 +34,7 @@ export function formatCurrency(
     style: 'currency',
     currency,
     maximumFractionDigits: currency === 'PYG' ? 0 : 2,
-    minimumFractionDigits: currency === 'PYG' ? 0 : 2
+    minimumFractionDigits: currency === 'PYG' ? 0 : 2,
   }).format(amount);
 }
 
@@ -59,11 +59,11 @@ export function daysBetween(
 ): number {
   const d1 = date1 instanceof Date ? date1 : new Date(date1);
   const d2 = date2 instanceof Date ? date2 : new Date(date2);
-  
+
   // Convertir a UTC para evitar problemas con horario de verano
   const utc1 = Date.UTC(d1.getFullYear(), d1.getMonth(), d1.getDate());
   const utc2 = Date.UTC(d2.getFullYear(), d2.getMonth(), d2.getDate());
-  
+
   const MS_PER_DAY = 1000 * 60 * 60 * 24;
   return Math.floor((utc2 - utc1) / MS_PER_DAY);
 }
@@ -76,14 +76,14 @@ export function daysBetween(
 export function formatPhone(phone: string): string {
   // Eliminar caracteres no numéricos
   const cleaned = phone.replace(/\D/g, '');
-  
+
   // Aplicar formato según longitud
   if (cleaned.length === 10) {
     return cleaned.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3');
   } else if (cleaned.length === 11) {
     return cleaned.replace(/(\d{3})(\d{4})(\d{4})/, '$1 $2 $3');
   }
-  
+
   // Si no cumple con los formatos conocidos, devolver tal cual
   return cleaned;
 }
@@ -96,7 +96,7 @@ export function formatPhone(phone: string): string {
 export function formatCedula(cedula: string): string {
   // Eliminar caracteres no numéricos
   const cleaned = cedula.replace(/\D/g, '');
-  
+
   // Aplicar formato con separadores de miles
   return new Intl.NumberFormat('es-ES').format(parseInt(cleaned));
 }

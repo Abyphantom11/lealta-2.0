@@ -16,7 +16,7 @@ export interface ProductFormData {
   precioBotella?: number;
   disponible: boolean;
   categoryId: string;
-  tipoProducto: 'simple' | 'bebida';
+  tipoProducto: 'simple' | 'bebida' | 'botella';
   imagen?: string;
   imagenUrl?: string;
   businessId: string;

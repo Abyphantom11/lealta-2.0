@@ -7,62 +7,64 @@ export const dynamic = 'force-dynamic';
 const prisma = new PrismaClient();
 
 // Helper function para obtener configuración por defecto
-async function getDefaultIds(businessId?: string | null, tx?: any): Promise<{ businessId: string; locationId: string }> {
+async function getDefaultIds(
+  businessId?: string | null,
+  tx?: any
+): Promise<{ businessId: string; locationId: string }> {
   const dbClient = tx ?? prisma;
-  
+
   // Si no tenemos businessId, usar el primero disponible
   let validBusinessId = businessId;
   if (!validBusinessId) {
     const firstBusiness = await dbClient.business.findFirst();
     validBusinessId = firstBusiness?.id ?? '1';
   }
-  
+
   // Obtener la primera ubicación del negocio
   let location = await dbClient.location.findFirst({
-    where: { businessId: validBusinessId }
+    where: { businessId: validBusinessId },
   });
-  
+
   // Si no hay ubicación, crear una por defecto
   if (!location) {
     location = await dbClient.location.create({
       data: {
         businessId: validBusinessId,
-        name: 'Ubicación Principal'
-      }
+        name: 'Ubicación Principal',
+      },
     });
   }
 
   return {
     businessId: validBusinessId!,
-    locationId: location.id
+    locationId: location.id,
   };
-}export async function POST(request: NextRequest) {
+}
+export async function POST(request: NextRequest) {
   try {
     console.log('🔍 API Manual Consumption - TEMPORARILY NO AUTH FOR TESTING');
-    
+
     // TEMPORAL: Usar valores reales de la base de datos para pruebas
     const userId = 'cmex9vqod0001ey0cvofcnanr'; // ID real del usuario staff@lealta.com
     const userRole = 'STAFF';
     const businessId = 'business_1'; // Business ID del usuario staff
-    
+
     console.log('✅ Using hardcoded auth for testing:', {
       userId,
       userRole,
-      businessId
+      businessId,
     });
 
     const body = await request.json();
-    const { 
-      cedula, 
-      empleadoVenta, 
-      productos, 
-      totalManual
-    } = body;
+    const { cedula, empleadoVenta, productos, totalManual } = body;
 
     // Validaciones básicas
     if (!cedula || !empleadoVenta || !productos || !totalManual) {
       return NextResponse.json(
-        { error: 'Faltan campos requeridos: cedula, empleadoVenta, productos, totalManual' },
+        {
+          error:
+            'Faltan campos requeridos: cedula, empleadoVenta, productos, totalManual',
+        },
         { status: 400 }
       );
     }
@@ -90,10 +92,17 @@ async function getDefaultIds(businessId?: string | null, tx?: any): Promise<{ bu
           { status: 400 }
         );
       }
-      
-      if (!producto.cantidad || typeof producto.cantidad !== 'number' || producto.cantidad <= 0) {
+
+      if (
+        !producto.cantidad ||
+        typeof producto.cantidad !== 'number' ||
+        producto.cantidad <= 0
+      ) {
         return NextResponse.json(
-          { error: 'Todos los productos deben tener una cantidad válida mayor a 0' },
+          {
+            error:
+              'Todos los productos deben tener una cantidad válida mayor a 0',
+          },
           { status: 400 }
         );
       }
@@ -101,12 +110,15 @@ async function getDefaultIds(businessId?: string | null, tx?: any): Promise<{ bu
 
     // Buscar cliente
     const cliente = await prisma.cliente.findUnique({
-      where: { cedula: cedula.toString() }
+      where: { cedula: cedula.toString() },
     });
 
     if (!cliente) {
       return NextResponse.json(
-        { error: 'Cliente no encontrado. Debe existir en el sistema antes de registrar consumo.' },
+        {
+          error:
+            'Cliente no encontrado. Debe existir en el sistema antes de registrar consumo.',
+        },
         { status: 404 }
       );
     }
@@ -115,10 +127,13 @@ async function getDefaultIds(businessId?: string | null, tx?: any): Promise<{ bu
     const puntosGanados = Math.floor(total * 2);
 
     // Crear transacción para consistencia
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async tx => {
       // Obtener configuración por defecto
-      const { businessId, locationId } = await getDefaultIds(cliente.businessId, tx);
-      
+      const { businessId, locationId } = await getDefaultIds(
+        cliente.businessId,
+        tx
+      );
+
       // 1. Crear el registro de consumo
       const consumo = await tx.consumo.create({
         data: {
@@ -126,15 +141,15 @@ async function getDefaultIds(businessId?: string | null, tx?: any): Promise<{ bu
           locationId: locationId,
           productos: productos.map(p => ({
             nombre: p.nombre.trim(),
-            cantidad: p.cantidad
+            cantidad: p.cantidad,
           })),
           total: total,
           puntos: puntosGanados,
           empleadoId: userId, // ID del usuario que registra
           registeredAt: new Date(),
           ocrText: `MANUAL: Empleado POS: ${empleadoVenta}`,
-          businessId: businessId
-        }
+          businessId: businessId,
+        },
       });
 
       // 2. Actualizar puntos del cliente
@@ -143,21 +158,21 @@ async function getDefaultIds(businessId?: string | null, tx?: any): Promise<{ bu
         data: {
           puntos: { increment: puntosGanados },
           totalGastado: { increment: total },
-          totalVisitas: { increment: 1 }
-        }
+          totalVisitas: { increment: 1 },
+        },
       });
 
       // 3. Buscar o crear productos en MenuProduct (opcional)
       for (const producto of productos) {
         const nombreProducto = producto.nombre.trim().toLowerCase();
-        
+
         // Buscar si el producto ya existe en alguna categoría
         const productoExistente = await tx.menuProduct.findFirst({
           where: {
             nombre: {
-              contains: nombreProducto
-            }
-          }
+              contains: nombreProducto,
+            },
+          },
         });
 
         // Si no existe, lo agregamos a una categoría "Sin Categoría"
@@ -166,8 +181,8 @@ async function getDefaultIds(businessId?: string | null, tx?: any): Promise<{ bu
           let categoria = await tx.menuCategory.findFirst({
             where: {
               nombre: 'Sin Categoría',
-              businessId: businessId
-            }
+              businessId: businessId,
+            },
           });
 
           categoria ??= await tx.menuCategory.create({
@@ -175,8 +190,8 @@ async function getDefaultIds(businessId?: string | null, tx?: any): Promise<{ bu
               businessId: businessId,
               nombre: 'Sin Categoría',
               descripcion: 'Productos agregados automáticamente',
-              orden: 999
-            }
+              orden: 999,
+            },
           });
 
           // Crear nuevo producto
@@ -186,8 +201,8 @@ async function getDefaultIds(businessId?: string | null, tx?: any): Promise<{ bu
               nombre: producto.nombre.trim(),
               descripcion: `Producto agregado automáticamente desde consumo manual`,
               disponible: true,
-              tipoProducto: 'simple'
-            }
+              tipoProducto: 'simple',
+            },
           });
         }
       }
@@ -195,7 +210,7 @@ async function getDefaultIds(businessId?: string | null, tx?: any): Promise<{ bu
       return {
         consumo,
         cliente: clienteActualizado,
-        puntosGanados
+        puntosGanados,
       };
     });
 
@@ -209,21 +224,23 @@ async function getDefaultIds(businessId?: string | null, tx?: any): Promise<{ bu
           nombre: result.cliente.nombre,
           puntosNuevos: puntosGanados,
           puntosTotal: result.cliente.puntos,
-          totalGastado: result.cliente.totalGastado
+          totalGastado: result.cliente.totalGastado,
         },
         productos: productos,
         total: total,
-        empleadoVenta
-      }
+        empleadoVenta,
+      },
     });
-
   } catch (error) {
     console.error('Error al registrar consumo manual:', error);
-    
+
     return NextResponse.json(
-      { 
+      {
         error: 'Error interno del servidor',
-        details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+        details:
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : undefined,
       },
       { status: 500 }
     );
@@ -238,12 +255,9 @@ export async function GET(request: NextRequest) {
     // Verificar autenticación usando headers del middleware
     const userId = request.headers.get('x-user-id');
     const userRole = request.headers.get('x-user-role');
-    
+
     if (!userId || !userRole) {
-      return NextResponse.json(
-        { error: 'No autorizado' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
     // Solo admins pueden ver estadísticas
@@ -263,23 +277,23 @@ export async function GET(request: NextRequest) {
     const estadisticas = await prisma.consumo.findMany({
       where: {
         registeredAt: {
-          gte: fechaInicio
+          gte: fechaInicio,
         },
         ocrText: {
-          startsWith: 'MANUAL:'
-        }
+          startsWith: 'MANUAL:',
+        },
       },
       include: {
         cliente: {
           select: {
             nombre: true,
-            cedula: true
-          }
-        }
+            cedula: true,
+          },
+        },
       },
       orderBy: {
-        registeredAt: 'desc'
-      }
+        registeredAt: 'desc',
+      },
     });
 
     const resumen = {
@@ -287,20 +301,21 @@ export async function GET(request: NextRequest) {
       totalMonto: estadisticas.reduce((sum, c) => sum + c.total, 0),
       totalPuntos: estadisticas.reduce((sum, c) => sum + c.puntos, 0),
       clientesUnicos: new Set(estadisticas.map(c => c.clienteId)).size,
-      promedioVenta: estadisticas.length > 0 
-        ? estadisticas.reduce((sum, c) => sum + c.total, 0) / estadisticas.length 
-        : 0
+      promedioVenta:
+        estadisticas.length > 0
+          ? estadisticas.reduce((sum, c) => sum + c.total, 0) /
+            estadisticas.length
+          : 0,
     };
 
     return NextResponse.json({
       success: true,
       resumen,
-      consumos: estadisticas
+      consumos: estadisticas,
     });
-
   } catch (error) {
     console.error('Error al obtener estadísticas:', error);
-    
+
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

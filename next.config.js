@@ -1,7 +1,10 @@
 ﻿/** @type {import('next').NextConfig} */
 const nextConfig = {
   // Electron support
-  output: process.env.NODE_ENV === 'production' && process.env.ELECTRON_BUILD ? 'export' : undefined,
+  output:
+    process.env.NODE_ENV === 'production' && process.env.ELECTRON_BUILD
+      ? 'export'
+      : undefined,
   trailingSlash: true,
   images: {
     unoptimized: true,

@@ -28,17 +28,20 @@ src/
 ## 3. Funcionalidades Implementadas
 
 ✅ **Análisis de Imágenes POS con Gemini**
+
 - Extracción automática de productos y precios
 - Validación de confianza (mínimo 50%)
 - Manejo de errores robusto
 
 ✅ **Dashboard Super Admin**
+
 - Upload de imágenes drag & drop
 - Métricas en tiempo real
 - Gráficos interactivos con Recharts
 - Tabla de transacciones recientes
 
 ✅ **API Robusta**
+
 - Validación de archivos
 - Optimización automática de imágenes
 - Respuestas detalladas con confianza
@@ -59,6 +62,7 @@ src/
 ## 6. Testing
 
 Para probar el sistema:
+
 1. Ve a `/superadmin/analytics`
 2. Sube una imagen de un recibo o POS
 3. Verifica que se extraigan correctamente los datos

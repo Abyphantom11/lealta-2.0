@@ -12,17 +12,24 @@ export default function HomePage() {
     <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-800">
       {/* Desktop Title Bar - Only shown in Electron */}
       <DesktopTitleBar />
-      
+
       <div className="container mx-auto px-4 py-16">
         {/* Hero Section */}
         <div className="text-center mb-16">
           <div className="w-24 h-24 mx-auto mb-8 bg-gradient-to-r from-primary-600 to-purple-600 rounded-full flex items-center justify-center">
-            {isElectron ? <Monitor className="w-12 h-12 text-white" /> : <Star className="w-12 h-12 text-white" />}
+            {isElectron ? (
+              <Monitor className="w-12 h-12 text-white" />
+            ) : (
+              <Star className="w-12 h-12 text-white" />
+            )}
           </div>
           <h1 className="text-5xl font-bold text-white mb-6">
-            Bienvenido a <span className="bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent font-bold">Lealta</span>
+            Bienvenido a{' '}
+            <span className="bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent font-bold">
+              Lealta
+            </span>
           </h1>
-          
+
           <PlatformAware
             desktop={
               <p className="text-xl text-dark-400 mb-12 max-w-2xl mx-auto">
@@ -42,7 +49,8 @@ export default function HomePage() {
                   Plataforma Web
                 </span>
                 <br />
-                Sistema integral de captación, control de clientes y flujo de datos. Registra antes del consumo, captura antes del cobro.
+                Sistema integral de captación, control de clientes y flujo de
+                datos. Registra antes del consumo, captura antes del cobro.
               </p>
             }
           />
@@ -85,7 +93,14 @@ export default function HomePage() {
   );
 }
 
-function AccessCard({ title, description, icon, href, gradient, isMain = false }: Readonly<{
+function AccessCard({
+  title,
+  description,
+  icon,
+  href,
+  gradient,
+  isMain = false,
+}: Readonly<{
   title: string;
   description: string;
   icon: React.ReactNode;
@@ -95,18 +110,33 @@ function AccessCard({ title, description, icon, href, gradient, isMain = false }
 }>) {
   return (
     <Link href={href}>
-      <div className={`premium-card cursor-pointer group text-center ${isMain ? 'scale-110 hover:scale-125 px-8 py-10' : ''}`}>
-        <div className={`${isMain ? 'w-24 h-24' : 'w-16 h-16'} bg-gradient-to-r ${gradient} rounded-xl flex items-center justify-center text-white mb-6 mx-auto group-hover:scale-110 transition-transform duration-200`}>
+      <div
+        className={`premium-card cursor-pointer group text-center ${isMain ? 'scale-110 hover:scale-125 px-8 py-10' : ''}`}
+      >
+        <div
+          className={`${isMain ? 'w-24 h-24' : 'w-16 h-16'} bg-gradient-to-r ${gradient} rounded-xl flex items-center justify-center text-white mb-6 mx-auto group-hover:scale-110 transition-transform duration-200`}
+        >
           {icon}
         </div>
-        <h3 className={`${isMain ? 'text-3xl' : 'text-xl'} font-bold text-white mb-4`}>{title}</h3>
-        <p className={`text-dark-400 ${isMain ? 'text-lg leading-relaxed' : 'text-sm'}`}>{description}</p>
+        <h3
+          className={`${isMain ? 'text-3xl' : 'text-xl'} font-bold text-white mb-4`}
+        >
+          {title}
+        </h3>
+        <p
+          className={`text-dark-400 ${isMain ? 'text-lg leading-relaxed' : 'text-sm'}`}
+        >
+          {description}
+        </p>
       </div>
     </Link>
   );
 }
 
-function FeatureCard({ title, description }: Readonly<{
+function FeatureCard({
+  title,
+  description,
+}: Readonly<{
   title: string;
   description: string;
 }>) {

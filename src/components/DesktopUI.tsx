@@ -15,7 +15,7 @@ export function DesktopTitleBar() {
         <span className="text-white font-semibold">Lealta MVP</span>
         <span className="text-dark-400">v{version}</span>
       </div>
-      
+
       <div className="flex items-center space-x-1">
         <button
           className="p-1 hover:bg-dark-700 rounded text-dark-400 hover:text-white transition-colors"

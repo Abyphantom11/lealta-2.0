@@ -3,14 +3,14 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { 
-  CheckCircleIcon, 
-  ExclamationTriangleIcon, 
-  XCircleIcon, 
-  InformationCircleIcon 
+import {
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+  XCircleIcon,
+  InformationCircleIcon,
 } from '@heroicons/react/24/solid';
-import notificationService, { 
-  Notification as NotificationType 
+import notificationService, {
+  Notification as NotificationType,
 } from '@/lib/notificationService';
 
 /**
@@ -60,9 +60,7 @@ const NotificationItem: React.FC<{
       className={`rounded-lg shadow-md border p-4 w-full max-w-md flex ${getBgClass()}`}
       layout
     >
-      <div className="flex-shrink-0 mr-3 pt-0.5">
-        {getIcon()}
-      </div>
+      <div className="flex-shrink-0 mr-3 pt-0.5">{getIcon()}</div>
 
       <div className="flex-1 min-w-0">
         <h3 className="text-sm font-medium">{notification.title}</h3>

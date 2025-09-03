@@ -8,7 +8,7 @@ import Link from 'next/link';
 export default function LoginPage() {
   const [formData, setFormData] = useState({
     email: '',
-    password: ''
+    password: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -31,15 +31,15 @@ export default function LoginPage() {
       });
 
       const data = await response.json();
-      
+
       if (response.ok) {
         // Redirect based on role
         const roleRedirect: Record<string, string> = {
           SUPERADMIN: '/superadmin',
           ADMIN: '/admin',
-          STAFF: '/staff'
+          STAFF: '/staff',
         };
-        
+
         window.location.href = roleRedirect[data.role] || '/staff';
       } else {
         setError(data.error || 'Credenciales inválidas');
@@ -54,7 +54,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-800 flex items-center justify-center p-4">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md"
@@ -64,21 +64,22 @@ export default function LoginPage() {
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
             className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-primary-600 to-purple-600 rounded-full flex items-center justify-center"
           >
             <Shield className="w-10 h-10 text-white" />
           </motion.div>
           <h1 className="text-3xl font-bold text-white mb-2">
-            Lealta <span className="gradient-primary bg-clip-text text-transparent">Admin</span>
+            Lealta{' '}
+            <span className="gradient-primary bg-clip-text text-transparent">
+              Admin
+            </span>
           </h1>
-          <p className="text-dark-400">
-            Panel de administración
-          </p>
+          <p className="text-dark-400">Panel de administración</p>
         </div>
 
         {/* Login Form */}
-        <motion.form 
+        <motion.form
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
@@ -106,7 +107,9 @@ export default function LoginPage() {
               className="form-input"
               placeholder="admin@lealta.com"
               value={formData.email}
-              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              onChange={e =>
+                setFormData({ ...formData, email: e.target.value })
+              }
             />
           </div>
 
@@ -122,14 +125,20 @@ export default function LoginPage() {
                 className="form-input pr-12"
                 placeholder="••••••••"
                 value={formData.password}
-                onChange={(e) => setFormData({...formData, password: e.target.value})}
+                onChange={e =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-dark-400 hover:text-dark-300"
               >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                {showPassword ? (
+                  <EyeOff className="w-5 h-5" />
+                ) : (
+                  <Eye className="w-5 h-5" />
+                )}
               </button>
             </div>
           </div>
@@ -160,7 +169,7 @@ export default function LoginPage() {
           className="mt-6 text-center"
         >
           <p className="text-dark-400 mb-4">¿No tienes una cuenta?</p>
-          <Link 
+          <Link
             href="/signup"
             className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
           >

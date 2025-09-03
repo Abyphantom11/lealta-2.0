@@ -8,15 +8,31 @@ export const dynamic = 'force-dynamic';
 
 const signupSchema = z.object({
   // Datos de la empresa
-  businessName: z.string().min(2, 'Nombre de empresa debe tener al menos 2 caracteres'),
-  subdomain: z.string().min(3, 'Subdominio debe tener al menos 3 caracteres').regex(/^[a-z0-9-]+$/, 'Subdominio solo puede contener letras, números y guiones'),
-  contactEmail: z.string().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Email de contacto inválido'),
+  businessName: z
+    .string()
+    .min(2, 'Nombre de empresa debe tener al menos 2 caracteres'),
+  subdomain: z
+    .string()
+    .min(3, 'Subdominio debe tener al menos 3 caracteres')
+    .regex(
+      /^[a-z0-9-]+$/,
+      'Subdominio solo puede contener letras, números y guiones'
+    ),
+  contactEmail: z
+    .string()
+    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Email de contacto inválido'),
   contactPhone: z.string().optional(),
-  
+
   // Datos del SuperAdmin
-  adminName: z.string().min(2, 'Nombre del admin debe tener al menos 2 caracteres'),
-  adminEmail: z.string().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Email del admin inválido'),
-  adminPassword: z.string().min(6, 'Contraseña debe tener al menos 6 caracteres'),
+  adminName: z
+    .string()
+    .min(2, 'Nombre del admin debe tener al menos 2 caracteres'),
+  adminEmail: z
+    .string()
+    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Email del admin inválido'),
+  adminPassword: z
+    .string()
+    .min(6, 'Contraseña debe tener al menos 6 caracteres'),
 });
 
 export async function POST(request: NextRequest) {
@@ -26,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     // Verificar si el subdominio ya existe
     const existingBusiness = await prisma.business.findUnique({
-      where: { subdomain: validatedData.subdomain }
+      where: { subdomain: validatedData.subdomain },
     });
 
     if (existingBusiness) {
@@ -38,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     // Verificar si el email del admin ya existe en alguna empresa
     const existingAdmin = await prisma.user.findFirst({
-      where: { email: validatedData.adminEmail }
+      where: { email: validatedData.adminEmail },
     });
 
     if (existingAdmin) {
@@ -58,7 +74,7 @@ export async function POST(request: NextRequest) {
           subdomain: validatedData.subdomain,
           subscriptionPlan: 'BASIC', // Plan inicial
           isActive: true,
-        }
+        },
       });
 
       // Hash de la contraseña
@@ -73,7 +89,7 @@ export async function POST(request: NextRequest) {
           name: validatedData.adminName,
           role: 'SUPERADMIN',
           isActive: true,
-        }
+        },
       });
 
       // Crear location por defecto
@@ -81,7 +97,7 @@ export async function POST(request: NextRequest) {
         data: {
           businessId: business.id,
           name: `${validatedData.businessName} - Principal`,
-        }
+        },
       });
 
       return { business, superAdmin };
@@ -99,12 +115,11 @@ export async function POST(request: NextRequest) {
         id: result.superAdmin.id,
         name: result.superAdmin.name,
         email: result.superAdmin.email,
-      }
+      },
     });
-
   } catch (error) {
     console.error('Signup error:', error);
-    
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Datos inválidos', details: error.issues },

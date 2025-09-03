@@ -3,40 +3,41 @@ import { NextRequest, NextResponse } from 'next/server';
 // Rutas que requieren autenticación
 const PROTECTED_ROUTES = [
   '/superadmin',
-  '/admin', 
+  '/admin',
   '/staff',
   '/dashboard',
   '/api/users',
   '/api/business',
   '/api/clients',
-  '/api/consumos'
+  '/api/consumos',
 ];
 
 // Rutas públicas (login, signup, etc.)
-const PUBLIC_ROUTES = [
-  '/login',
-  '/signup'
-];
+const PUBLIC_ROUTES = ['/login', '/signup'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  
+
   console.log('🔍 MIDDLEWARE DEBUG:', {
     pathname,
     hasSessionCookie: !!request.cookies.get('session'),
-    sessionCookieValue: request.cookies.get('session')?.value
+    sessionCookieValue: request.cookies.get('session')?.value,
   });
 
   // Permitir acceso a rutas públicas y estáticas
-  if (PUBLIC_ROUTES.some(route => pathname.startsWith(route)) ||
-      pathname.startsWith('/_next') || 
-      pathname.startsWith('/favicon')) {
+  if (
+    PUBLIC_ROUTES.some(route => pathname.startsWith(route)) ||
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/favicon')
+  ) {
     return NextResponse.next();
   }
 
   // Verificar si la ruta está protegida
-  const isProtectedRoute = PROTECTED_ROUTES.some(route => pathname.startsWith(route));
-  
+  const isProtectedRoute = PROTECTED_ROUTES.some(route =>
+    pathname.startsWith(route)
+  );
+
   if (!isProtectedRoute) {
     return NextResponse.next();
   }
@@ -48,28 +49,27 @@ export async function middleware(request: NextRequest) {
 async function handleProtectedRoute(request: NextRequest, pathname: string) {
   try {
     const sessionCookie = request.cookies.get('session')?.value;
-    
+
     if (!sessionCookie) {
       console.log('❌ No hay cookie de sesión, redirigiendo a login');
       return redirectToLogin(request, pathname);
     }
 
     const sessionData = JSON.parse(sessionCookie);
-    
+
     if (!sessionData.userId || !sessionData.role) {
       console.log('❌ Datos de sesión incompletos');
       return redirectToLogin(request, pathname);
     }
 
     return processUserRole(sessionData, pathname, request);
-
   } catch (error) {
     console.error('❌ Middleware auth error:', {
       message: error instanceof Error ? error.message : String(error),
       pathname: pathname,
-      hasCookie: !!request.cookies.get('session')
+      hasCookie: !!request.cookies.get('session'),
     });
-    
+
     return redirectToLogin(request, pathname);
   }
 }
@@ -80,20 +80,27 @@ function redirectToLogin(request: NextRequest, pathname: string) {
   return NextResponse.redirect(loginUrl);
 }
 
-function processUserRole(sessionData: any, pathname: string, request: NextRequest) {
+function processUserRole(
+  sessionData: any,
+  pathname: string,
+  request: NextRequest
+) {
   const role = sessionData.role;
-  
+
   // SUPERADMIN puede acceder a todo
   if (role === 'SUPERADMIN') {
     return createResponseWithHeaders(sessionData, role);
   }
-  
+
   // Verificar acceso específico para otros roles
   if (pathname.startsWith('/superadmin') && role !== 'SUPERADMIN') {
-    const redirectUrl = new URL(role === 'ADMIN' ? '/admin' : '/staff', request.url);
+    const redirectUrl = new URL(
+      role === 'ADMIN' ? '/admin' : '/staff',
+      request.url
+    );
     return NextResponse.redirect(redirectUrl);
   }
-  
+
   if (pathname.startsWith('/admin') && role !== 'ADMIN') {
     const redirectUrl = new URL('/staff', request.url);
     return NextResponse.redirect(redirectUrl);
@@ -115,7 +122,7 @@ function createResponseWithHeaders(sessionData: any, role: string) {
   console.log('✅ Headers añadidos:', {
     'x-user-id': sessionData.userId,
     'x-user-role': role,
-    'x-business-id': sessionData.businessId
+    'x-business-id': sessionData.businessId,
   });
 
   return response;
@@ -132,5 +139,5 @@ export const config = {
      * - favicon.ico (favicon file)
      */
     '/((?!api/auth|_next/static|_next/image|favicon.ico).*)',
-  ]
+  ],
 };

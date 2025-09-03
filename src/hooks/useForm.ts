@@ -4,7 +4,9 @@ import { useState, ChangeEvent, FormEvent } from 'react';
 
 interface UseFormProps<T> {
   initialValues: T;
-  onSubmit: (values: T) => Promise<{ success: boolean; error?: string; message?: string }>;
+  onSubmit: (
+    values: T
+  ) => Promise<{ success: boolean; error?: string; message?: string }>;
 }
 
 interface UseFormReturn<T> {
@@ -13,7 +15,9 @@ interface UseFormReturn<T> {
   isSubmitting: boolean;
   submitSuccess: boolean;
   submitError: string | null;
-  handleChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
+  handleChange: (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => void;
   handleSubmit: (e: FormEvent) => Promise<void>;
   setFieldValue: (field: keyof T, value: any) => void;
   reset: () => void;
@@ -27,7 +31,7 @@ interface UseFormReturn<T> {
  */
 export function useForm<T extends Record<string, any>>({
   initialValues,
-  onSubmit
+  onSubmit,
 }: UseFormProps<T>): UseFormReturn<T> {
   const [values, setValues] = useState<T>(initialValues);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -35,10 +39,12 @@ export function useForm<T extends Record<string, any>>({
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
     setValues(prev => ({ ...prev, [name]: value }));
-    
+
     // Limpiar error cuando el usuario corrige el campo
     if (errors[name]) {
       setErrors(prev => {
@@ -61,7 +67,7 @@ export function useForm<T extends Record<string, any>>({
 
     try {
       const result = await onSubmit(values);
-      
+
       if (result.success) {
         setSubmitSuccess(true);
       } else {
@@ -91,6 +97,6 @@ export function useForm<T extends Record<string, any>>({
     handleChange,
     handleSubmit,
     setFieldValue,
-    reset
+    reset,
   };
 }

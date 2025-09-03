@@ -10,14 +10,14 @@ export const ROLE_PERMISSIONS = {
     'business.manage',
     'users.create',
     'users.read',
-    'users.update', 
+    'users.update',
     'users.delete',
     'locations.manage',
     'clients.manage',
     'consumos.manage',
     'reports.view',
     'settings.manage',
-    'billing.manage'
+    'billing.manage',
   ],
   ADMIN: [
     'users.create', // Solo puede crear STAFF
@@ -26,38 +26,33 @@ export const ROLE_PERMISSIONS = {
     'clients.manage',
     'consumos.manage',
     'reports.view',
-    'locations.read'
+    'locations.read',
   ],
-  STAFF: [
-    'clients.read',
-    'clients.create',
-    'consumos.create',
-    'consumos.read'
-  ]
+  STAFF: ['clients.read', 'clients.create', 'consumos.create', 'consumos.read'],
 };
 
 // Rutas protegidas y sus permisos requeridos
 export const PROTECTED_ROUTES = {
   '/dashboard/superadmin': {
     roles: ['SUPERADMIN'],
-    permissions: ['business.manage']
+    permissions: ['business.manage'],
   },
   '/dashboard/admin': {
     roles: ['ADMIN'],
-    permissions: ['users.read']
+    permissions: ['users.read'],
   },
   '/dashboard/staff': {
     roles: ['STAFF'],
-    permissions: ['consumos.create']
+    permissions: ['consumos.create'],
   },
   '/api/users': {
     roles: ['SUPERADMIN', 'ADMIN'],
-    permissions: ['users.read']
+    permissions: ['users.read'],
   },
   '/api/business': {
     roles: ['SUPERADMIN'],
-    permissions: ['business.manage']
-  }
+    permissions: ['business.manage'],
+  },
 };
 
 export interface AuthUser {
@@ -71,25 +66,34 @@ export interface AuthUser {
 }
 
 export class AuthError extends Error {
-  constructor(message: string, public statusCode: number = 401) {
+  constructor(
+    message: string,
+    public statusCode: number = 401
+  ) {
     super(message);
     this.name = 'AuthError';
   }
 }
 
 // Función para verificar si un rol puede crear otro rol
-export function canCreateRole(creatorRole: UserRole, targetRole: UserRole): boolean {
+export function canCreateRole(
+  creatorRole: UserRole,
+  targetRole: UserRole
+): boolean {
   const hierarchy: Record<string, string[]> = {
     SUPERADMIN: ['ADMIN', 'STAFF'],
     ADMIN: ['STAFF'],
-    STAFF: []
+    STAFF: [],
   };
-  
+
   return hierarchy[creatorRole]?.includes(targetRole) || false;
 }
 
 // Función para verificar permisos específicos
-export function hasPermission(userRole: UserRole, requiredPermission: string): boolean {
+export function hasPermission(
+  userRole: UserRole,
+  requiredPermission: string
+): boolean {
   const rolePermissions = ROLE_PERMISSIONS[userRole];
   return rolePermissions?.includes(requiredPermission) || false;
 }
@@ -103,41 +107,44 @@ export function canAccessRoute(userRole: UserRole, pathname: string): boolean {
 
   if (!matchedRoute) return true; // Ruta no protegida
 
-  const routeConfig = PROTECTED_ROUTES[matchedRoute as keyof typeof PROTECTED_ROUTES];
+  const routeConfig =
+    PROTECTED_ROUTES[matchedRoute as keyof typeof PROTECTED_ROUTES];
   return routeConfig.roles.includes(userRole);
 }
 
 // Extraer datos del usuario desde la sesión
-export async function getCurrentUser(request: NextRequest): Promise<AuthUser | null> {
+export async function getCurrentUser(
+  request: NextRequest
+): Promise<AuthUser | null> {
   try {
     // Intentar obtener token desde cookie de sesión
     const sessionCookie = request.cookies.get('session')?.value;
-    
+
     if (!sessionCookie) {
       return null;
     }
 
     // Parsear datos de la sesión
     const sessionData = JSON.parse(sessionCookie);
-    
+
     if (!sessionData.userId || !sessionData.sessionToken) {
       return null;
     }
 
     // Verificar usuario en base de datos
     const user = await prisma.user.findUnique({
-      where: { 
+      where: {
         id: sessionData.userId,
         sessionToken: sessionData.sessionToken,
-        isActive: true
+        isActive: true,
       },
       include: {
         business: {
           select: {
-            isActive: true
-          }
-        }
-      }
+            isActive: true,
+          },
+        },
+      },
     });
 
     if (!user?.business?.isActive) {
@@ -160,10 +167,11 @@ export async function getCurrentUser(request: NextRequest): Promise<AuthUser | n
       name: user.name,
       role: user.role as UserRole,
       businessId: user.businessId,
-      permissions: [...ROLE_PERMISSIONS[user.role as keyof typeof ROLE_PERMISSIONS]],
-      sessionToken: user.sessionToken!
+      permissions: [
+        ...ROLE_PERMISSIONS[user.role as keyof typeof ROLE_PERMISSIONS],
+      ],
+      sessionToken: user.sessionToken!,
     };
-
   } catch (error) {
     if (error instanceof AuthError) throw error;
     console.error('Error getting current user:', error);
@@ -173,14 +181,13 @@ export async function getCurrentUser(request: NextRequest): Promise<AuthUser | n
 
 // Middleware principal de autenticación
 export async function authMiddleware(
-  request: NextRequest, 
+  request: NextRequest,
   requiredRole?: string,
   requiredPermission?: string
 ): Promise<{ user: AuthUser; response?: NextResponse }> {
-  
   try {
     const user = await getCurrentUser(request);
-    
+
     if (!user) {
       throw new AuthError('No autenticado');
     }
@@ -201,7 +208,6 @@ export async function authMiddleware(
     }
 
     return { user };
-
   } catch (error) {
     if (error instanceof AuthError) {
       return {
@@ -209,7 +215,7 @@ export async function authMiddleware(
         response: NextResponse.json(
           { error: error.message },
           { status: error.statusCode }
-        )
+        ),
       };
     }
 
@@ -218,7 +224,7 @@ export async function authMiddleware(
       response: NextResponse.json(
         { error: 'Error de autenticación' },
         { status: 500 }
-      )
+      ),
     };
   }
 }
@@ -233,8 +239,8 @@ export function withAuth(
 ) {
   return async (request: NextRequest) => {
     const { user, response } = await authMiddleware(
-      request, 
-      options?.role, 
+      request,
+      options?.role,
       options?.permission
     );
 
@@ -245,10 +251,13 @@ export function withAuth(
 }
 
 // Helper para verificar jerarquía de usuarios
-export async function canManageUser(managerUserId: string, targetUserId: string): Promise<boolean> {
+export async function canManageUser(
+  managerUserId: string,
+  targetUserId: string
+): Promise<boolean> {
   const [manager, target] = await Promise.all([
     prisma.user.findUnique({ where: { id: managerUserId } }),
-    prisma.user.findUnique({ where: { id: targetUserId } })
+    prisma.user.findUnique({ where: { id: targetUserId } }),
   ]);
 
   if (!manager || !target) return false;
@@ -260,7 +269,11 @@ export async function canManageUser(managerUserId: string, targetUserId: string)
   if (manager.role === 'SUPERADMIN') return true;
 
   // ADMIN solo puede gestionar STAFF que él creó
-  if (manager.role === 'ADMIN' && target.role === 'STAFF' && target.createdBy === manager.id) {
+  if (
+    manager.role === 'ADMIN' &&
+    target.role === 'STAFF' &&
+    target.createdBy === manager.id
+  ) {
     return true;
   }
 

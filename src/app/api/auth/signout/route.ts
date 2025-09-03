@@ -8,19 +8,19 @@ export async function POST(request: NextRequest) {
   try {
     // Obtener datos de sesión
     const sessionCookie = request.cookies.get('session')?.value;
-    
+
     if (sessionCookie) {
       try {
         const sessionData = JSON.parse(sessionCookie);
-        
+
         if (sessionData.userId && sessionData.sessionToken) {
           // Invalidar token en base de datos
           await prisma.user.update({
             where: { id: sessionData.userId },
             data: {
               sessionToken: null,
-              sessionExpires: null
-            }
+              sessionExpires: null,
+            },
           });
         }
       } catch (error) {
@@ -36,14 +36,13 @@ export async function POST(request: NextRequest) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 0 // Eliminar inmediatamente
+      maxAge: 0, // Eliminar inmediatamente
     });
 
     return response;
-
   } catch (error) {
     console.error('Logout error:', error);
-    
+
     // Aún si hay error, limpiar la cookie
     const response = NextResponse.json(
       { error: 'Error cerrando sesión' },
@@ -54,7 +53,7 @@ export async function POST(request: NextRequest) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 0
+      maxAge: 0,
     });
 
     return response;

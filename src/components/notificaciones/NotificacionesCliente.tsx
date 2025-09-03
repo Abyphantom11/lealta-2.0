@@ -17,29 +17,39 @@ export default function NotificacionesCliente() {
   // En producción, esto se conectaría a un sistema de websockets
   const simularRecepcionNotificacion = (tipo: string) => {
     setTipoNotificacion(tipo);
-    
+
     switch (tipo) {
       case TipoNotificacion.PUNTOS_ACTUALIZADOS:
-        setMensaje('¡Tus puntos han sido actualizados! Refresca para ver los cambios.');
+        setMensaje(
+          '¡Tus puntos han sido actualizados! Refresca para ver los cambios.'
+        );
         break;
       case TipoNotificacion.TARJETA_ASIGNADA:
-        setMensaje('¡Se ha asignado o actualizado tu tarjeta de fidelidad! Refresca para ver los cambios.');
+        setMensaje(
+          '¡Se ha asignado o actualizado tu tarjeta de fidelidad! Refresca para ver los cambios.'
+        );
         break;
       case TipoNotificacion.NIVEL_CAMBIADO:
-        setMensaje('¡Has cambiado de nivel! Refresca para ver tu nuevo status.');
+        setMensaje(
+          '¡Has cambiado de nivel! Refresca para ver tu nuevo status.'
+        );
         break;
       case TipoNotificacion.PROMOCION_DISPONIBLE:
-        setMensaje('¡Hay nuevas promociones disponibles para ti! Revisa la sección de promociones.');
+        setMensaje(
+          '¡Hay nuevas promociones disponibles para ti! Revisa la sección de promociones.'
+        );
         break;
       case TipoNotificacion.MENU_ACTUALIZADO:
         setMensaje('¡El menú ha sido actualizado! Revisa las novedades.');
         break;
       default:
-        setMensaje('Hay una actualización disponible. Refresca para ver los cambios.');
+        setMensaje(
+          'Hay una actualización disponible. Refresca para ver los cambios.'
+        );
     }
-    
+
     setMostrarNotificacion(true);
-    
+
     // Ocultar la notificación después de 10 segundos si el usuario no interactúa
     setTimeout(() => {
       setMostrarNotificacion(false);
@@ -53,8 +63,9 @@ export default function NotificacionesCliente() {
       // Aquí normalmente habría un socket.on('notificacion', (data) => {})
       // Por ahora simulamos recibir notificaciones aleatorias cada 30 segundos
       const tiposDisponibles = Object.values(TipoNotificacion);
-      const tipoAleatorio = tiposDisponibles[Math.floor(Math.random() * tiposDisponibles.length)];
-      
+      const tipoAleatorio =
+        tiposDisponibles[Math.floor(Math.random() * tiposDisponibles.length)];
+
       // Descomenta para probar:
       // simularRecepcionNotificacion(tipoAleatorio);
     }, 30000);

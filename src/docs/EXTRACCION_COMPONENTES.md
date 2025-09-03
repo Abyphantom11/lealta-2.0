@@ -42,14 +42,14 @@ async function extractMyComponents() {
     sourcePath: 'src/app/admin/page.tsx',
     outputDir: 'src/components/admin',
     minLines: 50,
-    mode: 'auto'
+    mode: 'auto',
   });
-  
+
   // Actualizar el archivo original con las importaciones
   if (extractedComponents.length > 0) {
     updateSourceFile(
-      'src/app/admin/page.tsx', 
-      extractedComponents, 
+      'src/app/admin/page.tsx',
+      extractedComponents,
       '../../components/admin'
     );
   }
@@ -57,17 +57,13 @@ async function extractMyComponents() {
 
 // O extraer componentes específicos
 async function extractSpecificComponents() {
-  const componentNames = [
-    'ProductList',
-    'OrderTable',
-    'UserManagement'
-  ];
-  
+  const componentNames = ['ProductList', 'OrderTable', 'UserManagement'];
+
   const extractedComponents = await extractComponents({
     sourcePath: 'src/app/admin/page.tsx',
     outputDir: 'src/components/admin',
     mode: 'manual',
-    componentNames
+    componentNames,
   });
 }
 ```
@@ -106,21 +102,21 @@ import ClienteFilters from '../../components/admin/ClienteFilters';
 
 export default function ClientesPage() {
   // Estado y lógica
-  
+
   return (
     <div>
       <ClienteHeader title="Gestión de Clientes" />
       <ClienteFilters onFilterChange={handleFilterChange} />
-      <ClienteTable 
-        clientes={clientes} 
-        onEdit={handleEdit} 
-        onDelete={handleDelete} 
+      <ClienteTable
+        clientes={clientes}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
       />
       {showForm && (
-        <ClienteForm 
-          cliente={selectedCliente} 
-          onSubmit={handleSubmit} 
-          onCancel={() => setShowForm(false)} 
+        <ClienteForm
+          cliente={selectedCliente}
+          onSubmit={handleSubmit}
+          onCancel={() => setShowForm(false)}
         />
       )}
     </div>

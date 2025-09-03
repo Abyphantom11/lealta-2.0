@@ -11,13 +11,13 @@ const createUserSchema = z.object({
   email: z.string().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Email inválido'),
   password: z.string().min(6, 'Password debe tener al menos 6 caracteres'),
   name: z.string().min(1, 'Nombre requerido'),
-  role: z.enum(['ADMIN', 'STAFF'])
+  role: z.enum(['ADMIN', 'STAFF']),
 });
 
 // Schema para actualización de usuarios
 const updateUserSchema = z.object({
   name: z.string().min(1, 'Nombre requerido').optional(),
-  isActive: z.boolean().optional()
+  isActive: z.boolean().optional(),
 });
 
 // Helper para obtener usuario actual desde sesión
@@ -25,21 +25,21 @@ async function getCurrentUser(request: NextRequest) {
   try {
     const sessionCookie = request.cookies.get('session')?.value;
     if (!sessionCookie) return null;
-    
+
     const sessionData = JSON.parse(sessionCookie);
     if (!sessionData.userId || !sessionData.sessionToken) return null;
 
     const user = await prisma.user.findUnique({
-      where: { 
+      where: {
         id: sessionData.userId,
         sessionToken: sessionData.sessionToken,
-        isActive: true
+        isActive: true,
       },
       include: {
         business: {
-          select: { isActive: true }
-        }
-      }
+          select: { isActive: true },
+        },
+      },
     });
 
     if (!user?.business?.isActive) return null;
@@ -57,17 +57,20 @@ function canCreateRole(creatorRole: string, targetRole: string): boolean {
   const hierarchy: Record<string, string[]> = {
     SUPERADMIN: ['ADMIN', 'STAFF'],
     ADMIN: ['STAFF'],
-    STAFF: []
+    STAFF: [],
   };
-  
+
   return hierarchy[creatorRole]?.includes(targetRole) || false;
 }
 
 // Helper para verificar si puede gestionar un usuario
-async function canManageUser(managerUserId: string, targetUserId: string): Promise<boolean> {
+async function canManageUser(
+  managerUserId: string,
+  targetUserId: string
+): Promise<boolean> {
   const [manager, target] = await Promise.all([
     prisma.user.findUnique({ where: { id: managerUserId } }),
-    prisma.user.findUnique({ where: { id: targetUserId } })
+    prisma.user.findUnique({ where: { id: targetUserId } }),
   ]);
 
   if (!manager || !target) return false;
@@ -77,7 +80,11 @@ async function canManageUser(managerUserId: string, targetUserId: string): Promi
   if (manager.role === 'SUPERADMIN') return true;
 
   // ADMIN solo puede gestionar STAFF que él creó
-  if (manager.role === 'ADMIN' && target.role === 'STAFF' && target.createdBy === manager.id) {
+  if (
+    manager.role === 'ADMIN' &&
+    target.role === 'STAFF' &&
+    target.createdBy === manager.id
+  ) {
     return true;
   }
 
@@ -88,12 +95,9 @@ async function canManageUser(managerUserId: string, targetUserId: string): Promi
 export async function GET(request: NextRequest) {
   try {
     const currentUser = await getCurrentUser(request);
-    
+
     if (!currentUser) {
-      return NextResponse.json(
-        { error: 'No autenticado' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
     }
 
     // Solo SUPERADMIN y ADMIN pueden listar usuarios
@@ -106,14 +110,14 @@ export async function GET(request: NextRequest) {
 
     const whereClause: Record<string, unknown> = {
       businessId: currentUser.businessId,
-      isActive: true
+      isActive: true,
     };
 
     // ADMIN solo puede ver usuarios que él creó (STAFF)
     if (currentUser.role === 'ADMIN') {
       whereClause.OR = [
         { createdBy: currentUser.id }, // Usuarios que él creó
-        { id: currentUser.id } // A sí mismo
+        { id: currentUser.id }, // A sí mismo
       ];
     }
 
@@ -131,17 +135,16 @@ export async function GET(request: NextRequest) {
         creator: {
           select: {
             name: true,
-            email: true
-          }
-        }
+            email: true,
+          },
+        },
       },
       orderBy: {
-        createdAt: 'desc'
-      }
+        createdAt: 'desc',
+      },
     });
 
     return NextResponse.json({ users });
-
   } catch (error) {
     console.error('Error listing users:', error);
     return NextResponse.json(
@@ -155,12 +158,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const currentUser = await getCurrentUser(request);
-    
+
     if (!currentUser) {
-      return NextResponse.json(
-        { error: 'No autenticado' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
     }
 
     // Solo SUPERADMIN y ADMIN pueden crear usuarios
@@ -195,9 +195,9 @@ export async function POST(request: NextRequest) {
       where: {
         businessId_email: {
           businessId: currentUser.businessId,
-          email: email
-        }
-      }
+          email: email,
+        },
+      },
     });
 
     if (existingUser) {
@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
         name,
         role,
         createdBy: currentUser.id,
-        isActive: true
+        isActive: true,
       },
       select: {
         id: true,
@@ -227,15 +227,17 @@ export async function POST(request: NextRequest) {
         name: true,
         role: true,
         isActive: true,
-        createdAt: true
-      }
+        createdAt: true,
+      },
     });
 
-    return NextResponse.json({ 
-      success: true, 
-      user: newUser 
-    }, { status: 201 });
-
+    return NextResponse.json(
+      {
+        success: true,
+        user: newUser,
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('Error creating user:', error);
 
@@ -257,12 +259,9 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const currentUser = await getCurrentUser(request);
-    
+
     if (!currentUser) {
-      return NextResponse.json(
-        { error: 'No autenticado' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
     }
 
     const body = await request.json();
@@ -277,7 +276,7 @@ export async function PUT(request: NextRequest) {
 
     // Verificar si puede gestionar este usuario
     const canManage = await canManageUser(currentUser.id, userId);
-    
+
     if (!canManage) {
       return NextResponse.json(
         { error: 'No tienes permisos para gestionar este usuario' },
@@ -296,15 +295,14 @@ export async function PUT(request: NextRequest) {
         name: true,
         role: true,
         isActive: true,
-        updatedAt: true
-      }
+        updatedAt: true,
+      },
     });
 
-    return NextResponse.json({ 
-      success: true, 
-      user: updatedUser 
+    return NextResponse.json({
+      success: true,
+      user: updatedUser,
     });
-
   } catch (error) {
     console.error('Error updating user:', error);
 
@@ -326,12 +324,9 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const currentUser = await getCurrentUser(request);
-    
+
     if (!currentUser) {
-      return NextResponse.json(
-        { error: 'No autenticado' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
     }
 
     const body = await request.json();
@@ -354,7 +349,7 @@ export async function DELETE(request: NextRequest) {
 
     // Verificar si puede gestionar este usuario
     const canManage = await canManageUser(currentUser.id, userId);
-    
+
     if (!canManage) {
       return NextResponse.json(
         { error: 'No tienes permisos para gestionar este usuario' },
@@ -365,18 +360,17 @@ export async function DELETE(request: NextRequest) {
     // Desactivar usuario (soft delete)
     await prisma.user.update({
       where: { id: userId },
-      data: { 
+      data: {
         isActive: false,
         sessionToken: null, // Invalidar sesión
-        sessionExpires: null
-      }
+        sessionExpires: null,
+      },
     });
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Usuario desactivado correctamente' 
+    return NextResponse.json({
+      success: true,
+      message: 'Usuario desactivado correctamente',
     });
-
   } catch (error) {
     console.error('Error deactivating user:', error);
     return NextResponse.json(

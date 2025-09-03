@@ -10,18 +10,18 @@ const prisma = new PrismaClient();
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { 
-      categoryId, 
-      nombre, 
-      descripcion, 
-      precio, 
+    const {
+      categoryId,
+      nombre,
+      descripcion,
+      precio,
       precioVaso,
       precioBotella,
       tipoProducto,
-      imagenUrl, 
+      imagenUrl,
       destacado,
       disponible,
-      opciones 
+      opciones,
     } = body;
 
     if (!categoryId || !nombre) {
@@ -35,28 +35,27 @@ export async function POST(request: NextRequest) {
     const productData: any = {
       categoryId,
       nombre,
-      tipoProducto: tipoProducto || 'simple'
+      tipoProducto: tipoProducto || 'simple',
     };
-    
+
     if (descripcion) productData.descripcion = descripcion;
     if (precio) productData.precio = parseFloat(precio);
     if (precioVaso) productData.precioVaso = parseFloat(precioVaso);
     if (precioBotella) productData.precioBotella = parseFloat(precioBotella);
     if (imagenUrl) productData.imagenUrl = imagenUrl;
-    
+
     productData.destacado = destacado || false;
     productData.disponible = disponible !== false;
     if (opciones) productData.opciones = opciones;
 
     const producto = await prisma.menuProduct.create({
-      data: productData
+      data: productData,
     });
 
     return NextResponse.json({
       success: true,
-      producto
+      producto,
     });
-
   } catch (error) {
     console.error('Error creando producto:', error);
     return NextResponse.json(
@@ -82,27 +81,26 @@ export async function GET(request: NextRequest) {
     const productos = await prisma.menuProduct.findMany({
       where: {
         category: {
-          businessId: businessId
-        }
+          businessId: businessId,
+        },
       },
       include: {
         category: {
           select: {
             id: true,
-            nombre: true
-          }
-        }
+            nombre: true,
+          },
+        },
       },
       orderBy: {
-        nombre: 'asc'
-      }
+        nombre: 'asc',
+      },
     });
 
     return NextResponse.json({
       success: true,
-      productos
+      productos,
     });
-
   } catch (error) {
     console.error('Error obteniendo productos:', error);
     return NextResponse.json(
@@ -116,18 +114,18 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { 
+    const {
       id,
-      nombre, 
-      descripcion, 
-      precio, 
+      nombre,
+      descripcion,
+      precio,
       precioVaso,
       precioBotella,
       tipoProducto,
-      imagenUrl, 
+      imagenUrl,
       disponible,
-      destacado, 
-      opciones 
+      destacado,
+      opciones,
     } = body;
 
     if (!id) {
@@ -139,12 +137,14 @@ export async function PUT(request: NextRequest) {
 
     // Preparar datos para actualización
     const updateData: any = {};
-    
+
     if (nombre !== undefined) updateData.nombre = nombre;
     if (descripcion !== undefined) updateData.descripcion = descripcion;
     if (precio !== undefined) updateData.precio = parseFloat(precio);
-    if (precioVaso !== undefined) updateData.precioVaso = parseFloat(precioVaso);
-    if (precioBotella !== undefined) updateData.precioBotella = parseFloat(precioBotella);
+    if (precioVaso !== undefined)
+      updateData.precioVaso = parseFloat(precioVaso);
+    if (precioBotella !== undefined)
+      updateData.precioBotella = parseFloat(precioBotella);
     if (tipoProducto !== undefined) updateData.tipoProducto = tipoProducto;
     if (imagenUrl !== undefined) updateData.imagenUrl = imagenUrl;
     if (disponible !== undefined) updateData.disponible = disponible;
@@ -153,14 +153,13 @@ export async function PUT(request: NextRequest) {
 
     const producto = await prisma.menuProduct.update({
       where: { id },
-      data: updateData
+      data: updateData,
     });
 
     return NextResponse.json({
       success: true,
-      producto
+      producto,
     });
-
   } catch (error) {
     console.error('Error actualizando producto:', error);
     return NextResponse.json(
@@ -175,7 +174,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    
+
     if (!id) {
       return NextResponse.json(
         { error: 'ID del producto es requerido' },
@@ -185,14 +184,13 @@ export async function DELETE(request: NextRequest) {
 
     await prisma.menuProduct.update({
       where: { id },
-      data: { disponible: false } as any
+      data: { disponible: false } as any,
     });
 
     return NextResponse.json({
       success: true,
-      message: 'Producto desactivado correctamente'
+      message: 'Producto desactivado correctamente',
     });
-
   } catch (error) {
     console.error('Error eliminando producto:', error);
     return NextResponse.json(

@@ -24,7 +24,8 @@ export default function ClienteLayout({ children }: ClienteLayoutProps) {
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-red-400">Algo salió mal</h2>
           <p className="text-dark-400 mt-2">
-            Tuvimos un problema al procesar tu solicitud. Por favor, intenta nuevamente.
+            Tuvimos un problema al procesar tu solicitud. Por favor, intenta
+            nuevamente.
           </p>
         </div>
         <button
@@ -39,9 +40,7 @@ export default function ClienteLayout({ children }: ClienteLayoutProps) {
 
   return (
     <ErrorBoundary onError={handleError} fallback={ErrorFallback}>
-      <ApiProvider>
-        {children}
-      </ApiProvider>
+      <ApiProvider>{children}</ApiProvider>
     </ErrorBoundary>
   );
 }

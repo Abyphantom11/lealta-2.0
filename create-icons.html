@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <title>Generador de Iconos PWA</title>
+</head>
+<body>
+    <h1>Generador de Iconos PWA</h1>
+    <canvas id="canvas192" width="192" height="192" style="border: 1px solid #000;"></canvas>
+    <canvas id="canvas512" width="512" height="512" style="border: 1px solid #000;"></canvas>
+    
+    <script>
+        function createIcon(canvasId, size) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            
+            // Fondo azul
+            ctx.fillStyle = '#3b82f6';
+            ctx.fillRect(0, 0, size, size);
+            
+            // Texto "L"
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `bold ${size * 0.6}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('L', size / 2, size / 2);
+            
+            // Crear enlace de descarga
+            const link = document.createElement('a');
+            link.download = `icon-${size}.png`;
+            link.href = canvas.toDataURL();
+            link.textContent = `Descargar icono ${size}x${size}`;
+            link.style.display = 'block';
+            link.style.margin = '10px';
+            document.body.appendChild(link);
+            
+            // Para iconos maskable (con padding)
+            const canvasMaskable = document.createElement('canvas');
+            canvasMaskable.width = size;
+            canvasMaskable.height = size;
+            const ctxMaskable = canvasMaskable.getContext('2d');
+            
+            // Fondo con padding para maskable
+            const padding = size * 0.1;
+            ctxMaskable.fillStyle = '#3b82f6';
+            ctxMaskable.fillRect(0, 0, size, size);
+            
+            // Círculo interior
+            ctxMaskable.fillStyle = '#ffffff';
+            ctxMaskable.beginPath();
+            ctxMaskable.arc(size / 2, size / 2, (size - padding * 2) / 2, 0, 2 * Math.PI);
+            ctxMaskable.fill();
+            
+            // Texto "L" en el círculo
+            ctxMaskable.fillStyle = '#3b82f6';
+            ctxMaskable.font = `bold ${(size - padding * 2) * 0.6}px Arial`;
+            ctxMaskable.textAlign = 'center';
+            ctxMaskable.textBaseline = 'middle';
+            ctxMaskable.fillText('L', size / 2, size / 2);
+            
+            const linkMaskable = document.createElement('a');
+            linkMaskable.download = `icon-${size}-maskable.png`;
+            linkMaskable.href = canvasMaskable.toDataURL();
+            linkMaskable.textContent = `Descargar icono maskable ${size}x${size}`;
+            linkMaskable.style.display = 'block';
+            linkMaskable.style.margin = '10px';
+            document.body.appendChild(linkMaskable);
+        }
+        
+        // Crear iconos
+        createIcon('canvas192', 192);
+        createIcon('canvas512', 512);
+    </script>
+</body>
+</html>

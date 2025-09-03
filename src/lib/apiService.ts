@@ -73,9 +73,9 @@ export async function apiRequest<T = any>(
   try {
     // Registrar información de la petición en desarrollo
     if (process.env.NODE_ENV !== 'production') {
-      logger.debug(`API Request: ${method} ${url}`, { 
-        body: fetchOptions.body, 
-        tags
+      logger.debug(`API Request: ${method} ${url}`, {
+        body: fetchOptions.body,
+        tags,
       });
     }
 
@@ -89,18 +89,19 @@ export async function apiRequest<T = any>(
     } catch (error: unknown) {
       // Si no es JSON, usar el texto como respuesta
       data = await response.text();
-      logger.debug(
-        'La respuesta no es JSON válido, usando texto plano', 
-        { url, method, error: error instanceof Error ? error.message : String(error) }
-      );
+      logger.debug('La respuesta no es JSON válido, usando texto plano', {
+        url,
+        method,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     // Registrar respuesta en desarrollo
     if (process.env.NODE_ENV !== 'production') {
-      logger.debug(`API Response: ${method} ${url}`, { 
+      logger.debug(`API Response: ${method} ${url}`, {
         status: response.status,
         data,
-        tags
+        tags,
       });
     }
 
@@ -123,7 +124,7 @@ export async function apiRequest<T = any>(
       logger.error(`API Error: ${method} ${url}`, {
         status: response.status,
         error: result.error,
-        tags
+        tags,
       });
     }
 
@@ -132,7 +133,7 @@ export async function apiRequest<T = any>(
     // Manejar errores de red
     logger.error(`Network Error: ${method} ${url}`, {
       error: error.message,
-      tags
+      tags,
     });
 
     return {
@@ -151,23 +152,41 @@ export async function apiRequest<T = any>(
  * Atajos para métodos HTTP comunes
  */
 
-export function get<T = any>(url: string, options?: Omit<RequestOptions, 'method'>): Promise<ApiResponse<T>> {
+export function get<T = any>(
+  url: string,
+  options?: Omit<RequestOptions, 'method'>
+): Promise<ApiResponse<T>> {
   return apiRequest<T>(url, { ...options, method: 'GET' });
 }
 
-export function post<T = any>(url: string, body?: any, options?: Omit<RequestOptions, 'method' | 'body'>): Promise<ApiResponse<T>> {
+export function post<T = any>(
+  url: string,
+  body?: any,
+  options?: Omit<RequestOptions, 'method' | 'body'>
+): Promise<ApiResponse<T>> {
   return apiRequest<T>(url, { ...options, method: 'POST', body });
 }
 
-export function put<T = any>(url: string, body?: any, options?: Omit<RequestOptions, 'method' | 'body'>): Promise<ApiResponse<T>> {
+export function put<T = any>(
+  url: string,
+  body?: any,
+  options?: Omit<RequestOptions, 'method' | 'body'>
+): Promise<ApiResponse<T>> {
   return apiRequest<T>(url, { ...options, method: 'PUT', body });
 }
 
-export function del<T = any>(url: string, options?: Omit<RequestOptions, 'method'>): Promise<ApiResponse<T>> {
+export function del<T = any>(
+  url: string,
+  options?: Omit<RequestOptions, 'method'>
+): Promise<ApiResponse<T>> {
   return apiRequest<T>(url, { ...options, method: 'DELETE' });
 }
 
-export function patch<T = any>(url: string, body?: any, options?: Omit<RequestOptions, 'method' | 'body'>): Promise<ApiResponse<T>> {
+export function patch<T = any>(
+  url: string,
+  body?: any,
+  options?: Omit<RequestOptions, 'method' | 'body'>
+): Promise<ApiResponse<T>> {
   return apiRequest<T>(url, { ...options, method: 'PATCH', body });
 }
 

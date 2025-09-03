@@ -5,9 +5,14 @@ import { GeminiAnalysisResult } from '@/types/analytics';
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
 
 export class GeminiPOSAnalyzer {
-  private readonly model = genAI.getGenerativeModel({ model: 'gemini-pro-vision' });
+  private readonly model = genAI.getGenerativeModel({
+    model: 'gemini-pro-vision',
+  });
 
-  async analyzeImage(imageBuffer: Buffer, mimeType: string): Promise<GeminiAnalysisResult> {
+  async analyzeImage(
+    imageBuffer: Buffer,
+    mimeType: string
+  ): Promise<GeminiAnalysisResult> {
     try {
       const prompt = `
         Analiza esta captura de pantalla del sistema POS (Point of Sale) y extrae la información de la venta.
@@ -58,19 +63,21 @@ export class GeminiPOSAnalyzer {
       const jsonRegex = /\{[\s\S]*\}/;
       const jsonMatch = jsonRegex.exec(text);
       if (!jsonMatch) {
-        throw new Error('No se pudo extraer JSON válido de la respuesta de Gemini');
+        throw new Error(
+          'No se pudo extraer JSON válido de la respuesta de Gemini'
+        );
       }
 
       const analysisResult: GeminiAnalysisResult = JSON.parse(jsonMatch[0]);
-      
+
       // Validaciones básicas
       this.validateAnalysisResult(analysisResult);
-      
-      return analysisResult;
 
+      return analysisResult;
     } catch (error) {
       console.error('Error analizando imagen con Gemini:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Error desconocido';
       throw new Error(`Fallo en análisis de IA: ${errorMessage}`);
     }
   }
@@ -84,7 +91,11 @@ export class GeminiPOSAnalyzer {
       throw new Error('Total no válido en el resultado');
     }
 
-    if (typeof result.confianza !== 'number' || result.confianza < 0 || result.confianza > 1) {
+    if (
+      typeof result.confianza !== 'number' ||
+      result.confianza < 0 ||
+      result.confianza > 1
+    ) {
       throw new Error('Nivel de confianza no válido');
     }
 
@@ -103,31 +114,34 @@ export class GeminiPOSAnalyzer {
   }
 
   // Método para procesar múltiples imágenes en lote
-  async analyzeBatch(images: Array<{buffer: Buffer, mimeType: string}>): Promise<GeminiAnalysisResult[]> {
+  async analyzeBatch(
+    images: Array<{ buffer: Buffer; mimeType: string }>
+  ): Promise<GeminiAnalysisResult[]> {
     const results: GeminiAnalysisResult[] = [];
-    
+
     for (const image of images) {
       try {
         const result = await this.analyzeImage(image.buffer, image.mimeType);
         results.push(result);
-        
+
         // Pequeña pausa para evitar rate limiting
         await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (error) {
         console.error('Error en imagen del lote:', error);
         // Continuar con las demás imágenes
-        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+        const errorMessage =
+          error instanceof Error ? error.message : 'Error desconocido';
         results.push({
           productos: [],
           total: 0,
           fecha: '',
           puntosGenerados: 0,
           confianza: 0,
-          errores: [`Error procesando imagen: ${errorMessage}`]
+          errores: [`Error procesando imagen: ${errorMessage}`],
         });
       }
     }
-    
+
     return results;
   }
 }

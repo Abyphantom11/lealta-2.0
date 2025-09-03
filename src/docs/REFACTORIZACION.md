@@ -12,7 +12,7 @@ Esta guía muestra cómo refactorizar código duplicado usando los nuevos servic
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   setIsLoading(true);
-  
+
   try {
     const response = await fetch('/api/admin/clientes', {
       method: 'POST',
@@ -21,13 +21,13 @@ const handleSubmit = async (e: React.FormEvent) => {
       },
       body: JSON.stringify(formData),
     });
-    
+
     const data = await response.json();
-    
+
     if (!response.ok) {
       throw new Error(data.message || 'Error al crear cliente');
     }
-    
+
     alert('Cliente creado correctamente');
     setFormData(initialFormData);
   } catch (error) {
@@ -47,24 +47,27 @@ import { apiService, notificationService } from '@/lib';
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   setIsLoading(true);
-  
+
   try {
     const result = await apiService.post('/api/admin/clientes', formData);
-    
+
     if (!result.success) {
       throw new Error(result.error?.message || 'Error al crear cliente');
     }
-    
+
     notificationService.success({
       title: 'Éxito',
-      message: 'Cliente creado correctamente'
+      message: 'Cliente creado correctamente',
     });
     setFormData(initialFormData);
   } catch (error) {
     console.error('Error:', error);
     notificationService.error({
       title: 'Error',
-      message: error instanceof Error ? error.message : 'Ocurrió un error al crear el cliente'
+      message:
+        error instanceof Error
+          ? error.message
+          : 'Ocurrió un error al crear el cliente',
     });
   } finally {
     setIsLoading(false);
@@ -87,21 +90,21 @@ const [isSubmitting, setIsSubmitting] = useState(false);
 
 const validateForm = () => {
   const newErrors: Record<string, string> = {};
-  
+
   if (!formData.nombre) {
     newErrors.nombre = 'El nombre es obligatorio';
   }
-  
+
   if (!formData.email) {
     newErrors.email = 'El correo es obligatorio';
   } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
     newErrors.email = 'Formato de correo inválido';
   }
-  
+
   if (!formData.telefono) {
     newErrors.telefono = 'El teléfono es obligatorio';
   }
-  
+
   setErrors(newErrors);
   return Object.keys(newErrors).length === 0;
 };
@@ -113,13 +116,13 @@ const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
-  
+
   if (!validateForm()) {
     return;
   }
-  
+
   setIsSubmitting(true);
-  
+
   try {
     // Lógica de envío...
   } catch (error) {
@@ -180,21 +183,21 @@ const submitForm = async (values) => {
   <div className="grid grid-cols-2 gap-4">
     <div>
       <label className="block mb-1">Nombre</label>
-      <input 
-        type="text" 
-        name="nombre" 
-        value={cliente.nombre} 
-        onChange={handleChange} 
+      <input
+        type="text"
+        name="nombre"
+        value={cliente.nombre}
+        onChange={handleChange}
         className="w-full p-2 border rounded"
       />
     </div>
     <div>
       <label className="block mb-1">Email</label>
-      <input 
-        type="email" 
-        name="email" 
-        value={cliente.email} 
-        onChange={handleChange} 
+      <input
+        type="email"
+        name="email"
+        value={cliente.email}
+        onChange={handleChange}
         className="w-full p-2 border rounded"
       />
     </div>
@@ -208,21 +211,21 @@ const submitForm = async (values) => {
   <div className="grid grid-cols-2 gap-4">
     <div>
       <label className="block mb-1">Nombre</label>
-      <input 
-        type="text" 
-        name="nombre" 
-        value={producto.nombre} 
-        onChange={handleChange} 
+      <input
+        type="text"
+        name="nombre"
+        value={producto.nombre}
+        onChange={handleChange}
         className="w-full p-2 border rounded"
       />
     </div>
     <div>
       <label className="block mb-1">Precio</label>
-      <input 
-        type="number" 
-        name="precio" 
-        value={producto.precio} 
-        onChange={handleChange} 
+      <input
+        type="number"
+        name="precio"
+        value={producto.precio}
+        onChange={handleChange}
         className="w-full p-2 border rounded"
       />
     </div>
@@ -238,9 +241,7 @@ const submitForm = async (values) => {
 const FormSection = ({ title, children }) => (
   <div className="p-4 border rounded">
     <h3 className="text-lg font-bold mb-2">{title}</h3>
-    <div className="grid grid-cols-2 gap-4">
-      {children}
-    </div>
+    <div className="grid grid-cols-2 gap-4">{children}</div>
   </div>
 );
 
@@ -248,11 +249,11 @@ const FormSection = ({ title, children }) => (
 const FormField = ({ label, name, type = 'text', value, onChange, error }) => (
   <div>
     <label className="block mb-1">{label}</label>
-    <input 
-      type={type} 
-      name={name} 
-      value={value} 
-      onChange={onChange} 
+    <input
+      type={type}
+      name={name}
+      value={value}
+      onChange={onChange}
       className={`w-full p-2 border rounded ${error ? 'border-red-500' : ''}`}
     />
     {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
@@ -261,23 +262,23 @@ const FormField = ({ label, name, type = 'text', value, onChange, error }) => (
 
 // Uso en componentes:
 <FormSection title="Información del Cliente">
-  <FormField 
-    label="Nombre" 
-    name="nombre" 
-    value={cliente.nombre} 
+  <FormField
+    label="Nombre"
+    name="nombre"
+    value={cliente.nombre}
     onChange={handleChange}
     error={errors.nombre}
   />
-  <FormField 
-    label="Email" 
-    name="email" 
+  <FormField
+    label="Email"
+    name="email"
     type="email"
-    value={cliente.email} 
+    value={cliente.email}
     onChange={handleChange}
     error={errors.email}
   />
   {/* Más campos... */}
-</FormSection>
+</FormSection>;
 ```
 
 ## 4. Usar Servicios de Utilidades para Fechas y Números
@@ -286,9 +287,20 @@ const FormField = ({ label, name, type = 'text', value, onChange, error }) => (
 
 ```jsx
 <div className="client-info">
-  <p>Fecha de registro: {new Date(cliente.registeredAt).toLocaleDateString('es-ES')}</p>
-  <p>Última compra: {new Date(cliente.lastPurchase).toLocaleDateString('es-ES')}</p>
-  <p>Total gastado: {(cliente.totalSpent).toLocaleString('es-ES', { style: 'currency', currency: 'MXN' })}</p>
+  <p>
+    Fecha de registro:{' '}
+    {new Date(cliente.registeredAt).toLocaleDateString('es-ES')}
+  </p>
+  <p>
+    Última compra: {new Date(cliente.lastPurchase).toLocaleDateString('es-ES')}
+  </p>
+  <p>
+    Total gastado:{' '}
+    {cliente.totalSpent.toLocaleString('es-ES', {
+      style: 'currency',
+      currency: 'MXN',
+    })}
+  </p>
   <p>Descuento: {(cliente.discount * 100).toFixed(2)}%</p>
 </div>
 ```
@@ -303,7 +315,7 @@ import { dateUtils, numberUtils } from '@/lib';
   <p>Última compra: {dateUtils.formatDate(cliente.lastPurchase)}</p>
   <p>Total gastado: {numberUtils.formatPrice(cliente.totalSpent)}</p>
   <p>Descuento: {numberUtils.formatPercent(cliente.discount)}</p>
-</div>
+</div>;
 ```
 
 ## Recomendaciones Generales

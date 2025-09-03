@@ -69,7 +69,7 @@ function addNotification(notification: Notification): string {
 export function removeNotification(id: string): void {
   const notification = notifications.find(n => n.id === id);
   notification?.onClose?.();
-  
+
   notifications = notifications.filter(n => n.id !== id);
   notifyListeners();
 }
@@ -83,7 +83,7 @@ export function clearNotifications(): void {
       notification.onClose();
     }
   });
-  
+
   notifications = [];
   notifyListeners();
 }
@@ -91,12 +91,14 @@ export function clearNotifications(): void {
 /**
  * Suscribe a cambios en las notificaciones
  */
-export function subscribe(callback: (notifications: Notification[]) => void): () => void {
+export function subscribe(
+  callback: (notifications: Notification[]) => void
+): () => void {
   listeners.push(callback);
-  
+
   // Llamada inicial con el estado actual
   callback([...notifications]);
-  
+
   // Devuelve una función para cancelar la suscripción
   return () => {
     const index = listeners.indexOf(callback);

@@ -1,7 +1,7 @@
 // Sistema de permisos granulares
-export type Permission = 
+export type Permission =
   | 'users.create'
-  | 'users.read' 
+  | 'users.read'
   | 'users.update'
   | 'users.delete'
   | 'clients.read'
@@ -17,7 +17,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   SUPERADMIN: [
     'users.create',
     'users.read',
-    'users.update', 
+    'users.update',
     'users.delete',
     'clients.read',
     'clients.manage',
@@ -26,7 +26,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'analytics.view',
     'analytics.full',
     'loyalty.manage',
-    'menu.manage'
+    'menu.manage',
   ],
   ADMIN: [
     'clients.read',
@@ -34,16 +34,15 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'consumos.read',
     'analytics.view',
     'loyalty.manage',
-    'menu.manage'
+    'menu.manage',
   ],
-  STAFF: [
-    'clients.read',
-    'consumos.create',
-    'consumos.read'
-  ]
+  STAFF: ['clients.read', 'consumos.create', 'consumos.read'],
 };
 
-export function hasPermission(userRole: string, permission: Permission): boolean {
+export function hasPermission(
+  userRole: string,
+  permission: Permission
+): boolean {
   return ROLE_PERMISSIONS[userRole]?.includes(permission) || false;
 }
 

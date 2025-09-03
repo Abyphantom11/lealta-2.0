@@ -17,8 +17,8 @@ export async function POST(request: NextRequest) {
     // Verificar si el cliente ya existe (por cédula)
     const clienteExistente = await prisma.cliente.findFirst({
       where: {
-        cedula: cedula.toString()
-      }
+        cedula: cedula.toString(),
+      },
     });
 
     if (clienteExistente) {
@@ -38,8 +38,8 @@ export async function POST(request: NextRequest) {
         correo: correo.trim(),
         puntos: 100, // Puntos de bienvenida
         totalVisitas: 1,
-        portalViews: 1
-      }
+        portalViews: 1,
+      },
     });
 
     return NextResponse.json({
@@ -49,10 +49,9 @@ export async function POST(request: NextRequest) {
         cedula: nuevoCliente.cedula,
         nombre: nuevoCliente.nombre,
         puntos: nuevoCliente.puntos,
-        visitas: nuevoCliente.totalVisitas
-      }
+        visitas: nuevoCliente.totalVisitas,
+      },
     });
-
   } catch (error) {
     console.error('Error registrando cliente:', error);
     return NextResponse.json(

@@ -2,7 +2,17 @@
 
 import { useState } from 'react';
 import { motion } from '../../components/motion';
-import { Building, Mail, Lock, Eye, EyeOff, User, Phone, Globe, ArrowLeft } from 'lucide-react';
+import {
+  Building,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  User,
+  Phone,
+  Globe,
+  ArrowLeft,
+} from 'lucide-react';
 import Link from 'next/link';
 
 export default function SignupPage() {
@@ -12,12 +22,12 @@ export default function SignupPage() {
     subdomain: '',
     contactEmail: '',
     contactPhone: '',
-    
+
     // Datos del SuperAdmin
     adminName: '',
     adminEmail: '',
     adminPassword: '',
-    confirmPassword: ''
+    confirmPassword: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -44,7 +54,7 @@ export default function SignupPage() {
       });
 
       const data = await response.json();
-      
+
       if (response.ok) {
         // Redirigir al login con mensaje de éxito
         window.location.href = '/login?message=Empresa registrada exitosamente';
@@ -61,28 +71,34 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-800 flex items-center justify-center p-4">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-2xl"
       >
         {/* Header */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center text-dark-400 hover:text-white mb-6 transition-colors">
+          <Link
+            href="/"
+            className="inline-flex items-center text-dark-400 hover:text-white mb-6 transition-colors"
+          >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Volver al inicio
           </Link>
-          
+
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
             className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-full flex items-center justify-center"
           >
             <Building className="w-10 h-10 text-white" />
           </motion.div>
           <h1 className="text-3xl font-bold text-white mb-2">
-            Registrar <span className="gradient-primary bg-clip-text text-transparent">Empresa</span>
+            Registrar{' '}
+            <span className="gradient-primary bg-clip-text text-transparent">
+              Empresa
+            </span>
           </h1>
           <p className="text-dark-400">
             Crea tu cuenta y comienza a gestionar tu negocio
@@ -90,7 +106,7 @@ export default function SignupPage() {
         </div>
 
         {/* Signup Form */}
-        <motion.form 
+        <motion.form
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
@@ -112,7 +128,7 @@ export default function SignupPage() {
             <h3 className="text-lg font-semibold text-white border-b border-dark-700 pb-2">
               Información de la Empresa
             </h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-dark-300 mb-2">
@@ -125,7 +141,9 @@ export default function SignupPage() {
                   className="form-input"
                   placeholder="Mi Restaurante"
                   value={formData.businessName}
-                  onChange={(e) => setFormData({...formData, businessName: e.target.value})}
+                  onChange={e =>
+                    setFormData({ ...formData, businessName: e.target.value })
+                  }
                 />
               </div>
 
@@ -141,7 +159,14 @@ export default function SignupPage() {
                     className="form-input pl-4 pr-32"
                     placeholder="mi-restaurante"
                     value={formData.subdomain}
-                    onChange={(e) => setFormData({...formData, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')})}
+                    onChange={e =>
+                      setFormData({
+                        ...formData,
+                        subdomain: e.target.value
+                          .toLowerCase()
+                          .replace(/[^a-z0-9-]/g, ''),
+                      })
+                    }
                   />
                   <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-dark-400 text-sm">
                     .lealta.com
@@ -162,7 +187,9 @@ export default function SignupPage() {
                   className="form-input"
                   placeholder="contacto@mirestaurante.com"
                   value={formData.contactEmail}
-                  onChange={(e) => setFormData({...formData, contactEmail: e.target.value})}
+                  onChange={e =>
+                    setFormData({ ...formData, contactEmail: e.target.value })
+                  }
                 />
               </div>
 
@@ -176,7 +203,9 @@ export default function SignupPage() {
                   className="form-input"
                   placeholder="+1234567890"
                   value={formData.contactPhone}
-                  onChange={(e) => setFormData({...formData, contactPhone: e.target.value})}
+                  onChange={e =>
+                    setFormData({ ...formData, contactPhone: e.target.value })
+                  }
                 />
               </div>
             </div>
@@ -187,7 +216,7 @@ export default function SignupPage() {
             <h3 className="text-lg font-semibold text-white border-b border-dark-700 pb-2">
               Datos del Administrador
             </h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-dark-300 mb-2">
@@ -200,7 +229,9 @@ export default function SignupPage() {
                   className="form-input"
                   placeholder="Juan Pérez"
                   value={formData.adminName}
-                  onChange={(e) => setFormData({...formData, adminName: e.target.value})}
+                  onChange={e =>
+                    setFormData({ ...formData, adminName: e.target.value })
+                  }
                 />
               </div>
 
@@ -215,7 +246,9 @@ export default function SignupPage() {
                   className="form-input"
                   placeholder="admin@mirestaurante.com"
                   value={formData.adminEmail}
-                  onChange={(e) => setFormData({...formData, adminEmail: e.target.value})}
+                  onChange={e =>
+                    setFormData({ ...formData, adminEmail: e.target.value })
+                  }
                 />
               </div>
             </div>
@@ -233,14 +266,23 @@ export default function SignupPage() {
                     className="form-input pr-12"
                     placeholder="••••••••"
                     value={formData.adminPassword}
-                    onChange={(e) => setFormData({...formData, adminPassword: e.target.value})}
+                    onChange={e =>
+                      setFormData({
+                        ...formData,
+                        adminPassword: e.target.value,
+                      })
+                    }
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-dark-400 hover:text-dark-300"
                   >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -257,14 +299,23 @@ export default function SignupPage() {
                     className="form-input pr-12"
                     placeholder="••••••••"
                     value={formData.confirmPassword}
-                    onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                    onChange={e =>
+                      setFormData({
+                        ...formData,
+                        confirmPassword: e.target.value,
+                      })
+                    }
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-dark-400 hover:text-dark-300"
                   >
-                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showConfirmPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -298,7 +349,10 @@ export default function SignupPage() {
         >
           <p className="text-dark-400">
             ¿Ya tienes una cuenta?{' '}
-            <Link href="/login" className="text-primary-400 hover:text-primary-300 font-medium">
+            <Link
+              href="/login"
+              className="text-primary-400 hover:text-primary-300 font-medium"
+            >
               Inicia sesión aquí
             </Link>
           </p>

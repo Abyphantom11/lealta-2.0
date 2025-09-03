@@ -1,6 +1,6 @@
 /**
  * Tipos comunes para la aplicación Lealta 2.0v
- * 
+ *
  * Este archivo contiene definiciones de tipos reutilizables en toda la aplicación,
  * lo que ayuda a mantener la consistencia de tipado y reducir el uso de 'any'.
  */

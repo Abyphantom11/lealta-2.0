@@ -33,12 +33,12 @@ export function useFormValidation<T extends Record<string, any>>(
 
       for (const rule of fieldRules) {
         if (!rule.validate(value, values)) {
-          setErrors((prev) => ({ ...prev, [name]: rule.message }));
+          setErrors(prev => ({ ...prev, [name]: rule.message }));
           return false;
         }
       }
 
-      setErrors((prev) => {
+      setErrors(prev => {
         const newErrors = { ...prev };
         delete newErrors[name as string];
         return newErrors;
@@ -51,9 +51,13 @@ export function useFormValidation<T extends Record<string, any>>(
 
   // Manejar cambios en los campos
   const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    (
+      e: React.ChangeEvent<
+        HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+      >
+    ) => {
       const { name, value } = e.target;
-      setValues((prev) => ({ ...prev, [name]: value }));
+      setValues(prev => ({ ...prev, [name]: value }));
       validateField(name as keyof T, value);
     },
     [validateField]
@@ -61,9 +65,13 @@ export function useFormValidation<T extends Record<string, any>>(
 
   // Manejar el enfoque en un campo
   const handleBlur = useCallback(
-    (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    (
+      e: React.FocusEvent<
+        HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+      >
+    ) => {
       const { name } = e.target;
-      setTouched((prev) => ({ ...prev, [name]: true }));
+      setTouched(prev => ({ ...prev, [name]: true }));
       validateField(name as keyof T, values[name as keyof T]);
     },
     [validateField, values]
@@ -94,7 +102,7 @@ export function useFormValidation<T extends Record<string, any>>(
   // Establecer un valor específico
   const setFieldValue = useCallback(
     (name: keyof T, value: any) => {
-      setValues((prev) => ({ ...prev, [name]: value }));
+      setValues(prev => ({ ...prev, [name]: value }));
       validateField(name, value);
     },
     [validateField]
@@ -122,26 +130,29 @@ export function useFormValidation<T extends Record<string, any>>(
 // Reglas de validación comunes
 export const validationRules = {
   required: (message = 'Este campo es requerido'): ValidationRule<any> => ({
-    validate: (value) => !!value && value.toString().trim() !== '',
+    validate: value => !!value && value.toString().trim() !== '',
     message,
   }),
   email: (message = 'Email inválido'): ValidationRule<any> => ({
-    validate: (value) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+    validate: value => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
     message,
   }),
   minLength: (length: number, message?: string): ValidationRule<any> => ({
-    validate: (value) => !value || value.length >= length,
+    validate: value => !value || value.length >= length,
     message: message || `Debe tener al menos ${length} caracteres`,
   }),
   maxLength: (length: number, message?: string): ValidationRule<any> => ({
-    validate: (value) => !value || value.length <= length,
+    validate: value => !value || value.length <= length,
     message: message || `Debe tener máximo ${length} caracteres`,
   }),
   numeric: (message = 'Solo se permiten números'): ValidationRule<any> => ({
-    validate: (value) => !value || /^\d+$/.test(value),
+    validate: value => !value || /^\d+$/.test(value),
     message,
   }),
-  match: (fieldName: string, message = 'Los campos no coinciden'): ValidationRule<any> => ({
+  match: (
+    fieldName: string,
+    message = 'Los campos no coinciden'
+  ): ValidationRule<any> => ({
     validate: (value, formValues) => value === formValues[fieldName],
     message,
   }),

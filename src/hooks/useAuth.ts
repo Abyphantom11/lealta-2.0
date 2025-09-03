@@ -27,7 +27,7 @@ export function useAuth(requiredRole?: UserRole) {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
     loading: true,
-    error: null
+    error: null,
   });
   const router = useRouter();
 
@@ -38,10 +38,10 @@ export function useAuth(requiredRole?: UserRole) {
   const checkAuth = async () => {
     try {
       const response = await fetch('/api/auth/me');
-      
+
       if (response.ok) {
         const userData = await response.json();
-        
+
         // Verificar rol requerido
         if (requiredRole && userData.user.role !== requiredRole) {
           // SUPERADMIN puede acceder a cualquier dashboard
@@ -49,25 +49,25 @@ export function useAuth(requiredRole?: UserRole) {
             setAuthState({
               user: userData.user,
               loading: false,
-              error: null
+              error: null,
             });
             return;
           }
-          
+
           // Para otros roles, redirigir al dashboard apropiado
           const roleRedirect: Record<string, string> = {
             ADMIN: '/admin',
-            STAFF: '/staff'
+            STAFF: '/staff',
           };
-          
+
           router.push(roleRedirect[userData.user.role] || '/login');
           return;
         }
-        
+
         setAuthState({
           user: userData.user,
           loading: false,
-          error: null
+          error: null,
         });
       } else {
         // No autenticado, redirigir a login
@@ -78,7 +78,7 @@ export function useAuth(requiredRole?: UserRole) {
       setAuthState({
         user: null,
         loading: false,
-        error: 'Error verificando autenticación'
+        error: 'Error verificando autenticación',
       });
       router.push('/login');
     }
@@ -90,7 +90,7 @@ export function useAuth(requiredRole?: UserRole) {
       setAuthState({
         user: null,
         loading: false,
-        error: null
+        error: null,
       });
       router.push('/login');
     } catch (error) {
@@ -102,20 +102,20 @@ export function useAuth(requiredRole?: UserRole) {
 
   const hasPermission = (permission: string): boolean => {
     if (!authState.user) return false;
-    
+
     const rolePermissions: Record<string, string[]> = {
       SUPERADMIN: [
         'business.manage',
         'users.create',
         'users.read',
-        'users.update', 
+        'users.update',
         'users.delete',
         'locations.manage',
         'clients.manage',
         'consumos.manage',
         'reports.view',
         'settings.manage',
-        'billing.manage'
+        'billing.manage',
       ],
       ADMIN: [
         'users.create',
@@ -124,14 +124,14 @@ export function useAuth(requiredRole?: UserRole) {
         'clients.manage',
         'consumos.manage',
         'reports.view',
-        'locations.read'
+        'locations.read',
       ],
       STAFF: [
         'clients.read',
         'clients.create',
         'consumos.create',
-        'consumos.read'
-      ]
+        'consumos.read',
+      ],
     };
 
     return rolePermissions[authState.user.role]?.includes(permission) || false;
@@ -139,13 +139,13 @@ export function useAuth(requiredRole?: UserRole) {
 
   const canManageRole = (targetRole: UserRole): boolean => {
     if (!authState.user) return false;
-    
+
     const hierarchy: Record<string, string[]> = {
       SUPERADMIN: ['ADMIN', 'STAFF'],
       ADMIN: ['STAFF'],
-      STAFF: []
+      STAFF: [],
     };
-    
+
     return hierarchy[authState.user.role]?.includes(targetRole) || false;
   };
 
@@ -154,25 +154,25 @@ export function useAuth(requiredRole?: UserRole) {
     logout,
     hasPermission,
     canManageRole,
-    checkAuth
+    checkAuth,
   };
 }
 
 // Hook específico para componentes que requieren autenticación
 export function useRequireAuth(requiredRole?: UserRole) {
   const auth = useAuth(requiredRole);
-  
+
   // Mostrar loading mientras se verifica
   if (auth.loading) {
     return {
       ...auth,
-      isAuthenticated: false
+      isAuthenticated: false,
     };
   }
-  
+
   // Si no hay usuario, el hook ya redirigió
   return {
     ...auth,
-    isAuthenticated: !!auth.user
+    isAuthenticated: !!auth.user,
   };
 }

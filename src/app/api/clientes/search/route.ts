@@ -22,8 +22,8 @@ export async function GET(request: NextRequest) {
           { nombre: { contains: query } },
           { correo: { contains: query } },
           { telefono: { contains: query } },
-          { cedula: { contains: query } }
-        ]
+          { cedula: { contains: query } },
+        ],
       },
       select: {
         id: true,
@@ -39,8 +39,8 @@ export async function GET(request: NextRequest) {
           select: {
             total: true,
             puntos: true,
-            registeredAt: true
-          }
+            registeredAt: true,
+          },
         },
         // Incluir información de tarjeta si existe
         tarjetaLealtad: {
@@ -48,11 +48,11 @@ export async function GET(request: NextRequest) {
             nivel: true,
             activa: true,
             asignacionManual: true,
-            fechaAsignacion: true
-          }
-        }
+            fechaAsignacion: true,
+          },
+        },
       },
-      take: 10 // Limitar resultados
+      take: 10, // Limitar resultados
     });
 
     // Procesar datos para incluir estadísticas actualizadas y info de tarjeta
@@ -63,12 +63,14 @@ export async function GET(request: NextRequest) {
       const visitasTotal = cliente.totalVisitas;
 
       // Información de tarjeta de lealtad
-      const tarjetaInfo = cliente.tarjetaLealtad ? {
-        nivel: cliente.tarjetaLealtad.nivel,
-        activa: cliente.tarjetaLealtad.activa,
-        asignacionManual: cliente.tarjetaLealtad.asignacionManual,
-        fechaAsignacion: cliente.tarjetaLealtad.fechaAsignacion
-      } : null;
+      const tarjetaInfo = cliente.tarjetaLealtad
+        ? {
+            nivel: cliente.tarjetaLealtad.nivel,
+            activa: cliente.tarjetaLealtad.activa,
+            asignacionManual: cliente.tarjetaLealtad.asignacionManual,
+            fechaAsignacion: cliente.tarjetaLealtad.fechaAsignacion,
+          }
+        : null;
 
       return {
         id: cliente.id,
@@ -79,7 +81,7 @@ export async function GET(request: NextRequest) {
         puntos: puntosActuales,
         gastoTotal,
         visitas: visitasTotal,
-        tarjeta: tarjetaInfo
+        tarjeta: tarjetaInfo,
       };
     });
 

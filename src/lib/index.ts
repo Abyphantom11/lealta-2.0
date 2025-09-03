@@ -50,7 +50,7 @@ const services = {
   number: numberUtils,
   storage,
   api: apiService,
-  form: formManagement
+  form: formManagement,
 };
 
 export default services;

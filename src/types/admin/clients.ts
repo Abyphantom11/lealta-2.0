@@ -47,5 +47,9 @@ export interface ClientesContextType {
   getClienteById: (cedula: string) => Promise<Cliente | null>;
   getClienteHistory: (cedula: string) => Promise<ClientHistoryItem[]>;
   saveCliente: (cliente: ClienteFormData) => Promise<ClienteOperationResult>;
-  updatePuntos: (cedula: string, puntos: number, motivo: string) => Promise<ClienteOperationResult>;
+  updatePuntos: (
+    cedula: string,
+    puntos: number,
+    motivo: string
+  ) => Promise<ClienteOperationResult>;
 }

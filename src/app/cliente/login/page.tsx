@@ -15,7 +15,7 @@ export default function ClienteLoginPage() {
   const { post, isLoading } = usePost();
   const [formData, setFormData] = useState<ClienteCredentials>({
     cedula: '',
-    telefono: ''
+    telefono: '',
   });
   const [error, setError] = useState<string | null>(null);
 
@@ -29,7 +29,7 @@ export default function ClienteLoginPage() {
         cedula: formData.cedula,
         telefono: formData.telefono,
       });
-      
+
       if (response.success) {
         router.push('/cliente');
       } else {
@@ -43,7 +43,7 @@ export default function ClienteLoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-800 flex items-center justify-center p-4">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md"
@@ -53,21 +53,22 @@ export default function ClienteLoginPage() {
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
             className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-primary-600 to-purple-600 rounded-full flex items-center justify-center"
           >
             <Shield className="w-10 h-10 text-white" />
           </motion.div>
           <h1 className="text-3xl font-bold text-white mb-2">
-            Portal <span className="gradient-primary bg-clip-text text-transparent">Cliente</span>
+            Portal{' '}
+            <span className="gradient-primary bg-clip-text text-transparent">
+              Cliente
+            </span>
           </h1>
-          <p className="text-dark-400">
-            Accede a tu portal de fidelización
-          </p>
+          <p className="text-dark-400">Accede a tu portal de fidelización</p>
         </div>
 
         {/* Login Form */}
-        <motion.form 
+        <motion.form
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
@@ -87,7 +88,9 @@ export default function ClienteLoginPage() {
               className="form-input"
               placeholder="12345678"
               value={formData.cedula}
-              onChange={(e) => setFormData(prev => ({...prev, cedula: e.target.value}))}
+              onChange={e =>
+                setFormData(prev => ({ ...prev, cedula: e.target.value }))
+              }
             />
           </div>
 
@@ -103,7 +106,9 @@ export default function ClienteLoginPage() {
                 className="form-input"
                 placeholder="1234567890"
                 value={formData.telefono}
-                onChange={(e) => setFormData(prev => ({...prev, telefono: e.target.value}))}
+                onChange={e =>
+                  setFormData(prev => ({ ...prev, telefono: e.target.value }))
+                }
                 pattern="[0-9]*"
                 inputMode="numeric"
               />
@@ -127,7 +132,7 @@ export default function ClienteLoginPage() {
           className="mt-6 text-center"
         >
           <p className="text-dark-400 mb-4">¿Primera vez aquí?</p>
-          <Link 
+          <Link
             href="/cliente/registro"
             className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
           >

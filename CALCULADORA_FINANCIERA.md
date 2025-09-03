@@ -1,9 +1,11 @@
 # 📋 CALCULADORA FINANCIERA - LEALTA 2.0
+
 ## Proyecciones Detalladas por Escenarios
 
 ### 🎯 ESCENARIO BASE (20 NEGOCIOS)
 
 #### DISTRIBUCIÓN DE CLIENTES SUGERIDA:
+
 ```
 PLAN STARTER ($120/mes):
 - 8 negocios pequeños (cafeterías, food trucks)
@@ -24,6 +26,7 @@ TOTAL MENSUAL: $3,660
 ### 💰 ANÁLISIS DE RENTABILIDAD POR CLIENTE
 
 #### VALOR GENERADO AL RESTAURANTE:
+
 ```
 RESTAURANTE PROMEDIO:
 - Facturación mensual: $35,000
@@ -41,6 +44,7 @@ ROI PARA CLIENTE: 3,150%
 ```
 
 #### TU MARGEN DE GANANCIA:
+
 ```
 INGRESOS BRUTOS (20 clientes): $3,660/mes
 
@@ -60,6 +64,7 @@ GANANCIA ANUAL: $24,120
 ### 📊 COMPARATIVA CON COMPETENCIA
 
 #### ANÁLISIS DE POSICIONAMIENTO:
+
 ```
 COMPETIDOR 1 - Toast Loyalty:
 - Precio: $165/mes
@@ -80,6 +85,7 @@ COMPETIDOR 3 - LoyaltyLion:
 ### 🚀 PROYECCIÓN DE CRECIMIENTO
 
 #### AÑO 1:
+
 ```
 Q1: 5 clientes × $150 promedio = $750/mes
 Q2: 10 clientes × $170 promedio = $1,700/mes
@@ -92,6 +98,7 @@ GANANCIA AÑO 1: $10,680
 ```
 
 #### AÑO 2:
+
 ```
 Base: 20 clientes × $183 = $3,660/mes
 Nuevos: 15 clientes × $200 = $3,000/mes
@@ -107,24 +114,28 @@ GANANCIA AÑO 2: $66,720
 #### PAQUETES RECOMENDADOS:
 
 **🥉 ESENCIAL - $120/mes**
+
 - Perfil: Cafeterías, food trucks
 - Características: Loyalty básico, portal cliente
 - Límite: 500 clientes activos
 - Target: 40% de tu base
 
 **🥈 PROFESIONAL - $200/mes**
+
 - Perfil: Restaurantes medianos
 - Características: Todo + reservas + analytics avanzados
 - Límite: 2,000 clientes activos
 - Target: 50% de tu base
 
 **🥇 ENTERPRISE - $350/mes**
+
 - Perfil: Cadenas, franquicias
 - Características: Todo + multi-ubicación + API
 - Límite: Ilimitado
 - Target: 10% de tu base
 
 #### ADD-ONS ADICIONALES:
+
 ```
 - Sistema de Reservas: +$80/mes
 - SMS Marketing: +$40/mes
@@ -136,20 +147,26 @@ GANANCIA AÑO 2: $66,720
 ### 🎯 RESPUESTA DIRECTA A TUS PREGUNTAS
 
 #### ¿Vale $100/mes?
+
 **SÍ, DEFINITIVAMENTE** - Pero es conservador:
+
 - Competencia cobra $150-400/mes
 - Tu sistema es superior
 - ROI del cliente es excelente
 - Puedes justificar $120-150/mes fácilmente
 
 #### ¿$100/mes es poco, mucho o sensato?
+
 **ES SENSATO PERO CONSERVADOR**:
+
 - **Poco**: Para el valor que entregas
 - **Sensato**: Para penetración inicial de mercado
 - **Recomendación**: Inicia $120/mes, sube a $150/mes en 6 meses
 
 #### Módulo de Reservas - ¿Cuánto cobrar?
+
 **RECOMENDACIÓN: $80/mes adicional**
+
 - OpenTable cobra $249/mes + comisiones
 - Tu propuesta: Sin comisiones, integrado
 - Valor diferencial enorme
@@ -158,16 +175,19 @@ GANANCIA AÑO 2: $66,720
 ### 🏆 PLAN DE ACCIÓN RECOMENDADO
 
 #### FASE 1 (Primeros 3 meses):
+
 - Precio introductorio: $100/mes
 - Focus: Conseguir primeros 5 clientes
 - Objetivo: Casos de éxito documentados
 
 #### FASE 2 (Meses 4-6):
+
 - Precio normal: $120/mes
 - Agregar plan Professional: $180/mes
 - Desarrollar módulo de reservas
 
 #### FASE 3 (Meses 7-12):
+
 - Lanzar sistema de reservas: +$80/mes
 - Plan Enterprise: $300/mes
 - Target: 15-20 clientes totales

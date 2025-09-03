@@ -8,18 +8,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPlatform: () => ipcRenderer.invoke('platform'),
 
   // Menu actions
-  onMenuAction: (callback) => {
+  onMenuAction: callback => {
     ipcRenderer.on('menu-action', callback);
   },
 
   // Remove listeners
-  removeAllListeners: (channel) => {
+  removeAllListeners: channel => {
     ipcRenderer.removeAllListeners(channel);
   },
 
   // File operations (for future use)
   openFile: () => ipcRenderer.invoke('open-file'),
-  saveFile: (data) => ipcRenderer.invoke('save-file', data),
+  saveFile: data => ipcRenderer.invoke('save-file', data),
 
   // Notification support
   showNotification: (title, body) => {
@@ -33,5 +33,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // System info
   isElectron: true,
-  isDesktop: true
+  isDesktop: true,
 });

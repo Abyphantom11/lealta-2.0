@@ -15,7 +15,7 @@ export function createAuthMiddleware(requiredPermission: Permission) {
       const currentUser: User = {
         id: 'current-user-id',
         role: 'SUPERADMIN', // This will come from real session
-        isActive: true
+        isActive: true,
       };
 
       // Verificar si el usuario está activo
@@ -44,7 +44,6 @@ export function createAuthMiddleware(requiredPermission: Permission) {
           headers: requestHeaders,
         },
       });
-
     } catch (error) {
       console.error('Auth middleware error:', error);
       return NextResponse.json(
@@ -55,13 +54,15 @@ export function createAuthMiddleware(requiredPermission: Permission) {
   };
 }
 
-export function getCurrentUser(request: NextRequest): { id: string; role: string } | null {
+export function getCurrentUser(
+  request: NextRequest
+): { id: string; role: string } | null {
   const userId = request.headers.get('x-user-id');
   const userRole = request.headers.get('x-user-role');
-  
+
   if (!userId || !userRole) {
     return null;
   }
-  
+
   return { id: userId, role: userRole };
 }

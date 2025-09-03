@@ -8,7 +8,7 @@ export async function GET(_: NextRequest) {
     // Obtener todos los clientes registrados
     const clientes = await prisma.cliente.findMany({
       orderBy: {
-        registeredAt: 'desc'
+        registeredAt: 'desc',
       },
       select: {
         id: true,
@@ -26,17 +26,16 @@ export async function GET(_: NextRequest) {
             nivel: true,
             activa: true,
             asignacionManual: true,
-            fechaAsignacion: true
-          }
-        }
-      }
+            fechaAsignacion: true,
+          },
+        },
+      },
     });
 
     return NextResponse.json({
       success: true,
-      clientes
+      clientes,
     });
-
   } catch (error) {
     console.error('Error obteniendo clientes:', error);
     return NextResponse.json(

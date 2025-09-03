@@ -7,9 +7,13 @@
  * @param tipo - El tipo de notificación a enviar
  * @returns Promise con el resultado de la operación
  */
-export const enviarNotificacionClientes = async (tipo: string): Promise<boolean> => {
+export const enviarNotificacionClientes = async (
+  tipo: string
+): Promise<boolean> => {
   try {
-    const response = await fetch('/api/notificaciones/actualizar-clientes', {
+    // Usar URL completa para requests desde el servidor
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+    const response = await fetch(`${baseUrl}/api/notificaciones/actualizar-clientes`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

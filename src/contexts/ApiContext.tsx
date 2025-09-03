@@ -1,6 +1,12 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+} from 'react';
 import { ApiResponse } from '@/types/common';
 
 interface ApiContextType {
@@ -8,9 +14,9 @@ interface ApiContextType {
   error: string | null;
   clearError: () => void;
   apiRequest: <T>(
-    endpoint: string, 
-    method?: string, 
-    data?: any, 
+    endpoint: string,
+    method?: string,
+    data?: any,
     options?: RequestInit
   ) => Promise<ApiResponse<T>>;
 }
@@ -34,64 +40,76 @@ export function ApiProvider({ children, baseUrl = '' }: ApiProviderProps) {
     setError(null);
   }, []);
 
-  const apiRequest = useCallback(async <T,>(
-    endpoint: string,
-    method: string = 'GET',
-    data?: any,
-    options: RequestInit = {}
-  ): Promise<ApiResponse<T>> => {
-    setIsLoading(true);
-    clearError();
+  const apiRequest = useCallback(
+    async <T,>(
+      endpoint: string,
+      method: string = 'GET',
+      data?: any,
+      options: RequestInit = {}
+    ): Promise<ApiResponse<T>> => {
+      setIsLoading(true);
+      clearError();
 
-    const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
-    
-    try {
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers,
-        },
-        body: data ? JSON.stringify(data) : undefined,
-        ...options,
-      });
+      const url = endpoint.startsWith('http')
+        ? endpoint
+        : `${baseUrl}${endpoint}`;
 
-      const responseData = await response.json();
+      try {
+        const response = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            ...options.headers,
+          },
+          body: data ? JSON.stringify(data) : undefined,
+          ...options,
+        });
 
-      if (!response.ok) {
-        const errorMessage = responseData.error || responseData.message || `Error ${response.status}: ${response.statusText}`;
+        const responseData = await response.json();
+
+        if (!response.ok) {
+          const errorMessage =
+            responseData.error ||
+            responseData.message ||
+            `Error ${response.status}: ${response.statusText}`;
+          setError(errorMessage);
+
+          return {
+            success: false,
+            error: errorMessage,
+          };
+        }
+
+        return {
+          success: true,
+          data: responseData as T,
+          message: responseData.message,
+        };
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : 'Error de conexión';
         setError(errorMessage);
-        
+
         return {
           success: false,
           error: errorMessage,
         };
+      } finally {
+        setIsLoading(false);
       }
+    },
+    [baseUrl, clearError]
+  );
 
-      return {
-        success: true,
-        data: responseData as T,
-        message: responseData.message,
-      };
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error de conexión';
-      setError(errorMessage);
-      
-      return {
-        success: false,
-        error: errorMessage,
-      };
-    } finally {
-      setIsLoading(false);
-    }
-  }, [baseUrl, clearError]);
-
-  const value = useMemo(() => ({
-    isLoading,
-    error,
-    clearError,
-    apiRequest,
-  }), [isLoading, error, clearError, apiRequest]);
+  const value = useMemo(
+    () => ({
+      isLoading,
+      error,
+      clearError,
+      apiRequest,
+    }),
+    [isLoading, error, clearError, apiRequest]
+  );
 
   return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>;
 }
@@ -102,51 +120,63 @@ export function ApiProvider({ children, baseUrl = '' }: ApiProviderProps) {
  */
 export function useApi() {
   const context = useContext(ApiContext);
-  
+
   if (context === undefined) {
     throw new Error('useApi debe ser usado dentro de un ApiProvider');
   }
-  
+
   return context;
 }
 
 // Helpers para métodos HTTP comunes
 export function useGet() {
   const { apiRequest, isLoading, error, clearError } = useApi();
-  
-  const get = useCallback(<T,>(endpoint: string, options?: RequestInit) => {
-    return apiRequest<T>(endpoint, 'GET', undefined, options);
-  }, [apiRequest]);
-  
+
+  const get = useCallback(
+    <T,>(endpoint: string, options?: RequestInit) => {
+      return apiRequest<T>(endpoint, 'GET', undefined, options);
+    },
+    [apiRequest]
+  );
+
   return { get, isLoading, error, clearError };
 }
 
 export function usePost() {
   const { apiRequest, isLoading, error, clearError } = useApi();
-  
-  const post = useCallback(<T,>(endpoint: string, data: any, options?: RequestInit) => {
-    return apiRequest<T>(endpoint, 'POST', data, options);
-  }, [apiRequest]);
-  
+
+  const post = useCallback(
+    <T,>(endpoint: string, data: any, options?: RequestInit) => {
+      return apiRequest<T>(endpoint, 'POST', data, options);
+    },
+    [apiRequest]
+  );
+
   return { post, isLoading, error, clearError };
 }
 
 export function usePut() {
   const { apiRequest, isLoading, error, clearError } = useApi();
-  
-  const put = useCallback(<T,>(endpoint: string, data: any, options?: RequestInit) => {
-    return apiRequest<T>(endpoint, 'PUT', data, options);
-  }, [apiRequest]);
-  
+
+  const put = useCallback(
+    <T,>(endpoint: string, data: any, options?: RequestInit) => {
+      return apiRequest<T>(endpoint, 'PUT', data, options);
+    },
+    [apiRequest]
+  );
+
   return { put, isLoading, error, clearError };
 }
 
 export function useDelete() {
   const { apiRequest, isLoading, error, clearError } = useApi();
-  
-  const del = useCallback(<T,>(endpoint: string, options?: RequestInit) => {
-    return apiRequest<T>(endpoint, 'DELETE', undefined, options);
-  }, [apiRequest]);
-  
+
+  const del = useCallback(
+    <T,>(endpoint: string, options?: RequestInit) => {
+      return apiRequest<T>(endpoint, 'DELETE', undefined, options);
+    },
+    [apiRequest]
+  );
+
   return { del, isLoading, error, clearError };
 }

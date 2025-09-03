@@ -1,24 +1,25 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ConfigContextType, PortalConfig } from '../../../../types/admin/config';
+import {
+  ConfigContextType,
+  PortalConfig,
+} from '../../../../types/admin/config';
 
 interface ConfigPanelProps {
   configContext: ConfigContextType;
 }
 
-export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({ configContext }) => {
-  const {
-    config,
-    loading,
-    error,
-    saveConfig,
-    uploadImage
-  } = configContext;
+export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({
+  configContext,
+}) => {
+  const { config, loading, error, saveConfig, uploadImage } = configContext;
 
   const [activeTab, setActiveTab] = useState<string>('general');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [localConfig, setLocalConfig] = useState<Partial<PortalConfig> | null>(config);
+  const [localConfig, setLocalConfig] = useState<Partial<PortalConfig> | null>(
+    config
+  );
 
   // Efecto para actualizar el estado local cuando cambia la configuración
   React.useEffect(() => {
@@ -28,23 +29,26 @@ export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({ configContex
   }, [config]);
 
   // Función para manejar cambios en los campos
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, section?: string) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    section?: string
+  ) => {
     const { name, value } = e.target;
-    
+
     if (!localConfig) return;
-    
+
     if (section) {
       setLocalConfig({
         ...localConfig,
         [section]: {
-          ...(localConfig[section] as object || {}),
-          [name]: value
-        }
+          ...((localConfig[section] as object) || {}),
+          [name]: value,
+        },
       });
     } else {
       setLocalConfig({
         ...localConfig,
-        [name]: value
+        [name]: value,
       });
     }
   };
@@ -59,17 +63,17 @@ export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({ configContex
   // Función para subir la imagen
   const handleImageUpload = async () => {
     if (!selectedImage) return;
-    
+
     try {
       const imageUrl = await uploadImage(selectedImage, 'logo');
-      
+
       if (localConfig) {
         setLocalConfig({
           ...localConfig,
-          logoUrl: imageUrl
+          logoUrl: imageUrl,
         });
       }
-      
+
       setSelectedImage(null);
     } catch (err) {
       console.error('Error al subir imagen:', err);
@@ -79,7 +83,7 @@ export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({ configContex
   // Función para guardar la configuración
   const handleSaveConfig = async () => {
     if (!localConfig) return;
-    
+
     try {
       await saveConfig(localConfig as PortalConfig);
     } catch (err) {
@@ -90,16 +94,21 @@ export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({ configContex
   // Renderizar el contenido según la pestaña activa
   const renderTabContent = () => {
     if (!localConfig) return null;
-    
+
     switch (activeTab) {
       case 'general':
         return (
           <div>
-            <h3 className="text-xl font-semibold mb-4">Configuración General</h3>
-            
+            <h3 className="text-xl font-semibold mb-4">
+              Configuración General
+            </h3>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label htmlFor="nombreNegocio" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="nombreNegocio"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Nombre del Negocio
                 </label>
                 <input
@@ -111,9 +120,12 @@ export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({ configContex
                   className="w-full p-2 border rounded-md"
                 />
               </div>
-              
+
               <div>
-                <label htmlFor="descripcionNegocio" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="descripcionNegocio"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Descripción del Negocio
                 </label>
                 <textarea
@@ -125,9 +137,12 @@ export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({ configContex
                   rows={3}
                 ></textarea>
               </div>
-              
+
               <div>
-                <label htmlFor="direccion" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="direccion"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Dirección
                 </label>
                 <input
@@ -139,9 +154,12 @@ export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({ configContex
                   className="w-full p-2 border rounded-md"
                 />
               </div>
-              
+
               <div>
-                <label htmlFor="telefono" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="telefono"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Teléfono
                 </label>
                 <input
@@ -153,9 +171,12 @@ export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({ configContex
                   className="w-full p-2 border rounded-md"
                 />
               </div>
-              
+
               <div>
-                <label htmlFor="correo" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="correo"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Correo Electrónico
                 </label>
                 <input
@@ -167,9 +188,12 @@ export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({ configContex
                   className="w-full p-2 border rounded-md"
                 />
               </div>
-              
+
               <div>
-                <label htmlFor="horario" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="horario"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Horario
                 </label>
                 <input
@@ -184,15 +208,20 @@ export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({ configContex
             </div>
           </div>
         );
-        
+
       case 'branding':
         return (
           <div>
-            <h3 className="text-xl font-semibold mb-4">Personalización y Branding</h3>
-            
+            <h3 className="text-xl font-semibold mb-4">
+              Personalización y Branding
+            </h3>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label htmlFor="colorPrimario" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="colorPrimario"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Color Primario
                 </label>
                 <div className="flex">
@@ -213,9 +242,12 @@ export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({ configContex
                   />
                 </div>
               </div>
-              
+
               <div>
-                <label htmlFor="colorSecundario" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="colorSecundario"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Color Secundario
                 </label>
                 <div className="flex">
@@ -236,9 +268,12 @@ export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({ configContex
                   />
                 </div>
               </div>
-              
+
               <div>
-                <label htmlFor="logo" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="logo"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Logo
                 </label>
                 <div className="flex flex-col gap-2">
@@ -251,7 +286,7 @@ export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({ configContex
                       />
                     </div>
                   )}
-                  
+
                   <input
                     type="file"
                     id="logo"
@@ -259,7 +294,7 @@ export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({ configContex
                     onChange={handleImageChange}
                     className="w-full p-2 border rounded-md"
                   />
-                  
+
                   {selectedImage && (
                     <button
                       onClick={handleImageUpload}
@@ -273,15 +308,18 @@ export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({ configContex
             </div>
           </div>
         );
-        
+
       case 'social':
         return (
           <div>
             <h3 className="text-xl font-semibold mb-4">Redes Sociales</h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label htmlFor="facebook" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="facebook"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Facebook
                 </label>
                 <input
@@ -289,14 +327,17 @@ export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({ configContex
                   type="text"
                   name="facebook"
                   value={localConfig.redesSociales?.facebook || ''}
-                  onChange={(e) => handleInputChange(e, 'redesSociales')}
+                  onChange={e => handleInputChange(e, 'redesSociales')}
                   className="w-full p-2 border rounded-md"
                   placeholder="https://facebook.com/tu-pagina"
                 />
               </div>
-              
+
               <div>
-                <label htmlFor="instagram" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="instagram"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Instagram
                 </label>
                 <input
@@ -304,14 +345,17 @@ export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({ configContex
                   type="text"
                   name="instagram"
                   value={localConfig.redesSociales?.instagram || ''}
-                  onChange={(e) => handleInputChange(e, 'redesSociales')}
+                  onChange={e => handleInputChange(e, 'redesSociales')}
                   className="w-full p-2 border rounded-md"
                   placeholder="https://instagram.com/tu-cuenta"
                 />
               </div>
-              
+
               <div>
-                <label htmlFor="twitter" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="twitter"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Twitter
                 </label>
                 <input
@@ -319,7 +363,7 @@ export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({ configContex
                   type="text"
                   name="twitter"
                   value={localConfig.redesSociales?.twitter || ''}
-                  onChange={(e) => handleInputChange(e, 'redesSociales')}
+                  onChange={e => handleInputChange(e, 'redesSociales')}
                   className="w-full p-2 border rounded-md"
                   placeholder="https://twitter.com/tu-cuenta"
                 />
@@ -327,7 +371,7 @@ export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({ configContex
             </div>
           </div>
         );
-        
+
       default:
         return null;
     }
@@ -336,13 +380,13 @@ export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({ configContex
   return (
     <div className="bg-white shadow-md rounded-lg p-6">
       <h2 className="text-2xl font-bold mb-4">Configuración del Sistema</h2>
-      
+
       {error && (
         <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
           {error}
         </div>
       )}
-      
+
       <div className="flex mb-6 border-b">
         <button
           className={`py-2 px-4 mr-2 ${activeTab === 'general' ? 'border-b-2 border-blue-500 font-semibold' : ''}`}
@@ -363,29 +407,29 @@ export const ConfigPanel: React.FC<Readonly<ConfigPanelProps>> = ({ configContex
           Redes Sociales
         </button>
       </div>
-      
+
       {localConfig ? (
-        <div className="mb-6">
-          {renderTabContent()}
-        </div>
+        <div className="mb-6">{renderTabContent()}</div>
       ) : (
         <div className="flex justify-center items-center h-64">
           <p className="text-gray-500">Cargando configuración...</p>
         </div>
       )}
-      
+
       <div className="flex justify-end">
         <button
           onClick={handleSaveConfig}
           disabled={loading}
           className={`py-2 px-4 rounded ${
-            loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-700 text-white'
+            loading
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-blue-500 hover:bg-blue-700 text-white'
           }`}
         >
           {loading ? 'Guardando...' : 'Guardar Cambios'}
         </button>
       </div>
-      
+
       {/* Indicador de carga */}
       {loading && (
         <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50">

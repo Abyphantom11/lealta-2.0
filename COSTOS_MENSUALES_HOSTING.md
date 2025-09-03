@@ -1,9 +1,11 @@
 # 💸 COSTOS MENSUALES REALES - HOSTING Y SERVICIOS
+
 ## Desglose específico para mantener Lealta 2.0 en producción
 
 ---
 
 ## 🔥 **RESUMEN EJECUTIVO**
+
 **COSTO TOTAL MENSUAL DE INFRAESTRUCTURA: $1,058/mes**
 
 ---
@@ -11,6 +13,7 @@
 ## 🌐 **HOSTING & INFRAESTRUCTURA**
 
 ### **VERCEL (Hosting Principal)**
+
 ```
 ✅ Plan Pro: $20/mes
    - 100GB bandwidth
@@ -25,6 +28,7 @@
 ```
 
 ### **BASE DE DATOS**
+
 ```
 🐘 PlanetScale (MySQL):
    - Hobby: $0 (solo desarrollo)
@@ -40,11 +44,12 @@ ELECCIÓN: PlanetScale Pro+ = $99/mes
 ```
 
 ### **ALMACENAMIENTO DE IMÁGENES**
+
 ```
 📸 Cloudinary:
    - Free: 25GB (muy limitado)
    - Plus: $89/mes (100GB) ← NECESARIO
-   
+
 📸 AWS S3 + CloudFront:
    - S3: ~$25/mes (100GB)
    - CloudFront CDN: ~$15/mes
@@ -54,6 +59,7 @@ ELECCIÓN: AWS S3 + CloudFront = $40/mes
 ```
 
 ### **CACHÉ Y RENDIMIENTO**
+
 ```
 ⚡ Redis (Upstash):
    - Free: 10K requests/día (insuficiente)
@@ -71,6 +77,7 @@ ELECCIÓN: Redis Upstash = $40/mes
 ## 🔧 **SERVICIOS EXTERNOS CRÍTICOS**
 
 ### **OCR (Reconocimiento de Tickets)**
+
 ```
 👁️ Google Vision API:
    - Primeras 1,000 requests: GRATIS
@@ -85,6 +92,7 @@ ELECCIÓN: Azure OCR = $60/mes
 ```
 
 ### **NOTIFICACIONES SMS**
+
 ```
 📱 Twilio:
    - $0.0075 por SMS
@@ -98,6 +106,7 @@ ELECCIÓN: AWS SNS = $130/mes
 ```
 
 ### **EMAIL TRANSACCIONAL**
+
 ```
 📧 SendGrid:
    - Essentials: $19.95/mes (40K emails)
@@ -111,6 +120,7 @@ ELECCIÓN: AWS SES = $15/mes (con márgenes)
 ```
 
 ### **PAGOS ONLINE**
+
 ```
 💳 Stripe:
    - 2.9% + $0.30 por transacción
@@ -129,6 +139,7 @@ ELECCIÓN: Stripe = $50/mes (variable)
 ## 🛡️ **SEGURIDAD Y MONITOREO**
 
 ### **SSL Y SEGURIDAD**
+
 ```
 🔒 Let's Encrypt: GRATIS (renovación automática)
 🔒 Cloudflare Pro: $20/mes (DDoS protection)
@@ -138,6 +149,7 @@ TOTAL SEGURIDAD: $30/mes
 ```
 
 ### **MONITOREO Y LOGS**
+
 ```
 📊 Datadog:
    - Pro: $15/host/mes
@@ -153,6 +165,7 @@ ELECCIÓN: New Relic + Sentry = $51/mes
 ```
 
 ### **BACKUPS AUTOMÁTICOS**
+
 ```
 💾 AWS S3 Glacier:
    - $0.004 por GB/mes
@@ -169,6 +182,7 @@ ELECCIÓN: Backups automáticos = $25/mes
 ## 📱 **SERVICIOS ADICIONALES**
 
 ### **MAPAS Y GEOLOCALIZACIÓN**
+
 ```
 🗺️ Google Maps API:
    - $5 por 1,000 requests
@@ -182,6 +196,7 @@ ELECCIÓN: Mapbox = $20/mes
 ```
 
 ### **ANALYTICS AVANZADOS**
+
 ```
 📈 Google Analytics: GRATIS
 📈 Mixpanel: $25/mes (plan Growth)
@@ -195,6 +210,7 @@ ELECCIÓN: Google Analytics + Mixpanel = $25/mes
 ## 💰 **RESUMEN DE COSTOS MENSUALES**
 
 ### **INFRAESTRUCTURA BÁSICA:**
+
 ```
 Vercel Enterprise:           $150
 PlanetScale Pro+:            $99
@@ -204,6 +220,7 @@ SUBTOTAL:                    $329/mes
 ```
 
 ### **SERVICIOS CRÍTICOS:**
+
 ```
 Azure OCR:                   $60
 AWS SNS (SMS):               $130
@@ -213,6 +230,7 @@ SUBTOTAL:                    $255/mes
 ```
 
 ### **SEGURIDAD Y MONITOREO:**
+
 ```
 Cloudflare + WAF:            $30
 New Relic + Sentry:          $51
@@ -221,6 +239,7 @@ SUBTOTAL:                    $106/mes
 ```
 
 ### **SERVICIOS ADICIONALES:**
+
 ```
 Mapbox:                      $20
 Mixpanel:                    $25
@@ -251,6 +270,7 @@ CON CONTINGENCIAS ANUAL:     $10,640/año
 ## 📊 **COMPARACIÓN DE ALTERNATIVAS**
 
 ### **OPCIÓN ECONÓMICA (Startup):**
+
 ```
 - Vercel Pro: $20
 - Supabase Pro: $25
@@ -260,6 +280,7 @@ TOTAL: ~$245/mes
 ```
 
 ### **OPCIÓN RECOMENDADA (Profesional):**
+
 ```
 - Infraestructura robusta: $329
 - Servicios completos: $255
@@ -269,6 +290,7 @@ TOTAL: $771/mes
 ```
 
 ### **OPCIÓN PREMIUM (Enterprise):**
+
 ```
 - Todo lo anterior: $771
 - Soporte 24/7: $200

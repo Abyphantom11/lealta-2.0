@@ -1,14 +1,19 @@
 'use client';
 
 import React from 'react';
-import { ClientesContextType, ClienteSearchParams } from '../../../../types/admin/clients';
+import {
+  ClientesContextType,
+  ClienteSearchParams,
+} from '../../../../types/admin/clients';
 import { Cliente } from '../../../../types/admin';
 
 interface ClientesPanelProps {
   clientesContext: ClientesContextType;
 }
 
-export const ClientesPanel: React.FC<Readonly<ClientesPanelProps>> = ({ clientesContext }) => {
+export const ClientesPanel: React.FC<Readonly<ClientesPanelProps>> = ({
+  clientesContext,
+}) => {
   const {
     clientes,
     loading,
@@ -16,7 +21,7 @@ export const ClientesPanel: React.FC<Readonly<ClientesPanelProps>> = ({ clientes
     totalCount,
     fetchClientes,
     getClienteById,
-    saveCliente
+    saveCliente,
   } = clientesContext;
 
   // Estado local para búsqueda y filtros
@@ -24,14 +29,14 @@ export const ClientesPanel: React.FC<Readonly<ClientesPanelProps>> = ({ clientes
     query: '',
     nivel: '',
     page: 1,
-    limit: 10
+    limit: 10,
   });
 
   // Función para manejar la búsqueda
   const handleBuscar = React.useCallback(() => {
     fetchClientes({
       ...searchParams,
-      page: 1 // Resetear a la primera página cuando se busca
+      page: 1, // Resetear a la primera página cuando se busca
     });
   }, [searchParams, fetchClientes]);
 
@@ -71,13 +76,13 @@ export const ClientesPanel: React.FC<Readonly<ClientesPanelProps>> = ({ clientes
   return (
     <div className="bg-white shadow-md rounded-lg p-6">
       <h2 className="text-2xl font-bold mb-4">Gestión de Clientes</h2>
-      
+
       {error && (
         <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
           {error}
         </div>
       )}
-      
+
       {/* Búsqueda y Filtros */}
       <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="w-full md:w-2/3 flex gap-2">
@@ -86,8 +91,10 @@ export const ClientesPanel: React.FC<Readonly<ClientesPanelProps>> = ({ clientes
             placeholder="Buscar por nombre, cédula o correo..."
             className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={searchParams.query || ''}
-            onChange={(e) => setSearchParams(prev => ({ ...prev, query: e.target.value }))}
-            onKeyDown={(e) => e.key === 'Enter' && handleBuscar()}
+            onChange={e =>
+              setSearchParams(prev => ({ ...prev, query: e.target.value }))
+            }
+            onKeyDown={e => e.key === 'Enter' && handleBuscar()}
           />
           <button
             onClick={handleBuscar}
@@ -96,12 +103,12 @@ export const ClientesPanel: React.FC<Readonly<ClientesPanelProps>> = ({ clientes
             Buscar
           </button>
         </div>
-        
+
         <div className="w-full md:w-1/3 flex justify-end gap-2">
           <select
             className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={searchParams.nivel || ''}
-            onChange={(e) => handleFiltroNivel(e.target.value)}
+            onChange={e => handleFiltroNivel(e.target.value)}
           >
             <option value="">Todos los niveles</option>
             <option value="Bronce">Bronce</option>
@@ -110,7 +117,7 @@ export const ClientesPanel: React.FC<Readonly<ClientesPanelProps>> = ({ clientes
             <option value="Diamante">Diamante</option>
             <option value="Platino">Platino</option>
           </select>
-          
+
           <button
             onClick={() => saveCliente({ cedula: '', nombre: '' })}
             className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
@@ -119,50 +126,78 @@ export const ClientesPanel: React.FC<Readonly<ClientesPanelProps>> = ({ clientes
           </button>
         </div>
       </div>
-      
+
       {/* Lista de clientes */}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cédula</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Puntos</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nivel</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Gastado</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visitas</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Nombre
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Cédula
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Puntos
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Nivel
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Total Gastado
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Visitas
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Acciones
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {clientes.map((cliente: Cliente) => (
               <tr key={cliente.id}>
-                <td className="px-6 py-4 whitespace-nowrap">{cliente.nombre}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{cliente.cedula}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{cliente.puntos}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getNivelClass(cliente.nivel)}`}>
+                  {cliente.nombre}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {cliente.cedula}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {cliente.puntos}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span
+                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getNivelClass(cliente.nivel)}`}
+                  >
                     {cliente.nivel}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">${cliente.totalGastado.toFixed(2)}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{cliente.totalVisitas}</td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  ${cliente.totalGastado.toFixed(2)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {cliente.totalVisitas}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap flex space-x-2">
-                  <button 
+                  <button
                     onClick={() => getClienteById(cliente.cedula)}
                     className="bg-blue-500 hover:bg-blue-700 text-white p-2 rounded"
                   >
                     Ver
                   </button>
-                  <button 
-                    onClick={() => saveCliente({
-                      cedula: cliente.cedula,
-                      nombre: cliente.nombre,
-                      correo: cliente.correo,
-                      telefono: cliente.telefono,
-                      puntos: cliente.puntos,
-                      nivel: cliente.nivel
-                    })}
+                  <button
+                    onClick={() =>
+                      saveCliente({
+                        cedula: cliente.cedula,
+                        nombre: cliente.nombre,
+                        correo: cliente.correo,
+                        telefono: cliente.telefono,
+                        puntos: cliente.puntos,
+                        nivel: cliente.nivel,
+                      })
+                    }
                     className="bg-yellow-500 hover:bg-yellow-700 text-white p-2 rounded"
                   >
                     Editar
@@ -173,7 +208,7 @@ export const ClientesPanel: React.FC<Readonly<ClientesPanelProps>> = ({ clientes
           </tbody>
         </table>
       </div>
-      
+
       {/* Paginación */}
       <div className="mt-4 flex justify-between items-center">
         <div>
@@ -197,7 +232,7 @@ export const ClientesPanel: React.FC<Readonly<ClientesPanelProps>> = ({ clientes
           </button>
         </div>
       </div>
-      
+
       {/* Indicador de carga */}
       {loading && (
         <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50">

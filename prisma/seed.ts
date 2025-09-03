@@ -14,7 +14,7 @@ async function main() {
       subdomain: 'demo',
       subscriptionPlan: 'PRO',
       isActive: true,
-    }
+    },
   });
 
   console.log('✅ Business creado:', demoBusiness.name);
@@ -34,13 +34,13 @@ async function main() {
 
   // Create SUPERADMIN user
   const superAdminPassword = await hash('admin123', 12);
-  
+
   const superAdmin = await prisma.user.upsert({
-    where: { 
+    where: {
       businessId_email: {
         businessId: demoBusiness.id,
-        email: 'admin@lealta.com'
-      }
+        email: 'admin@lealta.com',
+      },
     },
     update: {},
     create: {
@@ -50,20 +50,20 @@ async function main() {
       name: 'Super Administrator',
       role: 'SUPERADMIN',
       isActive: true,
-    }
+    },
   });
 
   console.log('👑 SuperAdmin created:', superAdmin.email);
 
   // Create ADMIN user
   const adminPassword = await hash('admin123', 12);
-  
+
   const admin = await prisma.user.upsert({
-    where: { 
+    where: {
       businessId_email: {
         businessId: demoBusiness.id,
-        email: 'manager@lealta.com'
-      }
+        email: 'manager@lealta.com',
+      },
     },
     update: {},
     create: {
@@ -74,20 +74,20 @@ async function main() {
       role: 'ADMIN',
       createdBy: superAdmin.id,
       isActive: true,
-    }
+    },
   });
 
   console.log('🔧 Admin created:', admin.email);
 
   // Create STAFF user
   const staffPassword = await hash('staff123', 12);
-  
+
   const staff = await prisma.user.upsert({
-    where: { 
+    where: {
       businessId_email: {
         businessId: demoBusiness.id,
-        email: 'staff@lealta.com'
-      }
+        email: 'staff@lealta.com',
+      },
     },
     update: {},
     create: {
@@ -98,7 +98,7 @@ async function main() {
       role: 'STAFF',
       createdBy: admin.id,
       isActive: true,
-    }
+    },
   });
 
   console.log('� Staff created:', staff.email);
@@ -111,7 +111,7 @@ async function main() {
 }
 
 main()
-  .catch((e) => {
+  .catch(e => {
     console.error(e);
     process.exit(1);
   })

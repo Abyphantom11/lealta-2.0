@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const businessId = searchParams.get('businessId') || 'business_1';
 
     const portalConfig = await prisma.portalConfig.findUnique({
-      where: { businessId }
+      where: { businessId },
     });
 
     // Cast portalConfig to access favoritoDelDia field
@@ -23,15 +23,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: false,
         favorito: null,
-        message: 'No hay favorito del día configurado'
+        message: 'No hay favorito del día configurado',
       });
     }
 
     return NextResponse.json({
       success: true,
-      favorito: config.favoritoDelDia
+      favorito: config.favoritoDelDia,
     });
-
   } catch (error) {
     console.error('Error obteniendo favorito del día:', error);
     return NextResponse.json(

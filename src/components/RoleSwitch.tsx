@@ -10,7 +10,10 @@ interface RoleSwitchProps {
   readonly currentPath: string;
 }
 
-export default function RoleSwitch({ currentRole, currentPath }: RoleSwitchProps) {
+export default function RoleSwitch({
+  currentRole,
+  currentPath,
+}: RoleSwitchProps) {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
 
@@ -25,28 +28,29 @@ export default function RoleSwitch({ currentRole, currentPath }: RoleSwitchProps
       label: 'Super Admin',
       icon: Shield,
       path: '/superadmin',
-      description: 'Gestión completa del sistema'
+      description: 'Gestión completa del sistema',
     },
     {
       role: 'ADMIN',
       label: 'Admin',
       icon: UserCog,
       path: '/admin',
-      description: 'Vista de administrador'
+      description: 'Vista de administrador',
     },
     {
       role: 'STAFF',
       label: 'Staff',
       icon: Users,
       path: '/staff',
-      description: 'Vista de personal'
-    }
+      description: 'Vista de personal',
+    },
   ];
 
   // Filtrar opciones según el rol actual
-  const roleOptions = currentRole === 'SUPERADMIN' 
-    ? allRoleOptions // SUPERADMIN puede ver todas las opciones
-    : allRoleOptions.filter(option => option.role !== 'SUPERADMIN'); // ADMIN solo ve ADMIN y STAFF
+  const roleOptions =
+    currentRole === 'SUPERADMIN'
+      ? allRoleOptions // SUPERADMIN puede ver todas las opciones
+      : allRoleOptions.filter(option => option.role !== 'SUPERADMIN'); // ADMIN solo ve ADMIN y STAFF
 
   const getCurrentRoleOption = () => {
     if (currentPath.includes('/superadmin')) return allRoleOptions[0];
@@ -70,7 +74,9 @@ export default function RoleSwitch({ currentRole, currentPath }: RoleSwitchProps
       >
         <currentOption.icon className="w-4 h-4" />
         <span className="text-sm font-medium">{currentOption.label}</span>
-        <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown
+          className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+        />
       </button>
 
       {isOpen && (
@@ -82,9 +88,11 @@ export default function RoleSwitch({ currentRole, currentPath }: RoleSwitchProps
         >
           <div className="p-2">
             <div className="text-xs text-gray-400 px-3 py-2 border-b border-gray-700">
-              {currentRole === 'SUPERADMIN' ? 'Cambiar vista como SuperAdmin' : 'Cambiar vista como Admin'}
+              {currentRole === 'SUPERADMIN'
+                ? 'Cambiar vista como SuperAdmin'
+                : 'Cambiar vista como Admin'}
             </div>
-            {roleOptions.map((option) => (
+            {roleOptions.map(option => (
               <button
                 key={option.role}
                 onClick={() => handleRoleSwitch(option.path)}
@@ -98,7 +106,9 @@ export default function RoleSwitch({ currentRole, currentPath }: RoleSwitchProps
                   <option.icon className="w-4 h-4" />
                   <div>
                     <div className="text-sm font-medium">{option.label}</div>
-                    <div className="text-xs text-gray-500">{option.description}</div>
+                    <div className="text-xs text-gray-500">
+                      {option.description}
+                    </div>
                   </div>
                 </div>
               </button>

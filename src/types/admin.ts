@@ -9,7 +9,7 @@ export interface MenuItem {
   precioBotella?: number;
   disponible: boolean;
   categoryId: string;
-  tipoProducto: 'simple' | 'bebida';
+  tipoProducto: 'simple' | 'bebida' | 'botella';
   imagen?: string;
   imagenUrl?: string; // Añadido para compatibilidad con cliente/page.tsx
 }

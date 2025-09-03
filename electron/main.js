@@ -17,27 +17,27 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
     },
     icon: path.join(__dirname, 'assets/icon.png'), // Add app icon
     titleBarStyle: 'default',
-    show: false // Don't show until ready
+    show: false, // Don't show until ready
   });
 
   // Load the app
-  const startUrl = isDev 
-    ? 'http://localhost:3001' 
+  const startUrl = isDev
+    ? 'http://localhost:3001'
     : `file://${path.join(__dirname, '../out/index.html')}`;
-  
+
   console.log('Loading URL:', startUrl);
   console.log('Is Dev:', isDev);
-  
+
   mainWindow.loadURL(startUrl);
 
   // Show window when ready to prevent visual flash
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
-    
+
     // Focus on window
     if (isDev) {
       mainWindow.webContents.openDevTools();
@@ -87,14 +87,14 @@ function createMenu() {
           accelerator: 'CmdOrCtrl+N',
           click: () => {
             mainWindow.webContents.send('menu-action', 'new-client');
-          }
+          },
         },
         {
           label: 'Capturar Consumo',
           accelerator: 'CmdOrCtrl+C',
           click: () => {
             mainWindow.webContents.send('menu-action', 'capture-consumption');
-          }
+          },
         },
         { type: 'separator' },
         {
@@ -102,9 +102,9 @@ function createMenu() {
           accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
           click: () => {
             app.quit();
-          }
-        }
-      ]
+          },
+        },
+      ],
     },
     {
       label: 'Ver',
@@ -114,14 +114,14 @@ function createMenu() {
           accelerator: 'CmdOrCtrl+D',
           click: () => {
             mainWindow.webContents.send('menu-action', 'dashboard');
-          }
+          },
         },
         {
           label: 'Reportes',
           accelerator: 'CmdOrCtrl+R',
           click: () => {
             mainWindow.webContents.send('menu-action', 'reports');
-          }
+          },
         },
         { type: 'separator' },
         {
@@ -129,16 +129,17 @@ function createMenu() {
           accelerator: 'CmdOrCtrl+R',
           click: () => {
             mainWindow.reload();
-          }
+          },
         },
         {
           label: 'Herramientas de Desarrollador',
-          accelerator: process.platform === 'darwin' ? 'Alt+Cmd+I' : 'Ctrl+Shift+I',
+          accelerator:
+            process.platform === 'darwin' ? 'Alt+Cmd+I' : 'Ctrl+Shift+I',
           click: () => {
             mainWindow.webContents.toggleDevTools();
-          }
-        }
-      ]
+          },
+        },
+      ],
     },
     {
       label: 'Ventana',
@@ -148,16 +149,16 @@ function createMenu() {
           accelerator: 'CmdOrCtrl+M',
           click: () => {
             mainWindow.minimize();
-          }
+          },
         },
         {
           label: 'Cerrar',
           accelerator: 'CmdOrCtrl+W',
           click: () => {
             mainWindow.close();
-          }
-        }
-      ]
+          },
+        },
+      ],
     },
     {
       label: 'Ayuda',
@@ -169,12 +170,13 @@ function createMenu() {
               type: 'info',
               title: 'Acerca de Lealta',
               message: 'Lealta MVP v1.0',
-              detail: 'Sistema de captación y control de clientes\nDesarrollado con Next.js y Electron'
+              detail:
+                'Sistema de captación y control de clientes\nDesarrollado con Next.js y Electron',
             });
-          }
-        }
-      ]
-    }
+          },
+        },
+      ],
+    },
   ];
 
   const menu = Menu.buildFromTemplate(template);
@@ -182,16 +184,19 @@ function createMenu() {
 }
 
 // Handle app certificate errors
-app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
-  if (isDev) {
-    // In development, ignore certificate errors
-    event.preventDefault();
-    callback(true);
-  } else {
-    // In production, use default behavior
-    callback(false);
+app.on(
+  'certificate-error',
+  (event, webContents, url, error, certificate, callback) => {
+    if (isDev) {
+      // In development, ignore certificate errors
+      event.preventDefault();
+      callback(true);
+    } else {
+      // In production, use default behavior
+      callback(false);
+    }
   }
-});
+);
 
 // IPC handlers
 ipcMain.handle('app-version', () => {

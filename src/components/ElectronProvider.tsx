@@ -44,11 +44,13 @@ export function useElectron() {
     isElectron,
     platform,
     version,
-    electronAPI: typeof window !== 'undefined' ? window.electronAPI : null
+    electronAPI: typeof window !== 'undefined' ? window.electronAPI : null,
   };
 }
 
-export function ElectronProvider({ children }: Readonly<{ children: React.ReactNode }>) {
+export function ElectronProvider({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   const { isElectron } = useElectron();
 
   useEffect(() => {
@@ -84,11 +86,11 @@ export function ElectronProvider({ children }: Readonly<{ children: React.ReactN
 }
 
 // Component to show different content based on platform
-export function PlatformAware({ 
-  web, 
-  desktop, 
-  children 
-}: Readonly<{ 
+export function PlatformAware({
+  web,
+  desktop,
+  children,
+}: Readonly<{
   web?: React.ReactNode;
   desktop?: React.ReactNode;
   children?: React.ReactNode;
@@ -117,7 +119,7 @@ export function useNotification() {
       if (Notification.permission === 'granted') {
         new Notification(title, { body });
       } else if (Notification.permission !== 'denied') {
-        Notification.requestPermission().then((permission) => {
+        Notification.requestPermission().then(permission => {
           if (permission === 'granted') {
             new Notification(title, { body });
           }

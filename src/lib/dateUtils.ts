@@ -14,7 +14,7 @@ export type DateLike = Date | string | number;
  */
 export function formatDate(date: DateLike, locale = 'es-ES'): string {
   const dateObj = date instanceof Date ? date : new Date(date);
-  
+
   return new Intl.DateTimeFormat(locale, {
     year: 'numeric',
     month: 'long',
@@ -30,7 +30,7 @@ export function formatDate(date: DateLike, locale = 'es-ES'): string {
  */
 export function formatDateTime(date: DateLike, locale = 'es-ES'): string {
   const dateObj = date instanceof Date ? date : new Date(date);
-  
+
   return new Intl.DateTimeFormat(locale, {
     year: 'numeric',
     month: 'long',
@@ -48,7 +48,7 @@ export function formatDateTime(date: DateLike, locale = 'es-ES'): string {
  */
 export function formatShortDate(date: DateLike, locale = 'es-ES'): string {
   const dateObj = date instanceof Date ? date : new Date(date);
-  
+
   return new Intl.DateTimeFormat(locale, {
     year: 'numeric',
     month: '2-digit',
@@ -68,13 +68,23 @@ export function daysBetween(
 ): number {
   const start = new Date(startDate);
   const end = new Date(endDate);
-  
+
   // Normalizar las fechas eliminando las horas, minutos y segundos
-  const normalizedStart = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-  const normalizedEnd = new Date(end.getFullYear(), end.getMonth(), end.getDate());
-  
+  const normalizedStart = new Date(
+    start.getFullYear(),
+    start.getMonth(),
+    start.getDate()
+  );
+  const normalizedEnd = new Date(
+    end.getFullYear(),
+    end.getMonth(),
+    end.getDate()
+  );
+
   // Diferencia en milisegundos
-  const diffTime = Math.abs(normalizedEnd.getTime() - normalizedStart.getTime());
+  const diffTime = Math.abs(
+    normalizedEnd.getTime() - normalizedStart.getTime()
+  );
   // Convertir a días
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }
@@ -135,13 +145,10 @@ export function getLastDayOfMonth(date: DateLike): Date {
  * @param date2 Segunda fecha
  * @returns true si ambas fechas representan el mismo día
  */
-export function isSameDay(
-  date1: DateLike,
-  date2: DateLike
-): boolean {
+export function isSameDay(date1: DateLike, date2: DateLike): boolean {
   const d1 = new Date(date1);
   const d2 = new Date(date2);
-  
+
   return (
     d1.getFullYear() === d2.getFullYear() &&
     d1.getMonth() === d2.getMonth() &&

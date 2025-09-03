@@ -68,7 +68,9 @@ export function calculateDiscountPercentage(
     throw new Error('El precio original debe ser mayor que cero');
   }
   if (discountedPrice > originalPrice) {
-    throw new Error('El precio con descuento no puede ser mayor que el original');
+    throw new Error(
+      'El precio con descuento no puede ser mayor que el original'
+    );
   }
   return ((originalPrice - discountedPrice) / originalPrice) * 100;
 }
@@ -124,12 +126,14 @@ export function sumWithPrecision(...numbers: number[]): number {
     const decimal = (num.toString().split('.')[1] || '').length;
     return Math.max(max, decimal);
   }, 0);
-  
+
   const factor = Math.pow(10, decimals);
-  
-  return numbers
-    .map(num => Math.round(num * factor))
-    .reduce((sum, num) => sum + num, 0) / factor;
+
+  return (
+    numbers
+      .map(num => Math.round(num * factor))
+      .reduce((sum, num) => sum + num, 0) / factor
+  );
 }
 
 /**

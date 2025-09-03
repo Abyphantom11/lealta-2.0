@@ -9,26 +9,23 @@ export async function GET(
 ) {
   try {
     console.log('🔍 API Historial Cliente - TEMPORARILY NO AUTH FOR TESTING');
-    
+
     // TEMPORAL: Usar valores reales de la base de datos para pruebas
     const userId = 'cmes3ga7g0002eygg8blcebct'; // ID real del superadmin
     const userRole = 'SUPERADMIN';
     const businessId = 'cmes3g9wd0000eyggpbqfl9r6'; // Business ID del superadmin
-    
+
     console.log('✅ Using hardcoded auth for testing:', {
       userId,
       userRole,
       businessId,
-      cedula: params.cedula
+      cedula: params.cedula,
     });
 
     const { cedula } = params;
-    
+
     if (!cedula) {
-      return NextResponse.json(
-        { error: 'Cédula requerida' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Cédula requerida' }, { status: 400 });
     }
 
     // Buscar cliente
@@ -40,20 +37,20 @@ export async function GET(
             empleado: {
               select: {
                 name: true,
-                email: true
-              }
+                email: true,
+              },
             },
             location: {
               select: {
-                name: true
-              }
-            }
+                name: true,
+              },
+            },
           },
           orderBy: {
-            registeredAt: 'desc'
-          }
-        }
-      }
+            registeredAt: 'desc',
+          },
+        },
+      },
     });
 
     if (!cliente) {
@@ -65,31 +62,40 @@ export async function GET(
 
     // Calcular estadísticas del cliente
     const totalConsumos = cliente.consumos.length;
-    const totalGastadoCalculado = cliente.consumos.reduce((sum, c) => sum + c.total, 0);
-    const totalPuntosGanados = cliente.consumos.reduce((sum, c) => sum + c.puntos, 0);
-    
+    const totalGastadoCalculado = cliente.consumos.reduce(
+      (sum, c) => sum + c.total,
+      0
+    );
+    const totalPuntosGanados = cliente.consumos.reduce(
+      (sum, c) => sum + c.puntos,
+      0
+    );
+
     // Último consumo
     const ultimoConsumo = cliente.consumos[0];
-    
+
     // Productos más consumidos
-    const productosConsumidos = cliente.consumos.reduce((acc, consumo) => {
-      if (Array.isArray(consumo.productos)) {
-        consumo.productos.forEach((producto: any) => {
-          const nombre = producto.nombre || 'Producto sin nombre';
-          const cantidad = producto.cantidad || 1;
-          
-          if (!acc[nombre]) {
-            acc[nombre] = 0;
-          }
-          acc[nombre] += cantidad;
-        });
-      }
-      return acc;
-    }, {} as Record<string, number>);
+    const productosConsumidos = cliente.consumos.reduce(
+      (acc, consumo) => {
+        if (Array.isArray(consumo.productos)) {
+          consumo.productos.forEach((producto: any) => {
+            const nombre = producto.nombre || 'Producto sin nombre';
+            const cantidad = producto.cantidad || 1;
+
+            if (!acc[nombre]) {
+              acc[nombre] = 0;
+            }
+            acc[nombre] += cantidad;
+          });
+        }
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
     // Top 5 productos
     const topProductos = Object.entries(productosConsumidos)
-      .sort(([,a], [,b]) => b - a)
+      .sort(([, a], [, b]) => b - a)
       .slice(0, 5)
       .map(([nombre, cantidad]) => ({ nombre, cantidad }));
 
@@ -104,25 +110,28 @@ export async function GET(
       tipo: consumo.ocrText?.startsWith('MANUAL:') ? 'MANUAL' : 'OCR',
       productos: Array.isArray(consumo.productos) ? consumo.productos : [],
       pagado: consumo.pagado,
-      metodoPago: consumo.metodoPago
+      metodoPago: consumo.metodoPago,
     }));
 
     // Estadísticas por mes (últimos 6 meses)
     const seiseMesesAtras = new Date();
     seiseMesesAtras.setMonth(seiseMesesAtras.getMonth() - 6);
-    
+
     const consumosPorMes = cliente.consumos
       .filter(c => c.registeredAt >= seiseMesesAtras)
-      .reduce((acc, consumo) => {
-        const mes = consumo.registeredAt.toISOString().substring(0, 7); // YYYY-MM
-        if (!acc[mes]) {
-          acc[mes] = { consumos: 0, total: 0, puntos: 0 };
-        }
-        acc[mes].consumos++;
-        acc[mes].total += consumo.total;
-        acc[mes].puntos += consumo.puntos;
-        return acc;
-      }, {} as Record<string, any>);
+      .reduce(
+        (acc, consumo) => {
+          const mes = consumo.registeredAt.toISOString().substring(0, 7); // YYYY-MM
+          if (!acc[mes]) {
+            acc[mes] = { consumos: 0, total: 0, puntos: 0 };
+          }
+          acc[mes].consumos++;
+          acc[mes].total += consumo.total;
+          acc[mes].puntos += consumo.puntos;
+          return acc;
+        },
+        {} as Record<string, any>
+      );
 
     return NextResponse.json({
       success: true,
@@ -137,31 +146,36 @@ export async function GET(
         totalGastado: cliente.totalGastado,
         defaultCount: cliente.defaultCount,
         riskLevel: cliente.riskLevel,
-        registeredAt: cliente.registeredAt
+        registeredAt: cliente.registeredAt,
       },
       estadisticas: {
         totalConsumos,
         totalGastadoCalculado,
         totalPuntosGanados,
-        promedioGasto: totalConsumos > 0 ? totalGastadoCalculado / totalConsumos : 0,
-        ultimoConsumo: ultimoConsumo ? {
-          fecha: ultimoConsumo.registeredAt,
-          total: ultimoConsumo.total,
-          puntos: ultimoConsumo.puntos
-        } : null,
+        promedioGasto:
+          totalConsumos > 0 ? totalGastadoCalculado / totalConsumos : 0,
+        ultimoConsumo: ultimoConsumo
+          ? {
+              fecha: ultimoConsumo.registeredAt,
+              total: ultimoConsumo.total,
+              puntos: ultimoConsumo.puntos,
+            }
+          : null,
         topProductos,
-        consumosPorMes
+        consumosPorMes,
       },
-      historial
+      historial,
     });
-
   } catch (error) {
     console.error('Error al obtener historial del cliente:', error);
-    
+
     return NextResponse.json(
-      { 
+      {
         error: 'Error interno del servidor',
-        details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+        details:
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : undefined,
       },
       { status: 500 }
     );

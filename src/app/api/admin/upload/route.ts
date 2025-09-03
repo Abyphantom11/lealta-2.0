@@ -9,10 +9,7 @@ export async function POST(request: NextRequest) {
     const file: File | null = data.get('file') as unknown as File;
 
     if (!file) {
-      return NextResponse.json(
-        { error: 'No file uploaded' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
     const bytes = await file.arrayBuffer();
@@ -22,7 +19,7 @@ export async function POST(request: NextRequest) {
     const timestamp = Date.now();
     const fileExtension = file.name.split('.').pop();
     const fileName = `${timestamp}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
-    
+
     // Guardar en la carpeta public/uploads
     const uploadDir = join(process.cwd(), 'public', 'uploads');
     const filePath = join(uploadDir, fileName);
@@ -40,9 +37,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       fileUrl: fileUrl,
-      fileName: fileName
+      fileName: fileName,
     });
-
   } catch (error) {
     console.error('Error uploading file:', error);
     return NextResponse.json(

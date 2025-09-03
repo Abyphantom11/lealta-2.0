@@ -8,30 +8,24 @@ export async function GET(request: NextRequest) {
   try {
     // Obtener datos de sesión
     const sessionCookie = request.cookies.get('session')?.value;
-    
+
     if (!sessionCookie) {
-      return NextResponse.json(
-        { error: 'No autenticado' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
     }
 
     // Parsear datos de la sesión
     const sessionData = JSON.parse(sessionCookie);
-    
+
     if (!sessionData.userId || !sessionData.sessionToken) {
-      return NextResponse.json(
-        { error: 'Sesión inválida' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 });
     }
 
     // Verificar usuario en base de datos
     const user = await prisma.user.findUnique({
-      where: { 
+      where: {
         id: sessionData.userId,
         sessionToken: sessionData.sessionToken,
-        isActive: true
+        isActive: true,
       },
       include: {
         business: {
@@ -40,10 +34,10 @@ export async function GET(request: NextRequest) {
             name: true,
             subdomain: true,
             subscriptionPlan: true,
-            isActive: true
-          }
-        }
-      }
+            isActive: true,
+          },
+        },
+      },
     });
 
     if (!user?.business?.isActive) {
@@ -55,10 +49,7 @@ export async function GET(request: NextRequest) {
 
     // Verificar expiración de sesión
     if (user.sessionExpires && user.sessionExpires < new Date()) {
-      return NextResponse.json(
-        { error: 'Sesión expirada' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Sesión expirada' }, { status: 401 });
     }
 
     // Verificar si el usuario está bloqueado
@@ -77,10 +68,9 @@ export async function GET(request: NextRequest) {
         name: user.name,
         role: user.role,
         businessId: user.businessId,
-        business: user.business
-      }
+        business: user.business,
+      },
     });
-
   } catch (error) {
     console.error('Error getting user data:', error);
     return NextResponse.json(

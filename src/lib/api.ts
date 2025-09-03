@@ -7,7 +7,7 @@ import { ApiResponse } from '@/types/common';
  * @returns Respuesta de la API tipada
  */
 export async function fetchAPI<T>(
-  url: string, 
+  url: string,
   options?: RequestInit
 ): Promise<ApiResponse<T>> {
   try {
@@ -16,7 +16,7 @@ export async function fetchAPI<T>(
         'Content-Type': 'application/json',
         ...options?.headers,
       },
-      ...options
+      ...options,
     });
 
     const data = await response.json();

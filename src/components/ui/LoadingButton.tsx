@@ -20,7 +20,7 @@ export default function LoadingButton({
   className = '',
   type = 'button',
   disabled = false,
-  onClick
+  onClick,
 }: LoadingButtonProps) {
   return (
     <motion.button

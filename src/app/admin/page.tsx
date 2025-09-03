@@ -2,17 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 
-// Función simple para obtener business ID en desarrollo
-function getCurrentBusinessId(): string {
-  // En desarrollo usar ID hardcodeado
-  if (process.env.NODE_ENV === 'development') {
-    return 'business_1';
-  }
-  // En producción también usar business_1 por ahora (hasta implementar auth completo)
-  return 'business_1';
-}
-
-const BUSINESS_ID = getCurrentBusinessId(); // Centralizado para fácil transición
+// ID de negocio centralizado para fácil transición futura
+const BUSINESS_ID = 'business_1';
 import { useRequireAuth } from '../../hooks/useAuth';
 import RoleSwitch from '../../components/RoleSwitch';
 import { MenuItem, MenuCategory, Cliente, StatsData } from '../../types/admin';
@@ -5229,69 +5220,81 @@ function TarjetaEditorComponent({
     return true;
   };
 
-  const handleSave = async () => {
-    if (editingCard) {
-      setSaving(true);
-      
-      // Asegurar que los valores vacíos se conviertan a 0 antes de guardar
-      const cardToSave = {
-        ...editingCard,
-        id: editingCard.id || `tarjeta_${editingCard.nivel}_${Date.now()}`,
-        condiciones: {
-          ...editingCard.condiciones,
-          puntosMinimos: editingCard.condiciones?.puntosMinimos === '' ? 0 : editingCard.condiciones?.puntosMinimos || 0,
-          gastosMinimos: editingCard.condiciones?.gastosMinimos === '' ? 0 : editingCard.condiciones?.gastosMinimos || 0,
-          visitasMinimas: editingCard.condiciones?.visitasMinimas === '' ? 0 : editingCard.condiciones?.visitasMinimas || 0,
-        }
-      };
-
-      try {
-        // Actualizar configuración local inmediatamente para UX rápida
-        const newTarjetas = [...(config.tarjetas || [])];
-        const existingIndex = newTarjetas.findIndex(
-          (t: any) => t.nivel === cardToSave.nivel
-        );
-
-        if (existingIndex >= 0) {
-          newTarjetas[existingIndex] = cardToSave;
-        } else {
-          newTarjetas.push(cardToSave);
-        }
-
-        setConfig({ ...config, tarjetas: newTarjetas });
-
-        // Persistir cambios en la base de datos/API
-        const response = await fetch('/api/admin/portal-config', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            ...config,
-            tarjetas: newTarjetas,
-            businessId: 'default',
-          }),
-        });
-
-        if (response.ok) {
-          showNotification(`✅ Tarjeta ${cardToSave.nivel} guardada correctamente`, 'success');
-          setEditingCard(null);
-        } else {
-          throw new Error('Error al guardar en el servidor');
-        }
-      } catch (error) {
-        console.error('Error guardando tarjeta:', error);
-        showNotification('❌ Error al guardar los cambios de la tarjeta', 'error');
-        // Revertir cambios locales en caso de error
-        const originalTarjeta = (config.tarjetas || []).find(
-          (t: any) => t.nivel === cardToSave.nivel
-        );
-        if (originalTarjeta) {
-          setEditingCard(originalTarjeta);
-        }
-      } finally {
-        setSaving(false);
+  // Función auxiliar para normalizar condiciones de tarjeta
+  const normalizeCardConditions = (card: any) => {
+    return {
+      ...card,
+      id: card.id || `tarjeta_${card.nivel}_${Date.now()}`,
+      condiciones: {
+        ...card.condiciones,
+        puntosMinimos: card.condiciones?.puntosMinimos === '' ? 0 : card.condiciones?.puntosMinimos || 0,
+        gastosMinimos: card.condiciones?.gastosMinimos === '' ? 0 : card.condiciones?.gastosMinimos || 0,
+        visitasMinimas: card.condiciones?.visitasMinimas === '' ? 0 : card.condiciones?.visitasMinimas || 0,
       }
+    };
+  };
+
+  // Función auxiliar para actualizar tarjetas localmente
+  const updateLocalCards = (cardToSave: any) => {
+    const newTarjetas = [...(config.tarjetas || [])];
+    const existingIndex = newTarjetas.findIndex(
+      (t: any) => t.nivel === cardToSave.nivel
+    );
+
+    if (existingIndex >= 0) {
+      newTarjetas[existingIndex] = cardToSave;
+    } else {
+      newTarjetas.push(cardToSave);
+    }
+
+    setConfig({ ...config, tarjetas: newTarjetas });
+    return newTarjetas;
+  };
+
+  // Función auxiliar para persistir cambios
+  const persistCardChanges = async (newTarjetas: any[]) => {
+    const response = await fetch('/api/admin/portal-config', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...config,
+        tarjetas: newTarjetas,
+        businessId: 'default',
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Error al guardar en el servidor');
+    }
+  };
+
+  const handleSave = async () => {
+    if (!editingCard) return;
+
+    setSaving(true);
+    
+    try {
+      const cardToSave = normalizeCardConditions(editingCard);
+      const newTarjetas = updateLocalCards(cardToSave);
+      await persistCardChanges(newTarjetas);
+      
+      showNotification(`✅ Tarjeta ${cardToSave.nivel} guardada correctamente`, 'success');
+      setEditingCard(null);
+    } catch (error) {
+      console.error('Error guardando tarjeta:', error);
+      showNotification('❌ Error al guardar los cambios de la tarjeta', 'error');
+      
+      // Revertir cambios locales en caso de error
+      const originalTarjeta = (config.tarjetas || []).find(
+        (t: any) => t.nivel === editingCard.nivel
+      );
+      if (originalTarjeta) {
+        setEditingCard(originalTarjeta);
+      }
+    } finally {
+      setSaving(false);
     }
   };
 

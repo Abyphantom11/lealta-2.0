@@ -23,7 +23,7 @@ export interface PortalConfig {
   eventos: EventoConfig[];
   recompensas: RecompensaConfig[];
   tarjetas: TarjetaConfig[];
-  favoritoDelDia: FavoritoDelDiaConfig | null;
+  favoritoDelDia: FavoritoDelDiaConfig[];
   [key: string]: any; // Para propiedades adicionales
 }
 
@@ -92,12 +92,15 @@ export interface TarjetaConfig {
 
 export interface FavoritoDelDiaConfig {
   id: string;
-  productoId: string;
-  nombreProducto: string;
-  descripcion: string;
+  dia: string; // Día de la semana (lunes, martes, etc.)
+  productoId?: string;
+  nombreProducto?: string;
+  descripcion?: string;
   imagenUrl?: string;
-  puntosExtra: number;
-  fecha: Date;
+  puntosExtra?: number;
+  horaPublicacion: string; // Hora específica de publicación
+  activo: boolean; // Estado activo/inactivo
+  fecha?: Date;
 }
 
 export interface ConfigSection {
@@ -122,10 +125,16 @@ export interface ConfigContextType {
   fetchConfig: () => Promise<void>;
   saveConfig: (config: PortalConfig) => Promise<ConfigOperationResult>;
   updateBanner: (banner: BannerConfig) => Promise<ConfigOperationResult>;
-  updatePromocion: (promocion: PromocionConfig) => Promise<ConfigOperationResult>;
+  updatePromocion: (
+    promocion: PromocionConfig
+  ) => Promise<ConfigOperationResult>;
   updateEvento: (evento: EventoConfig) => Promise<ConfigOperationResult>;
-  updateRecompensa: (recompensa: RecompensaConfig) => Promise<ConfigOperationResult>;
+  updateRecompensa: (
+    recompensa: RecompensaConfig
+  ) => Promise<ConfigOperationResult>;
   updateTarjeta: (tarjeta: TarjetaConfig) => Promise<ConfigOperationResult>;
-  updateFavoritoDia: (favorito: FavoritoDelDiaConfig) => Promise<ConfigOperationResult>;
+  updateFavoritoDia: (
+    favorito: FavoritoDelDiaConfig
+  ) => Promise<ConfigOperationResult>;
   uploadImage: (file: File, type: string, id?: string) => Promise<string>;
 }

@@ -3,10 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useRequireAuth } from '../../../hooks/useAuth';
-import { 
-  UserPlus, 
-  LogOut
-} from 'lucide-react';
+import { UserPlus, LogOut } from 'lucide-react';
 
 interface User {
   id: string;
@@ -30,7 +27,12 @@ interface CreateUserData {
 }
 
 export default function SuperAdminDashboard() {
-  const { user, loading: authLoading, logout, isAuthenticated } = useRequireAuth('SUPERADMIN');
+  const {
+    user,
+    loading: authLoading,
+    logout,
+    isAuthenticated,
+  } = useRequireAuth('SUPERADMIN');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -42,7 +44,7 @@ export default function SuperAdminDashboard() {
     email: '',
     password: '',
     name: '',
-    role: 'STAFF'
+    role: 'STAFF',
   });
 
   // Cargar usuarios
@@ -151,16 +153,20 @@ export default function SuperAdminDashboard() {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'SUPERADMIN': return 'bg-purple-100 text-purple-800';
-      case 'ADMIN': return 'bg-blue-100 text-blue-800';
-      case 'STAFF': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'SUPERADMIN':
+        return 'bg-purple-100 text-purple-800';
+      case 'ADMIN':
+        return 'bg-blue-100 text-blue-800';
+      case 'STAFF':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -175,8 +181,13 @@ export default function SuperAdminDashboard() {
         >
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-white mb-2">Dashboard SuperAdmin</h1>
-              <p className="text-blue-200">{user?.business?.name || 'Gestión completa de usuarios y negocio'}</p>
+              <h1 className="text-3xl font-bold text-white mb-2">
+                Dashboard SuperAdmin
+              </h1>
+              <p className="text-blue-200">
+                {user?.business?.name ||
+                  'Gestión completa de usuarios y negocio'}
+              </p>
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-right mr-4">
@@ -255,39 +266,59 @@ export default function SuperAdminDashboard() {
             animate={{ opacity: 1, height: 'auto' }}
             className="bg-white/10 backdrop-blur-md rounded-2xl p-6 mb-8"
           >
-            <h2 className="text-xl font-semibold text-white mb-4">Crear Nuevo Usuario</h2>
-            <form onSubmit={handleCreateUser} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <h2 className="text-xl font-semibold text-white mb-4">
+              Crear Nuevo Usuario
+            </h2>
+            <form
+              onSubmit={handleCreateUser}
+              className="grid grid-cols-1 md:grid-cols-2 gap-4"
+            >
               <div>
-                <label htmlFor="user-name" className="block text-white mb-2">Nombre</label>
+                <label htmlFor="user-name" className="block text-white mb-2">
+                  Nombre
+                </label>
                 <input
                   id="user-name"
                   type="text"
                   value={newUser.name}
-                  onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                  onChange={e =>
+                    setNewUser({ ...newUser, name: e.target.value })
+                  }
                   className="w-full px-4 py-2 rounded-lg bg-white/20 text-white placeholder-white/60 border border-white/30 focus:border-white/60 focus:outline-none"
                   placeholder="Nombre completo"
                   required
                 />
               </div>
               <div>
-                <label htmlFor="user-email" className="block text-white mb-2">Email</label>
+                <label htmlFor="user-email" className="block text-white mb-2">
+                  Email
+                </label>
                 <input
                   id="user-email"
                   type="email"
                   value={newUser.email}
-                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  onChange={e =>
+                    setNewUser({ ...newUser, email: e.target.value })
+                  }
                   className="w-full px-4 py-2 rounded-lg bg-white/20 text-white placeholder-white/60 border border-white/30 focus:border-white/60 focus:outline-none"
                   placeholder="usuario@empresa.com"
                   required
                 />
               </div>
               <div>
-                <label htmlFor="user-password" className="block text-white mb-2">Password</label>
+                <label
+                  htmlFor="user-password"
+                  className="block text-white mb-2"
+                >
+                  Password
+                </label>
                 <input
                   id="user-password"
                   type="password"
                   value={newUser.password}
-                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                  onChange={e =>
+                    setNewUser({ ...newUser, password: e.target.value })
+                  }
                   className="w-full px-4 py-2 rounded-lg bg-white/20 text-white placeholder-white/60 border border-white/30 focus:border-white/60 focus:outline-none"
                   placeholder="Mínimo 6 caracteres"
                   required
@@ -295,16 +326,27 @@ export default function SuperAdminDashboard() {
                 />
               </div>
               <div>
-                <label htmlFor="user-role" className="block text-white mb-2">Rol</label>
+                <label htmlFor="user-role" className="block text-white mb-2">
+                  Rol
+                </label>
                 <select
                   id="user-role"
                   value={newUser.role}
-                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value as 'ADMIN' | 'STAFF' })}
+                  onChange={e =>
+                    setNewUser({
+                      ...newUser,
+                      role: e.target.value as 'ADMIN' | 'STAFF',
+                    })
+                  }
                   className="w-full px-4 py-2 rounded-lg bg-white/20 text-white border border-white/30 focus:border-white/60 focus:outline-none"
                   required
                 >
-                  <option value="STAFF" className="text-black">Staff</option>
-                  <option value="ADMIN" className="text-black">Admin</option>
+                  <option value="STAFF" className="text-black">
+                    Staff
+                  </option>
+                  <option value="ADMIN" className="text-black">
+                    Admin
+                  </option>
                 </select>
               </div>
               <div className="md:col-span-2">
@@ -326,8 +368,10 @@ export default function SuperAdminDashboard() {
           animate={{ opacity: 1, y: 0 }}
           className="bg-white/10 backdrop-blur-md rounded-2xl p-6"
         >
-          <h2 className="text-xl font-semibold text-white mb-6">Usuarios del Sistema</h2>
-          
+          <h2 className="text-xl font-semibold text-white mb-6">
+            Usuarios del Sistema
+          </h2>
+
           {loading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
@@ -346,16 +390,23 @@ export default function SuperAdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((user) => (
-                    <tr key={user.id} className="border-b border-white/10 hover:bg-white/5">
+                  {users.map(user => (
+                    <tr
+                      key={user.id}
+                      className="border-b border-white/10 hover:bg-white/5"
+                    >
                       <td className="py-4 px-4">
                         <div>
                           <div className="font-medium">{user.name}</div>
-                          <div className="text-sm text-white/70">{user.email}</div>
+                          <div className="text-sm text-white/70">
+                            {user.email}
+                          </div>
                         </div>
                       </td>
                       <td className="py-4 px-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}
+                        >
                           {user.role}
                         </span>
                       </td>

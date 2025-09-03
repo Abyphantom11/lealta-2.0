@@ -8,7 +8,15 @@ import LoadingButton from './ui/LoadingButton';
 interface FormField {
   readonly name: string;
   readonly label: string;
-  readonly type: 'text' | 'email' | 'password' | 'tel' | 'number' | 'date' | 'textarea' | 'select';
+  readonly type:
+    | 'text'
+    | 'email'
+    | 'password'
+    | 'tel'
+    | 'number'
+    | 'date'
+    | 'textarea'
+    | 'select';
   readonly placeholder?: string;
   readonly required?: boolean;
   readonly options?: { value: string; label: string }[];
@@ -18,7 +26,9 @@ interface FormField {
 interface FormProps<T extends Record<string, any>> {
   readonly initialValues: T;
   readonly fields: FormField[];
-  readonly onSubmit: (values: T) => Promise<{ success: boolean; error?: string }>;
+  readonly onSubmit: (
+    values: T
+  ) => Promise<{ success: boolean; error?: string }>;
   readonly submitText: string;
   readonly loadingText?: string;
   readonly title?: string;
@@ -36,14 +46,18 @@ export default function Form<T extends Record<string, any>>({
   title,
   subtitle,
   className = '',
-  icon
+  icon,
 }: FormProps<T>) {
   const [values, setValues] = useState<T>(initialValues);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => {
     const { name, value } = e.target;
     setValues(prev => ({ ...prev, [name]: value }));
   };
@@ -56,7 +70,7 @@ export default function Form<T extends Record<string, any>>({
 
     try {
       const result = await onSubmit(values);
-      
+
       if (result.success) {
         setSuccess('Operación completada con éxito');
       } else {
@@ -74,7 +88,11 @@ export default function Form<T extends Record<string, any>>({
   const renderFieldInput = (
     field: FormField,
     values: Record<string, any>,
-    handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void
+    handleChange: (
+      e: React.ChangeEvent<
+        HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+      >
+    ) => void
   ) => {
     if (field.type === 'textarea') {
       return (
@@ -88,7 +106,7 @@ export default function Form<T extends Record<string, any>>({
         />
       );
     }
-    
+
     if (field.type === 'select') {
       return (
         <select
@@ -107,7 +125,7 @@ export default function Form<T extends Record<string, any>>({
         </select>
       );
     }
-    
+
     return (
       <input
         type={field.type}
@@ -124,7 +142,7 @@ export default function Form<T extends Record<string, any>>({
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className={`w-full ${className}`}
@@ -135,26 +153,20 @@ export default function Form<T extends Record<string, any>>({
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+              transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
               className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-primary-600 to-purple-600 rounded-full flex items-center justify-center"
             >
               {icon}
             </motion.div>
           )}
           {title && (
-            <h1 className="text-3xl font-bold text-white mb-2">
-              {title}
-            </h1>
+            <h1 className="text-3xl font-bold text-white mb-2">{title}</h1>
           )}
-          {subtitle && (
-            <p className="text-dark-400">
-              {subtitle}
-            </p>
-          )}
+          {subtitle && <p className="text-dark-400">{subtitle}</p>}
         </div>
       )}
 
-      <motion.form 
+      <motion.form
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.4 }}
@@ -164,13 +176,14 @@ export default function Form<T extends Record<string, any>>({
         {error && <AlertMessage type="error" message={error} />}
         {success && <AlertMessage type="success" message={success} />}
 
-        {fields.map((field) => (
+        {fields.map(field => (
           <div key={field.name}>
             <label className="block text-sm font-medium text-dark-300 mb-2">
               {field.icon && <span className="inline mr-2">{field.icon}</span>}
-              {field.label} {field.required && <span className="text-red-500">*</span>}
+              {field.label}{' '}
+              {field.required && <span className="text-red-500">*</span>}
             </label>
-            
+
             {renderFieldInput(field, values, handleChange)}
           </div>
         ))}

@@ -12,8 +12,9 @@ interface BeforeInstallPromptEvent extends Event {
 export default function ClientePortalPage() {
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  
+  const [deferredPrompt, setDeferredPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
+
   // Escuchar el evento beforeinstallprompt para PWA
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: BeforeInstallPromptEvent) => {
@@ -23,55 +24,76 @@ export default function ClientePortalPage() {
       setDeferredPrompt(e);
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt as EventListener);
+    window.addEventListener(
+      'beforeinstallprompt',
+      handleBeforeInstallPrompt as EventListener
+    );
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt as EventListener);
+      window.removeEventListener(
+        'beforeinstallprompt',
+        handleBeforeInstallPrompt as EventListener
+      );
     };
   }, []);
-  
+
   // Función para mostrar instrucciones según el dispositivo
   const showInstallInstructions = () => {
     let message = '';
     const userAgent = navigator.userAgent.toLowerCase();
-    
-    if (userAgent.includes('iphone') || userAgent.includes('ipad') || userAgent.includes('ipod')) {
-      message = 'En Safari, toca el botón "Compartir" y luego "Añadir a pantalla de inicio"';
+
+    if (
+      userAgent.includes('iphone') ||
+      userAgent.includes('ipad') ||
+      userAgent.includes('ipod')
+    ) {
+      message =
+        'En Safari, toca el botón "Compartir" y luego "Añadir a pantalla de inicio"';
     } else if (userAgent.includes('android') && userAgent.includes('chrome')) {
-      message = 'Toca el botón de menú (tres puntos) y selecciona "Añadir a pantalla de inicio" o "Instalar aplicación"';
+      message =
+        'Toca el botón de menú (tres puntos) y selecciona "Añadir a pantalla de inicio" o "Instalar aplicación"';
     } else if (userAgent.includes('opera')) {
-      message = 'Toca el botón + en la barra de dirección para agregar esta app a tu pantalla de inicio';
+      message =
+        'Toca el botón + en la barra de dirección para agregar esta app a tu pantalla de inicio';
     } else {
-      message = 'Toca el botón de opciones de tu navegador y selecciona "Añadir a pantalla de inicio" o "Instalar aplicación"';
+      message =
+        'Toca el botón de opciones de tu navegador y selecciona "Añadir a pantalla de inicio" o "Instalar aplicación"';
     }
-    
+
     // Mostrar las instrucciones en un mensaje
     setError(message);
     setTimeout(() => setError(''), 6000);
   };
-  
+
   // Función para intentar instalación manual con las APIs nativas del navegador
   const attemptManualInstall = () => {
     const userAgent = navigator.userAgent.toLowerCase();
-    
+
     try {
       // Para Safari en iOS
-      if (userAgent.includes('iphone') || userAgent.includes('ipad') || userAgent.includes('ipod')) {
+      if (
+        userAgent.includes('iphone') ||
+        userAgent.includes('ipad') ||
+        userAgent.includes('ipod')
+      ) {
         // Usar Web Share API si está disponible
         if (navigator.share) {
-          navigator.share({
-            title: 'Lealta 2.0',
-            text: 'Agregar Lealta 2.0 a tu pantalla de inicio',
-            url: window.location.href
-          })
-          .then(() => {
-            setInfo('Compartido exitosamente. Sigue las instrucciones para añadir a tu pantalla de inicio.');
-            setTimeout(() => setInfo(''), 5000);
-          })
-          .catch((error: Error) => {
-            console.error('Error al compartir:', error);
-            showInstallInstructions();
-          });
+          navigator
+            .share({
+              title: 'Lealta 2.0',
+              text: 'Agregar Lealta 2.0 a tu pantalla de inicio',
+              url: window.location.href,
+            })
+            .then(() => {
+              setInfo(
+                'Compartido exitosamente. Sigue las instrucciones para añadir a tu pantalla de inicio.'
+              );
+              setTimeout(() => setInfo(''), 5000);
+            })
+            .catch((error: Error) => {
+              console.error('Error al compartir:', error);
+              showInstallInstructions();
+            });
         } else {
           showInstallInstructions();
         }
@@ -83,20 +105,22 @@ export default function ClientePortalPage() {
       showInstallInstructions();
     }
   };
-  
+
   // Función para instalar la aplicación y mostrarla en la pantalla de inicio
   const installApp = () => {
     try {
       // Mostrar el diálogo de instalación si está disponible mediante PWA
       if (deferredPrompt) {
         deferredPrompt.prompt();
-        
+
         // Usar then para manejar la promesa de userChoice
         deferredPrompt.userChoice
-          .then((choiceResult: {outcome: string}) => {
+          .then((choiceResult: { outcome: string }) => {
             if (choiceResult.outcome === 'accepted') {
               console.log('El usuario aceptó instalar la app');
-              setInfo('¡Instalación exitosa! La app se ha añadido a tu pantalla de inicio');
+              setInfo(
+                '¡Instalación exitosa! La app se ha añadido a tu pantalla de inicio'
+              );
               // Limpiar el prompt guardado después de usarlo
               setDeferredPrompt(null);
               setTimeout(() => setInfo(''), 3000);
@@ -110,7 +134,9 @@ export default function ClientePortalPage() {
           })
           .catch((error: Error) => {
             console.error('Error al instalar la app:', error);
-            setError('No se pudo instalar la app. Intenta nuevamente más tarde.');
+            setError(
+              'No se pudo instalar la app. Intenta nuevamente más tarde.'
+            );
             setTimeout(() => setError(''), 3000);
           });
       } else {
@@ -132,7 +158,7 @@ export default function ClientePortalPage() {
             <Smartphone className="w-6 h-6 mr-2" />
             <span>Instala esta app para acceder más fácilmente</span>
           </div>
-          <button 
+          <button
             onClick={installApp}
             className="bg-white text-blue-600 px-3 py-1 rounded-md font-medium"
           >
@@ -140,20 +166,20 @@ export default function ClientePortalPage() {
           </button>
         </div>
       )}
-      
+
       {/* Mensajes de error o información */}
       {error && (
         <div className="fixed top-4 left-4 right-4 bg-red-500 p-3 rounded-md shadow-md z-50">
           {error}
         </div>
       )}
-      
+
       {info && (
         <div className="fixed top-4 left-4 right-4 bg-green-500 p-3 rounded-md shadow-md z-50">
           {info}
         </div>
       )}
-      
+
       {/* Aquí iría el resto del contenido de tu portal */}
     </div>
   );

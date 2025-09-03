@@ -37,16 +37,17 @@ export function AdminProvider({ children }: Readonly<{ children: ReactNode }>) {
   const config = useConfig();
 
   // Valor del contexto memoizado para evitar renderizados innecesarios
-  const value = React.useMemo(() => ({
-    menu,
-    clients,
-    stats,
-    config
-  }), [menu, clients, stats, config]);
+  const value = React.useMemo(
+    () => ({
+      menu,
+      clients,
+      stats,
+      config,
+    }),
+    [menu, clients, stats, config]
+  );
 
   return (
-    <AdminContext.Provider value={value}>
-      {children}
-    </AdminContext.Provider>
+    <AdminContext.Provider value={value}>{children}</AdminContext.Provider>
   );
 }
