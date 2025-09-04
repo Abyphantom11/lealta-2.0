@@ -40,8 +40,10 @@ export interface PortalConfig {
     facebook?: string;
     instagram?: string;
     twitter?: string;
+    [platform: string]: string | undefined; // Para otras redes sociales
   };
-  [key: string]: any; // Para propiedades adicionales
+  // Propiedades adicionales específicas del portal
+  [key: string]: string | number | boolean | object | null | undefined;
 }
 
 export interface ConfigSection {
@@ -64,5 +66,6 @@ export interface StatsData {
     dia: string;
     cantidad: number;
   }[];
-  [key: string]: any; // Para propiedades adicionales
+  // Propiedades adicionales de estadísticas
+  [key: string]: number | string | Array<{ nombre: string; cantidad: number }> | Array<{ dia: string; cantidad: number }> | undefined;
 }

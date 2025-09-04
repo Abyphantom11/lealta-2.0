@@ -6,7 +6,7 @@
 import fs from 'fs';
 import path from 'path';
 import { parse } from '@babel/parser';
-import traverse from '@babel/traverse';
+import traverse, { NodePath } from '@babel/traverse';
 import generate from '@babel/generator';
 import * as t from '@babel/types';
 
@@ -67,7 +67,7 @@ export async function extractComponents(
 
   // Recorrer el AST para encontrar componentes
   traverse(ast, {
-    FunctionDeclaration(path: any) {
+    FunctionDeclaration(path: NodePath<t.FunctionDeclaration>) {
       if (shouldExtractComponent(path.node, minLines, mode, componentNames)) {
         const componentName = path.node.id?.name || '';
         const componentCode = generate(path.node).code;
@@ -83,9 +83,9 @@ export async function extractComponents(
       }
     },
 
-    VariableDeclaration(path: any) {
+    VariableDeclaration(path: NodePath<t.VariableDeclaration>) {
       // Buscar declaraciones de variables que sean componentes funcionales
-      path.node.declarations.forEach((declaration: any) => {
+      path.node.declarations.forEach((declaration: t.VariableDeclarator) => {
         if (
           t.isVariableDeclarator(declaration) &&
           t.isIdentifier(declaration.id) &&
@@ -121,18 +121,21 @@ export async function extractComponents(
  * Determina si un nodo debe ser extraído como componente
  */
 function shouldExtractComponent(
-  node: any,
+  node: t.FunctionDeclaration | t.VariableDeclarator | t.Node,
   minLines: number,
   mode: 'auto' | 'manual',
   componentNames: string[]
 ): boolean {
   // En modo manual, solo extraer los componentes especificados
   if (mode === 'manual') {
-    const nodeName =
-      node.id?.name ||
-      (t.isVariableDeclarator(node) && t.isIdentifier(node.id)
-        ? node.id.name
-        : '');
+    let nodeName = '';
+    
+    if (t.isFunctionDeclaration(node) && node.id) {
+      nodeName = node.id.name;
+    } else if (t.isVariableDeclarator(node) && t.isIdentifier(node.id)) {
+      nodeName = node.id.name;
+    }
+    
     return componentNames.includes(nodeName);
   }
 
