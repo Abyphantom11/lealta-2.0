@@ -48,26 +48,11 @@ const DEFAULT_HEADERS = {
 };
 
 /**
- * Realiza una petición HTTP y maneja errores de forma consistente
- * @param url URL de la petición
- * @param options Opciones de la petición
- * @returns Respuesta de la API tipada
+ * Construye las opciones de fetch basadas en los parámetros
  */
-export async function apiRequest<T = unknown>(
-  url: string,
-  options?: RequestOptions
-): Promise<ApiResponse<T>> {
-  const {
-    method = 'GET',
-    headers = {},
-    body,
-    cache,
-    credentials,
-    signal,
-    tags,
-  } = options || {};
-
-  // Crear opciones de fetch
+function buildFetchOptions(options: RequestOptions): RequestInit {
+  const { method = 'GET', headers = {}, body, cache, credentials, signal } = options;
+  
   const fetchOptions: RequestInit = {
     method,
     headers: { ...DEFAULT_HEADERS, ...headers },
@@ -81,8 +66,76 @@ export async function apiRequest<T = unknown>(
     fetchOptions.body = typeof body === 'string' ? body : JSON.stringify(body);
   }
 
+  return fetchOptions;
+}
+
+/**
+ * Maneja la respuesta de fetch y parsea los datos
+ */
+async function handleResponse(response: Response, method: string, url: string, tags?: string[]) {
+  let data;
+  
   try {
-    // Registrar información de la petición en desarrollo
+    data = await response.json();
+  } catch (error: unknown) {
+    data = await response.text();
+    logger.debug('La respuesta no es JSON válido, usando texto plano', {
+      url,
+      method,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  // Registrar respuesta en desarrollo
+  if (process.env.NODE_ENV !== 'production') {
+    logger.debug(`API Response: ${method} ${url}`, {
+      status: response.status,
+      data,
+      tags,
+    });
+  }
+
+  return data;
+}
+
+/**
+ * Construye la respuesta estandarizada
+ */
+function buildApiResponse<T>(response: Response, data: unknown): ApiResponse<T> {
+  const result: ApiResponse<T> = {
+    success: response.ok,
+    status: response.status,
+    data: response.ok ? data as T : undefined,
+  };
+
+  if (!response.ok) {
+    result.error = {
+      code: (data as any)?.error?.code || `HTTP_${response.status}`,
+      message: (data as any)?.error?.message || (data as any)?.message || response.statusText,
+      details: (data as any)?.error?.details || data as Record<string, unknown> | string | Error | null,
+    };
+  }
+
+  return result;
+}
+
+/**
+ * Realiza una petición HTTP y maneja errores de forma consistente
+ * @param url URL de la petición
+ * @param options Opciones de la petición
+ * @returns Respuesta de la API tipada
+ */
+export async function apiRequest<T = unknown>(
+  url: string,
+  options: RequestOptions = {}
+): Promise<ApiResponse<T>> {
+  const { method = 'GET', tags } = options;
+
+  try {
+    // Construir opciones de fetch
+    const fetchOptions = buildFetchOptions(options);
+
+    // Log de petición en desarrollo
     if (process.env.NODE_ENV !== 'production') {
       logger.debug(`API Request: ${method} ${url}`, {
         body: fetchOptions.body,
@@ -92,46 +145,15 @@ export async function apiRequest<T = unknown>(
 
     // Ejecutar fetch
     const response = await fetch(url, fetchOptions);
-    let data;
-
-    try {
-      // Intentar parsear como JSON
-      data = await response.json();
-    } catch (error: unknown) {
-      // Si no es JSON, usar el texto como respuesta
-      data = await response.text();
-      logger.debug('La respuesta no es JSON válido, usando texto plano', {
-        url,
-        method,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-
-    // Registrar respuesta en desarrollo
-    if (process.env.NODE_ENV !== 'production') {
-      logger.debug(`API Response: ${method} ${url}`, {
-        status: response.status,
-        data,
-        tags,
-      });
-    }
-
+    
+    // Manejar respuesta y parsear datos
+    const data = await handleResponse(response, method, url, tags);
+    
     // Construir respuesta estandarizada
-    const result: ApiResponse<T> = {
-      success: response.ok,
-      status: response.status,
-      data: response.ok ? data : undefined,
-    };
+    const result = buildApiResponse<T>(response, data);
 
-    // Añadir información de error si no es exitosa
-    if (!response.ok) {
-      result.error = {
-        code: data?.error?.code || `HTTP_${response.status}`,
-        message: data?.error?.message || data?.message || response.statusText,
-        details: data?.error?.details || data,
-      };
-
-      // Registrar errores
+    // Log de errores
+    if (!response.ok && result.error) {
       logger.error(`API Error: ${method} ${url}`, {
         status: response.status,
         error: result.error,
@@ -143,8 +165,7 @@ export async function apiRequest<T = unknown>(
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
     const errorDetails = error instanceof Error ? error : { message: String(error) };
-    
-    // Manejar errores de red
+
     logger.error(`Network Error: ${method} ${url}`, {
       error: errorMessage,
       tags,

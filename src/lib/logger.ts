@@ -5,22 +5,11 @@
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'success';
 
-// Tipo para datos de log - acepta cualquier estructura serializable
-type LogData = 
-  | string 
-  | number 
-  | boolean 
-  | null 
-  | undefined
-  | Record<string, unknown>
-  | Array<unknown>
-  | Error;
-
 interface LogEntry {
   level: LogLevel;
   message: string;
   timestamp: string;
-  data?: LogData;
+  data?: unknown;
 }
 
 // Configuración del logger
@@ -62,7 +51,7 @@ function shouldLog(level: LogLevel): boolean {
 function createLogEntry(
   level: LogLevel,
   message: string,
-  data?: LogData
+  data?: unknown
 ): LogEntry {
   return {
     level,
@@ -73,87 +62,92 @@ function createLogEntry(
 }
 
 /**
- * Formatea un mensaje de log para la consola
+ * Guarda entrada de log (placeholder para futura integración con servicios)
  */
-function formatLogMessage(entry: LogEntry): string {
-  const { level, message, timestamp } = entry;
-  return `[${timestamp}] [${level.toUpperCase()}] ${message}`;
+function saveLogEntry(_entry: LogEntry): void {
+  // En el futuro aquí podríamos enviar logs a un servicio externo
+  // Por ahora es solo un placeholder
 }
 
 /**
- * Registra un mensaje de depuración (nivel más bajo)
+ * Log de debug - para información de desarrollo
  */
-export function debug(message: string, data?: LogData): void {
-  if (!shouldLog('debug')) return;
-
-  const entry = createLogEntry('debug', message, data);
-  console.debug(
-    `%c${formatLogMessage(entry)}`,
-    `color: ${config.colors.debug}`,
-    data || ''
-  );
+function debug(message: string, data?: unknown): void {
+  if (shouldLog('debug')) {
+    const entry = createLogEntry('debug', message, data);
+    
+    if (config.enabled) {
+      console.debug(`🐛 [DEBUG] ${message}`, data || '');
+    }
+    
+    saveLogEntry(entry);
+  }
 }
 
 /**
- * Registra un mensaje informativo
+ * Log de información general
  */
-export function info(message: string, data?: LogData): void {
-  if (!shouldLog('info')) return;
-
-  const entry = createLogEntry('info', message, data);
-  console.info(
-    `%c${formatLogMessage(entry)}`,
-    `color: ${config.colors.info}`,
-    data || ''
-  );
+function info(message: string, data?: unknown): void {
+  if (shouldLog('info')) {
+    const entry = createLogEntry('info', message, data);
+    
+    if (config.enabled) {
+      console.info(`ℹ️ [INFO] ${message}`, data || '');
+    }
+    
+    saveLogEntry(entry);
+  }
 }
 
 /**
- * Registra una advertencia
+ * Log de advertencias
  */
-export function warn(message: string, data?: LogData): void {
-  if (!shouldLog('warn')) return;
-
-  const entry = createLogEntry('warn', message, data);
-  console.warn(
-    `%c${formatLogMessage(entry)}`,
-    `color: ${config.colors.warn}`,
-    data || ''
-  );
+function warn(message: string, data?: unknown): void {
+  if (shouldLog('warn')) {
+    const entry = createLogEntry('warn', message, data);
+    
+    if (config.enabled) {
+      console.warn(`⚠️ [WARN] ${message}`, data || '');
+    }
+    
+    saveLogEntry(entry);
+  }
 }
 
 /**
- * Registra un error
+ * Log de errores
  */
-export function error(message: string, data?: LogData): void {
-  if (!shouldLog('error')) return;
-
-  const entry = createLogEntry('error', message, data);
-  console.error(
-    `%c${formatLogMessage(entry)}`,
-    `color: ${config.colors.error}`,
-    data || ''
-  );
+function error(message: string, data?: unknown): void {
+  if (shouldLog('error')) {
+    const entry = createLogEntry('error', message, data);
+    
+    if (config.enabled) {
+      console.error(`❌ [ERROR] ${message}`, data || '');
+    }
+    
+    saveLogEntry(entry);
+  }
 }
 
 /**
- * Registra un mensaje de éxito (mismo nivel que info)
+ * Log de éxito - para operaciones importantes completadas
  */
-export function success(message: string, data?: LogData): void {
-  if (!shouldLog('success')) return;
-
-  const entry = createLogEntry('success', message, data);
-  console.info(
-    `%c${formatLogMessage(entry)}`,
-    `color: ${config.colors.success}`,
-    data || ''
-  );
+function success(message: string, data?: unknown): void {
+  if (shouldLog('success')) {
+    const entry = createLogEntry('success', message, data);
+    
+    if (config.enabled) {
+      console.log(`✅ [SUCCESS] ${message}`, data || '');
+    }
+    
+    saveLogEntry(entry);
+  }
 }
 
 /**
  * Registra el tiempo de ejecución de una función
  */
-export function time<T>(name: string, fn: () => T): T {
+function time<T>(name: string, fn: () => T): T {
   if (!shouldLog('debug')) return fn();
 
   console.time(`⏱️ ${name}`);
@@ -165,7 +159,7 @@ export function time<T>(name: string, fn: () => T): T {
 /**
  * Registra el tiempo de ejecución de una función asíncrona
  */
-export async function timeAsync<T>(
+async function timeAsync<T>(
   name: string,
   fn: () => Promise<T>
 ): Promise<T> {
@@ -178,7 +172,7 @@ export async function timeAsync<T>(
 }
 
 // Exportar el objeto logger completo para facilitar la importación
-export default {
+const logger = {
   debug,
   info,
   warn,
@@ -187,3 +181,5 @@ export default {
   time,
   timeAsync,
 };
+
+export default logger;

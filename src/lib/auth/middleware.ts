@@ -255,6 +255,14 @@ export function withAuth(
 
     if (response) return response;
 
+    // Si llegamos aquí, user no debería ser null, pero agregamos verificación por seguridad
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Usuario no autenticado' },
+        { status: 401 }
+      );
+    }
+
     return handler(request, user);
   };
 }

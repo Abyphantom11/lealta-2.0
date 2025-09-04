@@ -118,6 +118,17 @@ export async function extractComponents(
 }
 
 /**
+ * Extrae el nombre de un nodo AST si es posible
+ */
+function getNodeName(node: t.FunctionDeclaration | t.VariableDeclarator | t.Node): string {
+  if ((t.isFunctionDeclaration(node) || t.isVariableDeclarator(node)) && 
+      node.id && t.isIdentifier(node.id)) {
+    return node.id.name;
+  }
+  return '';
+}
+
+/**
  * Determina si un nodo debe ser extraído como componente
  */
 function shouldExtractComponent(
@@ -128,14 +139,7 @@ function shouldExtractComponent(
 ): boolean {
   // En modo manual, solo extraer los componentes especificados
   if (mode === 'manual') {
-    let nodeName = '';
-    
-    if (t.isFunctionDeclaration(node) && node.id) {
-      nodeName = node.id.name;
-    } else if (t.isVariableDeclarator(node) && t.isIdentifier(node.id)) {
-      nodeName = node.id.name;
-    }
-    
+    const nodeName = getNodeName(node);
     return componentNames.includes(nodeName);
   }
 
