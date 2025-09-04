@@ -179,12 +179,21 @@ export async function getCurrentUser(
   }
 }
 
+// Tipo de retorno para el middleware de autenticación
+export type AuthMiddlewareResult = {
+  user: AuthUser;
+  response?: NextResponse;
+} | {
+  user: null;
+  response: NextResponse;
+};
+
 // Middleware principal de autenticación
 export async function authMiddleware(
   request: NextRequest,
   requiredRole?: string,
   requiredPermission?: string
-): Promise<{ user: AuthUser; response?: NextResponse }> {
+): Promise<AuthMiddlewareResult> {
   try {
     const user = await getCurrentUser(request);
 
@@ -211,7 +220,7 @@ export async function authMiddleware(
   } catch (error) {
     if (error instanceof AuthError) {
       return {
-        user: null as any,
+        user: null,
         response: NextResponse.json(
           { error: error.message },
           { status: error.statusCode }
@@ -220,7 +229,7 @@ export async function authMiddleware(
     }
 
     return {
-      user: null as any,
+      user: null,
       response: NextResponse.json(
         { error: 'Error de autenticación' },
         { status: 500 }
