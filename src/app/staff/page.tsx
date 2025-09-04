@@ -28,6 +28,104 @@ type NotificationType = {
   message: string;
 } | null;
 
+// Types for customer info
+interface CustomerInfo {
+  id: string;
+  nombre: string;
+  cedula: string;
+  puntos: number;
+  email?: string;
+  telefono?: string;
+  nivel?: string;
+  totalGastado?: number;
+  frecuencia?: string;
+  ultimaVisita?: string | null;
+}
+
+// Types for product data
+interface Product {
+  id?: string;
+  nombre: string;
+  precio: number;
+  cantidad: number;
+  categoria?: string;
+  name?: string; // Para compatibilidad con diferentes formatos
+  price?: number; // Para compatibilidad con diferentes formatos
+}
+
+interface EditableProduct {
+  name: string;
+  price: number;
+  line: string;
+}
+
+// Types for AI analysis results
+interface AnalysisProduct {
+  nombre: string;
+  precio: number;
+  cantidad: number;
+  categoria?: string;
+}
+
+interface AIAnalysis {
+  empleadoDetectado: string;
+  productos: AnalysisProduct[];
+  total: number;
+  confianza: number;
+}
+
+interface AIResult {
+  cliente: {
+    id: string;
+    nombre: string;
+    cedula: string;
+    puntos: number;
+  };
+  analisis: AIAnalysis;
+  metadata: {
+    businessId: string;
+    empleadoId: string;
+    imagenUrl: string;
+  };
+}
+
+// Types for recent tickets and stats
+interface RecentTicket {
+  id: string;
+  cliente: string;
+  cedula: string;
+  productos: string[];
+  total: number;
+  puntos: number;
+  fecha: string;
+  monto: number;
+  items: string[];
+  hora: string;
+  tipo?: string;
+}
+
+interface TodayStats {
+  ticketsProcessed: number;
+  totalPoints: number;
+  uniqueCustomers: number;
+  totalAmount: number;
+}
+
+// Types for consumption data
+interface ConsumoData {
+  id?: string;
+  cliente: string | {
+    cedula: string;
+    nombre: string;
+  };
+  cedula: string;
+  productos: Product[];
+  total: number;
+  puntos: number;
+  fecha: string;
+  tipo?: string;
+}
+
 export default function StaffPage() {
   const { user, loading, logout, isAuthenticated } = useRequireAuth('STAFF');
 
@@ -37,14 +135,14 @@ export default function StaffPage() {
   const [notification, setNotification] = useState<NotificationType>(null);
   const [preview, setPreview] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<ConsumoData | null>(null);
 
   // Estados para confirmación de IA
-  const [aiResult, setAiResult] = useState<any>(null);
+  const [aiResult, setAiResult] = useState<AIResult | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [editableData, setEditableData] = useState<{
     empleado: string;
-    productos: Array<{ name: string; price: number; line: string }>;
+    productos: EditableProduct[];
     total: number;
   } | null>(null);
 
@@ -67,10 +165,10 @@ export default function StaffPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Estados para UI mejorada (sin cámara)
-  const [customerInfo, setCustomerInfo] = useState<any>(null);
+  const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
   const [isSearchingCustomer, setIsSearchingCustomer] = useState(false);
-  const [recentTickets, setRecentTickets] = useState<any[]>([]);
-  const [todayStats, setTodayStats] = useState({
+  const [recentTickets, setRecentTickets] = useState<RecentTicket[]>([]);
+  const [todayStats, setTodayStats] = useState<TodayStats>({
     ticketsProcessed: 12,
     totalPoints: 256,
     uniqueCustomers: 8,
@@ -120,8 +218,8 @@ export default function StaffPage() {
         setCustomerInfo({
           cedula: cliente.cedula,
           nombre: cliente.nombre,
-          email: null, // La API actual no devuelve email, se puede extender
-          telefono: null, // La API actual no devuelve teléfono, se puede extender
+          email: undefined, // La API actual no devuelve email, se puede extender
+          telefono: undefined, // La API actual no devuelve teléfono, se puede extender
           puntos: cliente.puntos || 0,
           nivel: determineCustomerLevel(cliente.puntos || 0),
           ultimaVisita: null, // Se puede agregar a la API si se necesita
@@ -135,8 +233,8 @@ export default function StaffPage() {
         setCustomerInfo({
           cedula: cedulaValue,
           nombre: 'Cliente Nuevo',
-          email: null,
-          telefono: null,
+          email: undefined,
+          telefono: undefined,
           puntos: 0,
           nivel: 'Bronze',
           ultimaVisita: null,
@@ -243,7 +341,7 @@ export default function StaffPage() {
             hour: '2-digit',
             minute: '2-digit',
           }),
-          items: data.data.productos.map((p: any) => p.nombre),
+          items: data.data.productos.map((p: Product) => p.nombre),
           tipo: 'MANUAL',
         };
 
@@ -276,10 +374,10 @@ export default function StaffPage() {
       if (data.success && data.estadisticas.consumosRecientes) {
         const ticketsFormateados = data.estadisticas.consumosRecientes
           .slice(0, 5)
-          .map((consumo: any) => ({
+          .map((consumo: ConsumoData) => ({
             id: consumo.id,
-            cedula: consumo.cliente.cedula,
-            cliente: consumo.cliente.nombre,
+            cedula: typeof consumo.cliente === 'object' ? consumo.cliente.cedula : consumo.cedula,
+            cliente: typeof consumo.cliente === 'object' ? consumo.cliente.nombre : consumo.cliente,
             monto: consumo.total,
             puntos: consumo.puntos,
             hora: new Date(consumo.fecha).toLocaleTimeString('es-ES', {
@@ -287,7 +385,7 @@ export default function StaffPage() {
               minute: '2-digit',
             }),
             items: Array.isArray(consumo.productos)
-              ? consumo.productos.map((p: any) => p.nombre)
+              ? consumo.productos.map((p: Product) => p.nombre)
               : ['Productos procesados'],
             tipo: consumo.tipo,
           }));
@@ -591,7 +689,7 @@ export default function StaffPage() {
         setAiResult(data.data);
         setEditableData({
           empleado: data.data.analisis.empleadoDetectado || 'No detectado',
-          productos: data.data.analisis.productos.map((p: any) => ({
+          productos: data.data.analisis.productos.map((p: AnalysisProduct) => ({
             name: p.nombre,
             price: p.precio,
             line: `${p.nombre} x${p.cantidad} - $${p.precio.toFixed(2)}`
@@ -628,7 +726,7 @@ export default function StaffPage() {
         clienteId: aiResult.cliente.id,
         businessId: aiResult.metadata.businessId,
         empleadoId: aiResult.metadata.empleadoId,
-        productos: editableData.productos.map((p: any) => ({
+        productos: editableData.productos.map((p: EditableProduct) => ({
           nombre: p.name,
           cantidad: 1, // Por ahora asumimos cantidad 1
           precio: p.price,
@@ -676,7 +774,7 @@ export default function StaffPage() {
             hour: '2-digit',
             minute: '2-digit',
           }),
-          items: editableData.productos?.map((p: any) => p.name) || [],
+          items: editableData.productos?.map((p: EditableProduct) => p.name) || [],
           tipo: 'IA',
         };
 
@@ -1492,7 +1590,7 @@ export default function StaffPage() {
                         Productos detectados:
                       </h4>
                       <div className="space-y-1">
-                        {result.productos.map((item: any, index: number) => (
+                        {result.productos.map((item: Product, index: number) => (
                           <div
                             key={`${item.name || 'producto'}-${index}`}
                             className="flex justify-between text-sm"
@@ -1654,7 +1752,7 @@ export default function StaffPage() {
               <div className="mb-6">
                 <p className="text-gray-400 text-sm uppercase tracking-wider mb-3">Productos detectados</p>
                 <div className="bg-gray-900/50 rounded-lg border border-gray-600 overflow-hidden">
-                  {editableData.productos.map((p: any, i: number) => (
+                  {editableData.productos.map((p: EditableProduct, i: number) => (
                     <div key={`producto-${p.name}-${i}`} className="flex justify-between items-center py-3 px-4 border-b border-gray-700 last:border-b-0">
                       <span className="text-gray-300 flex items-center">
                         <span className="w-2 h-2 bg-green-400 rounded-full mr-3"></span>
