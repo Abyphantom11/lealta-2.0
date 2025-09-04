@@ -5,11 +5,22 @@
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'success';
 
+// Tipo para datos de log - acepta cualquier estructura serializable
+type LogData = 
+  | string 
+  | number 
+  | boolean 
+  | null 
+  | undefined
+  | Record<string, unknown>
+  | Array<unknown>
+  | Error;
+
 interface LogEntry {
   level: LogLevel;
   message: string;
   timestamp: string;
-  data?: any;
+  data?: LogData;
 }
 
 // Configuración del logger
@@ -51,7 +62,7 @@ function shouldLog(level: LogLevel): boolean {
 function createLogEntry(
   level: LogLevel,
   message: string,
-  data?: any
+  data?: LogData
 ): LogEntry {
   return {
     level,
@@ -72,7 +83,7 @@ function formatLogMessage(entry: LogEntry): string {
 /**
  * Registra un mensaje de depuración (nivel más bajo)
  */
-export function debug(message: string, data?: any): void {
+export function debug(message: string, data?: LogData): void {
   if (!shouldLog('debug')) return;
 
   const entry = createLogEntry('debug', message, data);
@@ -86,7 +97,7 @@ export function debug(message: string, data?: any): void {
 /**
  * Registra un mensaje informativo
  */
-export function info(message: string, data?: any): void {
+export function info(message: string, data?: LogData): void {
   if (!shouldLog('info')) return;
 
   const entry = createLogEntry('info', message, data);
@@ -100,7 +111,7 @@ export function info(message: string, data?: any): void {
 /**
  * Registra una advertencia
  */
-export function warn(message: string, data?: any): void {
+export function warn(message: string, data?: LogData): void {
   if (!shouldLog('warn')) return;
 
   const entry = createLogEntry('warn', message, data);
@@ -114,7 +125,7 @@ export function warn(message: string, data?: any): void {
 /**
  * Registra un error
  */
-export function error(message: string, data?: any): void {
+export function error(message: string, data?: LogData): void {
   if (!shouldLog('error')) return;
 
   const entry = createLogEntry('error', message, data);
@@ -128,7 +139,7 @@ export function error(message: string, data?: any): void {
 /**
  * Registra un mensaje de éxito (mismo nivel que info)
  */
-export function success(message: string, data?: any): void {
+export function success(message: string, data?: LogData): void {
   if (!shouldLog('success')) return;
 
   const entry = createLogEntry('success', message, data);
