@@ -8,11 +8,22 @@ import { logger } from './';
 // Tipos de método HTTP
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD';
 
+// Tipos de body para peticiones
+export type RequestBody = 
+  | string 
+  | number 
+  | boolean 
+  | null 
+  | Array<unknown> 
+  | Record<string, unknown>
+  | FormData
+  | Blob;
+
 // Opciones para peticiones HTTP
 export interface RequestOptions {
   method?: HttpMethod;
   headers?: Record<string, string>;
-  body?: any;
+  body?: RequestBody;
   cache?: RequestCache;
   credentials?: RequestCredentials;
   signal?: AbortSignal;
@@ -20,13 +31,13 @@ export interface RequestOptions {
 }
 
 // Tipos de respuesta de API
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: {
     code: string;
     message: string;
-    details?: any;
+    details?: Record<string, unknown> | string | Error | null;
   };
   status: number;
 }
@@ -42,7 +53,7 @@ const DEFAULT_HEADERS = {
  * @param options Opciones de la petición
  * @returns Respuesta de la API tipada
  */
-export async function apiRequest<T = any>(
+export async function apiRequest<T = unknown>(
   url: string,
   options?: RequestOptions
 ): Promise<ApiResponse<T>> {
@@ -129,10 +140,13 @@ export async function apiRequest<T = any>(
     }
 
     return result;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+    const errorDetails = error instanceof Error ? error : { message: String(error) };
+    
     // Manejar errores de red
     logger.error(`Network Error: ${method} ${url}`, {
-      error: error.message,
+      error: errorMessage,
       tags,
     });
 
@@ -141,8 +155,8 @@ export async function apiRequest<T = any>(
       status: 0,
       error: {
         code: 'NETWORK_ERROR',
-        message: error.message || 'Error de conexión',
-        details: error,
+        message: errorMessage || 'Error de conexión',
+        details: errorDetails,
       },
     };
   }
@@ -152,39 +166,39 @@ export async function apiRequest<T = any>(
  * Atajos para métodos HTTP comunes
  */
 
-export function get<T = any>(
+export function get<T = unknown>(
   url: string,
   options?: Omit<RequestOptions, 'method'>
 ): Promise<ApiResponse<T>> {
   return apiRequest<T>(url, { ...options, method: 'GET' });
 }
 
-export function post<T = any>(
+export function post<T = unknown>(
   url: string,
-  body?: any,
+  body?: RequestBody,
   options?: Omit<RequestOptions, 'method' | 'body'>
 ): Promise<ApiResponse<T>> {
   return apiRequest<T>(url, { ...options, method: 'POST', body });
 }
 
-export function put<T = any>(
+export function put<T = unknown>(
   url: string,
-  body?: any,
+  body?: RequestBody,
   options?: Omit<RequestOptions, 'method' | 'body'>
 ): Promise<ApiResponse<T>> {
   return apiRequest<T>(url, { ...options, method: 'PUT', body });
 }
 
-export function del<T = any>(
+export function del<T = unknown>(
   url: string,
   options?: Omit<RequestOptions, 'method'>
 ): Promise<ApiResponse<T>> {
   return apiRequest<T>(url, { ...options, method: 'DELETE' });
 }
 
-export function patch<T = any>(
+export function patch<T = unknown>(
   url: string,
-  body?: any,
+  body?: RequestBody,
   options?: Omit<RequestOptions, 'method' | 'body'>
 ): Promise<ApiResponse<T>> {
   return apiRequest<T>(url, { ...options, method: 'PATCH', body });
