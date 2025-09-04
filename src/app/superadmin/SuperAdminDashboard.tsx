@@ -118,6 +118,103 @@ interface CreateUserData {
   role: 'ADMIN' | 'STAFF';
 }
 
+// Additional interfaces for dashboard data
+interface ClienteHistorial {
+  id: string;
+  nombre: string;
+  cedula: string;
+  email?: string;
+  telefono?: string;
+  puntos: number;
+  totalGastado: number;
+  totalVisitas: number;
+  ultimaVisita?: string;
+  consumos: ConsumoHistorial[];
+  // Propiedades adicionales basadas en el uso real
+  cliente?: {
+    nombre: string;
+    cedula: string;
+    correo?: string;
+    telefono?: string;
+    puntos: number;
+    tarjetaLealtad?: {
+      nivel: string;
+      fechaAsignacion: string;
+    };
+  };
+  estadisticas?: {
+    totalConsumos: number;
+    totalGastadoCalculado: number;
+    promedioGasto: number;
+    totalPuntosGanados: number;
+    topProductos: ProductoConsumo[];
+  };
+  historial?: ConsumoHistorial[];
+}
+
+interface ConsumoHistorial {
+  id: string;
+  fecha: string;
+  total: number;
+  puntos: number;
+  productos: ProductoConsumo[];
+  empleado?: string;
+  tipo?: string;
+}
+
+interface ProductoConsumo {
+  id?: string;
+  nombre: string;
+  cantidad: number;
+  precio: number;
+  categoria?: string;
+}
+
+interface ClienteTransaccion {
+  id: string;
+  nombre: string;
+  cedula: string;
+  puntos: number;
+  totalGastado: number;
+  totalVisitas: number;
+  ultimaVisita: string;
+  consumos?: ConsumoHistorial[];
+}
+
+interface DatosGrafico {
+  labels: string[];
+  datasets: Array<{
+    label: string;
+    data: number[];
+    borderColor: string;
+    backgroundColor: string;
+    tension?: number;
+  }>;
+  // Propiedades adicionales basadas en el uso real
+  resumen?: {
+    totalIngresos: number;
+    totalTransacciones: number;
+    maxValor: number;
+    promedioPorPeriodo: number;
+  };
+  datos?: ItemGrafico[];
+}
+
+interface TopProductStats {
+  nombre?: string;
+  name?: string;
+  sales: number;
+  revenue: number;
+  trend: string;
+}
+
+interface ItemGrafico {
+  valor: number;
+  label: string;
+  meta?: string;
+  transacciones?: number;
+}
+
 export default function SuperAdminPage() {
   const { user, loading, logout, isAuthenticated } =
     useRequireAuth('SUPERADMIN');
@@ -129,25 +226,25 @@ export default function SuperAdminPage() {
   const [analytics, setAnalytics] = useState<SuperAdminAnalytics | null>(null);
   const [selectedClienteHistorial, setSelectedClienteHistorial] =
     useState<string>('');
-  const [clienteHistorial, setClienteHistorial] = useState<any>(null);
+  const [clienteHistorial, setClienteHistorial] = useState<ClienteHistorial | null>(null);
   const [isLoadingHistorial, setIsLoadingHistorial] = useState(false);
 
   // Estados para el nuevo historial automático
   const [clientesConTransacciones, setClientesConTransacciones] = useState<
-    any[]
+    ClienteTransaccion[]
   >([]);
   const [isLoadingClientes, setIsLoadingClientes] = useState(false);
   const [expandedClienteId, setExpandedClienteId] = useState<string | null>(
     null
   );
-  const [clienteDetalles, setClienteDetalles] = useState<any>(null);
+  const [clienteDetalles, setClienteDetalles] = useState<ClienteHistorial | null>(null);
   const [showClienteDetalles, setShowClienteDetalles] = useState(false);
 
   // Estados para el gráfico de ingresos
   const [tipoGrafico, setTipoGrafico] = useState<
     'semana' | 'mes' | 'semestre' | 'año'
   >('semana');
-  const [datosGrafico, setDatosGrafico] = useState<any>(null);
+  const [datosGrafico, setDatosGrafico] = useState<DatosGrafico | null>(null);
   const [isLoadingGrafico, setIsLoadingGrafico] = useState(false);
   const [filtroMes, setFiltroMes] = useState<string>(''); // Formato: 2025-08
   const [filtroAño, setFiltroAño] = useState<string>(''); // Formato: 2025
@@ -298,7 +395,7 @@ export default function SuperAdminPage() {
           dailyTransactions: stats.resumen.totalConsumos,
           topProducts:
             stats.topProducts && stats.topProducts.length > 0
-              ? stats.topProducts.map((p: any) => ({
+              ? stats.topProducts.map((p: TopProductStats) => ({
                   name: p.nombre || p.name,
                   sales: p.sales,
                   revenue: p.revenue,
@@ -358,7 +455,7 @@ export default function SuperAdminPage() {
       if (data.success) {
         // Filtrar solo clientes que tienen al menos un consumo
         const clientesConConsumos = data.estadisticas.topClientes.filter(
-          (cliente: any) => cliente.totalGastado > 0 || cliente.totalVisitas > 1
+          (cliente: ClienteTransaccion) => cliente.totalGastado > 0 || cliente.totalVisitas > 1
         );
         setClientesConTransacciones(clientesConConsumos);
       }
@@ -408,7 +505,7 @@ export default function SuperAdminPage() {
 
         if (data.success) {
           const clienteEncontrado = data.estadisticas.topClientes.find(
-            (cliente: any) =>
+            (cliente: ClienteTransaccion) =>
               cliente.nombre.toLowerCase().includes(termino.toLowerCase())
           );
 
@@ -1017,7 +1114,7 @@ export default function SuperAdminPage() {
                           {/* Contenedor del gráfico */}
                           <div className="ml-8 h-full flex items-end justify-between space-x-1">
                             {datosGrafico.datos.map(
-                              (item: any, index: number) => {
+                              (item: ItemGrafico, index: number) => {
                                 const maxValor =
                                   datosGrafico.resumen.maxValor || 1;
                                 const altura =
@@ -1593,7 +1690,7 @@ export default function SuperAdminPage() {
                         {/* Lista de Transacciones */}
                         <div className="space-y-3 max-h-64 overflow-y-auto">
                           {clienteHistorial.historial?.map(
-                            (consumo: any, index: number) => (
+                            (consumo: ConsumoHistorial, index: number) => (
                               <div
                                 key={`${consumo.id}-${index}`}
                                 className="bg-gray-700/30 rounded-lg p-4"
@@ -1628,7 +1725,7 @@ export default function SuperAdminPage() {
                                         <p className="text-gray-300 text-sm mt-1">
                                           {consumo.productos
                                             .map(
-                                              (p: any) =>
+                                              (p: ProductoConsumo) =>
                                                 `${p.nombre} (${p.cantidad})`
                                             )
                                             .join(', ')}
@@ -1823,7 +1920,7 @@ export default function SuperAdminPage() {
                       </h3>
                       <div className="space-y-2">
                         {clienteDetalles.estadisticas.topProductos.map(
-                          (producto: any, index: number) => (
+                          (producto: ProductoConsumo, index: number) => (
                             <div
                               key={`producto-${producto.nombre}-${index}`}
                               className="flex justify-between items-center bg-gray-700/50 rounded p-2"
