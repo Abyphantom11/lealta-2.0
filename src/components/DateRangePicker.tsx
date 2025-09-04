@@ -36,7 +36,7 @@ export default function DateRangePicker({
   onRangeChange, 
   showComparison = false,
   onComparisonToggle 
-}: DateRangePickerProps) {
+}: Readonly<DateRangePickerProps>) {
   const [isOpen, setIsOpen] = useState(false);
   const [comparisonEnabled, setComparisonEnabled] = useState(false);
 

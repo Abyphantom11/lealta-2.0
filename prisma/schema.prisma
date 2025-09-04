@@ -36,6 +36,7 @@ model Business {
   clientes   Cliente[] @relation("BusinessClientes")
   locations  Location[] @relation("BusinessLocations")
   consumos   Consumo[] @relation("BusinessConsumos")
+  goals      BusinessGoals? @relation("BusinessGoals")
   // portalConfig PortalConfig? @relation("BusinessPortalConfig") // Removido temporalmente
   menuCategories MenuCategory[] @relation("BusinessMenuCategories")
 }
@@ -273,4 +274,46 @@ model ConfiguracionTarjeta {
   updatedAt         DateTime @updatedAt
   
   @@unique([businessId, nivel])
+}
+
+model BusinessGoals {
+  id          String   @id @default(cuid())
+  businessId  String   // FK a Business
+  
+  // Metas de Ingresos
+  dailyRevenue    Float @default(100)    // Meta diaria de ingresos
+  weeklyRevenue   Float @default(700)    // Meta semanal de ingresos
+  monthlyRevenue  Float @default(3000)   // Meta mensual de ingresos
+  
+  // Metas de Clientes
+  dailyClients    Int @default(5)        // Meta diaria de clientes únicos
+  weeklyClients   Int @default(25)       // Meta semanal de clientes únicos
+  monthlyClients  Int @default(100)      // Meta mensual de clientes únicos
+  
+  // Metas de Transacciones
+  dailyTransactions    Int @default(8)   // Meta diaria de transacciones
+  weeklyTransactions   Int @default(50)  // Meta semanal de transacciones
+  monthlyTransactions  Int @default(200) // Meta mensual de transacciones
+  
+  // Metas de Ticket Promedio
+  targetTicketAverage  Float @default(20) // Meta de ticket promedio
+  
+  // Metas de Retención y Conversión
+  targetRetentionRate  Float @default(70) // Meta de retención (%)
+  targetConversionRate Float @default(80) // Meta de conversión (%)
+  
+  // Meta de Cliente Top
+  targetTopClient      Float @default(150) // Meta de gasto del mejor cliente
+  
+  // Meta de Clientes Activos
+  targetActiveClients  Int @default(50)   // Meta de clientes activos por mes
+  
+  // Metadatos
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relaciones
+  business Business @relation("BusinessGoals", fields: [businessId], references: [id], onDelete: Cascade)
+  
+  @@unique([businessId])
 }

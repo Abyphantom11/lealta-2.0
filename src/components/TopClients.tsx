@@ -78,7 +78,7 @@ const getTendenciaClasses = (tendencia: string) => {
   return 'bg-gray-500/20 text-gray-400';
 };
 
-export default function TopClients({ clients, isLoading = false, periodo = 'mes' }: TopClientsProps) {
+export default function TopClients({ clients, isLoading = false, periodo = 'mes' }: Readonly<TopClientsProps>) {
   if (isLoading) {
     return (
       <div className="bg-gray-900/60 backdrop-blur-sm rounded-2xl p-6 border border-gray-800/50 shadow-2xl">
@@ -87,8 +87,8 @@ export default function TopClients({ clients, isLoading = false, periodo = 'mes'
           Top Clientes
         </h2>
         <div className="space-y-4">
-          {[...Array(5)].map((_, i) => (
-            <div key={`loading-skeleton-${i}`} className="animate-pulse">
+          {Array.from({ length: 5 }, (_, i) => (
+            <div key={`skeleton-${i + 1}`} className="animate-pulse">
               <div className="flex items-center space-x-4 p-4 bg-black/20 rounded-xl">
                 <div className="w-12 h-12 bg-gray-700 rounded-xl"></div>
                 <div className="flex-1 space-y-2">
@@ -133,7 +133,7 @@ export default function TopClients({ clients, isLoading = false, periodo = 'mes'
             key={client.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 * index }}
+            transition={{ delay: 0.1 * (parseInt(client.id.slice(-1)) || index) }}
             className="group"
           >
             <div className="flex items-center justify-between p-4 bg-black/20 rounded-xl border border-gray-800/30 hover:border-gray-700/50 hover:bg-black/30 transition-all">

@@ -131,7 +131,7 @@ const MetricCard = ({ title, icon: Icon, data, color, subtitle, delay = 0 }: Met
   );
 };
 
-export default function AdvancedMetrics({ data }: AdvancedMetricsProps) {
+export default function AdvancedMetrics({ data }: Readonly<AdvancedMetricsProps>) {
   // Valores por defecto si data es undefined
   const defaultMetricValue: MetricData = { 
     current: 0, 

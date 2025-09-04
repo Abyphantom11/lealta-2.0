@@ -15,10 +15,12 @@ import {
   LogOut,
   Trash2,
   Eye,
+  Settings,
 } from 'lucide-react';
 import DateRangePicker from '../../components/DateRangePicker';
 import AdvancedMetrics from '../../components/AdvancedMetrics';
 import TopClients from '../../components/TopClients';
+import GoalsConfigurator from '../../components/GoalsConfigurator';
 
 // Estilos CSS para dark theme en calendarios
 const calendarStyles = `
@@ -162,12 +164,15 @@ export default function SuperAdminPage() {
   });
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   
+  // Estado para configuración de metas
+  const [showGoalsConfigurator, setShowGoalsConfigurator] = useState(false);
+  
   // Estado para datos de estadísticas
   const [statsData, setStatsData] = useState<any>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
   
   // Estado para el selector de fechas
-  const [selectedDateRange, setSelectedDateRange] = useState('today');
+  const [selectedDateRange, setSelectedDateRange] = useState('7days');
 
   // Definir las funciones con useCallback primero
   const fetchEstadisticas = useCallback(async () => {
@@ -220,13 +225,14 @@ export default function SuperAdminPage() {
       if (activeTab === 'overview' || activeTab === 'analytics') {
         fetchAnalytics();
         fetchGraficoDatos();
+        fetchEstadisticas(); // Agregar esta línea para cargar las estadísticas del período
       } else if (activeTab === 'users') {
         fetchUsers();
       } else if (activeTab === 'historial') {
         fetchClientesConTransacciones();
       }
     }
-  }, [activeTab, isAuthenticated, tipoGrafico, fetchGraficoDatos]);
+  }, [activeTab, isAuthenticated, tipoGrafico, fetchGraficoDatos, fetchEstadisticas]);
 
   // Effect separado para recargar cuando cambien los filtros específicos
   useEffect(() => {
@@ -244,6 +250,28 @@ export default function SuperAdminPage() {
       fetchEstadisticas();
     }
   }, [selectedDateRange, activeTab, isAuthenticated, fetchEstadisticas]);
+
+  // Cargar datos inmediatamente al montar el componente
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchEstadisticas();
+      fetchAnalytics();
+    }
+  }, [isAuthenticated, fetchEstadisticas]);
+
+  // Listener para eventos de actualización de metas
+  useEffect(() => {
+    const handleGoalsUpdateEvent = () => {
+      console.log('🎯 Metas actualizadas, refrescando dashboard...');
+      fetchEstadisticas();
+    };
+
+    window.addEventListener('goalsUpdated', handleGoalsUpdateEvent);
+    
+    return () => {
+      window.removeEventListener('goalsUpdated', handleGoalsUpdateEvent);
+    };
+  }, [fetchEstadisticas]);
 
   const fetchAnalytics = async (periodo: string = '7days') => {
     try {
@@ -324,7 +352,7 @@ export default function SuperAdminPage() {
   const fetchClientesConTransacciones = async () => {
     setIsLoadingClientes(true);
     try {
-      const response = await fetch('/api/admin/estadisticas/?periodo=30days');
+      const response = await fetch('/api/admin/estadisticas/?periodo=7days');
       const data = await response.json();
 
       if (data.success) {
@@ -375,7 +403,7 @@ export default function SuperAdminPage() {
         await fetchClienteHistorial(termino);
       } else {
         // Buscar por nombre en la lista de clientes
-        const response = await fetch('/api/admin/estadisticas/?periodo=30days');
+        const response = await fetch('/api/admin/estadisticas/?periodo=7days');
         const data = await response.json();
 
         if (data.success) {
@@ -488,6 +516,11 @@ export default function SuperAdminPage() {
       console.error('Error activating user:', error);
       alert('Error al activar usuario');
     }
+  };
+
+  const handleGoalsSave = async () => {
+    // Refrescar las estadísticas para mostrar las nuevas metas
+    await fetchEstadisticas();
   };
 
   const renderUserTableContent = () => {
@@ -1827,6 +1860,13 @@ export default function SuperAdminPage() {
                   Analytics Dashboard
                 </h2>
                 <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => setShowGoalsConfigurator(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl"
+                  >
+                    <Settings className="w-4 h-4" />
+                    Configurar Metas
+                  </button>
                   <DateRangePicker 
                     selectedRange={selectedDateRange}
                     onRangeChange={setSelectedDateRange}
@@ -1972,6 +2012,14 @@ export default function SuperAdminPage() {
             </motion.div>
           )}
       </div>
+
+      {/* Modal de Configuración de Metas */}
+      {showGoalsConfigurator && (
+        <GoalsConfigurator
+          onClose={() => setShowGoalsConfigurator(false)}
+          onSave={handleGoalsSave}
+        />
+      )}
     </div>
   );
 }

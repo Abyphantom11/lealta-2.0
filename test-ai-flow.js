@@ -101,6 +101,7 @@ async function checkServer() {
     }
   } catch (error) {
     console.log('❌ El servidor no está corriendo. Ejecuta: npm run dev');
+    console.error('Error de conexión:', error.message);
     return false;
   }
 }
