@@ -6,22 +6,44 @@
 import { useState, useCallback, FormEvent, ChangeEvent } from 'react';
 import { notificationService } from './';
 
+// Tipos base para valores de formulario
+export type FormValue = string | number | boolean | null | undefined | Date | File | Array<unknown>;
+
 // Tipos para validación de campos
-export type ValidationRule<T = any> = (
+export type ValidationRule<T = FormValue> = (
   value: T,
-  formValues?: Record<string, any>
+  formValues?: Record<string, FormValue>
 ) => string | null;
-export type FieldValidations<T = Record<string, any>> = {
+
+export type FieldValidations<T extends Record<string, FormValue> = Record<string, FormValue>> = {
   [K in keyof T]?: ValidationRule<T[K]>[];
 };
-export type ValidationErrors<T = Record<string, any>> = Partial<
+
+export type ValidationErrors<T extends Record<string, FormValue> = Record<string, FormValue>> = Partial<
   Record<keyof T, string>
 >;
 
+// Tipos para respuestas de API
+export type ApiSuccessResponse<TData = unknown> = {
+  success: true;
+  data: TData;
+};
+
+export type ApiErrorResponse = {
+  success: false;
+  error: {
+    message: string;
+    code?: string;
+    details?: Record<string, unknown>;
+  };
+};
+
+export type ApiResponse<TData = unknown> = ApiSuccessResponse<TData> | ApiErrorResponse;
+
 // Tipos de respuesta de formulario
-export interface FormSubmitOptions<T = Record<string, any>> {
-  onSuccess?: (data: any, formValues: T) => void;
-  onError?: (error: any, formValues: T) => void;
+export interface FormSubmitOptions<T extends Record<string, FormValue> = Record<string, FormValue>> {
+  onSuccess?: (data: unknown, formValues: T) => void;
+  onError?: (error: unknown, formValues: T) => void;
   resetOnSuccess?: boolean;
   showSuccessMessage?: boolean;
   successMessage?: string;
@@ -30,7 +52,7 @@ export interface FormSubmitOptions<T = Record<string, any>> {
 }
 
 // Hook principal para manejar formularios
-export function useFormManagement<T extends Record<string, any>>(
+export function useFormManagement<T extends Record<string, FormValue>>(
   initialValues: T,
   validations?: FieldValidations<T>
 ) {
@@ -43,7 +65,7 @@ export function useFormManagement<T extends Record<string, any>>(
 
   // Validar un campo específico
   const validateField = useCallback(
-    (name: keyof T, value: any, allValues: T = values): string | null => {
+    (name: keyof T, value: T[keyof T], allValues: T = values): string | null => {
       if (!validations || !validations[name]) return null;
 
       for (const rule of validations[name] || []) {
@@ -84,7 +106,7 @@ export function useFormManagement<T extends Record<string, any>>(
         | {
             target: {
               name: string;
-              value: any;
+              value: FormValue;
               type?: string;
               checked?: boolean;
             };
@@ -92,7 +114,7 @@ export function useFormManagement<T extends Record<string, any>>(
     ) => {
       const target = e.target as {
         name: string;
-        value: any;
+        value: FormValue;
         type?: string;
         checked?: boolean;
       };
@@ -106,8 +128,8 @@ export function useFormManagement<T extends Record<string, any>>(
       setIsDirty(true);
 
       // Validar al cambiar si ya ha sido tocado
-      if (touched[fieldName]) {
-        const error = validateField(fieldName, newValue, {
+      if (touched[fieldName] && newValue !== undefined) {
+        const error = validateField(fieldName, newValue as T[keyof T], {
           ...values,
           [fieldName]: newValue,
         });
@@ -144,7 +166,7 @@ export function useFormManagement<T extends Record<string, any>>(
 
   // Establecer valores de forma manual
   const setFieldValue = useCallback(
-    (name: keyof T, value: any) => {
+    (name: keyof T, value: T[keyof T]) => {
       setValues(prev => ({ ...prev, [name]: value }));
       setIsDirty(true);
 
@@ -187,7 +209,7 @@ export function useFormManagement<T extends Record<string, any>>(
   // Función para manejar el envío del formulario
   const handleSubmit = useCallback(
     async (
-      submitFn: (values: T) => Promise<any>,
+      submitFn: (values: T) => Promise<unknown>,
       options: FormSubmitOptions<T> = {}
     ) => {
       return async (e?: FormEvent) => {
