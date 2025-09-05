@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { ProductCreateData, ProductUpdateData } from '../../../../../types/api-routes';
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Preparar datos del producto
-    const productData: any = {
+    const productData: ProductCreateData = {
       categoryId,
       nombre,
       tipoProducto: tipoProducto || 'simple',
@@ -136,7 +137,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Preparar datos para actualización
-    const updateData: any = {};
+    const updateData: Partial<ProductCreateData> = {};
 
     if (nombre !== undefined) updateData.nombre = nombre;
     if (descripcion !== undefined) updateData.descripcion = descripcion;
@@ -184,7 +185,7 @@ export async function DELETE(request: NextRequest) {
 
     await prisma.menuProduct.update({
       where: { id },
-      data: { disponible: false } as any,
+      data: { disponible: false },
     });
 
     return NextResponse.json({

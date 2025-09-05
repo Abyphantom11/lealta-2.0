@@ -5,7 +5,7 @@ import {
   TipoNotificacion,
 } from '@/lib/notificaciones';
 
-// Type assertion temporal mientras TypeScript reconoce los nuevos modelos
+// Type assertion temporal mientras se resuelve la compatibilidad JSON
 const extendedPrisma = prisma as any;
 
 export async function POST(request: NextRequest) {

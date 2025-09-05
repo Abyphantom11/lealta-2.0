@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { TopCliente, ProductosConsumo, ProductoConsumo, GoalsConfig, ProductVentasData, EmpleadoStats } from '../../../../types/api-routes';
 
 const prisma = new PrismaClient();
 
@@ -140,7 +141,7 @@ export async function GET(request: NextRequest) {
     const ticketPromedioPrevio = totalConsumosPrevios > 0 ? totalMontoPrevio / totalConsumosPrevios : 0;
 
     // Obtener top clientes con manejo de errores
-    let topClientes: any[] = [];
+    let topClientes: TopCliente[] = [];
     let clientesActivos = 0;
     let clientesRecurrentes = 0;
     
@@ -257,23 +258,35 @@ export async function GET(request: NextRequest) {
       console.error('🚨 Error obteniendo metas del negocio:', error);
     }
 
+    // Helper para determinar tipo de período
+    const getPeriodType = (period: string) => {
+      if (period === 'today' || period === 'yesterday') return 'daily';
+      if (period === 'week' || period === '7days') return 'weekly';
+      return 'monthly';
+    };
+
     // Determinar la meta apropiada según el período
-    const getTargetForPeriod = (goals: any, metric: string) => {
+    const getTargetForPeriod = (goals: GoalsConfig | null, metric: string): number => {
       if (!goals) return 0;
       
-      switch (periodo) {
-        case 'today':
-        case 'yesterday':
-          return goals[`daily${metric}`] || 0;
-        case 'week':
-        case '7days':
-          return goals[`weekly${metric}`] || 0;
-        case 'month':
-        case '30days':
-          return goals[`monthly${metric}`] || 0;
-        default:
-          return goals[`monthly${metric}`] || 0; // Default a monthly para períodos largos
+      const periodType = getPeriodType(periodo);
+      
+      if (metric === 'Revenue') {
+        if (periodType === 'daily') return goals.dailyRevenue;
+        if (periodType === 'weekly') return goals.weeklyRevenue;
+        return goals.monthlyRevenue;
       }
+      if (metric === 'Clients') {
+        if (periodType === 'daily') return goals.dailyClients;
+        if (periodType === 'weekly') return goals.weeklyClients;
+        return goals.monthlyClients;
+      }
+      if (metric === 'Transactions') {
+        if (periodType === 'daily') return goals.dailyTransactions;
+        if (periodType === 'weekly') return goals.weeklyTransactions;
+        return goals.monthlyTransactions;
+      }
+      return 0;
     };
 
     // Calcular metas dinámicas
@@ -370,6 +383,7 @@ export async function GET(request: NextRequest) {
 
         if (!acc[empleadoId]) {
           acc[empleadoId] = {
+            id: empleadoId,
             nombre: empleadoNombre,
             consumos: 0,
             totalMonto: 0,
@@ -383,12 +397,12 @@ export async function GET(request: NextRequest) {
 
         return acc;
       },
-      {} as Record<string, any>
+      {} as Record<string, EmpleadoStats>
     );
 
     // Convertir a array y ordenar
     const empleadosStats = Object.values(estadisticasPorEmpleado).sort(
-      (a: any, b: any) => b.totalMonto - a.totalMonto
+      (a: EmpleadoStats, b: EmpleadoStats) => b.totalMonto - a.totalMonto
     );
 
     // Calcular top productos reales
@@ -396,15 +410,16 @@ export async function GET(request: NextRequest) {
       (acc, consumo) => {
         // Verificar que productos tiene la estructura correcta
         if (consumo.productos && typeof consumo.productos === 'object') {
-          const productos = consumo.productos as any;
+          const productos = consumo.productos as unknown as ProductosConsumo;
           if (Array.isArray(productos.items)) {
-            productos.items.forEach((producto: any) => {
+            productos.items.forEach((producto: ProductoConsumo) => {
               const nombre = producto.nombre || 'Producto sin nombre';
               const cantidad = producto.cantidad || 1;
               const precio = producto.precio || 0;
 
               if (!acc[nombre]) {
                 acc[nombre] = {
+                  id: producto.id || nombre, // usar nombre como fallback si no hay id
                   nombre: nombre,
                   sales: 0,
                   revenue: 0,
@@ -418,14 +433,14 @@ export async function GET(request: NextRequest) {
         }
         return acc;
       },
-      {} as Record<string, any>
+      {} as ProductVentasData
     );
 
     // Top 5 productos por cantidad vendida (no por revenue)
     const topProducts = Object.values(productosVendidos)
-      .sort((a: any, b: any) => b.sales - a.sales) // Ordenar por cantidad
+      .sort((a, b) => b.sales - a.sales) // Ordenar por cantidad
       .slice(0, 5)
-      .map((producto: any) => ({
+      .map((producto) => ({
         name: producto.nombre,
         sales: producto.sales,
         revenue: producto.revenue,

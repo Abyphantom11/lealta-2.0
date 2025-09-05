@@ -1,5 +1,5 @@
 ﻿'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from '../../components/motion';
 import { 
   Bell,
@@ -19,6 +19,7 @@ import {
   X
 } from 'lucide-react';
 import { Cliente, MenuItem, MenuCategory } from '@/types/admin';
+import { browserNotifications } from '../../services/browserNotifications';
 // Definir la interfaz para el evento de instalación PWA
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => void;
@@ -879,10 +880,19 @@ export default function ClientePortalPage() {
   const renderInitialView = () => (
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
-      <header className="flex items-center justify-center p-4 relative z-10">
+      <header className="flex items-center justify-between p-4 relative z-10">
         <div className="flex items-center space-x-2">
           <span className="text-white font-bold text-lg">{brandingConfig.businessName}</span>
         </div>
+        
+        {/* Botón de notificaciones */}
+        <button
+          onClick={() => browserNotifications.requestPermission()}
+          className="bg-purple-600 hover:bg-purple-700 text-white p-2 rounded-full transition-colors"
+          title="Activar notificaciones push"
+        >
+          <Bell className="w-5 h-5" />
+        </button>
       </header>
       {/* Hero Section */}
       <div className="relative min-h-[400px] overflow-visible pb-20 pt-8">
@@ -932,7 +942,7 @@ export default function ClientePortalPage() {
                       
                       return (
                         <div
-                          key={`carousel-img-${imageUrl.split('?')[0].split('/').pop()}`}
+                          key={`carousel-img-${index}-${imageUrl.split('?')[0].split('/').pop()}`}
                           className="flex-shrink-0 mx-4 transition-all duration-1500 ease-out"
                           style={{
                             transform: isCurrent ? 'scale(1)' : 'scale(0.75)',
@@ -963,7 +973,7 @@ export default function ClientePortalPage() {
               <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
                 {carouselImages.map((imageUrl: string, index: number) => (
                   <div
-                    key={`carousel-dot-${imageUrl.split('?')[0].split('/').pop()}`}
+                    key={`carousel-dot-${index}-${imageUrl.split('?')[0].split('/').pop()}`}
                     className={`w-2 h-2 rounded-full transition-all duration-700 ease-in-out ${
                       index === currentImageIndex
                         ? 'opacity-100 scale-125'
@@ -1781,9 +1791,21 @@ function createFoodPatternBackground(): string {
 }
 // Componente para mostrar banners desde el admin
 function BannersSection() {
+  console.log('🎪 BANNERS SECTION: Componente iniciando...');
   const [banners, setBanners] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(true);
+
+  // Memoizar cálculo del día actual para evitar recálculos constantes
+  const diaActual = useMemo(() => {
+    const diasSemana = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+    return diasSemana[new Date().getDay()];
+  }, []);
+
+  // Debounce para evitar actualizaciones demasiado rápidas
+  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const fetchBanners = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/portal-config?businessId=default', {
@@ -1794,50 +1816,37 @@ function BannersSection() {
       });
       if (response.ok) {
         const data = await response.json();
-        console.log('🎯 Cliente - Banners recibidos:', data.config?.banners);
         
-        // Obtener todos los banners activos
+        // Obtener todos los banners activos de forma más eficiente
         const todosActivos = data.config?.banners?.filter((b: any) => 
           b.activo && b.imagenUrl && b.imagenUrl.trim() !== ''
         ) || [];
         
-        // Obtener el día y hora actual SIEMPRE actualizada
+        if (todosActivos.length === 0) {
+          setBanners([]);
+          return;
+        }
+        
+        // Obtener el día y hora actual de forma más eficiente
         const ahora = new Date();
-        const diasSemana = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-        const diaActual = diasSemana[ahora.getDay()];
-        const horaActual = ahora.getHours() * 60 + ahora.getMinutes();
+        const horaActualMinutos = ahora.getHours() * 60 + ahora.getMinutes();
         
-        console.log(`🕐 Debug Banners - Día: ${diaActual}, Hora: ${ahora.getHours()}:${ahora.getMinutes().toString().padStart(2, '0')}`);
-        console.log(`🔍 Banners totales encontrados:`, todosActivos);
-        
-        // Filtrar banners del día actual que ya deberían estar activos
+        // Filtrar banners del día actual (optimizado)
         const bannersDelDia = todosActivos.filter((b: any) => {
-          console.log(`🎪 Evaluando banner "${b.id}" - Día: ${b.dia}, Hora publicación: ${b.horaPublicacion}`);
+          // Verificar día
+          if (b.dia !== diaActual) return false;
           
-          if (b.dia !== diaActual) {
-            console.log(`❌ Banner "${b.id}" no es para hoy (${diaActual})`);
-            return false;
-          }
-          
-          // Si tiene hora de publicación, verificar que ya haya llegado
+          // Verificar hora si está configurada
           if (b.horaPublicacion) {
             const [horas, minutos] = b.horaPublicacion.split(':').map(Number);
             const horaPublicacion = horas * 60 + minutos;
-            
-            console.log(`🕒 Banner "${b.id}": se publica a las ${b.horaPublicacion} (${horaPublicacion} min), ahora son ${horaActual} min`);
-            
-            const resultado = horaActual >= horaPublicacion;
-            console.log(`⏰ ¿Banner "${b.id}" ya debe estar visible?`, resultado);
-            return resultado;
+            return horaActualMinutos >= horaPublicacion;
           }
           
-          console.log(`✅ Banner "${b.id}" válido (sin hora específica)`);
-          return true; // Si no tiene hora de publicación, mostrar todo el día
+          return true;
         });
         
-        console.log(`✅ Banners válidos para ${diaActual}:`, bannersDelDia);
-        
-        // Si no hay banners para el día actual, mostrar todos los activos (fallback)
+        // Actualizar banners inmediatamente
         setBanners(bannersDelDia.length > 0 ? bannersDelDia : todosActivos);
       }
     } catch (error) {
@@ -1845,35 +1854,139 @@ function BannersSection() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [diaActual]);
 
   useEffect(() => {
+    console.log('🔌 BannersSection: Iniciando SSE para actualizaciones en tiempo real');
+    
+    // Verificar estado inicial de permisos de notificación
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      const currentPermission = Notification.permission;
+      setNotificationsEnabled(currentPermission === 'granted');
+      setShowNotificationPrompt(currentPermission === 'default');
+      console.log('🔔 Estado inicial de notificaciones:', currentPermission);
+    }
+    
+    // Carga inicial
     fetchBanners();
     
-    // Actualizar banners cada minuto para cambios automáticos de día/hora
-    const interval = setInterval(() => {
-      console.log('🔄 Actualizando banners automáticamente...');
-      fetchBanners();
-    }, 60000); // Cada 60 segundos
+    // Configurar SSE para actualizaciones instantáneas
+    const eventSource = new EventSource('/api/admin/portal-config/stream');
     
-    return () => clearInterval(interval);
-  }, [fetchBanners]);
-
-  // También actualizar cuando se enfoque la ventana
-  useEffect(() => {
-    const handleFocus = () => {
-      console.log('👁️ Ventana enfocada - actualizando banners...');
-      fetchBanners();
+    eventSource.onopen = () => {
+      console.log('✅ SSE Banners: Conexión establecida para actualizaciones automáticas');
     };
     
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('📡 SSE Banners: Datos recibidos:', data.type);
+        
+        // Actualizar banners cuando hay cambios de configuración
+        if (data.type === 'config-update' || data.type === 'initial-config') {
+          // Mostrar notificación push si hay cambios reales (no inicial)
+          if (data.type === 'config-update') {
+            browserNotifications.notifyBannerUpdate(1);
+          }
+          
+          // Debounce: evitar actualizaciones demasiado rápidas
+          if (updateTimeoutRef.current) {
+            clearTimeout(updateTimeoutRef.current);
+          }
+          
+          updateTimeoutRef.current = setTimeout(() => {
+            fetchBanners();
+          }, 100); // Esperar 100ms antes de actualizar
+        }
+      } catch (error) {
+        console.error('❌ SSE Banners: Error procesando mensaje:', error);
+      }
+    };
+    
+    eventSource.onerror = (error) => {
+      console.log('⚠️ SSE Banners: Error de conexión, usando fallback:', error);
+    };
+    
+    // Fallback: actualizar solo si SSE falla completamente
+    const fallbackInterval = setInterval(() => {
+      if (eventSource.readyState !== EventSource.OPEN) {
+        fetchBanners();
+      }
+    }, 300000); // Solo cada 5 minutos como backup (reducir carga)
+    
+    return () => {
+      console.log('🔌 BannersSection: Cerrando conexión SSE');
+      eventSource.close();
+      clearInterval(fallbackInterval);
+      
+      // Limpiar debounce timeout
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+    };
   }, [fetchBanners]);
+
+  // Función para habilitar notificaciones del navegador
+  const enableNotifications = async () => {
+    try {
+      const granted = await browserNotifications.requestPermission();
+      setNotificationsEnabled(granted);
+      setShowNotificationPrompt(false);
+      
+      if (granted) {
+        console.log('✅ Notificaciones habilitadas correctamente');
+      } else {
+        console.log('❌ El usuario denegó los permisos de notificación');
+      }
+    } catch (error) {
+      console.error('❌ Error al habilitar notificaciones:', error);
+    }
+  };
+
+  const dismissNotificationPrompt = () => {
+    setShowNotificationPrompt(false);
+  };
+
   if (isLoading || banners.length === 0) return null;
   return (
     <div className="mx-4 mb-6">
       <h3 className="text-lg font-semibold text-white mb-4">Evento del día</h3>
       <div className="space-y-3">
+        {/* Prompt para habilitar notificaciones */}
+        {showNotificationPrompt && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-4 border border-blue-500/30"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Bell className="h-5 w-5 text-white" />
+                <div>
+                  <h4 className="font-semibold text-white">¡Recibe Notificaciones!</h4>
+                  <p className="text-sm text-white/80">Te avisaremos cuando haya nuevas ofertas</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={enableNotifications}
+                  className="bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Activar
+                </button>
+                <button
+                  onClick={dismissNotificationPrompt}
+                  className="text-white/60 hover:text-white transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+        
+        {/* Banners normales */}
         {banners.slice(0, 1).map((banner: Banner, index: number) => (
           <motion.div
             key={banner.id}

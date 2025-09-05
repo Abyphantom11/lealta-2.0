@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { ProductoHistorial, EstadisticasMensual } from '../../../../../../types/api-routes';
 
 const prisma = new PrismaClient();
 
@@ -78,7 +79,7 @@ export async function GET(
     const productosConsumidos = cliente.consumos.reduce(
       (acc, consumo) => {
         if (Array.isArray(consumo.productos)) {
-          consumo.productos.forEach((producto: any) => {
+          (consumo.productos as unknown as ProductoHistorial[]).forEach((producto: ProductoHistorial) => {
             const nombre = producto.nombre || 'Producto sin nombre';
             const cantidad = producto.cantidad || 1;
 
@@ -123,14 +124,14 @@ export async function GET(
         (acc, consumo) => {
           const mes = consumo.registeredAt.toISOString().substring(0, 7); // YYYY-MM
           if (!acc[mes]) {
-            acc[mes] = { consumos: 0, total: 0, puntos: 0 };
+            acc[mes] = { consumos: 0, total: 0, transacciones: 0, puntos: 0 };
           }
           acc[mes].consumos++;
           acc[mes].total += consumo.total;
           acc[mes].puntos += consumo.puntos;
           return acc;
         },
-        {} as Record<string, any>
+        {} as Record<string, EstadisticasMensual>
       );
 
     return NextResponse.json({

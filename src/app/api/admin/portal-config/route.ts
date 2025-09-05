@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { PortalConfig } from '../../../../types/api-routes';
 
 // Configurar como ruta dinámica para permitir el uso de request.url
 export const dynamic = 'force-dynamic';
 
 const PORTAL_CONFIG_PATH = path.join(process.cwd(), 'portal-config.json');
+
+// Importar función de notificación SSE
+async function notifyConfigChange() {
+  try {
+    // Importación dinámica para evitar problemas de ciclo
+    const { notifyConfigChange } = await import('./stream/route');
+    await notifyConfigChange();
+  } catch (error) {
+    console.log('⚠️ No se pudo notificar cambios SSE:', error);
+  }
+}
 
 // Función auxiliar para leer la configuración del portal
 async function readPortalConfig() {
@@ -110,7 +122,7 @@ async function readPortalConfig() {
 }
 
 // Función auxiliar para escribir la configuración del portal
-async function writePortalConfig(config: any) {
+async function writePortalConfig(config: PortalConfig): Promise<PortalConfig> {
   config.settings = {
     ...config.settings,
     lastUpdated: new Date().toISOString()
@@ -128,6 +140,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       config: portalConfig,
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store',
+      }
     });
   } catch (error) {
     console.error('Error obteniendo configuración del portal:', error);
@@ -177,6 +196,10 @@ export async function PUT(request: NextRequest) {
 
     // Guardar configuración actualizada
     const savedConfig = await writePortalConfig(updatedConfig);
+    
+    // Notificar cambios a clientes conectados via SSE
+    await notifyConfigChange();
+    console.log('📡 Notificación SSE enviada a clientes');
 
     return NextResponse.json({
       success: true,

@@ -18,8 +18,8 @@ import {
   Settings,
 } from 'lucide-react';
 import DateRangePicker from '../../components/DateRangePicker';
-import AdvancedMetrics from '../../components/AdvancedMetrics';
-import TopClients from '../../components/TopClients';
+// import AdvancedMetrics from '../../components/AdvancedMetrics';
+// import TopClients from '../../components/TopClients';
 import GoalsConfigurator from '../../components/GoalsConfigurator';
 
 // Estilos CSS para dark theme en calendarios
@@ -140,6 +140,7 @@ interface ClienteHistorial {
     tarjetaLealtad?: {
       nivel: string;
       fechaAsignacion: string;
+      asignacionManual?: boolean;
     };
   };
   estadisticas?: {
@@ -215,6 +216,33 @@ interface ItemGrafico {
   transacciones?: number;
 }
 
+// Interface for stats data from API
+interface StatsData {
+  estadisticas?: {
+    metricas?: {
+      labels: string[];
+      datasets: Array<{
+        label: string;
+        data: number[];
+        borderColor: string;
+        backgroundColor: string;
+        tension?: number;
+      }>;
+    };
+    topClientes?: Array<{
+      id: string;
+      nombre: string;
+      totalGastado: number;
+      totalVisitas: number;
+    }>;
+    resumen?: {
+      clientesActivos: number;
+      promedioVenta: number;
+      totalConsumos: number;
+    };
+  };
+}
+
 export default function SuperAdminPage() {
   const { user, loading, logout, isAuthenticated } =
     useRequireAuth('SUPERADMIN');
@@ -265,7 +293,7 @@ export default function SuperAdminPage() {
   const [showGoalsConfigurator, setShowGoalsConfigurator] = useState(false);
   
   // Estado para datos de estadísticas
-  const [statsData, setStatsData] = useState<any>(null);
+  const [statsData, setStatsData] = useState<StatsData | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
   
   // Estado para el selector de fechas
@@ -833,11 +861,11 @@ export default function SuperAdminPage() {
   ];
 
   const tabs = [
-    { id: 'overview', label: 'Resumen', icon: BarChart3 },
-    { id: 'analytics', label: 'Analytics', icon: TrendingUp },
-    { id: 'users', label: 'Usuarios', icon: Users },
-    { id: 'historial', label: 'Historial Clientes', icon: Eye },
-    { id: 'system', label: 'Sistema', icon: Server },
+    { id: 'overview' as const, label: 'Resumen', icon: BarChart3 },
+    { id: 'analytics' as const, label: 'Analytics', icon: TrendingUp },
+    { id: 'users' as const, label: 'Usuarios', icon: Users },
+    { id: 'historial' as const, label: 'Historial Clientes', icon: Eye },
+    { id: 'system' as const, label: 'Sistema', icon: Server },
   ];
 
   return (
@@ -890,7 +918,7 @@ export default function SuperAdminPage() {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
+                  onClick={() => setActiveTab(tab.id)}
                   className={`px-4 py-2 rounded-lg transition-all duration-200 ${
                     activeTab === tab.id
                       ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/25'
@@ -1044,7 +1072,7 @@ export default function SuperAdminPage() {
                   <div className="grid grid-cols-4 gap-3 mb-4">
                     <div className="bg-gray-800/30 p-3 rounded-lg text-center">
                       <div className="text-lg font-bold text-green-400">
-                        ${datosGrafico.resumen.totalIngresos || 0}
+                        ${datosGrafico.resumen?.totalIngresos || 0}
                       </div>
                       <div className="text-xs text-gray-400">
                         Total Ingresos
@@ -1052,7 +1080,7 @@ export default function SuperAdminPage() {
                     </div>
                     <div className="bg-gray-800/30 p-3 rounded-lg text-center">
                       <div className="text-lg font-bold text-blue-400">
-                        {datosGrafico.resumen.totalTransacciones || 0}
+                        {datosGrafico.resumen?.totalTransacciones || 0}
                       </div>
                       <div className="text-xs text-gray-400">Transacciones</div>
                     </div>
@@ -1060,9 +1088,9 @@ export default function SuperAdminPage() {
                       <div className="text-lg font-bold text-purple-400">
                         $
                         {(
-                          (datosGrafico.resumen.totalIngresos || 0) /
+                          (datosGrafico.resumen?.totalIngresos || 0) /
                           Math.max(
-                            datosGrafico.resumen.totalTransacciones || 1,
+                            datosGrafico.resumen?.totalTransacciones || 1,
                             1
                           )
                         ).toFixed(2)}
@@ -1073,7 +1101,7 @@ export default function SuperAdminPage() {
                     </div>
                     <div className="bg-gray-800/30 p-3 rounded-lg text-center">
                       <div className="text-lg font-bold text-yellow-400">
-                        ${datosGrafico.resumen.maxValor || 0}
+                        ${datosGrafico.resumen?.maxValor || 0}
                       </div>
                       <div className="text-xs text-gray-400">
                         Día/Período Top
@@ -1113,10 +1141,10 @@ export default function SuperAdminPage() {
 
                           {/* Contenedor del gráfico */}
                           <div className="ml-8 h-full flex items-end justify-between space-x-1">
-                            {datosGrafico.datos.map(
+                            {datosGrafico.datos?.map(
                               (item: ItemGrafico, index: number) => {
                                 const maxValor =
-                                  datosGrafico.resumen.maxValor || 1;
+                                  datosGrafico.resumen?.maxValor || 1;
                                 const altura =
                                   maxValor > 0
                                     ? (item.valor / maxValor) * 100
@@ -1147,13 +1175,13 @@ export default function SuperAdminPage() {
                                       <div className="text-blue-400">
                                         {item.transacciones} transacciones
                                       </div>
-                                      {datosGrafico.resumen.totalTransacciones >
+                                      {(datosGrafico.resumen?.totalTransacciones || 0) >
                                         0 && (
                                         <div className="text-gray-300">
                                           {(
-                                            (item.transacciones /
-                                              datosGrafico.resumen
-                                                .totalTransacciones) *
+                                            ((item.transacciones || 0) /
+                                              (datosGrafico.resumen
+                                                ?.totalTransacciones || 1)) *
                                             100
                                           ).toFixed(1)}
                                           % del total
@@ -1187,7 +1215,7 @@ export default function SuperAdminPage() {
                                     </div>
 
                                     {/* Indicador de transacciones */}
-                                    {item.transacciones > 0 && (
+                                    {(item.transacciones || 0) > 0 && (
                                       <div className="text-xs text-blue-400 mt-1">
                                         {item.transacciones}tx
                                       </div>
@@ -1230,19 +1258,19 @@ export default function SuperAdminPage() {
                   <div className="mt-4 grid grid-cols-3 gap-4">
                     <div className="text-center">
                       <p className="text-2xl font-bold text-green-400">
-                        ${datosGrafico.resumen.totalIngresos}
+                        ${datosGrafico.resumen?.totalIngresos}
                       </p>
                       <p className="text-gray-400 text-sm">Total</p>
                     </div>
                     <div className="text-center">
                       <p className="text-2xl font-bold text-blue-400">
-                        {datosGrafico.resumen.totalTransacciones}
+                        {datosGrafico.resumen?.totalTransacciones}
                       </p>
                       <p className="text-gray-400 text-sm">Transacciones</p>
                     </div>
                     <div className="text-center">
                       <p className="text-2xl font-bold text-purple-400">
-                        ${datosGrafico.resumen.promedioPorPeriodo}
+                        ${datosGrafico.resumen?.promedioPorPeriodo}
                       </p>
                       <p className="text-gray-400 text-sm">Promedio</p>
                     </div>
@@ -1773,7 +1801,7 @@ export default function SuperAdminPage() {
                 <div className="flex justify-between items-center">
                   <div>
                     <h2 className="text-xl font-bold text-white">
-                      {clienteDetalles.cliente.nombre}
+                      {clienteDetalles.cliente?.nombre}
                     </h2>
                     <p className="text-gray-400">
                       Información completa del cliente
@@ -1799,25 +1827,25 @@ export default function SuperAdminPage() {
                     <div>
                       <p className="text-gray-400 text-sm">Cédula</p>
                       <p className="text-white font-semibold">
-                        {clienteDetalles.cliente.cedula}
+                        {clienteDetalles.cliente?.cedula}
                       </p>
                     </div>
                     <div>
                       <p className="text-gray-400 text-sm">Email</p>
                       <p className="text-white font-semibold">
-                        {clienteDetalles.cliente.correo || 'No registrado'}
+                        {clienteDetalles.cliente?.correo || 'No registrado'}
                       </p>
                     </div>
                     <div>
                       <p className="text-gray-400 text-sm">Teléfono</p>
                       <p className="text-white font-semibold">
-                        {clienteDetalles.cliente.telefono || 'No registrado'}
+                        {clienteDetalles.cliente?.telefono || 'No registrado'}
                       </p>
                     </div>
                     <div>
                       <p className="text-gray-400 text-sm">Puntos Actuales</p>
                       <p className="text-yellow-400 font-bold text-lg">
-                        {clienteDetalles.cliente.puntos}
+                        {clienteDetalles.cliente?.puntos}
                       </p>
                     </div>
                   </div>
@@ -1832,7 +1860,7 @@ export default function SuperAdminPage() {
                     <div>
                       <p className="text-gray-400 text-sm">Nivel Actual</p>
                       <p className="text-white font-semibold">
-                        {clienteDetalles.cliente.tarjetaLealtad?.nivel ||
+                        {clienteDetalles.cliente?.tarjetaLealtad?.nivel ||
                           'Sin Tarjeta'}
                       </p>
                     </div>
@@ -1841,9 +1869,9 @@ export default function SuperAdminPage() {
                         Fecha de Asignación
                       </p>
                       <p className="text-white font-semibold">
-                        {clienteDetalles.cliente.tarjetaLealtad?.fechaAsignacion
+                        {clienteDetalles.cliente?.tarjetaLealtad?.fechaAsignacion
                           ? new Date(
-                              clienteDetalles.cliente.tarjetaLealtad.fechaAsignacion
+                              clienteDetalles.cliente?.tarjetaLealtad.fechaAsignacion
                             ).toLocaleDateString()
                           : 'N/A'}
                       </p>
@@ -1853,7 +1881,7 @@ export default function SuperAdminPage() {
                         Tipo de Asignación
                       </p>
                       <p className="text-white font-semibold">
-                        {clienteDetalles.cliente.tarjetaLealtad
+                        {clienteDetalles.cliente?.tarjetaLealtad
                           ?.asignacionManual
                           ? 'Manual'
                           : 'Automática'}
@@ -1862,9 +1890,9 @@ export default function SuperAdminPage() {
                     <div>
                       <p className="text-gray-400 text-sm">Estado</p>
                       <p
-                        className={`font-semibold ${clienteDetalles.cliente.tarjetaLealtad?.nivel ? 'text-green-400' : 'text-red-400'}`}
+                        className={`font-semibold ${clienteDetalles.cliente?.tarjetaLealtad?.nivel ? 'text-green-400' : 'text-red-400'}`}
                       >
-                        {clienteDetalles.cliente.tarjetaLealtad?.nivel
+                        {clienteDetalles.cliente?.tarjetaLealtad?.nivel
                           ? 'Activa'
                           : 'No Asignada'}
                       </p>
@@ -1972,19 +2000,20 @@ export default function SuperAdminPage() {
               </div>
               
               {/* Métricas Avanzadas */}
-              <AdvancedMetrics 
+              {/* <AdvancedMetrics 
                 data={statsData?.estadisticas?.metricas}
-              />
+              /> */}
             </div>
 
             {/* Top Clientes y Gráficos */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Top Clientes */}
               <div className="bg-gray-900/60 backdrop-blur-sm rounded-2xl p-6 border border-gray-800/50 shadow-2xl">
-                <TopClients 
+                {/* <TopClients 
                   clients={statsData?.estadisticas?.topClientes || []}
                   isLoading={isLoadingStats}
-                />
+                /> */}
+                <p className="text-gray-400">Top Clientes (temporalmente deshabilitado)</p>
               </div>
 
               {/* Gráfico de Tendencias */}

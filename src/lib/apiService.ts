@@ -42,6 +42,16 @@ export interface ApiResponse<T = unknown> {
   status: number;
 }
 
+// Interface para datos de error del servidor
+interface ServerErrorData {
+  error?: {
+    code?: string;
+    message?: string;
+    details?: Record<string, unknown>;
+  };
+  message?: string;
+}
+
 // Configuración por defecto
 const DEFAULT_HEADERS = {
   'Content-Type': 'application/json',
@@ -109,10 +119,11 @@ function buildApiResponse<T>(response: Response, data: unknown): ApiResponse<T> 
   };
 
   if (!response.ok) {
+    const errorData = data as ServerErrorData;
     result.error = {
-      code: (data as any)?.error?.code || `HTTP_${response.status}`,
-      message: (data as any)?.error?.message || (data as any)?.message || response.statusText,
-      details: (data as any)?.error?.details || data as Record<string, unknown> | string | Error | null,
+      code: errorData?.error?.code || `HTTP_${response.status}`,
+      message: errorData?.error?.message || errorData?.message || response.statusText,
+      details: errorData?.error?.details || data as Record<string, unknown> | string | Error | null,
     };
   }
 

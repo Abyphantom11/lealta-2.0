@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { MenuCategoryUpdateData } from '../../../../types/api-routes';
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest) {
       },
       include: {
         productos: {
-          where: { disponible: true } as any,
+          where: { disponible: true },
           orderBy: { orden: 'asc' },
         },
       },
@@ -121,7 +122,7 @@ export async function POST(request: NextRequest) {
         icono: icono || null,
         orden: orden || 0,
         parentId: parentId || null,
-      } as any, // Casting temporal para resolver el problema de tipos de Prisma
+      },
     });
 
     console.log('✅ Categoría creada exitosamente:', categoria);
@@ -153,7 +154,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const updateData: any = {};
+    const updateData: MenuCategoryUpdateData = {};
     if (nombre !== undefined) updateData.nombre = nombre;
     if (descripcion !== undefined) updateData.descripcion = descripcion;
     if (icono !== undefined) updateData.icono = icono;

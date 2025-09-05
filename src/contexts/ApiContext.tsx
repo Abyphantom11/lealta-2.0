@@ -9,6 +9,9 @@ import React, {
 } from 'react';
 import { ApiResponse } from '@/types/common';
 
+// Tipo para datos de request
+type RequestData = Record<string, unknown> | string | FormData | null | undefined;
+
 interface ApiContextType {
   isLoading: boolean;
   error: string | null;
@@ -16,7 +19,7 @@ interface ApiContextType {
   apiRequest: <T>(
     endpoint: string,
     method?: string,
-    data?: any,
+    data?: RequestData,
     options?: RequestInit
   ) => Promise<ApiResponse<T>>;
 }
@@ -44,7 +47,7 @@ export function ApiProvider({ children, baseUrl = '' }: ApiProviderProps) {
     async <T,>(
       endpoint: string,
       method: string = 'GET',
-      data?: any,
+      data?: RequestData,
       options: RequestInit = {}
     ): Promise<ApiResponse<T>> => {
       setIsLoading(true);
@@ -146,7 +149,7 @@ export function usePost() {
   const { apiRequest, isLoading, error, clearError } = useApi();
 
   const post = useCallback(
-    <T,>(endpoint: string, data: any, options?: RequestInit) => {
+    <T,>(endpoint: string, data: RequestData, options?: RequestInit) => {
       return apiRequest<T>(endpoint, 'POST', data, options);
     },
     [apiRequest]
@@ -159,7 +162,7 @@ export function usePut() {
   const { apiRequest, isLoading, error, clearError } = useApi();
 
   const put = useCallback(
-    <T,>(endpoint: string, data: any, options?: RequestInit) => {
+    <T,>(endpoint: string, data: RequestData, options?: RequestInit) => {
       return apiRequest<T>(endpoint, 'PUT', data, options);
     },
     [apiRequest]

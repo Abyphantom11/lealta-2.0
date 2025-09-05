@@ -47,6 +47,19 @@ self.addEventListener('activate', (event) => {
 
 // Interceptar requests con estrategia de "Network first, fallback to cache"
 self.addEventListener('fetch', (event) => {
+  // Skip caching for chrome extensions and browser schemes
+  if (!event.request.url.startsWith('http://') && !event.request.url.startsWith('https://')) {
+    return;
+  }
+  
+  // Skip caching for chrome-extension:// and other browser schemes
+  if (event.request.url.startsWith('chrome-extension://') || 
+      event.request.url.startsWith('moz-extension://') || 
+      event.request.url.startsWith('safari-extension://') ||
+      event.request.url.startsWith('edge-extension://')) {
+    return;
+  }
+
   // Skip caching for API routes to evitar problemas
   if (event.request.url.includes('/api/')) {
     event.respondWith(fetch(event.request).catch(() => {

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { NavigationItem, Tarjeta } from '../../types/api-routes';
 
 // ID de negocio centralizado para fácil transición futura
 const BUSINESS_ID = 'business_1';
@@ -38,29 +39,39 @@ interface CategoryData {
 // Tipo para banners
 interface Banner {
   id?: string;
-  activo: boolean;
+  activo?: boolean; // Cambiado de required a optional
   imagenUrl?: string;
   dia?: string;
-  [key: string]: any;
+  titulo?: string;
+  descripcion?: string;
+  linkUrl?: string;
+  orden?: number;
+  horaPublicacion?: string;
 }
 
 // Tipo para promociones
 interface Promocion {
   id?: string;
-  activo: boolean;
+  activo?: boolean; // Cambiado de required a optional
   titulo?: string;
   descripcion?: string;
   dia?: string;
-  [key: string]: any;
+  codigo?: string;
+  descuento?: number;
+  fechaInicio?: string;
+  fechaFin?: string;
+  horaTermino?: string;
 }
 
 // Tipo para recompensas
 interface Recompensa {
   id?: string;
-  activo: boolean;
+  activo?: boolean; // Cambiado de required a optional
   nombre?: string;
   puntosRequeridos?: number;
-  [key: string]: any;
+  descripcion?: string;
+  categoria?: string;
+  stock?: number;
 }
 
 // Tipo para configuración de branding
@@ -70,27 +81,23 @@ interface BrandingConfig {
   carouselImages: string[];
 }
 
-// Tipo para favorito del día (puede tener diferentes estructuras)
-type FavoritoDelDia = 
-  | {
-      id: string;
-      nombre: string;
-      descripcion?: string;
-      precio?: number;
-      imagenUrl?: string;
-      activo?: boolean;
-    }
-  | {
-      id: string;
-      dia?: string;
-      imagenUrl?: string;
-      horaPublicacion?: string;
-      activo?: boolean;
-    }
-  | Record<string, unknown>; // Objeto con propiedades dinámicas
+// Tipo para favorito del día - interfaz unificada
+interface FavoritoDelDia {
+  id?: string;
+  nombre?: string;
+  descripcion?: string;
+  precio?: number;
+  imagenUrl?: string;
+  activo?: boolean;
+  dia?: string;
+  titulo?: string;
+  linkUrl?: string;
+  orden?: number;
+  horaPublicacion?: string;
+}
 
 // Funciones auxiliares para type guards
-const isFavoritoWithDia = (item: FavoritoDelDia): item is { dia: string } & Record<string, unknown> => {
+const isFavoritoWithDia = (item: FavoritoDelDia): item is FavoritoDelDia & { dia: string } => {
   return item !== null && typeof item === 'object' && 'dia' in item && typeof item.dia === 'string';
 };
 
@@ -123,7 +130,7 @@ const getFavoritosList = (favorito: FavoritoDelDia | FavoritoDelDia[] | null | u
 
 // Tipo para configuración general
 interface GeneralConfig {
-  [key: string]: any;
+  [key: string]: unknown;
   tarjetaVirtual?: {
     habilitada: boolean;
     requerirTelefono: boolean;
@@ -132,6 +139,8 @@ interface GeneralConfig {
   recompensas?: Recompensa[];
   banners?: Banner[];
   favoritoDelDia?: FavoritoDelDia[] | FavoritoDelDia | null;
+  tarjetas?: Tarjeta[];
+  nombreEmpresa?: string;
   eventos?: {
     id: string;
     titulo: string;
@@ -308,14 +317,14 @@ export default function AdminPage() {
     );
   }
 
-  const navigationItems = [
+  const navigationItems: NavigationItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
     { id: 'clientes', label: 'Clientes', icon: Users },
     { id: 'menu', label: 'Gestión de Menú', icon: UtensilsCrossed },
     { id: 'portal', label: 'Portal Cliente', icon: Smartphone },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'configuracion', label: 'Configuración', icon: Settings },
-  ];
+  ] as const;
 
   return (
     <div className="min-h-screen bg-dark-950 flex">
@@ -2758,7 +2767,7 @@ function PortalContent({
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as typeof activeTab)}
               className={`flex items-center space-x-2 px-3 py-2 rounded-md font-medium transition-colors text-sm ${
                 activeTab === tab.id
                   ? 'bg-primary-600 text-white shadow-sm'
@@ -2797,7 +2806,6 @@ function PortalContentManager({
   previewMode,
   setPreviewMode,
   brandingConfig,
-  setBrandingConfig,
   handleBrandingChange,
   handleCarouselImageUpload,
   handleRemoveCarouselImage,
@@ -2805,7 +2813,7 @@ function PortalContentManager({
 }: Readonly<{
   activeTab: string;
   config: GeneralConfig;
-  setConfig: (config: GeneralConfig) => void;
+  setConfig: React.Dispatch<React.SetStateAction<GeneralConfig>>;
   previewMode: ModoVistaPrevia;
   setPreviewMode: React.Dispatch<React.SetStateAction<ModoVistaPrevia>>;
   brandingConfig: BrandingConfig;
@@ -2866,7 +2874,7 @@ type ConfigurableItemType = 'banners' | 'promociones' | 'recompensas' | 'favorit
       activo: true,
     };
 
-    setConfig((prev: GeneralConfig) => {
+    setConfig((prev: GeneralConfig): GeneralConfig => {
       // Caso especial para favoritoDelDia
       if (type === 'favoritoDelDia') {
         // Asegurar que favoritoDelDia sea un array
@@ -2905,7 +2913,7 @@ type ConfigurableItemType = 'banners' | 'promociones' | 'recompensas' | 'favorit
   };
 
   const updateItem = (type: ConfigurableItemType, itemId: string, updates: Partial<ConfigurableItem>) => {
-    setConfig((prev: GeneralConfig) => {
+    setConfig((prev: GeneralConfig): GeneralConfig => {
       // Caso especial para favoritoDelDia
       if (type === 'favoritoDelDia') {
         const currentFavoritos = Array.isArray(prev.favoritoDelDia) 
@@ -2934,7 +2942,7 @@ type ConfigurableItemType = 'banners' | 'promociones' | 'recompensas' | 'favorit
     if (
       window.confirm('¿Estás seguro de que quieres eliminar este elemento?')
     ) {
-      setConfig((prev: GeneralConfig) => {
+      setConfig((prev: GeneralConfig): GeneralConfig => {
         // Caso especial para favoritoDelDia
         if (type === 'favoritoDelDia') {
           const currentFavoritos = Array.isArray(prev.favoritoDelDia) 
@@ -2959,7 +2967,7 @@ type ConfigurableItemType = 'banners' | 'promociones' | 'recompensas' | 'favorit
   };
 
   const toggleActive = (type: ConfigurableItemType, itemId: string) => {
-    setConfig((prev: GeneralConfig) => {
+    setConfig((prev: GeneralConfig): GeneralConfig => {
       // Caso especial para favoritoDelDia
       if (type === 'favoritoDelDia') {
         const currentFavoritos = Array.isArray(prev.favoritoDelDia) 
@@ -2968,7 +2976,7 @@ type ConfigurableItemType = 'banners' | 'promociones' | 'recompensas' | 'favorit
         
         return {
           ...prev,
-          favoritoDelDia: currentFavoritos.map((item: any) =>
+          favoritoDelDia: currentFavoritos.map((item: FavoritoDelDia) =>
             item.id === itemId ? { ...item, activo: !item.activo } : item
           ),
         };
@@ -2977,7 +2985,7 @@ type ConfigurableItemType = 'banners' | 'promociones' | 'recompensas' | 'favorit
       // Caso normal para otros tipos
       return {
         ...prev,
-        [type]: (prev[type] || []).map((item: any) =>
+        [type]: (prev[type] || []).map((item: { id?: string; activo?: boolean }) =>
           item.id === itemId ? { ...item, activo: !item.activo } : item
         ),
       };
@@ -3085,7 +3093,7 @@ type ConfigurableItemType = 'banners' | 'promociones' | 'recompensas' | 'favorit
                   {(getPromocionesList(config.promociones) || [])
                     .filter((p: Promocion) => p.activo && p.titulo && p.descripcion)
                     .slice(0, 2)
-                    .map((promo: any) => (
+                    .map((promo: Promocion) => (
                       <div
                         key={promo.id}
                         className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-lg p-3 mb-2"
@@ -3109,14 +3117,14 @@ type ConfigurableItemType = 'banners' | 'promociones' | 'recompensas' | 'favorit
                 
                 // Buscar favorito para el día actual
                 const favoritoHoy = Array.isArray(config.favoritoDelDia) 
-                  ? config.favoritoDelDia.find((f: any) => 
+                  ? config.favoritoDelDia.find((f: FavoritoDelDia) => 
                       f.dia === diaActual && f.activo && f.imagenUrl && f.imagenUrl.trim() !== ''
                     )
                   : null;
 
                 // Si no hay favorito para hoy, buscar el primer favorito activo
                 const favoritoFallback = Array.isArray(config.favoritoDelDia)
-                  ? config.favoritoDelDia.find((f: any) => 
+                  ? config.favoritoDelDia.find((f: FavoritoDelDia) => 
                       f.activo && f.imagenUrl && f.imagenUrl.trim() !== ''
                     )
                   : null;
@@ -3167,7 +3175,7 @@ type ConfigurableItemType = 'banners' | 'promociones' | 'recompensas' | 'favorit
                       {getRecompensasList(config.recompensas)
                         .filter((r: Recompensa) => r.activo && r.nombre && r.puntosRequeridos)
                         .slice(0, 3)
-                        .map((recompensa: any) => (
+                        .map((recompensa: Recompensa) => (
                           <div
                             key={recompensa.id}
                             className="bg-white/20 rounded-lg p-2 min-w-[120px]"
@@ -3648,8 +3656,8 @@ type ConfigurableItemType = 'banners' | 'promociones' | 'recompensas' | 'favorit
         {activeTab === 'banners' && (
           <BannersManager
             banners={config.banners || []}
-            onAdd={(banner: any) => addItem('banners', banner)}
-            onUpdate={(id: string, updates: any) =>
+            onAdd={(banner: Banner) => addItem('banners', banner)}
+            onUpdate={(id: string, updates: Partial<Banner>) =>
               updateItem('banners', id, updates)
             }
             onDelete={(id: string) => deleteItem('banners', id)}
@@ -3673,8 +3681,8 @@ type ConfigurableItemType = 'banners' | 'promociones' | 'recompensas' | 'favorit
             </div>
             <PromocionesManager
               promociones={getPromocionesList(config.promociones)}
-              onAdd={(promo: any) => addItem('promociones', promo)}
-              onUpdate={(id: string, updates: any) =>
+              onAdd={(promo: Promocion) => addItem('promociones', promo)}
+              onUpdate={(id: string, updates: Partial<Promocion>) =>
                 updateItem('promociones', id, updates)
               }
               onDelete={(id: string) => deleteItem('promociones', id)}
@@ -3686,14 +3694,14 @@ type ConfigurableItemType = 'banners' | 'promociones' | 'recompensas' | 'favorit
         {activeTab === 'favorito' && (
           <FavoritoDelDiaManager
             favoritos={getFavoritosList(config.favoritoDelDia)}
-            onUpdate={(favorito: any) => {
+            onUpdate={(favorito: FavoritoDelDia) => {
               // Verificar si ya existe un favorito para este día
               const currentFavoritos = Array.isArray(config.favoritoDelDia) 
                 ? config.favoritoDelDia 
                 : [];
               
               const existingFavorito = currentFavoritos.find(
-                (f: any) => f.dia === favorito.dia
+                (f: FavoritoDelDia) => f.dia === favorito.dia
               );
 
               if (existingFavorito) {
@@ -3720,8 +3728,8 @@ type ConfigurableItemType = 'banners' | 'promociones' | 'recompensas' | 'favorit
         {activeTab === 'recompensas' && (
           <RecompensasManager
             recompensas={getRecompensasList(config.recompensas)}
-            onAdd={(recompensa: any) => addItem('recompensas', recompensa)}
-            onUpdate={(id: string, updates: any) =>
+            onAdd={(recompensa: Recompensa) => addItem('recompensas', recompensa)}
+            onUpdate={(id: string, updates: Partial<Recompensa>) =>
               updateItem('recompensas', id, updates)
             }
             onDelete={(id: string) => deleteItem('recompensas', id)}
@@ -3741,9 +3749,9 @@ function BannersManager({
   onDelete,
   onToggle,
 }: Readonly<{
-  banners: any[];
-  onAdd: (banner: any) => void;
-  onUpdate: (id: string, banner: any) => void;
+  banners: Banner[];
+  onAdd: (banner: Banner) => void;
+  onUpdate: (id: string, banner: Partial<Banner>) => void;
   onDelete: (id: string) => void;
   onToggle: (id: string) => void;
 }>) {
@@ -3813,7 +3821,7 @@ function BannersManager({
       activo: true,
     };
 
-    if (bannerPorDia) {
+    if (bannerPorDia?.id) {
       onUpdate(bannerPorDia.id, dataToSubmit);
     } else {
       onAdd(dataToSubmit);
@@ -3920,10 +3928,10 @@ function BannersManager({
                 return bannerPorDia ? 'Actualizar' : 'Crear';
               })()}
             </button>
-            {bannerPorDia && (
+            {bannerPorDia?.id && (
               <button
                 type="button"
-                onClick={() => onDelete(bannerPorDia.id)}
+                onClick={() => onDelete(bannerPorDia.id!)}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
               >
                 Eliminar
@@ -3939,7 +3947,8 @@ function BannersManager({
                 Configurado para: {bannerPorDia.horaPublicacion}
               </span>
               <button
-                onClick={() => onToggle(bannerPorDia.id)}
+                onClick={() => bannerPorDia.id && onToggle(bannerPorDia.id)}
+                disabled={!bannerPorDia.id}
                 className={`px-3 py-1 rounded text-xs font-medium ${
                   bannerPorDia.activo
                     ? 'bg-success-600 text-white'
@@ -3962,8 +3971,8 @@ function FavoritoDelDiaManager({
   onDelete,
   onToggle,
 }: Readonly<{
-  favoritos: any[];
-  onUpdate: (favorito: any) => void;
+  favoritos: FavoritoDelDia[];
+  onUpdate: (favorito: FavoritoDelDia) => void;
   onDelete: (favoritoId: string) => void;
   onToggle: (favoritoId: string) => void;
 }>) {
@@ -4152,10 +4161,10 @@ function FavoritoDelDiaManager({
                 return favoritoPorDia ? 'Actualizar' : 'Crear';
               })()}
             </button>
-            {favoritoPorDia && (
+            {favoritoPorDia?.id && (
               <button
                 type="button"
-                onClick={() => onDelete(favoritoPorDia.id)}
+                onClick={() => onDelete(favoritoPorDia.id!)}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
               >
                 Eliminar
@@ -4171,7 +4180,8 @@ function FavoritoDelDiaManager({
                 Configurado para: {favoritoPorDia.horaPublicacion}
               </span>
               <button
-                onClick={() => onToggle(favoritoPorDia.id)}
+                onClick={() => favoritoPorDia.id && onToggle(favoritoPorDia.id)}
+                disabled={!favoritoPorDia.id}
                 className={`px-3 py-1 rounded text-xs font-medium ${
                   favoritoPorDia.activo
                     ? 'bg-success-600 text-white'
@@ -4195,9 +4205,9 @@ function PromocionesManager({
   onDelete,
   onToggle,
 }: Readonly<{
-  promociones: any[];
-  onAdd: (promocion: any) => void;
-  onUpdate: (id: string, promocion: any) => void;
+  promociones: Promocion[];
+  onAdd: (promocion: Promocion) => void;
+  onUpdate: (id: string, promocion: Partial<Promocion>) => void;
   onDelete: (id: string) => void;
   onToggle: (id: string) => void;
 }>) {
@@ -4241,7 +4251,7 @@ function PromocionesManager({
       dia: selectedDay,
       titulo: formData.titulo,
       descripcion: formData.descripcion,
-      descuento: formData.descuento,
+      descuento: formData.descuento ? parseFloat(formData.descuento) : undefined,
       horaTermino: formData.horaTermino,
       activo: true,
     };
@@ -4268,15 +4278,15 @@ function PromocionesManager({
     setIsAddMode(true);
   };
 
-  const handleEditPromo = (promo: any) => {
+  const handleEditPromo = (promo: Promocion) => {
     setFormData({
-      dia: promo.dia,
+      dia: promo.dia || '',
       titulo: promo.titulo || '',
       descripcion: promo.descripcion || '',
-      descuento: promo.descuento || '',
+      descuento: promo.descuento?.toString() || '',
       horaTermino: promo.horaTermino || '04:00',
     });
-    setEditingPromoId(promo.id);
+    setEditingPromoId(promo.id || null);
     setIsAddMode(false);
   };
 
@@ -4350,7 +4360,7 @@ function PromocionesManager({
           </div>
         ) : (
           <div className="space-y-2">
-            {promosPorDia.map((promo: any) => (
+            {promosPorDia.map((promo: Promocion) => (
               <div key={promo.id} className="p-3 bg-dark-700 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div className="flex-grow">
@@ -4372,13 +4382,15 @@ function PromocionesManager({
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => onDelete(promo.id)}
-                      className="p-1.5 rounded bg-dark-600 hover:bg-red-600 text-dark-300 hover:text-white transition-colors"
+                      onClick={() => promo.id && onDelete(promo.id)}
+                      disabled={!promo.id}
+                      className="p-1.5 rounded bg-dark-600 hover:bg-red-600 text-dark-300 hover:text-white transition-colors disabled:opacity-50"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => onToggle(promo.id)}
+                      onClick={() => promo.id && onToggle(promo.id)}
+                      disabled={!promo.id}
                       className={`p-1.5 rounded ${
                         promo.activo
                           ? 'bg-success-600 text-white'
@@ -4562,9 +4574,9 @@ function RecompensasManager({
   onDelete,
   onToggle,
 }: Readonly<{
-  recompensas: any[];
-  onAdd: (recompensa: any) => void;
-  onUpdate: (id: string, recompensa: any) => void;
+  recompensas: Recompensa[];
+  onAdd: (recompensa: Recompensa) => void;
+  onUpdate: (id: string, recompensa: Partial<Recompensa>) => void;
   onDelete: (id: string) => void;
   onToggle: (id: string) => void;
 }>) {
@@ -4583,7 +4595,7 @@ function RecompensasManager({
     const data = {
       ...formData,
       puntosRequeridos: parseInt(formData.puntosRequeridos),
-      stock: formData.stock ? parseInt(formData.stock) : null,
+      stock: formData.stock ? parseInt(formData.stock) : undefined,
     };
 
     if (editingItem) {
@@ -4602,11 +4614,11 @@ function RecompensasManager({
     setShowForm(false);
   };
 
-  const startEdit = (item: any) => {
+  const startEdit = (item: Recompensa) => {
     setEditingItem(item);
     setFormData({
-      nombre: item.nombre,
-      descripcion: item.descripcion,
+      nombre: item.nombre || '',
+      descripcion: item.descripcion || '',
       puntosRequeridos: item.puntosRequeridos?.toString() || '',
       stock: item.stock?.toString() || '',
     });
@@ -4767,7 +4779,7 @@ function RecompensasManager({
             </p>
           </div>
         ) : (
-          recompensas.map((recompensa: any) => (
+          recompensas.map((recompensa: Recompensa) => (
             <div key={recompensa.id} className="bg-dark-800 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
@@ -4779,8 +4791,9 @@ function RecompensasManager({
                       {recompensa.puntosRequeridos} pts
                     </span>
                     <button
-                      onClick={() => onToggle(recompensa.id)}
-                      className={`px-2 py-1 rounded text-xs font-medium ${
+                      onClick={() => recompensa.id && onToggle(recompensa.id)}
+                      disabled={!recompensa.id}
+                      className={`px-2 py-1 rounded text-xs font-medium disabled:opacity-50 ${
                         recompensa.activo
                           ? 'bg-success-600 text-white'
                           : 'bg-dark-600 text-dark-300'
@@ -4806,8 +4819,9 @@ function RecompensasManager({
                     <Edit3 className="w-4 h-4 text-white" />
                   </button>
                   <button
-                    onClick={() => onDelete(recompensa.id)}
-                    className="p-2 bg-red-600 hover:bg-red-700 rounded transition-colors"
+                    onClick={() => recompensa.id && onDelete(recompensa.id)}
+                    disabled={!recompensa.id}
+                    className="p-2 bg-red-600 hover:bg-red-700 rounded transition-colors disabled:opacity-50"
                   >
                     <Trash2 className="w-4 h-4 text-white" />
                   </button>
@@ -4962,7 +4976,7 @@ function StatsCard({
 function TarjetaPreviewComponent({
   config,
 }: Readonly<{
-  config: any;
+  config: GeneralConfig;
 }>) {
   // Helper function para obtener colores del nivel
   const getLevelColors = (level: string) => {
@@ -5011,7 +5025,7 @@ function TarjetaPreviewComponent({
 
   const [selectedLevel, setSelectedLevel] = useState('Oro');
   const tarjeta = (config.tarjetas || []).find(
-    (t: any) => t.nivel === selectedLevel
+    (t: Tarjeta) => t.nivel === selectedLevel
   ) || {
     nivel: selectedLevel,
     nombrePersonalizado: `Tarjeta ${selectedLevel}`,
@@ -5030,7 +5044,7 @@ function TarjetaPreviewComponent({
     <div className="space-y-4">
       {/* Selector de nivel */}
       <div className="flex justify-center space-x-2">
-        {Object.entries(nivelesConfig).map(([nivel, config]) => (
+        {Object.entries(NIVELES_TARJETAS_CONFIG).map(([nivel]) => (
           <button
             key={nivel}
             onClick={() => setSelectedLevel(nivel)}
@@ -5053,9 +5067,9 @@ function TarjetaPreviewComponent({
           <div
             className="absolute inset-0 rounded-xl shadow-2xl transform transition-all duration-300 border-2"
             style={{
-              background: tarjeta.colores?.gradiente && tarjeta.colores.gradiente.length >= 2
+              background: (tarjeta.colores && 'gradiente' in tarjeta.colores && Array.isArray(tarjeta.colores.gradiente) && tarjeta.colores.gradiente.length >= 2)
                 ? `linear-gradient(135deg, ${tarjeta.colores.gradiente[0]}, ${tarjeta.colores.gradiente[1]})`
-                : `linear-gradient(135deg, ${nivelesConfig[selectedLevel as keyof typeof nivelesConfig].colores.gradiente[0]}, ${nivelesConfig[selectedLevel as keyof typeof nivelesConfig].colores.gradiente[1]})`,
+                : `linear-gradient(135deg, ${NIVELES_TARJETAS_CONFIG[selectedLevel as keyof typeof NIVELES_TARJETAS_CONFIG].colores.gradiente[0]}, ${NIVELES_TARJETAS_CONFIG[selectedLevel as keyof typeof NIVELES_TARJETAS_CONFIG].colores.gradiente[1]})`,
               boxShadow: '0 10px 25px rgba(0,0,0,0.4)',
               borderColor: getLevelColors(selectedLevel),
             }}
@@ -5262,91 +5276,94 @@ function TarjetaPreviewComponent({
   );
 }
 
+// Configuración de niveles de tarjetas (constante fuera del componente)
+const NIVELES_TARJETAS_CONFIG = {
+  Bronce: {
+    colores: { gradiente: ['#CD7F32', '#8B4513'] },
+    textoDefault: 'Cliente Inicial',
+    condicionesDefault: {
+      puntosMinimos: 0,
+      gastosMinimos: 0,
+      visitasMinimas: 0,
+    },
+    beneficioDefault: 'Acumulación de puntos básica',
+  },
+  Plata: {
+    colores: { gradiente: ['#C0C0C0', '#A8A8A8'] },
+    textoDefault: 'Cliente Frecuente',
+    condicionesDefault: {
+      puntosMinimos: 100,
+      gastosMinimos: 500,
+      visitasMinimas: 5,
+    },
+    beneficioDefault: '5% descuento en compras',
+  },
+  Oro: {
+    colores: { gradiente: ['#FFD700', '#FFA500'] },
+    textoDefault: 'Cliente Premium',
+    condicionesDefault: {
+      puntosMinimos: 300,
+      gastosMinimos: 1500,
+      visitasMinimas: 15,
+    },
+    beneficioDefault: '10% descuento + invitaciones exclusivas',
+  },
+  Diamante: {
+    colores: { gradiente: ['#B9F2FF', '#87CEEB'] },
+    textoDefault: 'Cliente VIP',
+    condicionesDefault: {
+      puntosMinimos: 500,
+      gastosMinimos: 3000,
+      visitasMinimas: 25,
+    },
+    beneficioDefault: '15% descuento + eventos privados',
+  },
+  Platino: {
+    colores: { gradiente: ['#E5E4E2', '#CCCCCC'] },
+    textoDefault: 'Cliente Elite',
+    condicionesDefault: {
+      puntosMinimos: 1000,
+      gastosMinimos: 5000,
+      visitasMinimas: 50,
+    },
+    beneficioDefault: '20% descuento + concierge personal',
+  },
+};
+
 // Componente para edición de tarjetas
 function TarjetaEditorComponent({
   config,
   setConfig,
   showNotification,
 }: Readonly<{
-  config: any;
-  setConfig: (config: any) => void;
+  config: GeneralConfig;
+  setConfig: (config: GeneralConfig) => void;
   showNotification: (message: string, type: NivelTarjeta) => void;
 }>) {
-  const nivelesConfig = {
-    Bronce: {
-      colores: { gradiente: ['#CD7F32', '#8B4513'] },
-      textoDefault: 'Cliente Inicial',
-      condicionesDefault: {
-        puntosMinimos: 0,
-        gastosMinimos: 0,
-        visitasMinimas: 0,
-      },
-      beneficioDefault: 'Acumulación de puntos básica',
-    },
-    Plata: {
-      colores: { gradiente: ['#C0C0C0', '#A8A8A8'] },
-      textoDefault: 'Cliente Frecuente',
-      condicionesDefault: {
-        puntosMinimos: 100,
-        gastosMinimos: 500,
-        visitasMinimas: 5,
-      },
-      beneficioDefault: '5% descuento en compras',
-    },
-    Oro: {
-      colores: { gradiente: ['#FFD700', '#FFA500'] },
-      textoDefault: 'Cliente VIP',
-      condicionesDefault: {
-        puntosMinimos: 500,
-        gastosMinimos: 1500,
-        visitasMinimas: 10,
-      },
-      beneficioDefault: '10% descuento + producto gratis mensual',
-    },
-    Diamante: {
-      colores: { gradiente: ['#B9F2FF', '#00BFFF'] },
-      textoDefault: 'Cliente Elite',
-      condicionesDefault: {
-        puntosMinimos: 1500,
-        gastosMinimos: 3000,
-        visitasMinimas: 20,
-      },
-      beneficioDefault: '15% descuento + acceso a eventos exclusivos',
-    },
-    Platino: {
-      colores: { gradiente: ['#E5E4E2', '#C0C0C0'] },
-      textoDefault: 'Cliente Exclusivo',
-      condicionesDefault: {
-        puntosMinimos: 3000,
-        gastosMinimos: 5000,
-        visitasMinimas: 30,
-      },
-      beneficioDefault: '20% descuento + servicio VIP personalizado',
-    },
-  };
-
   const [selectedLevel, setSelectedLevel] = useState('Oro');
   const [editingCard, setEditingCard] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [savingEmpresa, setSavingEmpresa] = useState(false);
   const [empresaChanged, setEmpresaChanged] = useState(false);
 
-  const currentTarjeta = (config.tarjetas || []).find(
-    (t: any) => t.nivel === selectedLevel
-  ) || {
-    nivel: selectedLevel,
-    nombrePersonalizado: `Tarjeta ${selectedLevel}`,
-    textoCalidad:
-      nivelesConfig[selectedLevel as keyof typeof nivelesConfig].textoDefault,
-    colores: nivelesConfig[selectedLevel as keyof typeof nivelesConfig].colores,
-    condiciones:
-      nivelesConfig[selectedLevel as keyof typeof nivelesConfig]
-        .condicionesDefault,
-    beneficio:
-      nivelesConfig[selectedLevel as keyof typeof nivelesConfig]
-        .beneficioDefault,
-    activo: true,
-  };
+  const currentTarjeta = useMemo(() => 
+    (config.tarjetas || []).find(
+      (t: Tarjeta) => t.nivel === selectedLevel
+    ) || {
+      nivel: selectedLevel,
+      nombrePersonalizado: `Tarjeta ${selectedLevel}`,
+      textoCalidad:
+        NIVELES_TARJETAS_CONFIG[selectedLevel as keyof typeof NIVELES_TARJETAS_CONFIG].textoDefault,
+      colores: NIVELES_TARJETAS_CONFIG[selectedLevel as keyof typeof NIVELES_TARJETAS_CONFIG].colores,
+      condiciones:
+        NIVELES_TARJETAS_CONFIG[selectedLevel as keyof typeof NIVELES_TARJETAS_CONFIG]
+          .condicionesDefault,
+      beneficio:
+        NIVELES_TARJETAS_CONFIG[selectedLevel as keyof typeof NIVELES_TARJETAS_CONFIG]
+          .beneficioDefault,
+      activo: true,
+    }, [config.tarjetas, selectedLevel]
+  );
 
   // Actualizar editingCard cuando cambie selectedLevel (solo si se está editando)
   useEffect(() => {
@@ -5367,7 +5384,7 @@ function TarjetaEditorComponent({
     }
 
     const nivelSuperior = nivelesJerarquia[indexActual + 1];
-    const tarjetaSuperior = (config.tarjetas || []).find((t: any) => t.nivel === nivelSuperior);
+    const tarjetaSuperior = (config.tarjetas || []).find((t: Tarjeta) => t.nivel === nivelSuperior);
     
     if (tarjetaSuperior?.condiciones) {
       return {
@@ -5378,7 +5395,7 @@ function TarjetaEditorComponent({
     }
 
     // Si no hay tarjeta superior configurada, usar valores por defecto
-    const configSuperior = nivelesConfig[nivelSuperior as keyof typeof nivelesConfig];
+    const configSuperior = NIVELES_TARJETAS_CONFIG[nivelSuperior as keyof typeof NIVELES_TARJETAS_CONFIG];
     return {
       puntosMinimos: configSuperior.condicionesDefault.puntosMinimos - 1,
       gastosMinimos: configSuperior.condicionesDefault.gastosMinimos - 1,
@@ -5396,24 +5413,24 @@ function TarjetaEditorComponent({
   };
 
   // Función auxiliar para normalizar condiciones de tarjeta
-  const normalizeCardConditions = (card: any) => {
+  const normalizeCardConditions = (card: Tarjeta & { id?: string }) => {
     return {
       ...card,
       id: card.id || `tarjeta_${card.nivel}_${Date.now()}`,
       condiciones: {
         ...card.condiciones,
-        puntosMinimos: card.condiciones?.puntosMinimos === '' ? 0 : card.condiciones?.puntosMinimos || 0,
-        gastosMinimos: card.condiciones?.gastosMinimos === '' ? 0 : card.condiciones?.gastosMinimos || 0,
-        visitasMinimas: card.condiciones?.visitasMinimas === '' ? 0 : card.condiciones?.visitasMinimas || 0,
+        puntosMinimos: typeof card.condiciones?.puntosMinimos === 'number' ? card.condiciones.puntosMinimos : 0,
+        gastosMinimos: typeof card.condiciones?.gastosMinimos === 'number' ? card.condiciones.gastosMinimos : 0,
+        visitasMinimas: typeof card.condiciones?.visitasMinimas === 'number' ? card.condiciones.visitasMinimas : 0,
       }
     };
   };
 
   // Función auxiliar para actualizar tarjetas localmente
-  const updateLocalCards = (cardToSave: any) => {
+  const updateLocalCards = (cardToSave: Tarjeta) => {
     const newTarjetas = [...(config.tarjetas || [])];
     const existingIndex = newTarjetas.findIndex(
-      (t: any) => t.nivel === cardToSave.nivel
+      (t: Tarjeta) => t.nivel === cardToSave.nivel
     );
 
     if (existingIndex >= 0) {
@@ -5427,7 +5444,7 @@ function TarjetaEditorComponent({
   };
 
   // Función auxiliar para persistir cambios
-  const persistCardChanges = async (newTarjetas: any[]) => {
+  const persistCardChanges = async (newTarjetas: Tarjeta[]) => {
     const response = await fetch('/api/admin/portal-config', {
       method: 'PUT',
       headers: {
@@ -5463,7 +5480,7 @@ function TarjetaEditorComponent({
       
       // Revertir cambios locales en caso de error
       const originalTarjeta = (config.tarjetas || []).find(
-        (t: any) => t.nivel === editingCard.nivel
+        (t: Tarjeta) => t.nivel === editingCard.nivel
       );
       if (originalTarjeta) {
         setEditingCard(originalTarjeta);
@@ -5586,7 +5603,7 @@ function TarjetaEditorComponent({
       <div className="mb-6">
         <h5 className="text-white font-medium mb-3">Seleccionar Nivel</h5>
         <div className="grid grid-cols-5 gap-2">
-          {Object.keys(nivelesConfig).map((nivel) => (
+          {Object.keys(NIVELES_TARJETAS_CONFIG).map((nivel) => (
             <button
               key={nivel}
               onClick={() => setSelectedLevel(nivel)}
@@ -5894,20 +5911,25 @@ function TarjetaEditorComponent({
             <div>
               <p className="text-dark-400 text-sm mb-2">Beneficio:</p>
               <p className="text-white text-sm">
-                {currentTarjeta.beneficio || 'Sin beneficio definido'}
+                {('beneficio' in currentTarjeta ? currentTarjeta.beneficio : currentTarjeta.beneficios) || 'Sin beneficio definido'}
               </p>
             </div>
 
             <div>
-              <span
-                className={`inline-block px-2 py-1 rounded text-xs ${
-                  currentTarjeta.activo
-                    ? 'bg-success-600 text-white'
-                    : 'bg-red-600 text-white'
-                }`}
-              >
-                {currentTarjeta.activo ? 'Activa' : 'Inactiva'}
-              </span>
+              {(() => {
+                const isActive = 'activo' in currentTarjeta ? currentTarjeta.activo : true;
+                return (
+                  <span
+                    className={`inline-block px-2 py-1 rounded text-xs ${
+                      isActive
+                        ? 'bg-success-600 text-white'
+                        : 'bg-red-600 text-white'
+                    }`}
+                  >
+                    {isActive ? 'Activa' : 'Inactiva'}
+                  </span>
+                );
+              })()}
             </div>
           </div>
         )}
@@ -5924,14 +5946,14 @@ function ClientListItem({
   onSelect,
   calculateClientLevel,
 }: Readonly<{
-  client: any;
-  selectedClient: any;
-  onSelect: (client: any) => void;
-  calculateClientLevel: (client: any) => string;
+  client: Cliente;
+  selectedClient: Cliente | null;
+  onSelect: (client: Cliente) => void;
+  calculateClientLevel: (client: Cliente) => string;
 }>) {
   const nivelAutomatico = calculateClientLevel(client);
   const cumpleCondiciones = nivelAutomatico !== 'Bronce';
-  const tieneTarjeta = client.tarjeta !== null;
+  const tieneTarjeta = client.tarjetaLealtad !== null;
 
   return (
     <button
@@ -5946,23 +5968,23 @@ function ClientListItem({
         <div>
           <p className="font-medium">{client.nombre}</p>
           <p className="text-sm opacity-75">{client.cedula}</p>
-          <p className="text-sm opacity-75">{client.email}</p>
+          <p className="text-sm opacity-75">{client.correo}</p>
         </div>
         <div className="text-right text-sm">
           <p>Puntos: {client.puntos || 0}</p>
-          <p>Gastos: ${client.gastoTotal || 0}</p>
-          <p>Visitas: {client.visitas || 0}</p>
+          <p>Gastos: ${client.totalGastado || 0}</p>
+          <p>Visitas: {client.totalVisitas || 0}</p>
 
-          {tieneTarjeta ? (
+          {tieneTarjeta && client.tarjetaLealtad ? (
             <div className="mt-1">
               <p
-                className={`font-medium ${client.tarjeta.activa ? 'text-success-400' : 'text-red-400'}`}
+                className={`font-medium ${client.tarjetaLealtad.activa ? 'text-success-400' : 'text-red-400'}`}
               >
-                Tarjeta {client.tarjeta.nivel}{' '}
-                {!client.tarjeta.activa && '(Inactiva)'}
+                Tarjeta {client.tarjetaLealtad.nivel}{' '}
+                {!client.tarjetaLealtad.activa && '(Inactiva)'}
               </p>
               <p className="text-xs opacity-75">
-                {client.tarjeta.asignacionManual
+                {client.tarjetaLealtad.asignacionManual
                   ? 'Asignación manual'
                   : 'Asignación automática'}
               </p>
@@ -5989,7 +6011,7 @@ function CardAssignmentForm({
   onAssign,
   onCancel,
 }: Readonly<{
-  selectedClient: any;
+  selectedClient: Cliente | null;
   selectedLevel: string;
   setSelectedLevel: (level: string) => void;
   nivelesConfig: Record<string, any>;
@@ -5999,9 +6021,13 @@ function CardAssignmentForm({
   return (
     <div className="bg-dark-700 rounded-lg p-4">
       <h6 className="text-white font-medium mb-3">
-        Asignar Tarjeta a: {selectedClient.nombre}
+        Asignar Tarjeta a: {selectedClient?.nombre || 'Cliente no seleccionado'}
       </h6>
 
+      {!selectedClient ? (
+        <p className="text-red-400">Error: No se ha seleccionado ningún cliente</p>
+      ) : (
+        <>
       <div className="grid grid-cols-3 gap-4 mb-4">
         <div>
           <p className="text-dark-400 text-sm">Puntos Actuales</p>
@@ -6010,13 +6036,13 @@ function CardAssignmentForm({
         <div>
           <p className="text-dark-400 text-sm">Gastos Totales</p>
           <p className="text-white font-medium">
-            ${selectedClient.gastoTotal || 0}
+            ${selectedClient.totalGastado || 0}
           </p>
         </div>
         <div>
           <p className="text-dark-400 text-sm">Visitas</p>
           <p className="text-white font-medium">
-            {selectedClient.visitas || 0}
+            {selectedClient.totalVisitas || 0}
           </p>
         </div>
       </div>
@@ -6037,9 +6063,9 @@ function CardAssignmentForm({
           {Object.entries(nivelesConfig).map(([nivel, conf]: [string, any]) => {
             const cumple =
               (selectedClient.puntos || 0) >= conf.condiciones.puntosMinimos &&
-              (selectedClient.gastoTotal || 0) >=
+              (selectedClient.totalGastado || 0) >=
                 conf.condiciones.gastosMinimos &&
-              (selectedClient.visitas || 0) >= conf.condiciones.visitasMinimas;
+              (selectedClient.totalVisitas || 0) >= conf.condiciones.visitasMinimas;
 
             return (
               <option key={nivel} value={nivel}>
@@ -6070,6 +6096,8 @@ function CardAssignmentForm({
           Cancelar
         </button>
       </div>
+        </>
+      )}
     </div>
   );
 }
@@ -6172,10 +6200,10 @@ function AsignacionTarjetasComponent({
   }, [searchTerm, setClients, setLoading]);
 
   // Calcular nivel automático basado en historial del cliente
-  const calculateClientLevel = (client: any) => {
+  const calculateClientLevel = (client: Cliente) => {
     const puntos = client.puntos || 0;
-    const gastos = client.gastoTotal || 0;
-    const visitas = client.visitas || 0;
+    const gastos = client.totalGastado || 0;
+    const visitas = client.totalVisitas || 0;
 
     // Buscar el nivel más alto que cumple
     const niveles = ['Platino', 'Diamante', 'Oro', 'Plata', 'Bronce'];

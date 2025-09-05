@@ -147,13 +147,13 @@ export default function StaffPage() {
   } | null>(null);
 
   // Función para mostrar notificaciones
-  const showNotification = (
+  const showNotification = useCallback((
     type: 'success' | 'error' | 'info',
     message: string
   ) => {
     setNotification({ type, message });
     setTimeout(() => setNotification(null), 5000);
-  };
+  }, []);
 
   // Estados para registro manual
   const [modoManual, setModoManual] = useState(false);
@@ -216,6 +216,7 @@ export default function StaffPage() {
         // Cliente encontrado en la base de datos
         const cliente = data.cliente;
         setCustomerInfo({
+          id: cliente.cedula, // Usar cédula como ID
           cedula: cliente.cedula,
           nombre: cliente.nombre,
           email: undefined, // La API actual no devuelve email, se puede extender
@@ -231,6 +232,7 @@ export default function StaffPage() {
       } else {
         // Cliente no encontrado - nuevo cliente
         setCustomerInfo({
+          id: cedulaValue, // Usar cédula como ID
           cedula: cedulaValue,
           nombre: 'Cliente Nuevo',
           email: undefined,
@@ -331,17 +333,20 @@ export default function StaffPage() {
         loadRecentTickets();
 
         // Agregar el nuevo ticket a la lista local inmediatamente para feedback inmediato
-        const nuevoTicket = {
-          id: Date.now(),
-          cedula: data.data.cliente.nombre,
-          cliente: data.data.cliente.nombre,
-          monto: data.data.total,
+        const nuevoTicket: RecentTicket = {
+          id: Date.now().toString(),
+          cedula: data.data.cliente.cedula || '',
+          cliente: data.data.cliente.nombre || '',
+          productos: data.data.productos.map((p: Product) => p.nombre),
+          total: data.data.total,
           puntos: data.data.cliente.puntosNuevos,
+          fecha: new Date().toISOString().split('T')[0],
+          monto: data.data.total,
+          items: data.data.productos.map((p: Product) => p.nombre),
           hora: new Date().toLocaleTimeString('es-ES', {
             hour: '2-digit',
             minute: '2-digit',
           }),
-          items: data.data.productos.map((p: Product) => p.nombre),
           tipo: 'MANUAL',
         };
 
@@ -489,17 +494,17 @@ export default function StaffPage() {
   };
 
   // Función para verificar si debe procesar la imagen
-  const shouldProcessImage = (
+  const shouldProcessImage = useCallback((
     currentTime: number,
     currentClipboardId: string
   ): boolean => {
     const timeCondition = currentTime > captureStartTime + 2000; // 2 segundos mínimo
     const newImageCondition = currentClipboardId !== lastClipboardCheck;
     return timeCondition && newImageCondition;
-  };
+  }, [captureStartTime, lastClipboardCheck]);
 
   // Función para procesar la imagen capturada
-  const processClipboardImage = async (blob: Blob, currentTime: number) => {
+  const processClipboardImage = useCallback(async (blob: Blob, currentTime: number) => {
     const file = new File([blob], `captura-pos-${currentTime}.png`, {
       type: blob.type,
     });
@@ -516,7 +521,7 @@ export default function StaffPage() {
 
     showNotification('success', '🎉 ¡Captura del POS detectada y cargada!');
     console.log('✅ Captura procesada exitosamente');
-  };
+  }, [showNotification]);
 
   // Función para leer imagen del portapapeles
   const checkClipboardForImage = useCallback(async () => {
@@ -764,17 +769,20 @@ export default function StaffPage() {
         }));
 
         // Agregar a tickets recientes
-        const newTicket = {
-          id: data.data.consumoId,
-          cedula: data.data.clienteCedula,
-          cliente: data.data.clienteNombre,
-          monto: data.data.totalRegistrado,
+        const newTicket: RecentTicket = {
+          id: data.data.consumoId?.toString() || Date.now().toString(),
+          cedula: data.data.clienteCedula || '',
+          cliente: data.data.clienteNombre || '',
+          productos: editableData.productos?.map((p: EditableProduct) => p.name) || [],
+          total: data.data.totalRegistrado,
           puntos: data.data.puntosGenerados,
+          fecha: new Date().toISOString().split('T')[0],
+          monto: data.data.totalRegistrado,
+          items: editableData.productos?.map((p: EditableProduct) => p.name) || [],
           hora: new Date().toLocaleTimeString('es-ES', {
             hour: '2-digit',
             minute: '2-digit',
           }),
-          items: editableData.productos?.map((p: EditableProduct) => p.name) || [],
           tipo: 'IA',
         };
 
@@ -823,7 +831,7 @@ export default function StaffPage() {
     }
   };
 
-  const getCustomerLevelClasses = (nivel: string) => {
+  const getCustomerLevelClasses = (nivel: string | undefined) => {
     switch (nivel) {
       case 'Gold':
         return 'bg-yellow-500/20 text-yellow-400';

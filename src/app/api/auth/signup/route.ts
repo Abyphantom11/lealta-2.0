@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Crear empresa y SuperAdmin en una transacción
-    const result = await prisma.$transaction(async (tx: any) => {
+    const result = await prisma.$transaction(async (tx) => {
       // Crear Business
       const business = await tx.business.create({
         data: {

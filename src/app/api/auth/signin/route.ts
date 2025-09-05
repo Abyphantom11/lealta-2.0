@@ -3,6 +3,7 @@ import { prisma } from '../../../../lib/prisma';
 import { compare } from 'bcryptjs';
 import { z } from 'zod';
 import { randomBytes } from 'crypto';
+import { UserWithBusiness, SessionData } from '../../../../types/api-routes';
 
 // Forzar renderizado dinámico para esta ruta que usa headers y cookies
 export const dynamic = 'force-dynamic';
@@ -109,7 +110,7 @@ async function findUser(email: string, request: NextRequest) {
 }
 
 // Función auxiliar para validar usuario
-function validateUser(user: any, request: NextRequest) {
+function validateUser(user: UserWithBusiness | null, request: NextRequest): asserts user is UserWithBusiness {
   if (!user) {
     throw new Error('Credenciales inválidas');
   }
@@ -138,7 +139,7 @@ function validateUser(user: any, request: NextRequest) {
 }
 
 // Función auxiliar para manejar password inválido
-async function handleInvalidPassword(user: any) {
+async function handleInvalidPassword(user: UserWithBusiness) {
   const newAttempts = user.loginAttempts + 1;
   const shouldLock = newAttempts >= MAX_LOGIN_ATTEMPTS;
 
@@ -162,7 +163,7 @@ async function handleInvalidPassword(user: any) {
 }
 
 // Función auxiliar para crear sesión de usuario
-async function createUserSession(user: any) {
+async function createUserSession(user: UserWithBusiness): Promise<SessionData> {
   // Generar token de sesión seguro
   const sessionToken = randomBytes(32).toString('hex');
   const sessionExpires = new Date(Date.now() + SESSION_DURATION);
@@ -183,7 +184,7 @@ async function createUserSession(user: any) {
 }
 
 // Función auxiliar para crear respuesta con cookies
-function createResponse(user: any, sessionToken: string) {
+function createResponse(user: UserWithBusiness, sessionToken: string) {
   const response = NextResponse.json({
     success: true,
     user: {
