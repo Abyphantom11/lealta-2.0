@@ -16,10 +16,15 @@ import {
   Menu,
   Trophy,
   Smartphone,
-  X
+  X,
+  LogOut
 } from 'lucide-react';
 import { Cliente, MenuItem, MenuCategory } from '@/types/admin';
 import { browserNotifications } from '../../services/browserNotifications';
+import { clientSession, levelStorage, mobileStorage } from '@/utils/mobileStorage';
+import { logger } from '@/utils/logger';
+import { runBrowserDiagnostic } from '@/utils/browserDiagnostic';
+import { setupOperaFallback } from '@/utils/operaFallback';
 // Definir la interfaz para el evento de instalación PWA
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => void;
@@ -69,6 +74,36 @@ const isHigherLevel = (newLevel: string, oldLevel: string): boolean => {
   const levels = ['Bronce', 'Plata', 'Oro', 'Diamante', 'Platino'];
   return levels.indexOf(newLevel) > levels.indexOf(oldLevel);
 };
+
+// Helper para calcular datos de nivel de lealtad
+const calculateLoyaltyLevel = (portalConfig: any, clienteData: Cliente | null) => {
+  const nivelesOrdenados = ['Bronce', 'Plata', 'Oro', 'Diamante', 'Platino'];
+  const puntosRequeridos = {
+    'Bronce': 0,
+    'Plata': 100,
+    'Oro': 500,
+    'Diamante': 1500,
+    'Platino': 3000
+  };
+  
+  // Actualizar con configuración del admin si existe
+  portalConfig.tarjetas?.forEach((tarjeta: any) => {
+    if (tarjeta.condiciones?.puntosMinimos) {
+      puntosRequeridos[tarjeta.nivel as keyof typeof puntosRequeridos] = tarjeta.condiciones.puntosMinimos;
+    }
+  });
+  
+  const maxPuntos = Math.max(...Object.values(puntosRequeridos));
+  const puntosActuales = clienteData?.puntos || 100;
+  
+  return {
+    nivelesOrdenados,
+    puntosRequeridos,
+    maxPuntos,
+    puntosActuales
+  };
+};
+
 // Nota: Las animaciones de confeti se han eliminado ya que no se utilizan actualmente
 export default function ClientePortalPage() {
   const [step, setStep] = useState<'initial' | 'cedula' | 'register' | 'dashboard'>('initial');
@@ -80,7 +115,6 @@ export default function ClientePortalPage() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
   const [clienteData, setClienteData] = useState<Cliente | null>(null);
   
   // Estado de carga inicial
@@ -97,6 +131,98 @@ export default function ClientePortalPage() {
   // Estado para la opción de agregar al escritorio
   const [showAddToHomeScreen, setShowAddToHomeScreen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
+  // Verificar sesión guardada al cargar la página
+  useEffect(() => {
+    const checkSavedSession = async () => {
+      try {
+        // Configurar fallback para Opera si es necesario
+        const operaFallback = setupOperaFallback();
+        if (operaFallback) {
+          logger.warn('🔧 Sistema de fallback de Opera activado');
+        }
+        
+        // Ejecutar diagnóstico del navegador (especialmente útil para Opera)
+        logger.log('🔍 Ejecutando diagnóstico de navegador...');
+        await runBrowserDiagnostic();
+        
+        // Obtener información del entorno
+        const envInfo = mobileStorage.getEnvironmentInfo();
+        logger.log('🔍 Información del entorno:', envInfo);
+        
+        const savedSession = clientSession.load() as { cedula: string; timestamp: number } | null;
+        if (savedSession) {
+          const { cedula: savedCedula, timestamp } = savedSession;
+          
+          // Verificar si la sesión no ha expirado (30 días)
+          const now = Date.now();
+          const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+          
+          if (now - timestamp < thirtyDays) {
+            logger.log('✅ Sesión válida encontrada, verificando cliente...');
+            
+            // Sesión válida, verificar que el cliente aún existe
+            const response = await fetch('/api/cliente/verificar', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ cedula: savedCedula })
+            });
+            
+            const data = await response.json();
+            if (response.ok && data.existe) {
+              // Cliente existe, restaurar sesión
+              logger.log('🎉 Sesión restaurada exitosamente para:', savedCedula);
+              setClienteData(data.cliente);
+              setCedula(savedCedula);
+              setStep('dashboard');
+            } else {
+              // Cliente no existe, limpiar sesión
+              logger.warn('⚠️ Cliente no existe, limpiando sesión');
+              clientSession.clear();
+            }
+          } else {
+            // Sesión expirada, limpiar
+            logger.log('⏰ Sesión expirada, limpiando');
+            clientSession.clear();
+          }
+        } else {
+          logger.log('ℹ️ No hay sesión guardada');
+        }
+      } catch (error) {
+        logger.error('❌ Error verificando sesión guardada:', error);
+        // En caso de error, limpiar cualquier sesión corrupta
+        clientSession.clear();
+      } finally {
+        setIsInitialLoading(false);
+      }
+    };
+
+    checkSavedSession();
+  }, []);
+
+  // Función para cerrar sesión
+  const handleLogout = () => {
+    logger.log('🚪 Cerrando sesión...');
+    
+    // Limpiar almacenamiento usando las nuevas utilidades
+    clientSession.clear();
+    if (clienteData) {
+      levelStorage.clear(clienteData.cedula);
+    }
+    
+    // Resetear estados
+    setClienteData(null);
+    setCedula('');
+    setFormData({
+      nombre: '',
+      telefono: '',
+      correo: ''
+    });
+    setError('');
+    setStep('initial');
+    
+    logger.log('✅ Sesión cerrada exitosamente');
+  };
   
   // Estados del Menú drawer
   const [isMenuDrawerOpen, setIsMenuDrawerOpen] = useState(false);
@@ -178,14 +304,12 @@ export default function ClientePortalPage() {
           .then((choiceResult: {outcome: string}) => {
             if (choiceResult.outcome === 'accepted') {
               console.log('El usuario aceptó instalar la app');
-              setInfo('¡instalación exitosa! La app se ha Añadido a tu pantalla de inicio');
+              logger.log('✅ PWA instalada exitosamente');
               // Limpiar el prompt guardado después de usarlo
               setDeferredPrompt(null);
-              setTimeout(() => setInfo(''), 3000);
             } else {
               console.log('El usuario rechazó instalar la app');
-              setInfo('instalación cancelada');
-              setTimeout(() => setInfo(''), 3000);
+              logger.log('❌ Instalación PWA cancelada');
             }
             // Limpiar el prompt guardado
             setDeferredPrompt(null);
@@ -219,8 +343,7 @@ export default function ClientePortalPage() {
             url: window.location.href
           })
           .then(() => {
-            setInfo('Compartido exitosamente. Sigue las instrucciones para añadir a tu pantalla de inicio.');
-            setTimeout(() => setInfo(''), 5000);
+            logger.log('✅ Contenido compartido exitosamente');
           })
           .catch((error: Error) => {
             console.error('Error al compartir:', error);
@@ -400,7 +523,7 @@ export default function ClientePortalPage() {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('brandingUpdated', handleBrandingUpdate as EventListener);
     };
-  }, []);
+  }, [isInitialLoading]);
 
   // Cargar configuración del portal (tarjetas y empresa)
   useEffect(() => {
@@ -455,21 +578,25 @@ export default function ClientePortalPage() {
         // Cliente existe, redirigir al dashboard
         setClienteData(data.cliente);
         
+        // Guardar sesión usando la nueva utilidad
+        await clientSession.save(cedula.trim());
+        logger.log('💾 Sesión guardada para:', cedula.trim());
+        
         // Verificar si hay un cambio de nivel de tarjeta
         const clientLevel = data.cliente.tarjetaLealtad?.nivel || 'Bronce';
         
-        // Intentar recuperar el Ãºltimo nivel conocido del localStorage
-        const storedLevel = localStorage.getItem(`lastLevel_${data.cliente.cedula}`);
+        // Intentar recuperar el último nivel conocido
+        const storedLevel = levelStorage.load(data.cliente.cedula);
         
         if (storedLevel && clientLevel !== storedLevel && isHigherLevel(clientLevel, storedLevel)) {
-          // Hay un ascenso de nivel, mostrar animaciÃ³n
+          // Hay un ascenso de nivel, mostrar animación
           setOldLevel(storedLevel);
           setNewLevel(clientLevel);
           setShowLevelUpAnimation(true);
         }
         
-        // Guardar el nivel actual en localStorage
-        localStorage.setItem(`lastLevel_${data.cliente.cedula}`, clientLevel);
+        // Guardar el nivel actual
+        await levelStorage.save(data.cliente.cedula, clientLevel);
         
         setStep('dashboard');
       } else {
@@ -507,6 +634,11 @@ export default function ClientePortalPage() {
       const data = await response.json();
       if (response.ok) {
         setClienteData(data.cliente);
+        
+        // Guardar sesión para cliente recién registrado usando la nueva utilidad
+        await clientSession.save(cedula.trim());
+        logger.log('💾 Sesión guardada para nuevo cliente:', cedula.trim());
+        
         setStep('dashboard');
       } else {
         setError(data.error || 'Error al registrar el cliente');
@@ -625,18 +757,18 @@ export default function ClientePortalPage() {
       setIsMenuDrawerOpen(false);
     }
   };
-  // Función de bÃºsqueda global - busca en todos los productos independientemente de la vista
-  const handleSearch = (query: string) => {
+  // Función de búsqueda global - busca en todos los productos independientemente de la vista
+  const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
     
     if (!query.trim() || query.trim().length < 2) {
-      // Si no hay bÃºsqueda o es muy corta, limpiar filtros
+      // Si no hay búsqueda o es muy corta, limpiar filtros
       setFilteredProducts(menuProducts);
       return;
     }
     const searchLower = query.toLowerCase().trim();
     
-    // BÃºsqueda global en TODOS los productos, no solo los de la categorÃ­a actual
+    // Búsqueda global en TODOS los productos, no solo los de la categoría actual
     // Obtener todos los productos de todas las categorías
     const allProducts: any[] = [];
     
@@ -647,7 +779,7 @@ export default function ClientePortalPage() {
       }
     });
     
-    // BÃºsqueda mejorada en todos los productos
+    // Búsqueda mejorada en todos los productos
     const filtered = allProducts.filter((product: any) => {
       const nombre = product.nombre?.toLowerCase() || '';
       const descripcion = product.descripcion?.toLowerCase() || '';
@@ -664,7 +796,7 @@ export default function ClientePortalPage() {
     });
     
     setFilteredProducts(filtered);
-  };
+  }, [menuProducts, allCategories]);
   // Effect para actualizar filtros cuando cambian los datos
   useEffect(() => {
     if (searchQuery && searchQuery.length >= 2) {
@@ -672,7 +804,7 @@ export default function ClientePortalPage() {
     } else {
       setFilteredProducts(menuProducts);
     }
-  }, [menuCategories, menuProducts, allCategories]);
+  }, [menuCategories, menuProducts, allCategories, handleSearch, searchQuery]);
   // Hook para cargar datos cuando se entra al dashboard
   useEffect(() => {
     if (step === 'dashboard') {
@@ -1206,6 +1338,13 @@ export default function ClientePortalPage() {
             <button className="p-2 rounded-full bg-gray-800/50 hover:bg-gray-700 transition-colors">
               <Bell className="w-5 h-5 text-gray-300" />
             </button>
+            <button 
+              onClick={handleLogout}
+              className="p-2 rounded-full bg-red-600/20 hover:bg-red-600/40 transition-colors"
+              title="Cerrar Sesión"
+            >
+              <LogOut className="w-5 h-5 text-red-400" />
+            </button>
             <div className="w-8 h-8 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full flex items-center justify-center">
               <span className="text-white text-sm font-bold">
                 {(clienteData?.nombre || 'C')[0].toUpperCase()}
@@ -1475,70 +1614,12 @@ export default function ClientePortalPage() {
                         <div className="bg-dark-900/70 rounded-xl p-4 mt-2">
                           <h3 className="text-white font-semibold mb-3">Nivel de Lealtad</h3>
                           <div className="relative pt-1">
-                            {(() => {
-                              // Obtener todos los niveles configurados y ordenarlos por puntos mínimos
-                              const nivelesOrdenados = ['Bronce', 'Plata', 'Oro', 'Diamante', 'Platino'];
-                              const puntosRequeridos = {
-                                'Bronce': 0,
-                                'Plata': 100,
-                                'Oro': 500,
-                                'Diamante': 1500,
-                                'Platino': 3000
-                              };
-                              
-                              // Actualizar con configuración del admin si existe
-                              portalConfig.tarjetas?.forEach((tarjeta: any) => {
-                                if (tarjeta.condiciones?.puntosMinimos) {
-                                  puntosRequeridos[tarjeta.nivel as keyof typeof puntosRequeridos] = tarjeta.condiciones.puntosMinimos;
-                                }
-                              });
-                              
-                              // Obtener el máximo de puntos para calcular progreso
-                              const maxPuntos = Math.max(...Object.values(puntosRequeridos));
-                              const puntosActuales = clienteData?.puntos || 100;
-                              
-                              return (
-                                <>
-                                  <div className="flex mb-2 items-center justify-between">
-                                    <div>
-                                      <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-white"
-                                        style={{ background: `linear-gradient(90deg, ${tarjeta.colores.gradiente[0]}, ${tarjeta.colores.gradiente[1]})` }}
-                                      >
-                                        {nivel}
-                                      </span>
-                                    </div>
-                                    <div className="text-right">
-                                      <span className="text-xs font-semibold inline-block text-white/80">
-                                        {puntosActuales} / {maxPuntos} pts
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-dark-700">
-                                    <motion.div 
-                                      initial={{ width: 0 }}
-                                      animate={{ 
-                                        width: `${Math.min((puntosActuales / maxPuntos) * 100, 100)}%` 
-                                      }}
-                                      transition={{ duration: 0.5, ease: "easeOut" }}
-                                      style={{ 
-                                        background: `linear-gradient(90deg, ${tarjeta.colores.gradiente[0]}, ${tarjeta.colores.gradiente[1]})`
-                                      }} 
-                                      className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center rounded"
-                                    />
-                                  </div>
-                                  <div className="grid grid-cols-5 text-xs text-white/60 mb-1">
-                                    {nivelesOrdenados.map(nivelNombre => (
-                                      <div key={nivelNombre} className="text-center">{nivelNombre}</div>
-                                    ))}
-                                  </div>
-                                  <div className="flex justify-between text-xs text-white/60">
-                                    {nivelesOrdenados.map(nivelNombre => (
-                                      <div key={nivelNombre}>{puntosRequeridos[nivelNombre as keyof typeof puntosRequeridos]}</div>
-                                    ))}
-                                  </div>
-                                </>
-                              );
-                            })()}
+                            <LoyaltyLevelDisplay 
+                              portalConfig={portalConfig}
+                              clienteData={clienteData}
+                              tarjeta={tarjeta}
+                              nivel={nivel}
+                            />
                           </div>
                           
                           {/* Beneficios */}
@@ -1756,21 +1837,6 @@ export default function ClientePortalPage() {
     </>
   );
 }
-interface CategoryCardProps {
-  readonly icon: React.ReactNode;
-  readonly label: string;
-  readonly color: string;
-}
-function CategoryCard({ icon, label, color }: CategoryCardProps) {
-  return (
-    <div className="flex flex-col items-center space-y-2 p-4 bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer">
-      <div className={`w-12 h-12 ${color} rounded-lg flex items-center justify-center text-white`}>
-        {icon}
-      </div>
-      <span className="text-white text-sm font-medium">{label}</span>
-    </div>
-  );
-}
 // Helper function to create food pattern background
 function createFoodPatternBackground(): string {
   const svgContent = `
@@ -1791,10 +1857,8 @@ function createFoodPatternBackground(): string {
 }
 // Componente para mostrar banners desde el admin
 function BannersSection() {
-  console.log('🎪 BANNERS SECTION: Componente iniciando...');
   const [banners, setBanners] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(true);
 
   // Memoizar cálculo del día actual para evitar recálculos constantes
@@ -1862,7 +1926,8 @@ function BannersSection() {
     // Verificar estado inicial de permisos de notificación
     if (typeof window !== 'undefined' && 'Notification' in window) {
       const currentPermission = Notification.permission;
-      setNotificationsEnabled(currentPermission === 'granted');
+      // Solo logeamos el estado sin almacenarlo
+      logger.log(`🔔 Permisos de notificación: ${currentPermission}`);
       setShowNotificationPrompt(currentPermission === 'default');
       console.log('🔔 Estado inicial de notificaciones:', currentPermission);
     }
@@ -1930,7 +1995,7 @@ function BannersSection() {
   const enableNotifications = async () => {
     try {
       const granted = await browserNotifications.requestPermission();
-      setNotificationsEnabled(granted);
+      logger.log(`✅ Notificaciones ${granted ? 'habilitadas' : 'denegadas'}`);
       setShowNotificationPrompt(false);
       
       if (granted) {
@@ -2052,7 +2117,8 @@ function PromocionesSection() {
             }
             
             console.log(`✅ Promo "${p.titulo}" válida (sin hora límite)`);
-            return true; // Si no tiene hora de término, mostrar todo el día
+            // Promoción válida sin restricción de horario
+            return true;
           });
           
           console.log(`✅ Promociones válidas para ${diaActual}:`, promocionesDelDia);
@@ -2213,10 +2279,98 @@ function RecompensasSection() {
     </div>
   );
 }
+// Componente para el nivel de lealtad visual
+function LoyaltyLevelDisplay({ portalConfig, clienteData, tarjeta, nivel }: { 
+  readonly portalConfig: any, 
+  readonly clienteData: any, 
+  readonly tarjeta: any, 
+  readonly nivel: string 
+}) {
+  const levelData = calculateLoyaltyLevel(portalConfig, clienteData);
+  const { nivelesOrdenados, puntosRequeridos, maxPuntos, puntosActuales } = levelData;
+  
+  return (
+    <>
+      <div className="flex mb-2 items-center justify-between">
+        <div>
+          <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-white"
+            style={{ background: `linear-gradient(90deg, ${tarjeta.colores.gradiente[0]}, ${tarjeta.colores.gradiente[1]})` }}
+          >
+            {nivel}
+          </span>
+        </div>
+        <div className="text-right">
+          <span className="text-xs font-semibold inline-block text-white/80">
+            {puntosActuales} / {maxPuntos} pts
+          </span>
+        </div>
+      </div>
+      <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-dark-700">
+        <motion.div 
+          initial={{ width: 0 }}
+          animate={{ 
+            width: `${Math.min((puntosActuales / maxPuntos) * 100, 100)}%` 
+          }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          style={{ 
+            background: `linear-gradient(90deg, ${tarjeta.colores.gradiente[0]}, ${tarjeta.colores.gradiente[1]})`
+          }} 
+          className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center rounded"
+        />
+      </div>
+      <div className="grid grid-cols-5 text-xs text-white/60 mb-1">
+        {nivelesOrdenados.map(nivelNombre => (
+          <div key={nivelNombre} className="text-center">{nivelNombre}</div>
+        ))}
+      </div>
+      <div className="flex justify-between text-xs text-white/60">
+        {nivelesOrdenados.map(nivelNombre => (
+          <div key={nivelNombre}>{puntosRequeridos[nivelNombre as keyof typeof puntosRequeridos]}</div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+// Helper function para encontrar favorito por día actual
+function findFavoritoForToday(favoritos: any[]): any {
+  const hoy = new Date();
+  const diasSemana = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+  const diaActual = diasSemana[hoy.getDay()];
+  
+  // Buscar favorito para el día actual
+  let favoritoHoy = favoritos.find((f: any) => 
+    f.dia === diaActual && f.activo && f.imagenUrl && f.imagenUrl.trim() !== ''
+  );
+  
+  // Si no hay favorito para hoy, buscar el primer favorito activo
+  if (!favoritoHoy) {
+    favoritoHoy = favoritos.find((f: any) => 
+      f.activo && f.imagenUrl && f.imagenUrl.trim() !== ''
+    );
+  }
+  
+  return favoritoHoy;
+}
+
+// Helper function para procesar favorito por formato
+function processFavoritoData(favoritos: any): any {
+  if (Array.isArray(favoritos)) {
+    return findFavoritoForToday(favoritos);
+  } else {
+    // Compatibilidad con formato anterior
+    const favoritoActivo = favoritos;
+    return (favoritoActivo?.activo && favoritoActivo?.imagenUrl && favoritoActivo.imagenUrl.trim() !== '') 
+      ? favoritoActivo 
+      : null;
+  }
+}
+
 // Sección de Favorito del día
 function FavoritoDelDiaSection() {
   const [favorito, setFavorito] = useState<FavoritoDelDia | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
   useEffect(() => {
     const fetchFavorito = async () => {
       try {
@@ -2226,46 +2380,18 @@ function FavoritoDelDiaSection() {
             'Cache-Control': 'no-cache'
           }
         });
+        
         if (response.ok) {
           const data = await response.json();
-          console.log('🎯 Cliente - Favoritos recibidos:', data.config?.favoritoDelDia); // Debug
+          console.log('🎯 Cliente - Favoritos recibidos:', data.config?.favoritoDelDia);
           
-          // Obtener el día actual
-          const hoy = new Date();
-          const diasSemana = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-          const diaActual = diasSemana[hoy.getDay()];
+          const favoritoEncontrado = processFavoritoData(data.config?.favoritoDelDia);
           
-          const favoritos = data.config?.favoritoDelDia;
-          
-          if (Array.isArray(favoritos)) {
-            // Buscar favorito para el día actual
-            let favoritoHoy = favoritos.find((f: any) => 
-              f.dia === diaActual && f.activo && f.imagenUrl && f.imagenUrl.trim() !== ''
-            );
-            
-            // Si no hay favorito para hoy, buscar el primer favorito activo
-            if (!favoritoHoy) {
-              favoritoHoy = favoritos.find((f: any) => 
-                f.activo && f.imagenUrl && f.imagenUrl.trim() !== ''
-              );
-            }
-            
-            if (favoritoHoy) {
-              console.log('✅ Cliente - Favorito activo encontrado:', favoritoHoy); // Debug
-              setFavorito(favoritoHoy);
-            } else {
-              setFavorito(null);
-            }
+          if (favoritoEncontrado) {
+            console.log('✅ Cliente - Favorito activo encontrado:', favoritoEncontrado);
+            setFavorito(favoritoEncontrado);
           } else {
-            // Compatibilidad con formato anterior
-            const favoritoActivo = favoritos;
-            
-            if (favoritoActivo?.activo && favoritoActivo?.imagenUrl && favoritoActivo.imagenUrl.trim() !== '') {
-              console.log('✅ Cliente - Favorito activo encontrado (formato anterior):', favoritoActivo); // Debug
-              setFavorito(favoritoActivo);
-            } else {
-              setFavorito(null);
-            }
+            setFavorito(null);
           }
         }
       } catch (error) {
@@ -2274,9 +2400,10 @@ function FavoritoDelDiaSection() {
         setIsLoading(false);
       }
     };
+    
     fetchFavorito();
     
-    // Polling para actualizaciÃ³n en tiempo real cada 2 segundos
+    // Polling para actualización en tiempo real cada 2 segundos
     const interval = setInterval(fetchFavorito, 2000);
     return () => clearInterval(interval);
   }, []);

@@ -12,8 +12,8 @@ const PORTAL_CONFIG_PATH = path.join(process.cwd(), 'portal-config.json');
 async function notifyConfigChange() {
   try {
     // Importación dinámica para evitar problemas de ciclo
-    const { notifyConfigChange } = await import('./stream/route');
-    await notifyConfigChange();
+    const { notifyConfigChange: notifySSE } = await import('../../../../lib/sse-notifications');
+    await notifySSE();
   } catch (error) {
     console.log('⚠️ No se pudo notificar cambios SSE:', error);
   }
@@ -133,7 +133,7 @@ async function writePortalConfig(config: PortalConfig): Promise<PortalConfig> {
 }
 
 // GET - Obtener configuración del portal
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const portalConfig = await readPortalConfig();
 

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, BellOff, Check, X } from 'lucide-react';
+import { Bell, BellOff, Check } from 'lucide-react';
 import { browserNotifications } from '../services/browserNotifications';
 
 interface NotificationButtonProps {
-  className?: string;
+  readonly className?: string;
 }
 
-export function NotificationButton({ className = '' }: NotificationButtonProps) {
+export function NotificationButton({ className = '' }: Readonly<NotificationButtonProps>) {
   const [notificationStatus, setNotificationStatus] = useState({
     supported: false,
     permission: 'default' as NotificationPermission,
@@ -15,6 +15,21 @@ export function NotificationButton({ className = '' }: NotificationButtonProps) 
   const [isLoading, setIsLoading] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const [isClient, setIsClient] = useState(false);
+
+  // Helper function para determinar las clases CSS del botón
+  const getButtonClasses = (isClickable: boolean, notificationStatus: { canShow: boolean }, className: string) => {
+    let baseClasses = 'relative px-3 py-2 rounded-lg border transition-all duration-200';
+    
+    if (isClickable) {
+      baseClasses += ' bg-dark-800 border-dark-600 hover:bg-dark-700 hover:border-primary-500 cursor-pointer';
+    } else if (notificationStatus.canShow) {
+      baseClasses += ' bg-green-900/20 border-green-500/30 cursor-default';
+    } else {
+      baseClasses += ' bg-dark-800 border-dark-600 cursor-default opacity-75';
+    }
+    
+    return `${baseClasses} ${className}`;
+  };
 
   useEffect(() => {
     setIsClient(true);
@@ -126,16 +141,7 @@ export function NotificationButton({ className = '' }: NotificationButtonProps) 
         onClick={isClickable ? handleEnableNotifications : undefined}
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
-        className={`
-          relative px-3 py-2 rounded-lg border transition-all duration-200
-          ${isClickable
-            ? 'bg-dark-800 border-dark-600 hover:bg-dark-700 hover:border-primary-500 cursor-pointer'
-            : notificationStatus.canShow
-              ? 'bg-green-900/20 border-green-500/30 cursor-default'
-              : 'bg-dark-800 border-dark-600 cursor-default opacity-75'
-          }
-          ${className}
-        `}
+        className={getButtonClasses(isClickable, notificationStatus, className)}
         disabled={!isClickable}
       >
         {getButtonContent()}

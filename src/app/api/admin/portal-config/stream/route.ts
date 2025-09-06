@@ -1,72 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { logger } from '../../../../../utils/logger';
+import { addConnection, removeConnection, getCurrentConfig } from '../../../../../lib/sse-notifications';
 
 export const dynamic = 'force-dynamic';
 
-const PORTAL_CONFIG_PATH = path.join(process.cwd(), 'portal-config.json');
-
-// Mantener conexiones activas
-const connections = new Set<ReadableStreamDefaultController>();
-let lastModified = 0;
-
-// Función para verificar cambios en el archivo
-async function checkForUpdates(): Promise<boolean> {
-  try {
-    const stats = await fs.stat(PORTAL_CONFIG_PATH);
-    const currentModified = stats.mtime.getTime();
-    
-    if (currentModified > lastModified) {
-      lastModified = currentModified;
-      return true;
-    }
-    return false;
-  } catch {
-    return false;
-  }
-}
-
-// Función para obtener la configuración actual
-async function getCurrentConfig() {
-  try {
-    const data = await fs.readFile(PORTAL_CONFIG_PATH, 'utf-8');
-    return JSON.parse(data);
-  } catch {
-    return null;
-  }
-}
-
-// Función para notificar a todos los clientes conectados
-export async function notifyConfigChange() {
-  console.log(`📡 Notificando cambios a ${connections.size} clientes conectados`);
-  
-  const config = await getCurrentConfig();
-  if (!config) return;
-  
-  const message = `data: ${JSON.stringify({
-    type: 'config-update',
-    config,
-    timestamp: Date.now()
-  })}\n\n`;
-  
-  // Enviar a todos los clientes conectados
-  connections.forEach(controller => {
-    try {
-      controller.enqueue(new TextEncoder().encode(message));
-    } catch (error) {
-      console.log('🗑️ Removiendo conexión inválida');
-      connections.delete(controller);
-    }
-  });
-}
-
 export async function GET(request: NextRequest) {
-  console.log('🔌 Nueva conexión SSE establecida');
+  logger.log('🔌 Nueva conexión SSE establecida');
   
   const stream = new ReadableStream({
     start(controller) {
       // Agregar a conexiones activas
-      connections.add(controller);
+      addConnection(controller);
       
       // Enviar configuración inicial
       getCurrentConfig().then(config => {
@@ -90,17 +34,17 @@ export async function GET(request: NextRequest) {
           })}\n\n`;
           
           controller.enqueue(new TextEncoder().encode(heartbeat));
-        } catch (error) {
+        } catch {
           clearInterval(heartbeatInterval);
-          connections.delete(controller);
+          removeConnection(controller);
         }
       }, 30000);
       
       // Limpiar al cerrar conexión
       request.signal.addEventListener('abort', () => {
-        console.log('🔌 Conexión SSE cerrada');
+        logger.log('🔌 Conexión SSE cerrada');
         clearInterval(heartbeatInterval);
-        connections.delete(controller);
+        removeConnection(controller);
         controller.close();
       });
     },

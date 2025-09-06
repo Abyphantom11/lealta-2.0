@@ -2,16 +2,16 @@ import React from 'react';
 import { Bell, Wifi, WifiOff } from 'lucide-react';
 
 interface SSEStatusIndicatorProps {
-  isConnected?: boolean;
-  notificationsEnabled?: boolean;
-  className?: string;
+  readonly isConnected?: boolean;
+  readonly notificationsEnabled?: boolean;
+  readonly className?: string;
 }
 
 export function SSEStatusIndicator({ 
   isConnected = false, 
   notificationsEnabled = false,
   className = '' 
-}: SSEStatusIndicatorProps) {
+}: Readonly<SSEStatusIndicatorProps>) {
   const getStatusColor = () => {
     if (isConnected && notificationsEnabled) return 'text-green-400';
     if (isConnected) return 'text-yellow-400';

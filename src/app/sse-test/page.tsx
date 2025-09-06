@@ -1,28 +1,29 @@
 'use client';
 
 import { useEffect } from 'react';
+import { logger } from '@/utils/logger';
 
 export default function SSETestPage() {
-  console.log('🧪 SSE TEST PAGE: Iniciando...');
+  logger.log('🧪 SSE TEST PAGE: Iniciando...');
   
   useEffect(() => {
-    console.log('🧪 SSE TEST: Ejecutando useEffect...');
+    logger.log('🧪 SSE TEST: Ejecutando useEffect...');
     
     setTimeout(() => {
-      console.log('🧪 SSE TEST: Iniciando conexión EventSource...');
+      logger.log('🧪 SSE TEST: Iniciando conexión EventSource...');
       
       const eventSource = new EventSource('/api/admin/portal-config/stream');
       
       eventSource.onopen = () => {
-        console.log('✅ SSE TEST: ¡Conexión establecida exitosamente!');
+        logger.log('✅ SSE TEST: ¡Conexión establecida exitosamente!');
       };
       
       eventSource.onmessage = (event) => {
-        console.log('📡 SSE TEST: Mensaje recibido:', event.data);
+        logger.log('📡 SSE TEST: Mensaje recibido:', event.data);
       };
       
       eventSource.onerror = (error) => {
-        console.error('❌ SSE TEST: Error:', error);
+        logger.error('❌ SSE TEST: Error:', error);
       };
       
     }, 1000);

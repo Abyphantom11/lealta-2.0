@@ -1,6 +1,8 @@
 // Sistema de notificaciones push del navegador
+import { logger } from '../utils/logger';
+
 class BrowserNotificationService {
-  private isSupported: boolean = false;
+  private readonly isSupported: boolean = false;
   private permission: NotificationPermission = 'default';
   
   constructor() {
@@ -8,7 +10,8 @@ class BrowserNotificationService {
     this.isSupported = typeof window !== 'undefined' && 'Notification' in window;
     this.permission = this.isSupported ? Notification.permission : 'denied';
     
-    console.log('🔔 Servicio de notificaciones inicializado:', {
+    // Logging only in development
+    logger.log('🔔 Servicio de notificaciones inicializado:', {
       supported: this.isSupported,
       permission: this.permission
     });
@@ -17,7 +20,7 @@ class BrowserNotificationService {
   // Solicitar permisos de notificación
   async requestPermission(): Promise<boolean> {
     if (!this.isSupported) {
-      console.log('❌ Notificaciones no soportadas en este navegador');
+      logger.log('❌ Notificaciones no soportadas en este navegador');
       return false;
     }
 
@@ -29,7 +32,7 @@ class BrowserNotificationService {
       const permission = await Notification.requestPermission();
       this.permission = permission;
       
-      console.log('🔔 Permisos de notificación:', permission);
+      logger.log('🔔 Permisos de notificación:', permission);
       
       if (permission === 'granted') {
         this.showWelcomeNotification();
@@ -38,7 +41,7 @@ class BrowserNotificationService {
       
       return false;
     } catch (error) {
-      console.error('❌ Error solicitando permisos de notificación:', error);
+      logger.error('❌ Error solicitando permisos de notificación:', error);
       return false;
     }
   }
@@ -70,7 +73,7 @@ class BrowserNotificationService {
     silent?: boolean;
   }): boolean {
     if (!this.canShowNotifications()) {
-      console.log('❌ No se pueden mostrar notificaciones');
+      logger.log('❌ No se pueden mostrar notificaciones');
       return false;
     }
 
@@ -89,7 +92,7 @@ class BrowserNotificationService {
 
       // Eventos de la notificación
       notification.onclick = (event) => {
-        console.log('👆 Usuario hizo click en notificación:', event);
+        logger.log('👆 Usuario hizo click en notificación:', event);
         event.preventDefault();
         window.focus();
         
@@ -102,15 +105,15 @@ class BrowserNotificationService {
       };
 
       notification.onshow = () => {
-        console.log('👁️ Notificación mostrada');
+        logger.log('👁️ Notificación mostrada');
       };
 
       notification.onclose = () => {
-        console.log('❌ Notificación cerrada');
+        logger.log('❌ Notificación cerrada');
       };
 
       notification.onerror = (error) => {
-        console.error('❌ Error en notificación:', error);
+        logger.error('❌ Error en notificación:', error);
       };
 
       // Auto-cerrar después de 8 segundos si no requiere interacción
@@ -122,14 +125,14 @@ class BrowserNotificationService {
 
       return true;
     } catch (error) {
-      console.error('❌ Error mostrando notificación:', error);
+      logger.error('❌ Error mostrando notificación:', error);
       return false;
     }
   }
 
   // Manejar clicks en notificaciones
   private handleNotificationClick(data: any) {
-    console.log('🎯 Manejando click en notificación con data:', data);
+    logger.log('🎯 Manejando click en notificación con data:', data);
     
     switch (data.type) {
       case 'banner-update':
@@ -145,7 +148,7 @@ class BrowserNotificationService {
         window.location.reload();
         break;
       default:
-        console.log('🔄 Acción de notificación no específica');
+        logger.log('🔄 Acción de notificación no específica');
     }
   }
 
@@ -214,22 +217,14 @@ class BrowserNotificationService {
     }
 
     if (this.permission === 'denied') {
-      alert('❌ Las notificaciones están bloqueadas. Ve a configuración del navegador para habilitarlas.');
+      // En lugar de alert(), mostrar notificación temporal si es posible
+      // o simplemente log en desarrollo
+      logger.warn('❌ Las notificaciones están bloqueadas. Ve a configuración del navegador para habilitarlas.');
       return false;
     }
 
-    // Mostrar prompt explicativo antes de solicitar permisos
-    const userWantsNotifications = confirm(
-      '🔔 ¿Te gustaría recibir notificaciones cuando haya cambios en el portal?\n\n' +
-      '✅ Sabrás al instante cuando algo cambie\n' +
-      '✅ No te perderás actualizaciones importantes\n' +
-      '✅ Puedes desactivarlas cuando quieras'
-    );
-
-    if (!userWantsNotifications) {
-      return false;
-    }
-
+    // En lugar de confirm(), intentar directamente pedir permisos
+    // El navegador mostrará su propio dialog de permisos
     return await this.requestPermission();
   }
 

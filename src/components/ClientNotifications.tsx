@@ -16,10 +16,10 @@ const NotificationButton = dynamic(
 );
 
 interface ClientNotificationsProps {
-  className?: string;
+  readonly className?: string;
 }
 
-export function ClientNotifications({ className }: ClientNotificationsProps) {
+export function ClientNotifications({ className }: Readonly<ClientNotificationsProps>) {
   return (
     <Suspense fallback={
       <button className={`px-3 py-2 rounded-lg bg-dark-800 border border-dark-600 ${className || ''}`}>
