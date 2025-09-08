@@ -141,7 +141,7 @@ export default function AdvancedMetrics({ data }: Readonly<AdvancedMetricsProps>
   };
 
   // Si no hay datos de la API, usar datos simulados basados en los logs del terminal
-  const simulatedData = !data ? {
+  const simulatedData = data ?? {
     totalRevenue: { 
       current: 138.77, 
       previous: 120.50, 
@@ -190,7 +190,7 @@ export default function AdvancedMetrics({ data }: Readonly<AdvancedMetricsProps>
       target: 5, 
       format: 'number' as const 
     }
-  } : data;
+  };
   
   const metrics = [
     {
