@@ -1,9 +1,8 @@
-import NextAuth from 'next-auth';
+import NextAuth, { Session, User } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { prisma } from '../../../../lib/prisma';
 import { compare } from 'bcryptjs';
 import { JWT } from 'next-auth/jwt';
-import { Session, User } from 'next-auth';
 
 const authOptions = {
   trustHost: true,

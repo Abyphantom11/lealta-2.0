@@ -70,7 +70,6 @@ export function createRateLimit({
   };
 }
 
-export const apiRateLimit = createRateLimit({
-  maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutos
-});
+import { getRateLimitConfig } from './env';
+
+export const apiRateLimit = createRateLimit(getRateLimitConfig());

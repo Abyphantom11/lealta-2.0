@@ -1,8 +1,8 @@
 // Utilidad para manejo de almacenamiento optimizado para móviles
 import { logger } from './logger';
 
-interface StorageData {
-  data: any;
+interface StorageData<T = unknown> {
+  data: T;
   timestamp: number;
   expires?: number;
 }
@@ -116,7 +116,7 @@ class MobileStorage {
   }
   
   // Guardar datos con persistencia mejorada para móviles
-  async setItem(key: string, data: any, expirationDays: number = 30): Promise<boolean> {
+  async setItem<T>(key: string, data: T, expirationDays: number = 30): Promise<boolean> {
     const fullKey = this.prefix + key;
     
     // Si tenemos fallback de Opera, usarlo

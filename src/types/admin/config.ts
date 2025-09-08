@@ -24,7 +24,9 @@ export interface PortalConfig {
   recompensas: RecompensaConfig[];
   tarjetas: TarjetaConfig[];
   favoritoDelDia: FavoritoDelDiaConfig[];
-  [key: string]: any; // Para propiedades adicionales
+  // Propiedades adicionales tipadas específicamente
+  metadata?: Record<string, string>;
+  customSettings?: Record<string, string | number | boolean>;
 }
 
 export interface BannerConfig {

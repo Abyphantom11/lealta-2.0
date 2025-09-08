@@ -71,6 +71,14 @@ async function saveMultipleImages(images: File[]): Promise<ProcessedImage[]> {
   for (let i = 0; i < images.length; i++) {
     const image = images[i];
     try {
+      // ⚠️ VALIDACIÓN DE MEMORIA CRÍTICA - Prevenir allocation failed
+      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB máximo
+      if (image.size > MAX_FILE_SIZE) {
+        throw new Error(`Archivo demasiado grande: ${Math.round(image.size / 1024 / 1024)}MB. Máximo permitido: 10MB`);
+      }
+      
+      console.log(`📁 Procesando imagen: ${Math.round(image.size / 1024)}KB`);
+      
       const bytes = await image.arrayBuffer();
       const buffer = Buffer.from(bytes);
       

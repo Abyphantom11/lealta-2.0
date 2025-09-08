@@ -12,6 +12,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
+    // ⚠️ VALIDACIÓN DE MEMORIA CRÍTICA - Prevenir allocation failed
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB máximo
+    if (file.size > MAX_FILE_SIZE) {
+      throw new Error(`Archivo demasiado grande: ${Math.round(file.size / 1024 / 1024)}MB. Máximo permitido: 10MB`);
+    }
+    
+    console.log(`📁 Procesando imagen admin upload: ${Math.round(file.size / 1024)}KB`);
+    
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 

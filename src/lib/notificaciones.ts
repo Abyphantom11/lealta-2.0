@@ -1,6 +1,7 @@
 /**
  * Funciones para la gestión de notificaciones en tiempo real
  */
+import { getBaseUrl } from './env';
 
 /**
  * Envía una notificación a todos los clientes conectados
@@ -12,7 +13,7 @@ export const enviarNotificacionClientes = async (
 ): Promise<boolean> => {
   try {
     // Usar URL completa para requests desde el servidor
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+    const baseUrl = getBaseUrl();
     const response = await fetch(`${baseUrl}/api/notificaciones/actualizar-clientes`, {
       method: 'POST',
       headers: {

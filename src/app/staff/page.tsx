@@ -1,3 +1,6 @@
+// ========================================
+// 📦 SECCIÓN: IMPORTS Y DEPENDENCIAS (1-18)
+// ========================================
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -21,6 +24,10 @@ import {
   X,
   Zap,
 } from 'lucide-react';
+
+// ========================================
+// 🔧 SECCIÓN: INTERFACES Y TIPOS (19-100)
+// ========================================
 
 // Type for notifications
 type NotificationType = {
@@ -129,6 +136,10 @@ interface ConsumoData {
 export default function StaffPage() {
   const { user, loading, logout, isAuthenticated } = useRequireAuth('STAFF');
 
+// ========================================
+// 🎛️ SECCIÓN: ESTADOS PRINCIPALES (135-200)
+// ========================================
+
   // Estados principales
   const [cedula, setCedula] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -187,6 +198,10 @@ export default function StaffPage() {
   useEffect(() => {
     console.log('🎨 Estado de confirmación cambió:', { showConfirmation, editableData });
   }, [showConfirmation, editableData]);
+
+// ========================================
+// 🔍 SECCIÓN: FUNCIONES DE BÚSQUEDA Y CLIENTE (202-300)
+// ========================================
 
   // Función para buscar información del cliente en la base de datos REAL
   const searchCustomer = async (cedulaValue: string) => {
@@ -361,6 +376,11 @@ export default function StaffPage() {
       setIsSubmitting(false);
     }
   };
+
+// ========================================
+// 🔧 SECCIÓN: FUNCIONES AUXILIARES (375-450)
+// ========================================
+
   const determineCustomerLevel = (
     puntos: number
   ): 'Bronze' | 'Silver' | 'Gold' | 'Platinum' => {
@@ -492,6 +512,10 @@ export default function StaffPage() {
       }
     }, 300000); // 5 minutos
   };
+
+// ========================================
+// 📸 SECCIÓN: FUNCIONES DE CAPTURA Y PROCESAMIENTO (515-650)
+// ========================================
 
   // Función para verificar si debe procesar la imagen
   const shouldProcessImage = useCallback((
@@ -720,6 +744,10 @@ export default function StaffPage() {
     }
   };
 
+// ========================================
+// ✅ SECCIÓN: FUNCIONES DE CONFIRMACIÓN (745-850)
+// ========================================
+
   // Funciones para confirmación de IA
   const confirmarDatosIA = async () => {
     if (!editableData || !aiResult) return;
@@ -890,6 +918,10 @@ export default function StaffPage() {
         </motion.div>
       )}
 
+{/* ========================================
+    🎨 SECCIÓN: RENDER PRINCIPAL - HEADER Y NAVEGACIÓN (925-1000)
+    ======================================== */}
+
       {/* Header */}
       <div className="bg-dark-900/50 backdrop-blur-sm border-b border-dark-700">
         <div className="max-w-7xl mx-auto px-4 py-4">
@@ -1014,6 +1046,10 @@ export default function StaffPage() {
             </div>
           </div>
         </motion.div>
+
+{/* ========================================
+    📋 SECCIÓN: FORMULARIOS PRINCIPALES (1056-1300)
+    ======================================== */}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Formulario Principal */}
@@ -1550,6 +1586,10 @@ export default function StaffPage() {
             )}
           </div>
 
+{/* ========================================
+    📊 SECCIÓN: SIDEBAR Y RESULTADOS (1590-1750)
+    ======================================== */}
+
           {/* Sidebar - Tickets Recientes y Resultado */}
           <div className="space-y-6">
             {/* Resultado */}
@@ -1710,6 +1750,10 @@ export default function StaffPage() {
           </div>
         </div>
       </div>
+
+{/* ========================================
+    📝 SECCIÓN: MODAL DE CONFIRMACIÓN IA (1760-1874)
+    ======================================== */}
 
       {/* Modal de confirmación de IA */}
       {showConfirmation && editableData && aiResult && (

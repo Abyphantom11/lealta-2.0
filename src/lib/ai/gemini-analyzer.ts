@@ -1,12 +1,9 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GeminiAnalysisResult } from '@/types/analytics';
+import { getGeminiApiKey } from '../env';
 
-// Inicializar Gemini con manejo de múltiples variables de entorno
-const apiKey = process.env.GOOGLE_GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
-if (!apiKey) {
-  console.warn('⚠️ No se encontró API key de Google Gemini. Algunas funciones no estarán disponibles.');
-}
-
+// Inicializar Gemini con validación segura de env vars
+const apiKey = getGeminiApiKey();
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 export class GeminiPOSAnalyzer {

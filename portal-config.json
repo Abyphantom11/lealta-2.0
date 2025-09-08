@@ -1,11 +1,13 @@
 {
   "banners": [
     {
-      "dia": "viernes",
-      "imagenUrl": "/uploads/1757096170243-6qtbs.webp",
+      "id": "banner_lunes_1757354883309",
+      "dia": "lunes",
+      "titulo": "",
+      "descripcion": "",
+      "imagenUrl": "/uploads/1757354883286-q9x3h8.jpg",
       "horaPublicacion": "04:00",
-      "activo": true,
-      "id": "banners_1757095105138"
+      "activo": true
     }
   ],
   "promotions": [
@@ -72,46 +74,12 @@
     }
   ],
   "settings": {
-    "lastUpdated": "2025-09-05T18:16:11.306Z",
+    "lastUpdated": "2025-09-08T19:09:45.694Z",
     "version": "1.0.0"
   },
-  "favoritoDelDia": [
-    {
-      "id": "favoritoDelDia_1756794892836",
-      "dia": "martes",
-      "imagenUrl": "/uploads/1756794892826-5z7dvj.jpg",
-      "horaPublicacion": "09:00",
-      "activo": true
-    },
-    {
-      "id": "favoritoDelDia_1757096138196",
-      "dia": "viernes",
-      "imagenUrl": "/uploads/1757096138187-cmhyzh.png",
-      "horaPublicacion": "09:00",
-      "activo": true
-    }
-  ],
-  "promociones": [
-    {
-      "dia": "lunes",
-      "titulo": "fdsf",
-      "descripcion": "vxcvxc",
-      "descuento": 56,
-      "horaTermino": "04:00",
-      "activo": true,
-      "id": "promociones_1757092898372"
-    }
-  ],
-  "recompensas": [
-    {
-      "nombre": "xfzfsd",
-      "descripcion": "dfsfd",
-      "puntosRequeridos": 344,
-      "stock": null,
-      "id": "recompensas_1757093090871",
-      "activo": true
-    }
-  ],
+  "favoritoDelDia": [],
+  "promociones": [],
+  "recompensas": [],
   "tarjetas": [],
   "nombreEmpresa": "Love me"
 }

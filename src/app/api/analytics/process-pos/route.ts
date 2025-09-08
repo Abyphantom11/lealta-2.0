@@ -32,6 +32,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Convertir archivo a buffer
+    // ⚠️ VALIDACIÓN DE MEMORIA CRÍTICA - Prevenir allocation failed
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB máximo
+    if (file.size > MAX_FILE_SIZE) {
+      throw new Error(`Archivo demasiado grande: ${Math.round(file.size / 1024 / 1024)}MB. Máximo permitido: 10MB`);
+    }
+    
+    console.log(`📁 Procesando imagen analytics: ${Math.round(file.size / 1024)}KB`);
+    
     const arrayBuffer = await file.arrayBuffer();
     let imageBuffer: Buffer = Buffer.from(new Uint8Array(arrayBuffer));
 

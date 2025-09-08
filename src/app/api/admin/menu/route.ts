@@ -1,27 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { MenuCategoryUpdateData } from '../../../../types/api-routes';
+import { validateBusinessAccess } from '../../../../utils/business-validation';
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
-
-// Función temporal para validar business access (moveremos a utils después)
-function validateBusinessAccess(businessId: string): string {
-  if (!businessId) {
-    throw new Error('Business ID is required');
-  }
-  
-  // En desarrollo, solo permitir business_1
-  if (process.env.NODE_ENV === 'development') {
-    if (businessId !== 'business_1') {
-      throw new Error('Access denied to this business');
-    }
-    return businessId;
-  }
-  
-  // TODO: En producción, verificar permisos del usuario
-  throw new Error('Business ID logic not implemented for production');
-}
 
 const prisma = new PrismaClient();
 
@@ -46,7 +29,7 @@ export async function GET(request: NextRequest) {
     try {
       validateBusinessAccess(businessId);
     } catch (error) {
-      console.log('❌ Acceso denegado al business:', businessId);
+      console.error('❌ Error validando acceso al business para GET:', businessId, error);
       return NextResponse.json(
         { error: 'Acceso denegado' },
         { status: 403 }
@@ -105,7 +88,7 @@ export async function POST(request: NextRequest) {
     try {
       validateBusinessAccess(businessId);
     } catch (error) {
-      console.log('❌ Acceso denegado al business:', businessId);
+      console.error('❌ Error validando acceso al business para POST:', businessId, error);
       return NextResponse.json(
         { error: 'Acceso denegado' },
         { status: 403 }
@@ -122,6 +105,7 @@ export async function POST(request: NextRequest) {
         icono: icono || null,
         orden: orden || 0,
         parentId: parentId || null,
+        activo: true, // Asegurar que se cree como activo
       },
     });
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { ProductCreateData, ProductUpdateData } from '../../../../../types/api-routes';
+import { ProductCreateData } from '../../../../../types/api-routes';
+import { validateBusinessAccess } from '../../../../../utils/business-validation';
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
@@ -51,6 +52,14 @@ export async function POST(request: NextRequest) {
 
     const producto = await prisma.menuProduct.create({
       data: productData,
+      include: {
+        category: {
+          select: {
+            id: true,
+            nombre: true,
+          }
+        }
+      }
     });
 
     return NextResponse.json({
@@ -76,6 +85,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { error: 'businessId es requerido' },
         { status: 400 }
+      );
+    }
+
+    // Validar acceso al business
+    try {
+      validateBusinessAccess(businessId);
+    } catch (error) {
+      console.error('Error validando acceso al business:', error);
+      return NextResponse.json(
+        { error: 'Acceso denegado al business' },
+        { status: 403 }
       );
     }
 
@@ -155,6 +175,14 @@ export async function PUT(request: NextRequest) {
     const producto = await prisma.menuProduct.update({
       where: { id },
       data: updateData,
+      include: {
+        category: {
+          select: {
+            id: true,
+            nombre: true,
+          }
+        }
+      }
     });
 
     return NextResponse.json({

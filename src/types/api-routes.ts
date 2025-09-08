@@ -3,6 +3,7 @@
 
 import { JWT } from 'next-auth/jwt';
 import { Session, User } from 'next-auth';
+import { LucideIcon } from 'lucide-react';
 
 export interface NextAuthJWTPayload {
   token: JWT;
@@ -191,7 +192,7 @@ export interface ProductCreateData {
   imagenUrl?: string;
   destacado?: boolean;
   disponible?: boolean;
-  opciones?: any;
+  opciones?: Record<string, string | number | boolean>;
 }
 
 // Interfaces para historial de cliente
@@ -258,13 +259,13 @@ export interface BrandingConfig {
 export interface NavigationItem {
   id: 'dashboard' | 'clientes' | 'menu' | 'portal' | 'analytics' | 'configuracion';
   label: string;
-  icon: any; // React component type
+  icon: LucideIcon;
 }
 
 export interface TabItem {
   id: string;
   label: string;
-  icon: any; // React component type
+  icon: LucideIcon;
 }
 
 export interface Tarjeta {
