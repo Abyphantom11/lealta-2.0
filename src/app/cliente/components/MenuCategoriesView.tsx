@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from '../../../components/motion';
-import { UtensilsCrossed } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { MenuCategoriesViewProps, MenuCategory } from './types';
 
 const MenuCategoriesView: React.FC<MenuCategoriesViewProps> = ({
@@ -11,7 +11,7 @@ const MenuCategoriesView: React.FC<MenuCategoriesViewProps> = ({
   searchQuery
 }) => {
   const skeletonIds = ['cat-1', 'cat-2', 'cat-3', 'cat-4'];
-  
+
   // Renderizar estado de carga
   if (isLoading) {
     return (
@@ -27,7 +27,7 @@ const MenuCategoriesView: React.FC<MenuCategoriesViewProps> = ({
       </div>
     );
   }
-  
+
   // Renderizar estado vacío
   if (categories.length === 0) {
     return (
@@ -48,7 +48,7 @@ const MenuCategoriesView: React.FC<MenuCategoriesViewProps> = ({
       </div>
     );
   }
-  
+
   // Renderizar categorías
   return (
     <div>
@@ -67,11 +67,11 @@ const MenuCategoriesView: React.FC<MenuCategoriesViewProps> = ({
           >
             <div className="flex items-center space-x-3">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                category.parentId 
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500' 
+                category.parentId
+                  ? 'bg-gradient-to-r from-rose-500 to-pink-500'
                   : 'bg-gradient-to-r from-blue-500 to-purple-500'
               }`}>
-                <UtensilsCrossed className="w-5 h-5 text-white" />
+                <Sparkles className="w-5 h-5 text-white" />
               </div>
               <div>
                 <div className="text-white font-medium text-sm">{category.nombre}</div>

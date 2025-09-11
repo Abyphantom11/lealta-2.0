@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from '../../../components/motion';
-import { Coffee, ArrowRight } from 'lucide-react';
+import { Sparkles, ArrowRight } from 'lucide-react';
 import { MenuProductsViewProps, MenuItem } from './types';
 
 const MenuProductsView: React.FC<MenuProductsViewProps> = ({
@@ -68,8 +68,8 @@ const MenuProductsView: React.FC<MenuProductsViewProps> = ({
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3 flex-1">
-                <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center">
-                  <Coffee className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1">
                   <div className="text-white font-medium text-sm">{product.nombre}</div>

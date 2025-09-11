@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { CreditCard } from 'lucide-react';
 import { Tarjeta, GeneralConfig, NivelTarjeta } from './types';
 
@@ -10,57 +10,57 @@ const NIVELES_TARJETAS_CONFIG = {
     colores: {
       gradiente: ['#CD7F32', '#8B4513'],
       texto: '#FFFFFF',
-      nivel: '#CD7F32'
+      nivel: '#CD7F32',
     },
-    condicionesDefault: { puntosMinimos: 0, gastosMinimos: 0, visitasMinimas: 0 },
-    beneficioDefault: 'Acceso a promociones exclusivas'
+    condicionesDefault: { puntosMinimos: 0, visitasMinimas: 0 },
+    beneficioDefault: 'Acceso a promociones exclusivas',
   },
   Plata: {
     textoDefault: 'Cliente VIP',
     colores: {
       gradiente: ['#C0C0C0', '#808080'],
       texto: '#FFFFFF',
-      nivel: '#C0C0C0'
+      nivel: '#C0C0C0',
     },
-    condicionesDefault: { puntosMinimos: 100, gastosMinimos: 500, visitasMinimas: 5 },
-    beneficioDefault: '5% de descuento en compras'
+    condicionesDefault: { puntosMinimos: 100, visitasMinimas: 5 },
+    beneficioDefault: '5% de descuento en compras',
   },
   Oro: {
     textoDefault: 'Cliente Premium',
     colores: {
       gradiente: ['#FFD700', '#FFA500'],
       texto: '#000000',
-      nivel: '#FFD700'
+      nivel: '#FFD700',
     },
-    condicionesDefault: { puntosMinimos: 500, gastosMinimos: 1500, visitasMinimas: 10 },
-    beneficioDefault: '10% de descuento en compras'
+    condicionesDefault: { puntosMinimos: 500, visitasMinimas: 10 },
+    beneficioDefault: '10% de descuento en compras',
   },
   Diamante: {
     textoDefault: 'Cliente VIP',
     colores: {
       gradiente: ['#B9F2FF', '#0891B2'],
       texto: '#FFFFFF',
-      nivel: '#B9F2FF'
+      nivel: '#B9F2FF',
     },
-    condicionesDefault: { puntosMinimos: 1500, gastosMinimos: 3000, visitasMinimas: 20 },
-    beneficioDefault: '15% de descuento en compras'
+    condicionesDefault: { puntosMinimos: 1500, visitasMinimas: 20 },
+    beneficioDefault: '15% de descuento en compras',
   },
   Platino: {
     textoDefault: 'Cliente Elite',
     colores: {
       gradiente: ['#E5E4E2', '#717171'],
       texto: '#000000',
-      nivel: '#E5E4E2'
+      nivel: '#E5E4E2',
     },
-    condicionesDefault: { puntosMinimos: 3000, gastosMinimos: 5000, visitasMinimas: 30 },
-    beneficioDefault: '20% de descuento en compras'
-  }
+    condicionesDefault: { puntosMinimos: 3000, visitasMinimas: 30 },
+    beneficioDefault: '20% de descuento en compras',
+  },
 };
 
 interface TarjetaEditorProps {
-  config: GeneralConfig;
-  setConfig: (config: GeneralConfig) => void;
-  showNotification: (message: string, type: NivelTarjeta) => void;
+  readonly config: GeneralConfig;
+  readonly setConfig: (config: GeneralConfig) => void;
+  readonly showNotification: (message: string, type: NivelTarjeta) => void;
 }
 
 export default function TarjetaEditor({
@@ -74,23 +74,32 @@ export default function TarjetaEditor({
   const [savingEmpresa, setSavingEmpresa] = useState(false);
   const [empresaChanged, setEmpresaChanged] = useState(false);
 
-  const currentTarjeta = useMemo(() => 
-    (config.tarjetas || []).find(
-      (t: Tarjeta) => t.nivel === selectedLevel
-    ) || {
-      nivel: selectedLevel,
-      nombrePersonalizado: `Tarjeta ${selectedLevel}`,
-      textoCalidad:
-        NIVELES_TARJETAS_CONFIG[selectedLevel as keyof typeof NIVELES_TARJETAS_CONFIG].textoDefault,
-      colores: NIVELES_TARJETAS_CONFIG[selectedLevel as keyof typeof NIVELES_TARJETAS_CONFIG].colores,
-      condiciones:
-        NIVELES_TARJETAS_CONFIG[selectedLevel as keyof typeof NIVELES_TARJETAS_CONFIG]
-          .condicionesDefault,
-      beneficio:
-        NIVELES_TARJETAS_CONFIG[selectedLevel as keyof typeof NIVELES_TARJETAS_CONFIG]
-          .beneficioDefault,
-      activo: true,
-    }, [config.tarjetas, selectedLevel]
+  const currentTarjeta = useMemo(
+    () =>
+      (config.tarjetas || []).find(
+        (t: Tarjeta) => t.nivel === selectedLevel
+      ) || {
+        nivel: selectedLevel,
+        nombrePersonalizado: `Tarjeta ${selectedLevel}`,
+        textoCalidad:
+          NIVELES_TARJETAS_CONFIG[
+            selectedLevel as keyof typeof NIVELES_TARJETAS_CONFIG
+          ].textoDefault,
+        colores:
+          NIVELES_TARJETAS_CONFIG[
+            selectedLevel as keyof typeof NIVELES_TARJETAS_CONFIG
+          ].colores,
+        condiciones:
+          NIVELES_TARJETAS_CONFIG[
+            selectedLevel as keyof typeof NIVELES_TARJETAS_CONFIG
+          ].condicionesDefault,
+        beneficio:
+          NIVELES_TARJETAS_CONFIG[
+            selectedLevel as keyof typeof NIVELES_TARJETAS_CONFIG
+          ].beneficioDefault,
+        activo: true,
+      },
+    [config.tarjetas, selectedLevel]
   );
 
   // Actualizar editingCard cuando cambie selectedLevel (solo si se está editando)
@@ -108,33 +117,43 @@ export default function TarjetaEditor({
     const indexActual = nivelesJerarquia.indexOf(nivelActual);
     if (indexActual >= nivelesJerarquia.length - 1) {
       // Si es el nivel más alto, no hay límites
-      return { puntosMinimos: Infinity, gastosMinimos: Infinity, visitasMinimas: Infinity };
+      return { puntosMinimos: Infinity, visitasMinimas: Infinity };
     }
 
     const nivelSuperior = nivelesJerarquia[indexActual + 1];
-    const tarjetaSuperior = (config.tarjetas || []).find((t: Tarjeta) => t.nivel === nivelSuperior);
-    
+    const tarjetaSuperior = (config.tarjetas || []).find(
+      (t: Tarjeta) => t.nivel === nivelSuperior
+    );
+
     if (tarjetaSuperior?.condiciones) {
       return {
         puntosMinimos: tarjetaSuperior.condiciones.puntosMinimos - 1,
-        gastosMinimos: tarjetaSuperior.condiciones.gastosMinimos - 1,
         visitasMinimas: tarjetaSuperior.condiciones.visitasMinimas - 1,
       };
     }
 
     // Si no hay tarjeta superior configurada, usar valores por defecto
-    const configSuperior = NIVELES_TARJETAS_CONFIG[nivelSuperior as keyof typeof NIVELES_TARJETAS_CONFIG];
+    const configSuperior =
+      NIVELES_TARJETAS_CONFIG[
+        nivelSuperior as keyof typeof NIVELES_TARJETAS_CONFIG
+      ];
     return {
       puntosMinimos: configSuperior.condicionesDefault.puntosMinimos - 1,
-      gastosMinimos: configSuperior.condicionesDefault.gastosMinimos - 1,
       visitasMinimas: configSuperior.condicionesDefault.visitasMinimas - 1,
     };
   };
 
   // Función para validar que el valor no exceda el límite jerárquico
-  const validarLimiteJerarquico = (valor: number, limite: number, campo: string): boolean => {
+  const validarLimiteJerarquico = (
+    valor: number,
+    limite: number,
+    campo: string
+  ): boolean => {
     if (valor > limite) {
-      showNotification(`${campo} no puede ser mayor a ${limite} (límite del nivel superior)`, 'error');
+      showNotification(
+        `${campo} no puede ser mayor a ${limite} (límite del nivel superior)`,
+        'error'
+      );
       return false;
     }
     return true;
@@ -147,10 +166,15 @@ export default function TarjetaEditor({
       id: card.id || `tarjeta_${card.nivel}_${Date.now()}`,
       condiciones: {
         ...card.condiciones,
-        puntosMinimos: typeof card.condiciones?.puntosMinimos === 'number' ? card.condiciones.puntosMinimos : 0,
-        gastosMinimos: typeof card.condiciones?.gastosMinimos === 'number' ? card.condiciones.gastosMinimos : 0,
-        visitasMinimas: typeof card.condiciones?.visitasMinimas === 'number' ? card.condiciones.visitasMinimas : 0,
-      }
+        puntosMinimos:
+          typeof card.condiciones?.puntosMinimos === 'number'
+            ? card.condiciones.puntosMinimos
+            : 0,
+        visitasMinimas:
+          typeof card.condiciones?.visitasMinimas === 'number'
+            ? card.condiciones.visitasMinimas
+            : 0,
+      },
     };
   };
 
@@ -194,18 +218,24 @@ export default function TarjetaEditor({
     if (!editingCard) return;
 
     setSaving(true);
-    
+
     try {
       const cardToSave = normalizeCardConditions(editingCard);
       const newTarjetas = updateLocalCards(cardToSave);
       await persistCardChanges(newTarjetas);
-      
-      showNotification(`✅ Tarjeta ${cardToSave.nivel} guardada correctamente`, 'success');
+
+      showNotification(
+        `✅ Tarjeta ${cardToSave.nivel} guardada correctamente`,
+        'success'
+      );
       setEditingCard(null);
     } catch (error) {
       console.error('Error guardando tarjeta:', error);
-      showNotification('❌ Error al guardar los cambios de la tarjeta', 'error');
-      
+      showNotification(
+        '❌ Error al guardar los cambios de la tarjeta',
+        'error'
+      );
+
       // Revertir cambios locales en caso de error
       const originalTarjeta = (config.tarjetas || []).find(
         (t: Tarjeta) => t.nivel === editingCard.nivel
@@ -227,7 +257,7 @@ export default function TarjetaEditor({
   const handleSaveEmpresaManual = async () => {
     try {
       setSavingEmpresa(true);
-      
+
       // Persistir en la base de datos
       const response = await fetch('/api/admin/portal-config', {
         method: 'PUT',
@@ -254,11 +284,17 @@ export default function TarjetaEditor({
 
         if (syncResponse.ok) {
           const result = await syncResponse.json();
-          showNotification(`✅ Nombre guardado y ${result.updatedCards || 0} tarjetas de clientes actualizadas`, 'success');
+          showNotification(
+            `✅ Nombre guardado y ${result.updatedCards || 0} tarjetas de clientes actualizadas`,
+            'success'
+          );
         } else {
-          showNotification('✅ Nombre guardado (sin sincronización de tarjetas existentes)', 'success');
+          showNotification(
+            '✅ Nombre guardado (sin sincronización de tarjetas existentes)',
+            'success'
+          );
         }
-        
+
         setEmpresaChanged(false);
       } else {
         throw new Error('Error al guardar en el servidor');
@@ -301,10 +337,12 @@ export default function TarjetaEditor({
             )}
           </div>
         </div>
-        
+
         {empresaChanged && (
           <div className="flex items-center justify-between mt-2 p-2 bg-amber-900/30 border border-amber-600/50 rounded-lg">
-            <span className="text-sm text-amber-300">⚠️ Hay cambios sin guardar</span>
+            <span className="text-sm text-amber-300">
+              ⚠️ Hay cambios sin guardar
+            </span>
             <button
               onClick={handleSaveEmpresaManual}
               disabled={savingEmpresa}
@@ -331,7 +369,7 @@ export default function TarjetaEditor({
       <div className="mb-6">
         <h5 className="text-white font-medium mb-3">Seleccionar Nivel</h5>
         <div className="grid grid-cols-5 gap-2">
-          {Object.keys(NIVELES_TARJETAS_CONFIG).map((nivel) => (
+          {Object.keys(NIVELES_TARJETAS_CONFIG).map(nivel => (
             <button
               key={nivel}
               onClick={() => setSelectedLevel(nivel)}
@@ -414,7 +452,11 @@ export default function TarjetaEditor({
               <h6 className="text-white font-medium mb-3">
                 Condiciones para Obtener este Nivel
               </h6>
-              <div className="grid grid-cols-3 gap-4">
+              <p className="text-sm text-dark-400 mb-3">
+                El cliente obtiene la tarjeta si cumple{' '}
+                <strong>cualquiera</strong> de estas condiciones:
+              </p>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label
                     htmlFor="puntos-minimos"
@@ -434,12 +476,19 @@ export default function TarjetaEditor({
                         /^\d*$/.test(e.target.value) ||
                         e.target.value === ''
                       ) {
-                        const nuevoValor = e.target.value === '' ? '' : Number(e.target.value);
-                        
+                        const nuevoValor =
+                          e.target.value === '' ? '' : Number(e.target.value);
+
                         // Validar límites jerárquicos si no está vacío
                         if (nuevoValor !== '' && nuevoValor > 0) {
                           const limites = getLimitesMaximos(editingCard.nivel);
-                          if (!validarLimiteJerarquico(nuevoValor, limites.puntosMinimos, 'Puntos mínimos')) {
+                          if (
+                            !validarLimiteJerarquico(
+                              nuevoValor,
+                              limites.puntosMinimos,
+                              'Puntos mínimos'
+                            )
+                          ) {
                             return; // No actualizar si excede el límite
                           }
                         }
@@ -449,47 +498,6 @@ export default function TarjetaEditor({
                           condiciones: {
                             ...editingCard.condiciones,
                             puntosMinimos: nuevoValor,
-                          },
-                        });
-                      }
-                    }}
-                    className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="gastos-minimos"
-                    className="block text-sm text-dark-300 mb-1"
-                  >
-                    Gastos mínimos ($)
-                  </label>
-                  <input
-                    id="gastos-minimos"
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={editingCard.condiciones?.gastosMinimos ?? ''}
-                    onChange={e => {
-                      // Validar que solo contenga números
-                      if (
-                        /^\d*$/.test(e.target.value) ||
-                        e.target.value === ''
-                      ) {
-                        const nuevoValor = e.target.value === '' ? '' : Number(e.target.value);
-                        
-                        // Validar límites jerárquicos si no está vacío
-                        if (nuevoValor !== '' && nuevoValor > 0) {
-                          const limites = getLimitesMaximos(editingCard.nivel);
-                          if (!validarLimiteJerarquico(nuevoValor, limites.gastosMinimos, 'Gastos mínimos')) {
-                            return; // No actualizar si excede el límite
-                          }
-                        }
-
-                        setEditingCard({
-                          ...editingCard,
-                          condiciones: {
-                            ...editingCard.condiciones,
-                            gastosMinimos: nuevoValor,
                           },
                         });
                       }
@@ -516,12 +524,19 @@ export default function TarjetaEditor({
                         /^\d*$/.test(e.target.value) ||
                         e.target.value === ''
                       ) {
-                        const nuevoValor = e.target.value === '' ? '' : Number(e.target.value);
-                        
+                        const nuevoValor =
+                          e.target.value === '' ? '' : Number(e.target.value);
+
                         // Validar límites jerárquicos si no está vacío
                         if (nuevoValor !== '' && nuevoValor > 0) {
                           const limites = getLimitesMaximos(editingCard.nivel);
-                          if (!validarLimiteJerarquico(nuevoValor, limites.visitasMinimas, 'Visitas mínimas')) {
+                          if (
+                            !validarLimiteJerarquico(
+                              nuevoValor,
+                              limites.visitasMinimas,
+                              'Visitas mínimas'
+                            )
+                          ) {
                             return; // No actualizar si excede el límite
                           }
                         }
@@ -613,22 +628,18 @@ export default function TarjetaEditor({
             </div>
 
             <div>
-              <p className="text-dark-400 text-sm mb-2">Condiciones:</p>
-              <div className="grid grid-cols-3 gap-4 text-sm">
+              <p className="text-dark-400 text-sm mb-2">
+                Condiciones (cualquiera cumple):
+              </p>
+              <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-dark-400">Puntos</p>
+                  <p className="text-dark-400">Puntos mínimos</p>
                   <p className="text-white font-medium">
                     {currentTarjeta.condiciones?.puntosMinimos || 0}
                   </p>
                 </div>
                 <div>
-                  <p className="text-dark-400">Gastos</p>
-                  <p className="text-white font-medium">
-                    ${currentTarjeta.condiciones?.gastosMinimos || 0}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-dark-400">Visitas</p>
+                  <p className="text-dark-400">Visitas mínimas</p>
                   <p className="text-white font-medium">
                     {currentTarjeta.condiciones?.visitasMinimas || 0}
                   </p>

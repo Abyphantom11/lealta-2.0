@@ -850,12 +850,12 @@ export default function StaffPage() {
   const getNotificationClasses = (type: 'success' | 'error' | 'info') => {
     switch (type) {
       case 'success':
-        return 'bg-green-600 text-white';
+        return 'bg-dark-800/95 backdrop-blur-sm border border-green-500/30 bg-gradient-to-r from-green-900/20 to-emerald-900/20 text-white';
       case 'error':
-        return 'bg-red-600 text-white';
+        return 'bg-dark-800/95 backdrop-blur-sm border border-red-500/30 bg-gradient-to-r from-red-900/20 to-rose-900/20 text-white';
       case 'info':
       default:
-        return 'bg-blue-600 text-white';
+        return 'bg-dark-800/95 backdrop-blur-sm border border-blue-500/30 bg-gradient-to-r from-blue-900/20 to-indigo-900/20 text-white';
     }
   };
 
@@ -894,27 +894,31 @@ export default function StaffPage() {
       {/* Notification Component */}
       {notification && (
         <motion.div
-          initial={{ opacity: 0, y: -50 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -50 }}
-          className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 flex items-center space-x-3 max-w-sm ${getNotificationClasses(notification.type)}`}
+          initial={{ opacity: 0, x: 100 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: 100 }}
+          className={`fixed top-6 right-6 p-4 rounded-xl shadow-2xl z-50 max-w-sm ${getNotificationClasses(notification.type)}`}
         >
-          {notification.type === 'success' && (
-            <CheckCircle className="w-5 h-5 flex-shrink-0" />
-          )}
-          {notification.type === 'error' && (
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          )}
-          {notification.type === 'info' && (
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          )}
-          <span className="text-sm">{notification.message}</span>
-          <button
-            onClick={() => setNotification(null)}
-            className="ml-2 text-white hover:text-gray-200 text-lg leading-none"
-          >
-            ×
-          </button>
+          <div className="flex items-start space-x-3">
+            {notification.type === 'success' && (
+              <div className="w-2 h-2 rounded-full bg-green-400 mt-2 flex-shrink-0" />
+            )}
+            {notification.type === 'error' && (
+              <div className="w-2 h-2 rounded-full bg-red-400 mt-2 flex-shrink-0" />
+            )}
+            {notification.type === 'info' && (
+              <div className="w-2 h-2 rounded-full bg-blue-400 mt-2 flex-shrink-0" />
+            )}
+            <div className="flex-1">
+              <p className="text-white text-sm font-medium leading-relaxed">{notification.message}</p>
+            </div>
+            <button
+              onClick={() => setNotification(null)}
+              className="text-gray-400 hover:text-white transition-colors text-lg leading-none flex-shrink-0"
+            >
+              ×
+            </button>
+          </div>
         </motion.div>
       )}
 

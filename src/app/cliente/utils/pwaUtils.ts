@@ -27,23 +27,23 @@ export const installApp = (
             setDeferredPrompt(null);
           } else {
             console.log('El usuario rechazó instalar la app');
-            logger.log('❌ Instalación PWA cancelada');
+            logger.log('❌ Instalación PWA cancelada por el usuario');
           }
           // Limpiar el prompt guardado
           setDeferredPrompt(null);
         })
         .catch((error: Error) => {
           console.error('Error al instalar la app:', error);
-          setError('No se pudo instalar la app. Intenta nuevamente más tarde.');
-          setTimeout(() => setError(''), 3000);
+          setError('No se pudo instalar la aplicación. Intenta nuevamente más tarde.');
+          setTimeout(() => setError(''), 4000);
         });
     } else {
       attemptManualInstall(setError);
     }
   } catch (error) {
-    console.error('Error al instalar la app:', error);
-    setError('Hubo un problema al instalar la app. Intenta más tarde.');
-    setTimeout(() => setError(''), 3000);
+    console.error('Error al instalar la aplicación:', error);
+    setError('Hubo un problema al instalar la aplicación. Intenta más tarde.');
+    setTimeout(() => setError(''), 4000);
   }
 };
 
@@ -86,13 +86,13 @@ export const showInstallInstructions = (setError: (error: string) => void) => {
   const userAgent = navigator.userAgent.toLowerCase();
   
   if (userAgent.includes('iphone') || userAgent.includes('ipad') || userAgent.includes('ipod')) {
-    message = 'En Safari, toca el botón "Compartir" y luego "Añadir a pantalla de inicio"';
+    message = 'En Safari, toca el botón "Compartir" y luego "Agregar a pantalla de inicio"';
   } else if (userAgent.includes('android') && userAgent.includes('chrome')) {
-    message = 'Toca el botón de Menú (tres puntos) y selecciona "Añadir a pantalla de inicio" o "Instalar aplicación"';
+    message = 'Toca el botón de Menú (tres puntos) y selecciona "Agregar a pantalla de inicio" o "Instalar aplicación"';
   } else if (userAgent.includes('opera')) {
-    message = 'Toca el botón + en la barra de dirección para agregar esta app a tu pantalla de inicio';
+    message = 'Toca el botón + en la barra de dirección para agregar esta aplicación a tu pantalla de inicio';
   } else {
-    message = 'Toca el botón de opciones de tu navegador y selecciona "Añadir a pantalla de inicio" o "Instalar aplicación"';
+    message = 'Toca el botón de opciones de tu navegador y selecciona "Agregar a pantalla de inicio" o "Instalar aplicación"';
   }
   
   // Mostrar las instrucciones en un mensaje

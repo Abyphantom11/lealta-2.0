@@ -3,57 +3,58 @@ import { useState, useEffect, useCallback } from 'react';
 import { useBranding } from './branding/BrandingProvider';
 import { CedulaForm } from './auth/CedulaForm';
 import { RegisterForm } from './auth/RegisterForm';
-import Dashboard from './Dashboard';
+import { Dashboard } from './dashboard/Dashboard';
 import MenuDrawer from './MenuDrawer';
-import { clientSession, levelStorage, mobileStorage } from '@/utils/mobileStorage';
+import {
+  clientSession,
+  levelStorage,
+  mobileStorage,
+} from '@/utils/mobileStorage';
 import { logger } from '@/utils/logger';
 import { runBrowserDiagnostic } from '@/utils/browserDiagnostic';
 import { setupOperaFallback } from '@/utils/operaFallback';
-import { 
-  BeforeInstallPromptEvent, 
-  installApp, 
-  handleBeforeInstallPrompt 
-} from '../utils/pwaUtils';
 import { isHigherLevel } from '../utils/loyaltyCalculations';
-import { AuthStep, ClienteData, MenuCategory, MenuItem, FormData } from './types';
+import {
+  AuthStep,
+  ClienteData,
+  MenuCategory,
+  MenuItem,
+  FormData,
+} from './types';
 import { browserNotifications } from '@/services/browserNotifications';
 import { Bell, IdCard } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function AuthHandler() {
   const { brandingConfig } = useBranding();
-  
+
   // Estados principales de autenticación - EXTRAÍDOS DEL ORIGINAL
   // Estado local
   const [step, setStep] = useState<AuthStep>('presentation');
   const [cedula, setCedula] = useState('');
   const [clienteData, setClienteData] = useState<ClienteData | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
 
   // Estados de formulario - EXTRAÍDOS DEL ORIGINAL
   const [formData, setFormData] = useState<FormData>({
     cedula: '',
     nombre: '',
     telefono: '',
-    email: ''
+    email: '',
   });
-
-  // Estados PWA - EXTRAÍDOS DEL ORIGINAL
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
   // Estados del menú - EXTRAÍDOS DEL ORIGINAL
   const [isMenuDrawerOpen, setIsMenuDrawerOpen] = useState(false);
-  const [activeMenuSection, setActiveMenuSection] = useState<'categories' | 'products'>('categories');
-  const [selectedCategory, setSelectedCategory] = useState<MenuCategory | null>(null);
+  const [activeMenuSection, setActiveMenuSection] = useState<
+    'categories' | 'products'
+  >('categories');
+  const [selectedCategory, setSelectedCategory] = useState<MenuCategory | null>(
+    null
+  );
   const [menuCategories, setMenuCategories] = useState<MenuCategory[]>([]);
   const [allCategories, setAllCategories] = useState<MenuCategory[]>([]); // Todas las categorías incluyendo subcategorías
   const [menuProducts, setMenuProducts] = useState<MenuItem[]>([]);
   const [isLoadingMenu, setIsLoadingMenu] = useState(false);
-
-  // Estados de gestos del menú - EXTRAÍDOS DEL ORIGINAL
-  const [isDragging, setIsDragging] = useState(false);
 
   // Estados del dashboard - EXTRAÍDOS DEL ORIGINAL
   const [showTarjeta, setShowTarjeta] = useState(false);
@@ -68,23 +69,25 @@ export default function AuthHandler() {
   // Estado para configuración del portal - EXTRAÍDO DEL ORIGINAL
   const [portalConfig, setPortalConfig] = useState<any>({
     nombreEmpresa: 'LEALTA 2.0',
-    tarjetas: []
+    tarjetas: [],
   });
+  const [isPortalConfigLoaded, setIsPortalConfigLoaded] = useState(false);
 
   // Estados del carrusel - EXTRAÍDOS DEL ORIGINAL
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isClient, setIsClient] = useState(false);
 
   // Imágenes del carrusel (obtenidas desde branding config, con fallback a imágenes por defecto)
-  const carouselImages = brandingConfig.carouselImages?.length > 0 
-    ? brandingConfig.carouselImages 
-    : [
-        'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=250&fit=crop',
-        'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&h=250&fit=crop',
-        'https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=250&fit=crop',
-        'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=400&h=250&fit=crop',
-        'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400&h=250&fit=crop',
-      ];
+  const carouselImages =
+    brandingConfig.carouselImages?.length > 0
+      ? brandingConfig.carouselImages
+      : [
+          'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=250&fit=crop',
+          'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&h=250&fit=crop',
+          'https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=250&fit=crop',
+          'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=400&h=250&fit=crop',
+          'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400&h=250&fit=crop',
+        ];
 
   // useEffect para marcar cuando el componente está montado en el cliente
   useEffect(() => {
@@ -94,13 +97,13 @@ export default function AuthHandler() {
   // Función para cerrar sesión - EXTRAÍDA DEL ORIGINAL
   const handleLogout = () => {
     logger.log('🚪 Cerrando sesión...');
-    
+
     // Limpiar almacenamiento usando las nuevas utilidades
     clientSession.clear();
     if (clienteData) {
       levelStorage.clear(clienteData.cedula);
     }
-    
+
     // Resetear estados
     setClienteData(null);
     setCedula('');
@@ -108,56 +111,161 @@ export default function AuthHandler() {
       cedula: '',
       nombre: '',
       telefono: '',
-      email: ''
+      email: '',
     });
-    setError('');
     setStep('presentation');
-    
+
     logger.log('✅ Sesión cerrada exitosamente');
+  };
+
+  // Funciones auxiliares para reducir complejidad cognitiva
+  const getDefaultPortalConfig = () => ({
+    nombreEmpresa: 'LEALTA 2.0',
+    tarjetas: [
+      {
+        id: 'tarjeta_principal',
+        nombre: 'Tarjeta Love Me',
+        descripcion: 'Sistema de lealtad progresivo',
+        activa: true,
+        condicional: 'OR',
+        niveles: [
+          {
+            nombre: 'Bronce',
+            puntosRequeridos: 0,
+            visitasRequeridas: 0,
+            beneficio: 'Cliente Inicial',
+            colores: ['#CD7F32', '#B8860B'],
+          },
+          {
+            nombre: 'Plata',
+            puntosRequeridos: 300,
+            visitasRequeridas: 5,
+            beneficio: '5% descuento en compras',
+            colores: ['#C0C0C0', '#A9A9A9'],
+          },
+          {
+            nombre: 'Oro',
+            puntosRequeridos: 500,
+            visitasRequeridas: 10,
+            beneficio: '10% descuento + producto gratis mensual',
+            colores: ['#FFD700', '#FFA500'],
+          },
+          {
+            nombre: 'Diamante',
+            puntosRequeridos: 1000,
+            visitasRequeridas: 20,
+            beneficio: '15% descuento + acceso VIP',
+            colores: ['#B9F2FF', '#87CEEB'],
+          },
+          {
+            nombre: 'Platino',
+            puntosRequeridos: 1500,
+            visitasRequeridas: 30,
+            beneficio: '20% descuento + eventos exclusivos',
+            colores: ['#E5E4E2', '#BCC6CC'],
+          },
+        ],
+      },
+    ],
+  });
+
+  const loadPortalConfig = useCallback(async () => {
+    try {
+      console.log('🔄 Cargando configuración del portal...');
+      const configResponse = await fetch('/api/portal/config');
+      console.log('📡 Respuesta de configuración:', configResponse.status, configResponse.statusText);
+
+      if (configResponse.ok) {
+        const config = await configResponse.json();
+        console.log('📦 Configuración recibida:', config);
+        console.log('🏷️ Tarjetas en config:', config.tarjetas?.length || 0);
+
+        if (config.tarjetas && config.tarjetas.length > 0) {
+          setPortalConfig(config);
+          setIsPortalConfigLoaded(true);
+          logger.log('✅ Configuración del portal cargada correctamente:', config);
+        } else {
+          console.warn('⚠️ Configuración sin tarjetas, usando fallback');
+          setPortalConfig(getDefaultPortalConfig());
+          setIsPortalConfigLoaded(true);
+        }
+      } else {
+        console.error('❌ Error en respuesta de configuración:', configResponse.status);
+        const errorText = await configResponse.text();
+        console.error('📄 Texto de error:', errorText);
+        logger.warn('⚠️ No se pudo cargar la configuración del portal, usando configuración por defecto');
+        setPortalConfig(getDefaultPortalConfig());
+        setIsPortalConfigLoaded(true);
+      }
+    } catch (error) {
+      console.error('❌ Error cargando configuración:', error);
+      setPortalConfig(getDefaultPortalConfig());
+      setIsPortalConfigLoaded(true);
+    }
+  }, []); // useCallback dependencies
+
+  const setupEnvironment = async () => {
+    // Configurar fallback para Opera si es necesario
+    const operaFallback = setupOperaFallback();
+    if (operaFallback) {
+      logger.warn('🔧 Sistema de fallback de Opera activado');
+    }
+
+    // Ejecutar diagnóstico del navegador (especialmente útil para Opera)
+    logger.log('🔍 Ejecutando diagnóstico de navegador...');
+    await runBrowserDiagnostic();
+
+    // Obtener información del entorno
+    const envInfo = mobileStorage.getEnvironmentInfo();
+    logger.log('🔍 Información del entorno:', envInfo);
   };
 
   // Verificar sesión guardada al cargar - EXTRAÍDA DEL ORIGINAL
   useEffect(() => {
     const checkSavedSession = async () => {
       try {
-        // Configurar fallback para Opera si es necesario
-        const operaFallback = setupOperaFallback();
-        if (operaFallback) {
-          logger.warn('🔧 Sistema de fallback de Opera activado');
-        }
-        
-        // Ejecutar diagnóstico del navegador (especialmente útil para Opera)
-        logger.log('🔍 Ejecutando diagnóstico de navegador...');
-        await runBrowserDiagnostic();
-        
-        // Obtener información del entorno
-        const envInfo = mobileStorage.getEnvironmentInfo();
-        logger.log('🔍 Información del entorno:', envInfo);
-        
-        const savedSession = clientSession.load() as { cedula: string; timestamp: number } | null;
+        // Cargar configuración del portal PRIMERO
+        await loadPortalConfig();
+
+        // Configurar entorno del navegador
+        await setupEnvironment();
+
+        const savedSession = clientSession.load() as {
+          cedula: string;
+          timestamp: number;
+        } | null;
         if (savedSession) {
           const { cedula: savedCedula, timestamp } = savedSession;
-          
+
           // Verificar si la sesión no ha expirado (30 días)
           const now = Date.now();
           const thirtyDays = 30 * 24 * 60 * 60 * 1000;
-          
+
           if (now - timestamp < thirtyDays) {
             logger.log('✅ Sesión válida encontrada, verificando cliente...');
-            
+
             // Sesión válida, verificar que el cliente aún existe
             const response = await fetch('/api/cliente/verificar', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ cedula: savedCedula })
+              body: JSON.stringify({ cedula: savedCedula }),
             });
-            
+
             const data = await response.json();
             if (response.ok && data.existe) {
               // Cliente existe, restaurar sesión
-              logger.log('🎉 Sesión restaurada exitosamente para:', savedCedula);
-              console.log('🐛 AuthHandler - Datos del cliente restaurado:', data.cliente);
-              console.log('🐛 AuthHandler - TarjetaLealtad:', data.cliente?.tarjetaLealtad);
+              logger.log(
+                '🎉 Sesión restaurada exitosamente para:',
+                savedCedula
+              );
+              console.log(
+                '🐛 AuthHandler - Datos del cliente restaurado:',
+                data.cliente
+              );
+              console.log(
+                '🐛 AuthHandler - TarjetaLealtad:',
+                data.cliente?.tarjetaLealtad
+              );
               setClienteData(data.cliente);
               setCedula(savedCedula);
               setStep('dashboard');
@@ -190,27 +298,27 @@ export default function AuthHandler() {
     };
 
     checkSavedSession();
-  }, []);
+  }, [loadPortalConfig]);
 
   // Función simplificada para el fondo (sin SVG dinámico para evitar hidratación)
   const getBackgroundStyle = () => {
     if (!isClient) return { backgroundColor: '#1a1a1a' }; // Fondo simple en el servidor
-    
+
     return {
       backgroundColor: '#1a1a1a',
       backgroundImage: `
         radial-gradient(circle at 25% 25%, rgba(74, 74, 74, 0.3) 0%, transparent 50%),
         radial-gradient(circle at 75% 75%, rgba(74, 74, 74, 0.2) 0%, transparent 50%),
         radial-gradient(circle at 50% 50%, rgba(74, 74, 74, 0.1) 0%, transparent 50%)
-      `
+      `,
     };
   };
 
   // useEffect para el carrusel de imágenes (rotación automática cada 6 segundos para mejor sincronización)
   useEffect(() => {
     const carouselInterval = setInterval(() => {
-      setCurrentImageIndex((prevIndex) => 
-        (prevIndex + 1) % carouselImages.length
+      setCurrentImageIndex(
+        prevIndex => (prevIndex + 1) % carouselImages.length
       );
     }, 6000); // Cambia cada 6 segundos para dar tiempo a la animación de 1.5s
     return () => clearInterval(carouselInterval);
@@ -257,22 +365,6 @@ export default function AuthHandler() {
     }
   }, [isMenuDrawerOpen]);
 
-  // Event listener PWA - EXTRAÍDO DEL ORIGINAL
-  useEffect(() => {
-    const pwaHandler = (e: BeforeInstallPromptEvent) => 
-      handleBeforeInstallPrompt(e, setDeferredPrompt);
-    
-    window.addEventListener('beforeinstallprompt', pwaHandler as EventListener);
-    return () => {
-      window.removeEventListener('beforeinstallprompt', pwaHandler as EventListener);
-    };
-  }, []);
-
-  // Función de instalación PWA - EXTRAÍDA DEL ORIGINAL
-  const handleInstallApp = () => {
-    installApp(deferredPrompt, setDeferredPrompt, setError);
-  };
-
   // Función para cargar categorías del menú
   const loadMenuCategories = useCallback(async () => {
     setIsLoadingMenu(true);
@@ -293,35 +385,42 @@ export default function AuthHandler() {
   }, []);
 
   // Función para cargar productos de una categoría
-  const loadCategoryProducts = useCallback(async (categoryId: string) => {
-    setIsLoadingMenu(true);
-    try {
-      // Buscar la categoría seleccionada
-      const category = allCategories.find(cat => cat.id === categoryId);
-      setSelectedCategory(category || null);
-      
-      // Verificar si tiene subcategorías
-      const subcategorias = allCategories.filter(cat => cat.parentId === categoryId);
-      
-      if (subcategorias.length > 0) {
-        // Mostrar subcategorías
-        setMenuCategories(subcategorias);
-        setActiveMenuSection('categories');
-      } else {
-        // Cargar productos de la categoría
-        const response = await fetch(`/api/menu/productos?categoriaId=${categoryId}`);
-        if (response.ok) {
-          const data = await response.json();
-          setMenuProducts(data);
-          setActiveMenuSection('products');
+  const loadCategoryProducts = useCallback(
+    async (categoryId: string) => {
+      setIsLoadingMenu(true);
+      try {
+        // Buscar la categoría seleccionada
+        const category = allCategories.find(cat => cat.id === categoryId);
+        setSelectedCategory(category || null);
+
+        // Verificar si tiene subcategorías
+        const subcategorias = allCategories.filter(
+          cat => cat.parentId === categoryId
+        );
+
+        if (subcategorias.length > 0) {
+          // Mostrar subcategorías
+          setMenuCategories(subcategorias);
+          setActiveMenuSection('categories');
+        } else {
+          // Cargar productos de la categoría
+          const response = await fetch(
+            `/api/menu/productos?categoriaId=${categoryId}`
+          );
+          if (response.ok) {
+            const data = await response.json();
+            setMenuProducts(data);
+            setActiveMenuSection('products');
+          }
         }
+      } catch (error) {
+        console.error('Error cargando productos de categoría:', error);
+      } finally {
+        setIsLoadingMenu(false);
       }
-    } catch (error) {
-      console.error('Error cargando productos de categoría:', error);
-    } finally {
-      setIsLoadingMenu(false);
-    }
-  }, [allCategories]);
+    },
+    [allCategories]
+  );
 
   // Verificar sesión inicial
   useEffect(() => {
@@ -331,14 +430,14 @@ export default function AuthHandler() {
         if (sessionData?.cedula) {
           logger.log('📱 Sesión encontrada:', sessionData.cedula);
           setCedula(sessionData.cedula);
-          
+
           // Verificar cliente en la base de datos
           const response = await fetch('/api/cliente/verificar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cedula: sessionData.cedula })
+            body: JSON.stringify({ cedula: sessionData.cedula }),
           });
-          
+
           const data = await response.json();
           if (response.ok && data.existe) {
             setClienteData(data.cliente);
@@ -372,50 +471,102 @@ export default function AuthHandler() {
     if (step === 'dashboard' && clienteData?.id) {
       const fetchClienteActualizado = async () => {
         try {
+          // Primero evaluar si necesita actualización de nivel
+          const evaluacionResponse = await fetch(
+            '/api/admin/evaluar-nivel-cliente',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ cedula: clienteData.cedula }),
+            }
+          );
+
+          if (evaluacionResponse.ok) {
+            const evaluacionData = await evaluacionResponse.json();
+
+            // Si hubo actualización de nivel, activar animación
+            if (evaluacionData.actualizado) {
+              // Log solo para cambios importantes
+              if (process.env.NODE_ENV === 'development') {
+                console.log(
+                  `🆙 Cliente subió de ${evaluacionData.nivelAnterior} a ${evaluacionData.nivelNuevo}!`
+                );
+              }
+
+              // Activar animación de subida de nivel
+              setOldLevel(evaluacionData.nivelAnterior);
+              setNewLevel(evaluacionData.nivelNuevo);
+              setShowLevelUpAnimation(true);
+
+              // Actualizar localStorage para evitar duplicados
+              localStorage.setItem(
+                `lastLevel_${clienteData.cedula}`,
+                evaluacionData.nivelNuevo
+              );
+            }
+          }
+
+          // Luego obtener datos actualizados del cliente
           const response = await fetch('/api/cliente/verificar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cedula: clienteData.cedula })
+            body: JSON.stringify({ cedula: clienteData.cedula }),
           });
 
           if (response.ok) {
             const data = await response.json();
             if (data.existe) {
               // Debug: Verificar datos actualizados
-              console.log('🐛 AuthHandler - Actualización periódica:', data.cliente);
-              console.log('🐛 AuthHandler - TarjetaLealtad actualizada:', data.cliente?.tarjetaLealtad);
-              
+              console.log(
+                '🐛 AuthHandler - Actualización periódica:',
+                data.cliente
+              );
+              console.log(
+                '🐛 AuthHandler - TarjetaLealtad actualizada:',
+                data.cliente?.tarjetaLealtad
+              );
+
               // Actualizar los datos del cliente
               setClienteData(data.cliente);
-              
+
               // Verificar si hubo un cambio de nivel
-              const clientLevel = data.cliente.tarjetaLealtad?.nivel || 'Bronce';
-              
+              const clientLevel =
+                data.cliente.tarjetaLealtad?.nivel || 'Bronce';
+
               // Intentar recuperar el último nivel conocido del localStorage
-              const storedLevel = localStorage.getItem(`lastLevel_${data.cliente.cedula}`);
-              
-              if (storedLevel && clientLevel !== storedLevel && isHigherLevel(clientLevel, storedLevel)) {
+              const storedLevel = localStorage.getItem(
+                `lastLevel_${data.cliente.cedula}`
+              );
+
+              if (
+                storedLevel &&
+                clientLevel !== storedLevel &&
+                isHigherLevel(clientLevel, storedLevel)
+              ) {
                 // Hay un ascenso de nivel, mostrar animación
                 setOldLevel(storedLevel);
                 setNewLevel(clientLevel);
                 setShowLevelUpAnimation(true);
               }
-              
+
               // Guardar el nivel actual en localStorage
-              localStorage.setItem(`lastLevel_${data.cliente.cedula}`, clientLevel);
+              localStorage.setItem(
+                `lastLevel_${data.cliente.cedula}`,
+                clientLevel
+              );
             }
           }
         } catch (error) {
           console.error('Error actualizando datos del cliente:', error);
         }
       };
-      
+
       // Actualizar inmediatamente al entrar
       fetchClienteActualizado();
-      
+
       // Actualizar cada 15 segundos
       const updateInterval = setInterval(fetchClienteActualizado, 15000);
-      
+
       return () => clearInterval(updateInterval);
     }
   }, [step, clienteData?.id, clienteData?.cedula]);
@@ -439,9 +590,11 @@ export default function AuthHandler() {
           {/* Header */}
           <header className="flex items-center justify-between p-4 relative z-10">
             <div className="flex items-center space-x-2">
-              <span className="text-white font-bold text-lg">{brandingConfig.businessName}</span>
+              <span className="text-white font-bold text-lg">
+                {brandingConfig.businessName}
+              </span>
             </div>
-            
+
             {/* Botón de notificaciones */}
             <button
               onClick={() => browserNotifications.requestPermission()}
@@ -453,13 +606,13 @@ export default function AuthHandler() {
           </header>
           {/* Hero Section */}
           <div className="relative min-h-[400px] overflow-visible pb-20 pt-8">
-            <div 
+            <div
               className="absolute inset-0 bg-cover bg-center"
               style={getBackgroundStyle()}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
             <div className="absolute inset-0 flex flex-col justify-center items-center text-center px-6 pt-16">
-              <motion.h1 
+              <motion.h1
                 className="text-3xl md:text-4xl font-bold text-white mb-8 mt-8"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -468,7 +621,7 @@ export default function AuthHandler() {
                 Descubre Nuestro Menú
               </motion.h1>
               {/* Carrusel de imágenes */}
-              <motion.div 
+              <motion.div
                 className="mb-12 w-full max-w-sm mx-auto"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -479,51 +632,58 @@ export default function AuthHandler() {
                     {/* Contenedor de las imágenes con desplazamiento */}
                     <div className="relative w-64 h-32 flex items-center justify-center">
                       {/* Track de imágenes que se desplaza */}
-                      <div 
+                      <div
                         className="flex items-center absolute transition-transform duration-1500 ease-out"
                         style={{
                           transform: `translateX(${-currentImageIndex * 120}px)`,
                           left: '50%',
-                          marginLeft: '-60px' // Centrar el track
+                          marginLeft: '-60px', // Centrar el track
                         }}
                       >
-                        {carouselImages.map((imageUrl: string, index: number) => {
-                          const isCurrent = index === currentImageIndex;
-                          const isAdjacent = Math.abs(index - currentImageIndex) === 1;
-                          
-                          let opacity = 0;
-                          if (isCurrent) opacity = 1;
-                          else if (isAdjacent) opacity = 0.6;
-                          
-                          return (
-                            <div
-                              key={`carousel-img-${index}-${imageUrl.split('?')[0].split('/').pop()}`}
-                              className="flex-shrink-0 mx-4 transition-all duration-1500 ease-out"
-                              style={{
-                                transform: isCurrent ? 'scale(1)' : 'scale(0.75)',
-                                opacity: opacity,
-                                zIndex: isCurrent ? 5 : 1
-                              }}
-                            >
-                              <img
-                                src={imageUrl}
-                                alt={`Imagen ${index + 1}`}
-                                className={`object-cover rounded-lg ${
-                                  isCurrent 
-                                    ? 'w-32 h-32' 
-                                    : 'w-20 h-20'
-                                }`}
-                                style={isCurrent ? { 
-                                  boxShadow: `0 8px 20px ${brandingConfig.primaryColor}33`
-                                } : {}}
-                              />
-                            </div>
-                          );
-                        })}
+                        {carouselImages.map(
+                          (imageUrl: string, index: number) => {
+                            const isCurrent = index === currentImageIndex;
+                            const isAdjacent =
+                              Math.abs(index - currentImageIndex) === 1;
+
+                            let opacity = 0;
+                            if (isCurrent) opacity = 1;
+                            else if (isAdjacent) opacity = 0.6;
+
+                            return (
+                              <div
+                                key={`carousel-img-${index}-${imageUrl.split('?')[0].split('/').pop()}`}
+                                className="flex-shrink-0 mx-4 transition-all duration-1500 ease-out"
+                                style={{
+                                  transform: isCurrent
+                                    ? 'scale(1)'
+                                    : 'scale(0.75)',
+                                  opacity: opacity,
+                                  zIndex: isCurrent ? 5 : 1,
+                                }}
+                              >
+                                <img
+                                  src={imageUrl}
+                                  alt={`Imagen ${index + 1}`}
+                                  className={`object-cover rounded-lg ${
+                                    isCurrent ? 'w-32 h-32' : 'w-20 h-20'
+                                  }`}
+                                  style={
+                                    isCurrent
+                                      ? {
+                                          boxShadow: `0 8px 20px ${brandingConfig.primaryColor}33`,
+                                        }
+                                      : {}
+                                  }
+                                />
+                              </div>
+                            );
+                          }
+                        )}
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Indicadores de puntos */}
                   <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
                     {carouselImages.map((imageUrl: string, index: number) => (
@@ -535,7 +695,10 @@ export default function AuthHandler() {
                             : 'bg-white opacity-40 scale-100'
                         }`}
                         style={{
-                          backgroundColor: index === currentImageIndex ? brandingConfig.primaryColor : undefined
+                          backgroundColor:
+                            index === currentImageIndex
+                              ? brandingConfig.primaryColor
+                              : undefined,
                         }}
                       />
                     ))}
@@ -544,16 +707,16 @@ export default function AuthHandler() {
               </motion.div>
               {/* botón centrado debajo del carrusel */}
               <div className="flex justify-center mt-8">
-                <motion.button 
+                <motion.button
                   onClick={() => setStep('cedula')}
                   className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold flex items-center space-x-2 hover:bg-blue-700 transition-colors shadow-lg"
-                  style={{ 
+                  style={{
                     backgroundColor: brandingConfig.primaryColor,
-                    boxShadow: `0 4px 15px 0 ${brandingConfig.primaryColor}33`
+                    boxShadow: `0 4px 15px 0 ${brandingConfig.primaryColor}33`,
                   }}
-                  whileHover={{ 
+                  whileHover={{
                     filter: 'brightness(1.1)',
-                    scale: 1.02 
+                    scale: 1.02,
                   }}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -567,7 +730,7 @@ export default function AuthHandler() {
           </div>
         </div>
       )}
-      
+
       {step === 'cedula' && (
         <CedulaForm
           setStep={setStep}
@@ -576,7 +739,7 @@ export default function AuthHandler() {
           setClienteData={setClienteData}
         />
       )}
-      
+
       {step === 'register' && (
         <RegisterForm
           setStep={setStep}
@@ -586,8 +749,20 @@ export default function AuthHandler() {
           setClienteData={setClienteData}
         />
       )}
-      
-      {step === 'dashboard' && (
+
+      {step === 'dashboard' && !isPortalConfigLoaded && (
+        <div
+          className="min-h-screen flex items-center justify-center"
+          style={getBackgroundStyle()}
+        >
+          <div className="text-center text-white">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
+            <p>Cargando configuración...</p>
+          </div>
+        </div>
+      )}
+
+      {step === 'dashboard' && isPortalConfigLoaded && (
         <>
           <Dashboard
             clienteData={clienteData}
@@ -597,13 +772,12 @@ export default function AuthHandler() {
             oldLevel={oldLevel}
             newLevel={newLevel}
             onMenuOpen={() => setIsMenuDrawerOpen(true)}
-            brandingConfig={brandingConfig}
             handleLogout={handleLogout}
             showTarjeta={showTarjeta}
             setShowTarjeta={setShowTarjeta}
             portalConfig={portalConfig}
           />
-          
+
           <MenuDrawer
             isMenuDrawerOpen={isMenuDrawerOpen}
             setIsMenuDrawerOpen={setIsMenuDrawerOpen}

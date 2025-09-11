@@ -3,12 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import {
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-  XCircleIcon,
-  InformationCircleIcon,
-} from '@heroicons/react/24/solid';
 import notificationService, {
   Notification as NotificationType,
 } from '@/lib/notificationService';
@@ -20,67 +14,69 @@ const NotificationItem: React.FC<{
   notification: NotificationType;
   onClose: (id: string) => void;
 }> = ({ notification, onClose }) => {
-  // Determinar el icono según el tipo
+  // Determinar el icono según el tipo - Con punto de color
   const getIcon = () => {
     switch (notification.type) {
       case 'success':
-        return <CheckCircleIcon className="h-6 w-6 text-green-500" />;
+        return <div className="w-2 h-2 rounded-full bg-green-400 mt-2" />;
       case 'error':
-        return <XCircleIcon className="h-6 w-6 text-red-500" />;
+        return <div className="w-2 h-2 rounded-full bg-red-400 mt-2" />;
       case 'warning':
-        return <ExclamationTriangleIcon className="h-6 w-6 text-amber-500" />;
+        return <div className="w-2 h-2 rounded-full bg-yellow-400 mt-2" />;
       case 'info':
-        return <InformationCircleIcon className="h-6 w-6 text-blue-500" />;
+        return <div className="w-2 h-2 rounded-full bg-blue-400 mt-2" />;
       default:
-        return null;
+        return <div className="w-2 h-2 rounded-full bg-gray-400 mt-2" />;
     }
   };
 
-  // Determinar la clase según el tipo
+  // Determinar la clase según el tipo - Diseño profesional oscuro
   const getBgClass = () => {
     switch (notification.type) {
       case 'success':
-        return 'bg-green-50 border-green-200';
+        return 'bg-dark-800/95 backdrop-blur-sm border border-green-500/30 bg-gradient-to-r from-green-900/20 to-emerald-900/20';
       case 'error':
-        return 'bg-red-50 border-red-200';
+        return 'bg-dark-800/95 backdrop-blur-sm border border-red-500/30 bg-gradient-to-r from-red-900/20 to-rose-900/20';
       case 'warning':
-        return 'bg-amber-50 border-amber-200';
+        return 'bg-dark-800/95 backdrop-blur-sm border border-yellow-500/30 bg-gradient-to-r from-yellow-900/20 to-amber-900/20';
       case 'info':
-        return 'bg-blue-50 border-blue-200';
+        return 'bg-dark-800/95 backdrop-blur-sm border border-blue-500/30 bg-gradient-to-r from-blue-900/20 to-indigo-900/20';
       default:
-        return 'bg-gray-50 border-gray-200';
+        return 'bg-dark-800/95 backdrop-blur-sm border border-gray-500/30';
     }
   };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -20, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
-      className={`rounded-lg shadow-md border p-4 w-full max-w-md flex ${getBgClass()}`}
+      initial={{ opacity: 0, x: 100 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 100, transition: { duration: 0.3 } }}
+      className={`rounded-xl shadow-2xl p-4 w-full max-w-md ${getBgClass()}`}
       layout
     >
-      <div className="flex-shrink-0 mr-3 pt-0.5">{getIcon()}</div>
+      <div className="flex items-start space-x-3">
+        <div className="flex-shrink-0">{getIcon()}</div>
 
-      <div className="flex-1 min-w-0">
-        <h3 className="text-sm font-medium">{notification.title}</h3>
-        {notification.isHTML ? (
-          <div
-            className="text-sm text-gray-600 mt-1"
-            dangerouslySetInnerHTML={{ __html: notification.message }}
-          />
-        ) : (
-          <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
-        )}
+        <div className="flex-1 min-w-0">
+          <h3 className="text-white font-medium text-sm">{notification.title}</h3>
+          {notification.isHTML ? (
+            <div
+              className="text-gray-300 text-sm mt-1 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: notification.message }}
+            />
+          ) : (
+            <p className="text-gray-300 text-sm mt-1 leading-relaxed">{notification.message}</p>
+          )}
+        </div>
+
+        <button
+          onClick={() => onClose(notification.id)}
+          className="flex-shrink-0 text-gray-400 hover:text-white transition-colors focus:outline-none"
+          aria-label="Cerrar notificación"
+        >
+          <XMarkIcon className="h-5 w-5" />
+        </button>
       </div>
-
-      <button
-        onClick={() => onClose(notification.id)}
-        className="flex-shrink-0 ml-2 text-gray-400 hover:text-gray-600 focus:outline-none"
-        aria-label="Cerrar notificación"
-      >
-        <XMarkIcon className="h-5 w-5" />
-      </button>
     </motion.div>
   );
 };
@@ -102,7 +98,7 @@ const NotificationContainer: React.FC = () => {
   };
 
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-3 max-h-screen overflow-hidden pointer-events-none">
+    <div className="fixed top-6 right-6 z-50 space-y-3 max-h-screen overflow-hidden pointer-events-none">
       <AnimatePresence mode="popLayout">
         {notifications.map(notification => (
           <div key={notification.id} className="pointer-events-auto">

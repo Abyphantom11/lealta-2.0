@@ -7,8 +7,14 @@ interface UseSSEProps {
   onMenuUpdate?: () => void;
 }
 
-export function useSSE({ onBannerUpdate, onPromotionUpdate, onMenuUpdate }: UseSSEProps = {}) {
-  const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
+export function useSSE({
+  onBannerUpdate,
+  onPromotionUpdate,
+  onMenuUpdate,
+}: UseSSEProps = {}) {
+  const [connectionStatus, setConnectionStatus] = useState<
+    'disconnected' | 'connecting' | 'connected'
+  >('disconnected');
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   const connectToStream = useCallback(() => {
@@ -25,9 +31,9 @@ export function useSSE({ onBannerUpdate, onPromotionUpdate, onMenuUpdate }: UseS
       setLastUpdate(new Date());
     });
 
-    eventSource.addEventListener('message', (event) => {
+    eventSource.addEventListener('message', event => {
       console.log('📡 SSE: Mensaje recibido:', event.data);
-      
+
       try {
         const data = JSON.parse(event.data);
         setLastUpdate(new Date());
@@ -46,24 +52,31 @@ export function useSSE({ onBannerUpdate, onPromotionUpdate, onMenuUpdate }: UseS
             onMenuUpdate?.();
             break;
           case 'config':
-            console.log('🎯 SSE: Configuración actualizada:', data.section);
+          case 'config-update':
+            console.log(
+              '🎯 SSE: Configuración actualizada:',
+              data.section || 'general'
+            );
             // Ejecutar todas las actualizaciones para cambios generales
             onBannerUpdate?.();
             onPromotionUpdate?.();
             onMenuUpdate?.();
             break;
           default:
-            console.log('🎯 SSE: Tipo de actualización desconocido:', data.type);
+            console.log(
+              '🎯 SSE: Tipo de actualización desconocido:',
+              data.type
+            );
         }
       } catch (error) {
         console.log('⚠️ SSE: Error parseando mensaje:', error);
       }
     });
 
-    eventSource.addEventListener('error', (event) => {
+    eventSource.addEventListener('error', event => {
       console.error('❌ SSE: Error en la conexión:', event);
       setConnectionStatus('disconnected');
-      
+
       // Reintentar conexión después de 3 segundos
       setTimeout(() => {
         console.log('🔄 SSE: Reintentando conexión...');
@@ -93,6 +106,6 @@ export function useSSE({ onBannerUpdate, onPromotionUpdate, onMenuUpdate }: UseS
   return {
     connectionStatus,
     lastUpdate,
-    isConnected: connectionStatus === 'connected'
+    isConnected: connectionStatus === 'connected',
   };
 }

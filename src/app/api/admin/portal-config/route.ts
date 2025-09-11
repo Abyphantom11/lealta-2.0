@@ -12,7 +12,9 @@ const PORTAL_CONFIG_PATH = path.join(process.cwd(), 'portal-config.json');
 async function notifyConfigChange() {
   try {
     // Importación dinámica para evitar problemas de ciclo
-    const { notifyConfigChange: notifySSE } = await import('../../../../lib/sse-notifications');
+    const { notifyConfigChange: notifySSE } = await import(
+      '../../../../lib/sse-notifications'
+    );
     await notifySSE();
   } catch (error) {
     console.log('⚠️ No se pudo notificar cambios SSE:', error);
@@ -26,97 +28,96 @@ async function readPortalConfig() {
     return JSON.parse(data);
   } catch (error) {
     // Si el archivo no existe, crear configuración por defecto
-    console.log('Creando configuración por defecto del portal:', error instanceof Error ? error.message : 'Error desconocido');
-    
+    console.log(
+      'Creando configuración por defecto del portal:',
+      error instanceof Error ? error.message : 'Error desconocido'
+    );
+
     const defaultConfig = {
       banners: [
         {
-          id: "banner-1",
-          title: "¡Bienvenido a Lealta!",
-          description: "Descubre nuestras increibles ofertas y recompensas exclusivas",
-          imageUrl: "/api/placeholder/800/400",
-          linkUrl: "/promociones",
+          id: 'banner-1',
+          title: '¡Bienvenido a Lealta!',
+          description:
+            'Descubre nuestras increibles ofertas y recompensas exclusivas',
+          imageUrl: '/api/placeholder/800/400',
+          linkUrl: '/promociones',
           isActive: true,
           order: 1,
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
+          updatedAt: new Date().toISOString(),
+        },
       ],
-      promotions: [
-        {
-          id: "promo-1",
-          title: "Descuento Especial",
-          description: "20% de descuento en tu primera compra",
-          discount: 20,
-          type: "percentage",
-          code: "BIENVENIDO20",
-          validFrom: new Date().toISOString(),
-          validTo: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-          isActive: true,
-          maxUses: 100,
-          currentUses: 0,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-      ],
+      promotions: [],
       promociones: [],
       events: [
         {
-          id: "event-1",
-          title: "Gran Apertura",
-          description: "Celebra con nosotros la gran apertura de nuestra nueva tienda",
-          location: "Centro Comercial Plaza Norte",
-          startDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000 + 4 * 60 * 60 * 1000).toISOString(),
-          imageUrl: "/api/placeholder/600/300",
+          id: 'event-1',
+          title: 'Gran Apertura',
+          description:
+            'Celebra con nosotros la gran apertura de nuestra nueva tienda',
+          location: 'Centro Comercial Plaza Norte',
+          startDate: new Date(
+            Date.now() + 7 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          endDate: new Date(
+            Date.now() + 7 * 24 * 60 * 60 * 1000 + 4 * 60 * 60 * 1000
+          ).toISOString(),
+          imageUrl: '/api/placeholder/600/300',
           isActive: true,
           maxAttendees: 200,
           currentAttendees: 0,
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
+          updatedAt: new Date().toISOString(),
+        },
       ],
       rewards: [
         {
-          id: "reward-1",
-          title: "Producto Gratis",
-          description: "Canjea 500 puntos por un producto de tu eleccion",
+          id: 'reward-1',
+          title: 'Producto Gratis',
+          description: 'Canjea 500 puntos por un producto de tu eleccion',
           pointsCost: 500,
-          category: "productos",
-          imageUrl: "/api/placeholder/300/300",
+          category: 'productos',
+          imageUrl: '/api/placeholder/300/300',
           isActive: true,
           stock: 50,
           availableFrom: new Date().toISOString(),
-          availableTo: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          availableTo: new Date(
+            Date.now() + 365 * 24 * 60 * 60 * 1000
+          ).toISOString(),
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
+          updatedAt: new Date().toISOString(),
+        },
       ],
       recompensas: [],
       favorites: [
         {
-          id: "fav-1",
-          title: "Cafe Premium",
-          description: "Nuestro cafe de especialidad mas popular",
-          imageUrl: "/api/placeholder/400/300",
-          category: "bebidas",
+          id: 'fav-1',
+          title: 'Cafe Premium',
+          description: 'Nuestro cafe de especialidad mas popular',
+          imageUrl: '/api/placeholder/400/300',
+          category: 'bebidas',
           price: 12.99,
           isActive: true,
           order: 1,
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
+          updatedAt: new Date().toISOString(),
+        },
       ],
       favoritoDelDia: [],
       tarjetas: [],
       nombreEmpresa: 'LEALTA 2.0',
       settings: {
         lastUpdated: new Date().toISOString(),
-        version: "1.0.0"
-      }
+        version: '1.0.0',
+      },
     };
 
-    await fs.writeFile(PORTAL_CONFIG_PATH, JSON.stringify(defaultConfig, null, 2), 'utf-8');
+    await fs.writeFile(
+      PORTAL_CONFIG_PATH,
+      JSON.stringify(defaultConfig, null, 2),
+      'utf-8'
+    );
     return defaultConfig;
   }
 }
@@ -125,29 +126,40 @@ async function readPortalConfig() {
 async function writePortalConfig(config: PortalConfig): Promise<PortalConfig> {
   config.settings = {
     ...config.settings,
-    lastUpdated: new Date().toISOString()
+    lastUpdated: new Date().toISOString(),
   };
-  
-  await fs.writeFile(PORTAL_CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
+
+  await fs.writeFile(
+    PORTAL_CONFIG_PATH,
+    JSON.stringify(config, null, 2),
+    'utf-8'
+  );
   return config;
 }
 
 // GET - Obtener configuración del portal
 export async function GET() {
   try {
+    // Leer directamente del archivo para garantizar datos frescos
     const portalConfig = await readPortalConfig();
 
-    return NextResponse.json({
-      success: true,
-      config: portalConfig,
-    }, {
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        'Surrogate-Control': 'no-store',
+    return NextResponse.json(
+      {
+        success: true,
+        config: portalConfig,
+        timestamp: new Date().toISOString(), // Agregar timestamp de respuesta para debugging
+      },
+      {
+        headers: {
+          'Cache-Control':
+            'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          Pragma: 'no-cache',
+          Expires: '-1',
+          'Surrogate-Control': 'no-store',
+          Vary: '*', // Para evitar caching basado en cualquier criterio
+        },
       }
-    });
+    );
   } catch (error) {
     console.error('Error obteniendo configuración del portal:', error);
     return NextResponse.json(
@@ -196,10 +208,9 @@ export async function PUT(request: NextRequest) {
 
     // Guardar configuración actualizada
     const savedConfig = await writePortalConfig(updatedConfig);
-    
+
     // Notificar cambios a clientes conectados via SSE
     await notifyConfigChange();
-    console.log('📡 Notificación SSE enviada a clientes');
 
     return NextResponse.json({
       success: true,

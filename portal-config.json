@@ -1,32 +1,6 @@
 {
-  "banners": [
-    {
-      "id": "banner_lunes_1757354883309",
-      "dia": "lunes",
-      "titulo": "",
-      "descripcion": "",
-      "imagenUrl": "/uploads/1757354883286-q9x3h8.jpg",
-      "horaPublicacion": "04:00",
-      "activo": true
-    }
-  ],
-  "promotions": [
-    {
-      "id": "promo-1",
-      "title": "Descuento Especial",
-      "description": "20% de descuento en tu primera compra",
-      "discount": 20,
-      "type": "percentage",
-      "code": "BIENVENIDO20",
-      "validFrom": "2024-01-01T00:00:00.000Z",
-      "validTo": "2024-12-31T23:59:59.000Z",
-      "isActive": true,
-      "maxUses": 100,
-      "currentUses": 0,
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z"
-    }
-  ],
+  "banners": [],
+  "promotions": [],
   "events": [
     {
       "id": "event-1",
@@ -74,12 +48,94 @@
     }
   ],
   "settings": {
-    "lastUpdated": "2025-09-08T19:09:45.694Z",
+    "lastUpdated": "2025-09-11T13:50:57.199Z",
     "version": "1.0.0"
   },
   "favoritoDelDia": [],
   "promociones": [],
-  "recompensas": [],
-  "tarjetas": [],
+  "recompensas": [
+    {
+      "nombre": "Agua gratis",
+      "descripcion": "sfsfsf",
+      "puntosRequeridos": 1000,
+      "id": "recompensas_1757510629200",
+      "activo": true
+    },
+    {
+      "nombre": "fsfsffs",
+      "descripcion": "sdfsfsf",
+      "puntosRequeridos": 434,
+      "id": "recompensas_1757552147751",
+      "activo": true
+    },
+    {
+      "nombre": "sdfsfsf",
+      "descripcion": "sfsfsfs",
+      "puntosRequeridos": 342,
+      "id": "recompensas_1757552156336",
+      "activo": true
+    }
+  ],
+  "tarjetas": [
+    {
+      "id": "tarjeta_principal",
+      "nombre": "Tarjeta Love Me",
+      "descripcion": "Sistema de lealtad progresivo",
+      "activa": true,
+      "condicional": "OR",
+      "niveles": [
+        {
+          "nombre": "Bronce",
+          "puntosRequeridos": 0,
+          "visitasRequeridas": 0,
+          "beneficio": "Cliente Inicial",
+          "colores": [
+            "#CD7F32",
+            "#B8860B"
+          ]
+        },
+        {
+          "nombre": "Plata",
+          "puntosRequeridos": 300,
+          "visitasRequeridas": 5,
+          "beneficio": "5% descuento en compras",
+          "colores": [
+            "#C0C0C0",
+            "#A9A9A9"
+          ]
+        },
+        {
+          "nombre": "Oro",
+          "puntosRequeridos": 500,
+          "visitasRequeridas": 10,
+          "beneficio": "10% descuento ",
+          "colores": [
+            "#FFD700",
+            "#FFA500"
+          ]
+        },
+        {
+          "nombre": "Diamante",
+          "puntosRequeridos": 1500,
+          "visitasRequeridas": 20,
+          "beneficio": "15% descuento + acceso VIP",
+          "colores": [
+            "#B9F2FF",
+            "#87CEEB"
+          ]
+        },
+        {
+          "nombre": "Platino",
+          "puntosRequeridos": 3000,
+          "visitasRequeridas": 30,
+          "beneficio": "20% descuento ",
+          "colores": [
+            "#E5E4E2",
+            "#BCC6CC"
+          ]
+        }
+      ]
+    }
+  ],
   "nombreEmpresa": "Love me"
 }

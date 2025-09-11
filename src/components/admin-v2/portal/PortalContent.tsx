@@ -4,7 +4,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Eye, Smartphone, Gift, TrendingUp } from 'lucide-react';
 import PortalContentManager from './PortalContentManager';
 import { GeneralConfig } from './types';
-import { SharedBrandingConfig, convertToBase64, isValidImageFile, DEFAULT_BRANDING_CONFIG } from './shared-branding-types';
+import {
+  SharedBrandingConfig,
+  DEFAULT_BRANDING_CONFIG,
+} from './shared-branding-types';
 
 /**
  * Componente PortalContent extraído del admin page original
@@ -19,64 +22,7 @@ interface PortalContentProps {
 // Usar los tipos compartidos para evitar conflictos
 type BrandingConfig = SharedBrandingConfig;
 
-interface Banner {
-  id?: string;
-  dia?: string;
-  titulo?: string;
-  descripcion?: string;
-  imagenUrl?: string;
-  activo?: boolean;
-}
-
-interface Promocion {
-  id?: string;
-  dia?: string;
-  titulo?: string;
-  descripcion?: string;
-  descuento?: number;
-  horaTermino?: string;
-  activo?: boolean;
-}
-
-interface Recompensa {
-  id?: string;
-  nombre?: string;
-  descripcion?: string;
-  puntosRequeridos?: number;
-  activo?: boolean;
-  stock?: number;
-}
-
-interface FavoritoDelDia {
-  id?: string;
-  dia?: string;
-  nombre?: string;
-  descripcion?: string;
-  imagenUrl?: string;
-  activo?: boolean;
-}
-
-interface Tarjeta {
-  id?: string;
-  nivel?: string;
-  nombre?: string;
-  descripcion?: string;
-  puntosRequeridos?: number;
-  beneficios?: string[];
-  color?: string;
-  activo?: boolean;
-}
-
-interface Evento {
-  id?: string;
-  titulo?: string;
-  descripcion?: string;
-  fecha?: string;
-  hora?: string;
-  activo?: boolean;
-}
-
-type ModoVistaPrevia = 'portal' | 'login' | 'tarjetas';
+type ModoVistaPrevia = 'portal' | 'login' | 'tarjetas' | 'portal-refresh';
 type NivelTarjeta = 'success' | 'error' | 'warning' | 'info';
 
 // Portal Content Component - Gestión completa del portal del cliente
@@ -85,7 +31,9 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
     'preview' | 'banners' | 'promociones' | 'recompensas' | 'favorito'
   >('preview');
   const [previewMode, setPreviewMode] = useState<ModoVistaPrevia>('portal'); // Estado para cambiar entre Portal, Login y Tarjetas
-  const [brandingConfig, setBrandingConfig] = useState<BrandingConfig>(DEFAULT_BRANDING_CONFIG);
+  const [brandingConfig, setBrandingConfig] = useState<BrandingConfig>(
+    DEFAULT_BRANDING_CONFIG
+  );
   const [config, setConfig] = useState<GeneralConfig>({
     banners: [],
     promociones: [],
@@ -103,22 +51,38 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
       Plata: {
         colores: { gradiente: ['#C0C0C0', '#808080'] },
         textoDefault: 'Cliente Frecuente',
-        condiciones: { puntosMinimos: 100, gastosMinimos: 500, visitasMinimas: 5 },
+        condiciones: {
+          puntosMinimos: 100,
+          gastosMinimos: 500,
+          visitasMinimas: 5,
+        },
       },
       Oro: {
         colores: { gradiente: ['#FFD700', '#FFA500'] },
         textoDefault: 'Cliente VIP',
-        condiciones: { puntosMinimos: 500, gastosMinimos: 1500, visitasMinimas: 10 },
+        condiciones: {
+          puntosMinimos: 500,
+          gastosMinimos: 1500,
+          visitasMinimas: 10,
+        },
       },
       Diamante: {
         colores: { gradiente: ['#B9F2FF', '#00CED1'] },
         textoDefault: 'Cliente Elite',
-        condiciones: { puntosMinimos: 1500, gastosMinimos: 3000, visitasMinimas: 20 },
+        condiciones: {
+          puntosMinimos: 1500,
+          gastosMinimos: 3000,
+          visitasMinimas: 20,
+        },
       },
       Platino: {
         colores: { gradiente: ['#E5E4E2', '#C0C0C0'] },
         textoDefault: 'Cliente Exclusivo',
-        condiciones: { puntosMinimos: 3000, gastosMinimos: 5000, visitasMinimas: 30 },
+        condiciones: {
+          puntosMinimos: 3000,
+          gastosMinimos: 5000,
+          visitasMinimas: 30,
+        },
       },
     },
   });
@@ -132,7 +96,7 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
       if (response.ok) {
         const data = await response.json();
         const loadedConfig = data.config || data;
-        
+
         // Asegurar que siempre tenemos nivelesConfig y nombreEmpresa
         setConfig({
           ...loadedConfig,
@@ -141,27 +105,47 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
             Bronce: {
               colores: { gradiente: ['#CD7F32', '#8B4513'] },
               textoDefault: 'Cliente Inicial',
-              condiciones: { puntosMinimos: 0, gastosMinimos: 0, visitasMinimas: 0 },
+              condiciones: {
+                puntosMinimos: 0,
+                gastosMinimos: 0,
+                visitasMinimas: 0,
+              },
             },
             Plata: {
               colores: { gradiente: ['#C0C0C0', '#808080'] },
               textoDefault: 'Cliente Frecuente',
-              condiciones: { puntosMinimos: 100, gastosMinimos: 500, visitasMinimas: 5 },
+              condiciones: {
+                puntosMinimos: 100,
+                gastosMinimos: 500,
+                visitasMinimas: 5,
+              },
             },
             Oro: {
               colores: { gradiente: ['#FFD700', '#FFA500'] },
               textoDefault: 'Cliente VIP',
-              condiciones: { puntosMinimos: 500, gastosMinimos: 1500, visitasMinimas: 10 },
+              condiciones: {
+                puntosMinimos: 500,
+                gastosMinimos: 1500,
+                visitasMinimas: 10,
+              },
             },
             Diamante: {
               colores: { gradiente: ['#B9F2FF', '#00CED1'] },
               textoDefault: 'Cliente Elite',
-              condiciones: { puntosMinimos: 1500, gastosMinimos: 3000, visitasMinimas: 20 },
+              condiciones: {
+                puntosMinimos: 1500,
+                gastosMinimos: 3000,
+                visitasMinimas: 20,
+              },
             },
             Platino: {
               colores: { gradiente: ['#E5E4E2', '#C0C0C0'] },
               textoDefault: 'Cliente Exclusivo',
-              condiciones: { puntosMinimos: 3000, gastosMinimos: 5000, visitasMinimas: 30 },
+              condiciones: {
+                puntosMinimos: 3000,
+                gastosMinimos: 5000,
+                visitasMinimas: 30,
+              },
             },
           },
         });
@@ -316,51 +300,6 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
    * Manejo de subida de imágenes del carrusel
    * Extraído de: src/app/admin/page.tsx (líneas 2750-2800)
    */
-  const handleCarouselImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Validar archivo
-    if (!isValidImageFile(file)) {
-      showNotification('Por favor selecciona una imagen válida (JPG, PNG, WebP, máx. 5MB)', 'error');
-      return;
-    }
-
-    // Validar límite de imágenes
-    const currentImages = brandingConfig.carouselImages || [];
-    if (currentImages.length >= 6) {
-      showNotification('Máximo 6 imágenes permitidas en el carrusel', 'warning');
-      return;
-    }
-
-    try {
-      // Convertir a base64
-      const base64 = await convertToBase64(file);
-      const updatedImages = [...currentImages, base64];
-      
-      // Actualizar usando la función existente
-      await handleBrandingChange('carouselImages', updatedImages);
-      showNotification(`Imagen agregada al carrusel (${updatedImages.length}/6)`, 'success');
-      
-      // Limpiar input para permitir cargar la misma imagen nuevamente
-      event.target.value = '';
-    } catch (error) {
-      console.error('Error subiendo imagen:', error);
-      showNotification('Error al procesar la imagen', 'error');
-    }
-  };
-
-  /**
-   * Remover imagen del carrusel
-   * Extraído de: src/app/admin/page.tsx (líneas 2800-2850)
-   */
-  const handleRemoveCarouselImage = async (index: number) => {
-    const currentImages = brandingConfig.carouselImages || [];
-    const updatedImages = currentImages.filter((_, i) => i !== index);
-    
-    await handleBrandingChange('carouselImages', updatedImages);
-    showNotification(`Imagen removida del carrusel (${updatedImages.length}/6)`, 'success');
-  };
 
   // Cargar branding desde la API al montar el componente
   useEffect(() => {
@@ -389,7 +328,8 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
             // Si localStorage solo tiene datos básicos, usar valores por defecto para imágenes
             setBrandingConfig({
               ...parsed,
-              carouselImages: parsed.carouselImages || DEFAULT_BRANDING_CONFIG.carouselImages,
+              carouselImages:
+                parsed.carouselImages || DEFAULT_BRANDING_CONFIG.carouselImages,
             });
           }
         }
@@ -402,7 +342,8 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
             const parsed = JSON.parse(savedBranding);
             setBrandingConfig({
               ...parsed,
-              carouselImages: parsed.carouselImages || DEFAULT_BRANDING_CONFIG.carouselImages,
+              carouselImages:
+                parsed.carouselImages || DEFAULT_BRANDING_CONFIG.carouselImages,
             });
           } catch (parseError) {
             console.error('Admin: Error parsing localStorage:', parseError);
@@ -413,67 +354,6 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
 
     loadBranding();
   }, []);
-
-  // Función para asignar tarjeta a un cliente
-  const handleAssignCard = async (clientId: string, nivel: string) => {
-    try {
-      const response = await fetch('/api/tarjetas/asignar', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          clientId,
-          nivel,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al asignar tarjeta');
-      }
-
-      const result = await response.json();
-      showNotification(`Tarjeta ${nivel} asignada exitosamente`, 'success');
-      return result;
-    } catch (error) {
-      console.error('Error asignando tarjeta:', error);
-      showNotification('Error al asignar la tarjeta', 'error');
-      throw error;
-    }
-  };
-
-  // Función para actualizar configuración
-  const handleUpdateConfig = async (field: string, value: any) => {
-    try {
-      const updatedConfig = {
-        ...config,
-        [field]: value,
-      };
-
-      setConfig(updatedConfig);
-
-      const response = await fetch('/api/admin/portal-config', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...updatedConfig,
-          businessId: 'default',
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al actualizar configuración');
-      }
-
-      showNotification('Configuración actualizada exitosamente', 'success');
-    } catch (error) {
-      console.error('Error actualizando configuración:', error);
-      showNotification('Error al actualizar la configuración', 'error');
-      throw error;
-    }
-  };
 
   if (isLoading) {
     return (
@@ -539,10 +419,6 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
         brandingConfig={brandingConfig}
         handleBrandingChange={handleBrandingChange}
         showNotification={showNotification}
-        onAssignCard={handleAssignCard}
-        onUpdateConfig={handleUpdateConfig}
-        handleCarouselImageUpload={handleCarouselImageUpload}
-        handleRemoveCarouselImage={handleRemoveCarouselImage}
       />
     </div>
   );

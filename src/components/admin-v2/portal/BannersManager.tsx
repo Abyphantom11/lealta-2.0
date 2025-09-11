@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import notificationService from '@/lib/notificationService';
 import { Upload, Clock, Eye, EyeOff, Trash2, Save } from 'lucide-react';
 
 interface BannersManagerProps {
@@ -28,7 +29,9 @@ interface FileUploadHook {
 }
 
 // Hook personalizado para manejo de archivos
-const useFileUpload = (setFormData: React.Dispatch<React.SetStateAction<any>>): FileUploadHook => {
+const useFileUpload = (
+  setFormData: React.Dispatch<React.SetStateAction<any>>
+): FileUploadHook => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,7 +40,7 @@ const useFileUpload = (setFormData: React.Dispatch<React.SetStateAction<any>>): 
       setSelectedFile(file);
       // Crear preview
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = e => {
         const imageUrl = e.target?.result as string;
         setFormData((prev: any) => ({ ...prev, imagenUrl: imageUrl }));
       };
@@ -64,6 +67,7 @@ const BannersManager: React.FC<BannersManagerProps> = ({
   onDelete,
   onToggle,
 }) => {
+  // Estados locales
   const [selectedDay, setSelectedDay] = useState('lunes');
   const [publishTime, setPublishTime] = useState('04:00');
   const [formData, setFormData] = useState({
@@ -74,7 +78,8 @@ const BannersManager: React.FC<BannersManagerProps> = ({
     horaPublicacion: '04:00',
   });
   const [uploading, setUploading] = useState(false);
-  const { selectedFile, handleFileChange, resetFile } = useFileUpload(setFormData);
+  const { selectedFile, handleFileChange, resetFile } =
+    useFileUpload(setFormData);
 
   // Helper functions para evitar ternarios anidados
   const getButtonText = () => {
@@ -84,14 +89,14 @@ const BannersManager: React.FC<BannersManagerProps> = ({
 
   const getBannerCardStyle = (banner: Banner | undefined) => {
     if (!banner) return 'border-dark-600 bg-dark-700';
-    return banner.activo 
+    return banner.activo
       ? 'border-success-500 bg-success-500/10'
       : 'border-yellow-500 bg-yellow-500/10';
   };
 
   const getBannerStatus = (banner: Banner | undefined) => {
     if (!banner) return '❌ Sin configurar';
-    return banner.activo 
+    return banner.activo
       ? '✅ Configurado y activo'
       : '⚠️ Configurado pero inactivo';
   };
@@ -213,7 +218,9 @@ const BannersManager: React.FC<BannersManagerProps> = ({
         <h5 className="text-white font-medium mb-3">Seleccionar Día</h5>
         <div className="grid grid-cols-7 gap-2">
           {diasSemana.map(dia => {
-            const tieneBanner = banners.some((b: Banner) => b.dia === dia.value);
+            const tieneBanner = banners.some(
+              (b: Banner) => b.dia === dia.value
+            );
             return (
               <button
                 key={dia.value}
@@ -253,7 +260,9 @@ const BannersManager: React.FC<BannersManagerProps> = ({
               id="titulo"
               type="text"
               value={formData.titulo}
-              onChange={(e) => setFormData(prev => ({ ...prev, titulo: e.target.value }))}
+              onChange={e =>
+                setFormData(prev => ({ ...prev, titulo: e.target.value }))
+              }
               className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded text-white focus:ring-2 focus:ring-primary-500"
               placeholder="Ej: Evento especial del día"
             />
@@ -270,7 +279,9 @@ const BannersManager: React.FC<BannersManagerProps> = ({
             <textarea
               id="descripcion"
               value={formData.descripcion}
-              onChange={(e) => setFormData(prev => ({ ...prev, descripcion: e.target.value }))}
+              onChange={e =>
+                setFormData(prev => ({ ...prev, descripcion: e.target.value }))
+              }
               className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded text-white focus:ring-2 focus:ring-primary-500"
               rows={3}
               placeholder="Descripción del evento o promoción"
@@ -290,12 +301,13 @@ const BannersManager: React.FC<BannersManagerProps> = ({
               id="publishTime"
               type="time"
               value={publishTime}
-              onChange={(e) => setPublishTime(e.target.value)}
+              onChange={e => setPublishTime(e.target.value)}
               className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded text-white focus:ring-2 focus:ring-primary-500"
               required
             />
             <p className="text-xs text-dark-400 mt-1">
-              Se publicará automáticamente a esta hora (horario de operación: 6pm - 3am)
+              Se publicará automáticamente a esta hora (horario de operación:
+              6pm - 3am)
             </p>
           </div>
 
@@ -331,15 +343,7 @@ const BannersManager: React.FC<BannersManagerProps> = ({
                   alt="Preview"
                   className="w-full h-32 object-cover rounded-lg border border-dark-600"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-lg"></div>
-                {formData.titulo && (
-                  <div className="absolute bottom-2 left-3">
-                    <h6 className="text-white font-medium text-sm">{formData.titulo}</h6>
-                    {formData.descripcion && (
-                      <p className="text-white/80 text-xs">{formData.descripcion}</p>
-                    )}
-                  </div>
-                )}
+                {/* Removed text overlay on image preview */}
               </div>
             </div>
           )}
@@ -352,9 +356,7 @@ const BannersManager: React.FC<BannersManagerProps> = ({
               className="flex items-center space-x-2 px-4 py-2 bg-success-600 hover:bg-success-700 disabled:bg-success-400 text-white rounded-lg transition-colors"
             >
               <Save className="w-4 h-4" />
-              <span>
-                {getButtonText()}
-              </span>
+              <span>{getButtonText()}</span>
             </button>
 
             {bannerPorDia?.id && (
@@ -368,16 +370,30 @@ const BannersManager: React.FC<BannersManagerProps> = ({
                       : 'bg-dark-600 hover:bg-dark-500 text-dark-300'
                   }`}
                 >
-                  {bannerPorDia.activo ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {bannerPorDia.activo ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                   <span>{bannerPorDia.activo ? 'Desactivar' : 'Activar'}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => {
-                    if (window.confirm('¿Estás seguro de eliminar este banner? Esta acción no se puede deshacer.')) {
-                      onDelete(bannerPorDia.id!);
-                    }
+                    const bannerId = bannerPorDia.id!;
+                    notificationService.warning({
+                      title: 'Confirmar eliminación',
+                      message:
+                        '¿Estás seguro de eliminar este banner? Esta acción no se puede deshacer.',
+                      duration: 0, // No se cierra automáticamente
+                      onClose: () => {
+                        onDelete(bannerId);
+                        notificationService.success({
+                          message: 'Banner eliminado correctamente',
+                        });
+                      },
+                    });
                   }}
                   className="flex items-center space-x-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
                 >
@@ -393,20 +409,30 @@ const BannersManager: React.FC<BannersManagerProps> = ({
         {bannerPorDia && (
           <div className="mt-6 p-4 bg-dark-700 rounded-lg">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-white">Estado Actual:</span>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                bannerPorDia.activo
-                  ? 'bg-success-500/20 text-success-400'
-                  : 'bg-dark-600 text-dark-300'
-              }`}>
+              <span className="text-sm font-medium text-white">
+                Estado Actual:
+              </span>
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  bannerPorDia.activo
+                    ? 'bg-success-500/20 text-success-400'
+                    : 'bg-dark-600 text-dark-300'
+                }`}
+              >
                 {bannerPorDia.activo ? 'Activo' : 'Inactivo'}
               </span>
             </div>
             <div className="space-y-1 text-sm text-dark-300">
-              <p>📅 Día: {diasCompletos[selectedDay as keyof typeof diasCompletos]}</p>
+              <p>
+                📅 Día:{' '}
+                {diasCompletos[selectedDay as keyof typeof diasCompletos]}
+              </p>
               <p>🕒 Hora: {bannerPorDia.horaPublicacion}</p>
               <p>📝 Título: {bannerPorDia.titulo || 'Sin título'}</p>
-              <p>🖼️ Imagen: {bannerPorDia.imagenUrl ? 'Configurada' : 'No configurada'}</p>
+              <p>
+                🖼️ Imagen:{' '}
+                {bannerPorDia.imagenUrl ? 'Configurada' : 'No configurada'}
+              </p>
             </div>
           </div>
         )}

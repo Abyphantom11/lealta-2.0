@@ -26,6 +26,10 @@ const MenuDrawer: React.FC<MenuDrawerProps> = ({
 }) => {
   const [isDragging, setIsDragging] = useState(false);
 
+
+
+
+
   // Función para manejar navegación hacia atrás
   const handleBackNavigation = async () => {
     // Limpiar búsqueda primero si está activa
@@ -203,6 +207,8 @@ const MenuDrawer: React.FC<MenuDrawerProps> = ({
                   </button>
                 )}
               </div>
+
+
             </div>
             {/* Contenido del Menú */}
             <div className="flex-1 overflow-y-auto p-3">

@@ -1,4 +1,3 @@
-import { logger } from '../utils/logger';
 import { promises as fs } from 'fs';
 import path from 'path';
 
@@ -29,23 +28,20 @@ export function removeConnection(controller: ReadableStreamDefaultController) {
 
 // Función para notificar a todos los clientes conectados
 export async function notifyConfigChange() {
-  logger.log(`📡 Notificando cambios a ${connections.size} clientes conectados`);
-  
   const config = await getCurrentConfig();
   if (!config) return;
-  
+
   const message = `data: ${JSON.stringify({
     type: 'config-update',
     config,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   })}\n\n`;
-  
+
   // Enviar a todos los clientes conectados
   connections.forEach(controller => {
     try {
       controller.enqueue(new TextEncoder().encode(message));
     } catch {
-      logger.log('🗑️ Removiendo conexión inválida');
       connections.delete(controller);
     }
   });
