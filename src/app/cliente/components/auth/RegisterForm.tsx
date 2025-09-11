@@ -17,6 +17,7 @@ export const RegisterForm = ({
   const { brandingConfig } = useBranding();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [acceptTerms, setAcceptTerms] = useState(false);
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,6 +26,12 @@ export const RegisterForm = ({
       setError('Por favor complete todos los campos');
       return;
     }
+
+    if (!acceptTerms) {
+      setError('Debe aceptar los términos y condiciones para continuar');
+      return;
+    }
+
     setIsLoading(true);
     setError('');
     try {
@@ -129,6 +136,28 @@ export const RegisterForm = ({
               placeholder="Ej: juan@correo.com"
               disabled={isLoading}
             />
+          </div>
+
+          {/* Mensaje informativo sobre uso de datos */}
+          <div className="p-4 bg-blue-900/30 border border-blue-700/50 rounded-lg">
+            <p className="text-blue-200 text-sm text-center">
+              📋 Sus datos serán utilizados para generar factura, premios y notificaciones de eventos!
+            </p>
+          </div>
+
+          {/* Checkbox de términos y condiciones */}
+          <div className="flex items-start space-x-3">
+            <input
+              id="accept-terms"
+              type="checkbox"
+              checked={acceptTerms}
+              onChange={(e) => setAcceptTerms(e.target.checked)}
+              className="mt-1 w-4 h-4 text-blue-600 bg-gray-900 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+              disabled={isLoading}
+            />
+            <label htmlFor="accept-terms" className="text-sm text-gray-300 leading-5">
+              Acepto los términos y condiciones
+            </label>
           </div>
           {error && (
             <div className="p-3 bg-red-900/50 border border-red-700 rounded-lg">

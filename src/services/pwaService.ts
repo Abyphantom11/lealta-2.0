@@ -28,10 +28,10 @@ export const initializePWA = () => {
     e.preventDefault();
     // Guardar el evento para uso posterior
     deferredPrompt = e as BeforeInstallPromptEvent;
-    console.log('📱 PWA instalable detectada');
+    console.log('📱 PWA instalable detectada - evento guardado');
     
-    // Mostrar notificación de instalación disponible
-    clientNotificationService.notifyPWAInstall();
+    // NO crear notificación automáticamente
+    // La notificación se creará cuando el usuario esté más familiarizado con la app
   });
 
   // Evento cuando la app se instala
@@ -44,6 +44,21 @@ export const initializePWA = () => {
 // Verificar si la PWA puede instalarse
 export const canInstallPWA = (): boolean => {
   return deferredPrompt !== null;
+};
+
+// Función para mostrar notificación de PWA cuando sea apropiado
+export const showPWANotificationIfAvailable = () => {
+  console.log('🔍 showPWANotificationIfAvailable called');
+  console.log('🔍 canInstallPWA():', canInstallPWA());
+  console.log('🔍 isPWAInstalled():', isPWAInstalled());
+  console.log('🔍 deferredPrompt:', deferredPrompt);
+
+  if (canInstallPWA() && !isPWAInstalled()) {
+    console.log('✅ Creando notificación PWA');
+    clientNotificationService.notifyPWAInstall();
+  } else {
+    console.log('❌ No se creó notificación PWA - condiciones no cumplidas');
+  }
 };
 
 // Instalar PWA usando el prompt nativo del navegador

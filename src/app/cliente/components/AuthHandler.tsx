@@ -21,8 +21,7 @@ import {
   MenuItem,
   FormData,
 } from './types';
-import { browserNotifications } from '@/services/browserNotifications';
-import { Bell, IdCard } from 'lucide-react';
+import { IdCard } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function AuthHandler() {
@@ -594,15 +593,6 @@ export default function AuthHandler() {
                 {brandingConfig.businessName}
               </span>
             </div>
-
-            {/* Botón de notificaciones */}
-            <button
-              onClick={() => browserNotifications.requestPermission()}
-              className="bg-purple-600 hover:bg-purple-700 text-white p-2 rounded-full transition-colors"
-              title="Activar notificaciones push"
-            >
-              <Bell className="w-5 h-5" />
-            </button>
           </header>
           {/* Hero Section */}
           <div className="relative min-h-[400px] overflow-visible pb-20 pt-8">
@@ -613,12 +603,12 @@ export default function AuthHandler() {
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
             <div className="absolute inset-0 flex flex-col justify-center items-center text-center px-6 pt-16">
               <motion.h1
-                className="text-3xl md:text-4xl font-bold text-white mb-8 mt-8"
+                className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-8 mt-8 text-center leading-tight px-4"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
               >
-                Descubre Nuestro Menú
+                Sé usuario {brandingConfig.businessName} y descubre todo lo que tenemos para ti!
               </motion.h1>
               {/* Carrusel de imágenes */}
               <motion.div

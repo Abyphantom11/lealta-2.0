@@ -21,7 +21,7 @@ class ClientNotificationService {
 
     // Limpiar notificaciones antiguas y cargar desde localStorage
     this.loadFromStorage();
-    
+
     // Forzar limpieza de notificaciones hardcodeadas antiguas
     this.cleanOldTestNotifications();
 

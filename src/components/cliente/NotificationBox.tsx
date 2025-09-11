@@ -27,6 +27,11 @@ const NotificationBox: React.FC<NotificationBoxProps> = ({
     forceCleanStorage,
   } = useClientNotifications(clienteId);
 
+  // Debug logs
+  console.log('🔔 NotificationBox - clienteId:', clienteId);
+  console.log('🔔 NotificationBox - notifications count:', notifications.length);
+  console.log('🔔 NotificationBox - notifications:', notifications);
+
   const getIconoTipo = (tipo: string) => {
     switch (tipo) {
       case 'promocion': return '🎉';

@@ -1,4 +1,5 @@
 'use client';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Coffee,
@@ -9,10 +10,9 @@ import {
   Trophy,
   ArrowRight,
 } from 'lucide-react';
-import { useEffect } from 'react';
 import { clientSession } from '@/utils/mobileStorage';
 import { logger } from '@/utils/logger';
-import { initializePWA } from '@/services/pwaService';
+import { initializePWA, showPWANotificationIfAvailable } from '@/services/pwaService';
 import BannersSection from '../sections/BannersSection';
 import PromocionesSection from '../sections/PromocionesSection';
 import RecompensasSection from '../sections/RecompensasSection';
@@ -171,9 +171,19 @@ export const Dashboard = ({
   handleLogout: externalHandleLogout,
   onMenuOpen,
 }: DashboardProps) => {
-  // Inicializar PWA cuando se carga el Dashboard
+  // Estado para el drawer de perfil
+  const [isProfileDrawerOpen, setIsProfileDrawerOpen] = React.useState(false);
+
+  // Inicializar PWA cuando se carga el Dashboard (solo registrar service worker, no mostrar prompt)
   useEffect(() => {
     initializePWA();
+
+    // Mostrar notificación PWA después de 10 segundos para que el usuario se familiarice primero
+    const timer = setTimeout(() => {
+      showPWANotificationIfAvailable();
+    }, 10000); // 10 segundos
+
+    return () => clearTimeout(timer);
   }, []);
 
   const handleLogout = async () => {
@@ -209,20 +219,8 @@ export const Dashboard = ({
               </span>!
             </h1>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center justify-end">
             <NotificationBox clienteId={cedula} />
-            <button
-              onClick={handleLogout}
-              className="p-2 rounded-full bg-red-600/20 hover:bg-red-600/40 transition-colors"
-              title="Cerrar Sesión"
-            >
-              <LogOut className="w-5 h-5 text-red-400" />
-            </button>
-            <div className="w-8 h-8 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-bold">
-                {(clienteData?.nombre || 'C')[0].toUpperCase()}
-              </span>
-            </div>
           </div>
         </div>
       </div>
@@ -255,11 +253,18 @@ export const Dashboard = ({
               </div>
               <div className="flex gap-2">
                 <button
-                  onClick={() => setShowTarjeta(!showTarjeta)}
-                  className="bg-white/20 backdrop-blur-sm rounded-full p-3 hover:bg-white/30 transition-colors"
+                  onClick={() => {
+                    console.log('🔍 Botón de tarjeta clickeado!');
+                    setShowTarjeta(!showTarjeta);
+                  }}
+                  onTouchStart={() => {
+                    console.log('📱 Touch start en botón de tarjeta');
+                  }}
+                  className="bg-white/20 backdrop-blur-sm rounded-full p-3 hover:bg-white/30 transition-colors relative z-10"
                   aria-label="Ver tarjeta de fidelidad"
+                  style={{ touchAction: 'manipulation' }}
                 >
-                  <Eye className="w-6 h-6 text-white" />
+                  <Eye className="w-6 h-6 text-white pointer-events-none" />
                 </button>
               </div>
             </div>
@@ -655,6 +660,51 @@ export const Dashboard = ({
           </>
         )}
       </AnimatePresence>
+
+      {/* Profile Drawer */}
+      <AnimatePresence>
+        {isProfileDrawerOpen && (
+          <>
+            {/* Overlay de fondo */}
+            <motion.div
+              className="fixed inset-0 bg-black/70 z-50"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsProfileDrawerOpen(false)}
+            />
+
+            {/* Profile Drawer */}
+            <motion.div
+              className="fixed bottom-0 left-0 right-0 bg-dark-800 rounded-t-2xl p-6 z-50"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            >
+              <div className="flex flex-col space-y-4">
+                {/* Handle bar */}
+                <div className="w-12 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
+
+                {/* Header */}
+                <div className="text-center mb-6">
+                  <h3 className="text-lg font-semibold text-white">Perfil</h3>
+                </div>
+
+                {/* Logout Button */}
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center space-x-3 w-full p-4 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span className="font-medium">Cerrar Sesión</span>
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Animación de ascenso de nivel - Versión simplificada */}
       {showLevelUpAnimation && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -764,10 +814,13 @@ export const Dashboard = ({
             </div>
             <span className="text-xs text-pink-500 font-medium">Menú</span>
           </button>
-          <div className="text-center">
+          <button
+            onClick={() => setIsProfileDrawerOpen(true)}
+            className="text-center"
+          >
             <User className="w-6 h-6 text-gray-400 mx-auto mb-1" />
             <span className="text-xs text-gray-400">Perfil</span>
-          </div>
+          </button>
         </div>
       </div>
       {/* Spacer for bottom navigation */}
