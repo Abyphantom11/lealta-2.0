@@ -2,7 +2,7 @@
 
 export interface ClientNotification {
   id: string;
-  tipo: 'promocion' | 'puntos' | 'nivel' | 'menu' | 'general';
+  tipo: 'promocion' | 'puntos' | 'nivel' | 'menu' | 'general' | 'pwa';
   titulo: string;
   mensaje: string;
   fecha: Date;
@@ -15,54 +15,35 @@ class ClientNotificationService {
   private readonly listeners: Array<(notifications: ClientNotification[]) => void> = [];
   private isInitialized = false;
 
-  // Inicializar el servicio con notificaciones de ejemplo
-  initialize(clienteId?: string) {
+  // Inicializar el servicio
+  initialize() {
     if (this.isInitialized) return;
 
-    // Cargar notificaciones desde localStorage
+    // Limpiar notificaciones antiguas y cargar desde localStorage
     this.loadFromStorage();
+    
+    // Forzar limpieza de notificaciones hardcodeadas antiguas
+    this.cleanOldTestNotifications();
 
-    // Si no hay notificaciones, crear algunas de ejemplo
-    if (this.notifications.length === 0) {
-      this.createSampleNotifications(clienteId);
-    }
+    // No crear notificaciones de ejemplo automáticamente
+    // Solo usar las que se generen dinámicamente por eventos reales
 
     this.isInitialized = true;
     this.notifyListeners();
   }
 
-  private createSampleNotifications(clienteId?: string) {
-    const sampleNotifications: ClientNotification[] = [
-      {
-        id: this.generateId(),
-        tipo: 'promocion',
-        titulo: '🎉 Nueva Promoción Disponible',
-        mensaje: 'Descuento del 20% en tu próxima compra. ¡No te lo pierdas!',
-        fecha: new Date(Date.now() - 10 * 60 * 1000), // hace 10 minutos
-        leida: false,
-        clienteId,
-      },
-      {
-        id: this.generateId(),
-        tipo: 'puntos',
-        titulo: '⭐ Puntos Actualizados',
-        mensaje: 'Has ganado 25 puntos por tu última visita.',
-        fecha: new Date(Date.now() - 2 * 60 * 60 * 1000), // hace 2 horas
-        leida: false,
-        clienteId,
-      },
-      {
-        id: this.generateId(),
-        tipo: 'nivel',
-        titulo: '🏆 ¡Cerca del Siguiente Nivel!',
-        mensaje: 'Estás cerca de alcanzar el nivel Oro. Solo necesitas 150 puntos más.',
-        fecha: new Date(Date.now() - 24 * 60 * 60 * 1000), // hace 1 día
-        leida: true,
-        clienteId,
-      },
+  // Limpiar notificaciones de prueba antiguas
+  private cleanOldTestNotifications() {
+    const testTitles = [
+      '🎉 Nueva Promoción Disponible',
+      '⭐ Puntos Actualizados',
+      '🏆 ¡Cerca del Siguiente Nivel!'
     ];
 
-    this.notifications = sampleNotifications;
+    this.notifications = this.notifications.filter(n =>
+      !testTitles.includes(n.titulo)
+    );
+
     this.saveToStorage();
   }
 
@@ -134,6 +115,23 @@ class ClientNotificationService {
     this.notifyListeners();
   }
 
+  // Limpieza completa de localStorage (incluyendo versiones anteriores)
+  forceCleanStorage() {
+    if (typeof window !== 'undefined') {
+      try {
+        // Eliminar versiones anteriores
+        localStorage.removeItem('client-notifications');
+        localStorage.removeItem('client-notifications-v2');
+        this.notifications = [];
+        this.saveToStorage();
+        this.notifyListeners();
+        console.log('🧹 Notificaciones limpiadas completamente');
+      } catch (error) {
+        console.warn('Error al limpiar localStorage:', error);
+      }
+    }
+  }
+
   // Suscribirse a cambios
   subscribe(callback: (notifications: ClientNotification[]) => void) {
     this.listeners.push(callback);
@@ -166,7 +164,7 @@ class ClientNotificationService {
   private saveToStorage() {
     if (typeof window !== 'undefined') {
       try {
-        localStorage.setItem('client-notifications', JSON.stringify(this.notifications));
+        localStorage.setItem('client-notifications-v2', JSON.stringify(this.notifications));
       } catch (error) {
         console.warn('No se pudo guardar notificaciones en localStorage:', error);
       }
@@ -177,7 +175,7 @@ class ClientNotificationService {
   private loadFromStorage() {
     if (typeof window !== 'undefined') {
       try {
-        const stored = localStorage.getItem('client-notifications');
+        const stored = localStorage.getItem('client-notifications-v2');
         if (stored) {
           const parsed = JSON.parse(stored);
           // Convertir fechas de strings a Date objects
@@ -243,6 +241,24 @@ class ClientNotificationService {
       clienteId,
     });
   }
+
+  // Notificación específica para PWA
+  notifyPWAInstall() {
+    // Verificar si ya existe una notificación PWA no leída
+    const existingPWANotification = this.notifications.find(
+      n => n.tipo === 'pwa' && !n.leida
+    );
+
+    // Solo crear si no existe una ya
+    if (!existingPWANotification) {
+      return this.addNotification({
+        tipo: 'pwa',
+        titulo: '📱 Acceso Rápido Disponible',
+        mensaje: 'Agrega Lealta a tu pantalla de inicio para acceso más fácil y rápido',
+        leida: false,
+      });
+    }
+  }
 }
 
 // Instancia única del servicio
@@ -256,7 +272,7 @@ export function useClientNotifications(clienteId?: string) {
 
   useEffect(() => {
     // Inicializar el servicio
-    clientNotificationService.initialize(clienteId);
+    clientNotificationService.initialize();
 
     // Suscribirse a cambios
     const unsubscribe = clientNotificationService.subscribe(setNotifications);
@@ -271,6 +287,7 @@ export function useClientNotifications(clienteId?: string) {
     markAllAsRead: clientNotificationService.markAllAsRead.bind(clientNotificationService),
     removeNotification: clientNotificationService.removeNotification.bind(clientNotificationService),
     clearAll: clientNotificationService.clearAll.bind(clientNotificationService),
+    forceCleanStorage: clientNotificationService.forceCleanStorage.bind(clientNotificationService),
     addNotification: clientNotificationService.addNotification.bind(clientNotificationService),
     // Métodos específicos
     notifyPromotion: clientNotificationService.notifyPromotion.bind(clientNotificationService),
@@ -278,5 +295,6 @@ export function useClientNotifications(clienteId?: string) {
     notifyLevelProgress: clientNotificationService.notifyLevelProgress.bind(clientNotificationService),
     notifyMenuUpdate: clientNotificationService.notifyMenuUpdate.bind(clientNotificationService),
     notifyGeneral: clientNotificationService.notifyGeneral.bind(clientNotificationService),
+    notifyPWAInstall: clientNotificationService.notifyPWAInstall.bind(clientNotificationService),
   };
 }

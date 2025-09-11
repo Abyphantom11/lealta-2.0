@@ -9,14 +9,15 @@ import {
   Trophy,
   ArrowRight,
 } from 'lucide-react';
+import { useEffect } from 'react';
 import { clientSession } from '@/utils/mobileStorage';
 import { logger } from '@/utils/logger';
+import { initializePWA } from '@/services/pwaService';
 import BannersSection from '../sections/BannersSection';
 import PromocionesSection from '../sections/PromocionesSection';
 import RecompensasSection from '../sections/RecompensasSection';
 import FavoritoDelDiaSection from '../sections/FavoritoDelDiaSection';
 import NotificationBox from '@/components/cliente/NotificationBox';
-import TestNotificationButton from '@/components/cliente/TestNotificationButton';
 
 interface DashboardProps {
   clienteData: any;
@@ -170,6 +171,11 @@ export const Dashboard = ({
   handleLogout: externalHandleLogout,
   onMenuOpen,
 }: DashboardProps) => {
+  // Inicializar PWA cuando se carga el Dashboard
+  useEffect(() => {
+    initializePWA();
+  }, []);
+
   const handleLogout = async () => {
     try {
       // Si hay una función handleLogout externa, usarla
@@ -766,9 +772,6 @@ export const Dashboard = ({
       </div>
       {/* Spacer for bottom navigation */}
       <div className="h-20"></div>
-
-      {/* Test Notification Button - Solo en desarrollo */}
-      <TestNotificationButton clienteId={cedula} />
     </div>
   );
 };

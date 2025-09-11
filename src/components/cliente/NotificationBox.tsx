@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Bell, X, Check, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useClientNotifications } from '@/services/clientNotificationService';
+import PWAInstallButton from './PWAInstallButton';
 
 interface NotificationBoxProps {
   className?: string;
@@ -23,6 +24,7 @@ const NotificationBox: React.FC<NotificationBoxProps> = ({
     markAllAsRead,
     removeNotification,
     clearAll,
+    forceCleanStorage,
   } = useClientNotifications(clienteId);
 
   const getIconoTipo = (tipo: string) => {
@@ -31,6 +33,7 @@ const NotificationBox: React.FC<NotificationBoxProps> = ({
       case 'puntos': return '⭐';
       case 'nivel': return '🏆';
       case 'menu': return '🍽️';
+      case 'pwa': return '📱';
       default: return '🔔';
     }
   };
@@ -41,6 +44,7 @@ const NotificationBox: React.FC<NotificationBoxProps> = ({
       case 'puntos': return 'from-yellow-500 to-orange-500';
       case 'nivel': return 'from-purple-500 to-pink-500';
       case 'menu': return 'from-blue-500 to-indigo-500';
+      case 'pwa': return 'from-blue-600 to-purple-600';
       default: return 'from-gray-500 to-gray-600';
     }
   };
@@ -192,6 +196,17 @@ const NotificationBox: React.FC<NotificationBoxProps> = ({
                             <p className={`text-xs mt-1 ${notificacion.leida ? 'text-gray-500' : 'text-gray-300'}`}>
                               {notificacion.mensaje}
                             </p>
+                            
+                            {/* Botón especial para notificaciones PWA */}
+                            {notificacion.tipo === 'pwa' && !notificacion.leida && (
+                              <button
+                                type="button"
+                                className="mt-2 w-full bg-transparent border-none p-0 m-0"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <PWAInstallButton />
+                              </button>
+                            )}
                           </div>
 
                           <button
@@ -211,13 +226,24 @@ const NotificationBox: React.FC<NotificationBoxProps> = ({
               </div>
 
               {/* Footer */}
-              {notifications.length > 0 && (
-                <div className="p-3 border-t border-gray-700/50">
-                  <button className="w-full text-xs text-center text-blue-400 hover:text-blue-300 transition-colors">
-                    Ver todas las notificaciones
+              <div className="p-3 border-t border-gray-700/50">
+                <div className="flex gap-2">
+                  <button
+                    onClick={forceCleanStorage}
+                    className="flex-1 text-xs text-center text-red-400 hover:text-red-300 transition-colors py-1 px-2 rounded border border-red-500/30 hover:bg-red-500/10"
+                  >
+                    🧹 Limpiar todas
                   </button>
+                  {notifications.length > 0 && (
+                    <button
+                      onClick={markAllAsRead}
+                      className="flex-1 text-xs text-center text-blue-400 hover:text-blue-300 transition-colors py-1 px-2 rounded border border-blue-500/30 hover:bg-blue-500/10"
+                    >
+                      ✅ Marcar leídas
+                    </button>
+                  )}
                 </div>
-              )}
+              </div>
             </motion.div>
           </>
         )}
