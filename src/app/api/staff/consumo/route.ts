@@ -6,6 +6,8 @@ import { join } from 'path';
 import { geminiAnalyzer } from '../../../../lib/ai/gemini-analyzer';
 import fs from 'fs';
 
+const PORTAL_CONFIG_PATH = join(process.cwd(), 'portal-config.json');
+
 // Forzar renderizado dinámico para esta ruta que usa autenticación
 export const dynamic = 'force-dynamic';
 
@@ -196,9 +198,24 @@ export async function POST(request: NextRequest) {
     // Obtener ubicación por defecto
     const locationId = await getOrCreateDefaultLocation(validatedData.businessId);
 
+    // 🔧 Obtener configuración de puntos dinámica
+    let puntosPorDolar = 4; // Valor por defecto actualizado para coincidir con config actual
+    try {
+      const configContent = await fs.promises.readFile(PORTAL_CONFIG_PATH, 'utf-8');
+      const config = JSON.parse(configContent);
+      puntosPorDolar = config.configuracionPuntos?.puntosPorDolar || 4;
+      console.log('✅ Configuración de puntos cargada (OCR):', {
+        puntosPorDolar,
+        configPath: PORTAL_CONFIG_PATH,
+        montoDetectado: analysis.total
+      });
+    } catch (error) {
+      console.warn('⚠️ No se pudo cargar configuración de puntos, usando valor por defecto:', error);
+    }
+
     // Usar el monto detectado por AI o el manual como respaldo
     const montoFinal = analysis.total > 0 ? analysis.total : parseFloat(validatedData.monto);
-    const puntosGenerados = Math.floor(montoFinal);
+    const puntosGenerados = Math.floor(montoFinal * puntosPorDolar); // ✅ Puntos dinámicos por dólar
 
     // Crear registro de consumo
     const consumo = await prisma.consumo.create({
@@ -222,15 +239,44 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Actualizar puntos del cliente
-    await prisma.cliente.update({
+    // Actualizar puntos del cliente (disponibles y acumulados)
+    const clienteActualizado = await prisma.cliente.update({
       where: { id: cliente.id },
       data: {
         puntos: {
           increment: puntosGenerados
+        },
+        puntosAcumulados: {
+          increment: puntosGenerados
         }
+      },
+      include: {
+        tarjetaLealtad: true
       }
     });
+
+    // Disparar evaluación automática de nivel después de actualizar puntos
+    try {
+      const evaluacionResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3001'}/api/admin/evaluar-nivel-cliente`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ clienteId: cliente.id })
+      });
+
+      if (evaluacionResponse.ok) {
+        const evaluacionData = await evaluacionResponse.json();
+        
+        if (evaluacionData.actualizado) {
+          console.log(`🆙 ¡Cliente ascendió automáticamente de ${evaluacionData.nivelAnterior} a ${evaluacionData.nivelNuevo}!`);
+          // TODO: Aquí se podría enviar una notificación push al cliente
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ Error en evaluación automática de nivel:', error);
+      // No fallar el consumo si la evaluación falla
+    }
 
     console.log('✅ Consumo registrado exitosamente:', {
       consumoId: consumo.id,

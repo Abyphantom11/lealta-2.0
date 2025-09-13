@@ -179,12 +179,18 @@ export default function AuthHandler() {
         console.log('📦 Configuración recibida:', config);
         console.log('🏷️ Tarjetas en config:', config.tarjetas?.length || 0);
 
-        if (config.tarjetas && config.tarjetas.length > 0) {
-          setPortalConfig(config);
+        // Usar la configuración si existe, independientemente de si tiene tarjetas
+        if (config) {
+          // Asegurar que la configuración tenga los valores por defecto si faltan
+          const configConDefaults = {
+            ...getDefaultPortalConfig(),
+            ...config
+          };
+          setPortalConfig(configConDefaults);
           setIsPortalConfigLoaded(true);
-          logger.log('✅ Configuración del portal cargada correctamente:', config);
+          logger.log('✅ Configuración del portal cargada correctamente:', configConDefaults);
         } else {
-          console.warn('⚠️ Configuración sin tarjetas, usando fallback');
+          console.warn('⚠️ Configuración vacía, usando fallback');
           setPortalConfig(getDefaultPortalConfig());
           setIsPortalConfigLoaded(true);
         }
@@ -202,6 +208,37 @@ export default function AuthHandler() {
       setIsPortalConfigLoaded(true);
     }
   }, []); // useCallback dependencies
+
+  // Función para refrescar datos del cliente
+  const refreshClienteData = useCallback(async () => {
+    if (!cedula) return;
+    
+    try {
+      logger.log('🔄 Refrescando datos del cliente...');
+      const response = await fetch('/api/cliente/verificar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cedula }),
+      });
+
+      const data = await response.json();
+      if (response.ok && data.existe) {
+        logger.log('✅ Datos del cliente actualizados:', data.cliente);
+        setClienteData(data.cliente);
+      }
+    } catch (error) {
+      console.error('❌ Error refrescando datos del cliente:', error);
+    }
+  }, [cedula]);
+
+  // Configurar polling para refrescar datos automáticamente
+  useEffect(() => {
+    if (step === 'dashboard' && cedula) {
+      // Refrescar cada 30 segundos
+      const interval = setInterval(refreshClienteData, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [step, cedula, refreshClienteData]);
 
   const setupEnvironment = async () => {
     // Configurar fallback para Opera si es necesario
@@ -483,8 +520,8 @@ export default function AuthHandler() {
           if (evaluacionResponse.ok) {
             const evaluacionData = await evaluacionResponse.json();
 
-            // Si hubo actualización de nivel, activar animación
-            if (evaluacionData.actualizado) {
+            // Si hubo actualización de nivel, activar animación SOLO PARA SUBIDAS
+            if (evaluacionData.actualizado && evaluacionData.mostrarAnimacion) {
               // Log solo para cambios importantes
               if (process.env.NODE_ENV === 'development') {
                 console.log(
@@ -498,6 +535,19 @@ export default function AuthHandler() {
               setShowLevelUpAnimation(true);
 
               // Actualizar localStorage para evitar duplicados
+              localStorage.setItem(
+                `lastLevel_${clienteData.cedula}`,
+                evaluacionData.nivelNuevo
+              );
+            } else if (evaluacionData.actualizado && evaluacionData.esBajada) {
+              // Log para bajadas (sin animación)
+              if (process.env.NODE_ENV === 'development') {
+                console.log(
+                  `📉 Cliente bajó de ${evaluacionData.nivelAnterior} a ${evaluacionData.nivelNuevo} (sin animación)`
+                );
+              }
+              
+              // Actualizar localStorage sin animación
               localStorage.setItem(
                 `lastLevel_${clienteData.cedula}`,
                 evaluacionData.nivelNuevo
@@ -766,6 +816,7 @@ export default function AuthHandler() {
             showTarjeta={showTarjeta}
             setShowTarjeta={setShowTarjeta}
             portalConfig={portalConfig}
+            refreshClienteData={refreshClienteData}
           />
 
           <MenuDrawer

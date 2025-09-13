@@ -101,11 +101,14 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Actualizar puntos del cliente
+    // Actualizar puntos del cliente (disponibles y acumulados)
     await prisma.cliente.update({
       where: { id: cliente.id },
       data: {
         puntos: {
+          increment: validatedData.puntos
+        },
+        puntosAcumulados: {
           increment: validatedData.puntos
         },
         totalGastado: {
@@ -114,8 +117,32 @@ export async function POST(request: NextRequest) {
         totalVisitas: {
           increment: 1
         }
+      },
+      include: {
+        tarjetaLealtad: true
       }
     });
+
+    // Disparar evaluación automática de nivel
+    try {
+      const evaluacionResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3001'}/api/admin/evaluar-nivel-cliente`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ clienteId: cliente.id })
+      });
+
+      if (evaluacionResponse.ok) {
+        const evaluacionData = await evaluacionResponse.json();
+        
+        if (evaluacionData.actualizado) {
+          console.log(`🆙 ¡Cliente ascendió automáticamente de ${evaluacionData.nivelAnterior} a ${evaluacionData.nivelNuevo}!`);
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ Error en evaluación automática de nivel:', error);
+    }
 
     console.log('✅ Consumo confirmado y guardado:', {
       consumoId: consumo.id,

@@ -106,7 +106,7 @@ async function readPortalConfig() {
       ],
       favoritoDelDia: [],
       tarjetas: [],
-      nombreEmpresa: 'LEALTA 2.0',
+      nombreEmpresa: 'Rosita',
       settings: {
         lastUpdated: new Date().toISOString(),
         version: '1.0.0',

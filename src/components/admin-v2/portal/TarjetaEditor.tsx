@@ -70,93 +70,128 @@ export default function TarjetaEditor({
 }: TarjetaEditorProps) {
   const [selectedLevel, setSelectedLevel] = useState('Oro');
   const [editingCard, setEditingCard] = useState<any>(null);
-  const [saving, setSaving] = useState(false);
   const [savingEmpresa, setSavingEmpresa] = useState(false);
   const [empresaChanged, setEmpresaChanged] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
-  const currentTarjeta = useMemo(
-    () =>
-      (config.tarjetas || []).find(
-        (t: Tarjeta) => t.nivel === selectedLevel
-      ) || {
-        nivel: selectedLevel,
-        nombrePersonalizado: `Tarjeta ${selectedLevel}`,
-        textoCalidad:
-          NIVELES_TARJETAS_CONFIG[
-            selectedLevel as keyof typeof NIVELES_TARJETAS_CONFIG
-          ].textoDefault,
-        colores:
-          NIVELES_TARJETAS_CONFIG[
-            selectedLevel as keyof typeof NIVELES_TARJETAS_CONFIG
-          ].colores,
-        condiciones:
-          NIVELES_TARJETAS_CONFIG[
-            selectedLevel as keyof typeof NIVELES_TARJETAS_CONFIG
-          ].condicionesDefault,
-        beneficio:
-          NIVELES_TARJETAS_CONFIG[
-            selectedLevel as keyof typeof NIVELES_TARJETAS_CONFIG
-          ].beneficioDefault,
-        activo: true,
-      },
-    [config.tarjetas, selectedLevel]
-  );
-
-  // Actualizar editingCard cuando cambie selectedLevel (solo si se está editando)
-  useEffect(() => {
-    if (editingCard) {
-      setEditingCard({ ...currentTarjeta });
-    }
-  }, [selectedLevel, editingCard, currentTarjeta]);
-
-  // Definir jerarquía de niveles
-  const nivelesJerarquia = ['Bronce', 'Plata', 'Oro', 'Diamante', 'Platino'];
-
-  // Función para obtener límites máximos basados en el nivel superior
-  const getLimitesMaximos = (nivelActual: string) => {
-    const indexActual = nivelesJerarquia.indexOf(nivelActual);
-    if (indexActual >= nivelesJerarquia.length - 1) {
-      // Si es el nivel más alto, no hay límites
-      return { puntosMinimos: Infinity, visitasMinimas: Infinity };
-    }
-
-    const nivelSuperior = nivelesJerarquia[indexActual + 1];
-    const tarjetaSuperior = (config.tarjetas || []).find(
-      (t: Tarjeta) => t.nivel === nivelSuperior
+  const currentTarjeta = useMemo(() => {
+    // Buscar tarjeta existente en la configuración
+    const existingCard = (config.tarjetas || []).find(
+      (t: Tarjeta) => t.nivel === selectedLevel
     );
-
-    if (tarjetaSuperior?.condiciones) {
-      return {
-        puntosMinimos: tarjetaSuperior.condiciones.puntosMinimos - 1,
-        visitasMinimas: tarjetaSuperior.condiciones.visitasMinimas - 1,
-      };
+    
+    if (existingCard) {
+      // Si existe, usar los valores guardados
+      return existingCard;
     }
-
-    // Si no hay tarjeta superior configurada, usar valores por defecto
-    const configSuperior =
-      NIVELES_TARJETAS_CONFIG[
-        nivelSuperior as keyof typeof NIVELES_TARJETAS_CONFIG
-      ];
+    
+    // Si no existe, crear una nueva con valores editables
+    const defaultConfig = NIVELES_TARJETAS_CONFIG[
+      selectedLevel as keyof typeof NIVELES_TARJETAS_CONFIG
+    ];
+    
     return {
-      puntosMinimos: configSuperior.condicionesDefault.puntosMinimos - 1,
-      visitasMinimas: configSuperior.condicionesDefault.visitasMinimas - 1,
+      nivel: selectedLevel,
+      nombrePersonalizado: `Tarjeta ${selectedLevel}`,
+      textoCalidad: defaultConfig.textoDefault,
+      colores: defaultConfig.colores,
+      condiciones: {
+        puntosMinimos: defaultConfig.condicionesDefault.puntosMinimos,
+        visitasMinimas: defaultConfig.condicionesDefault.visitasMinimas,
+      },
+      beneficio: defaultConfig.beneficioDefault,
+      activo: true,
     };
-  };
+  }, [config.tarjetas, selectedLevel]);
 
-  // Función para validar que el valor no exceda el límite jerárquico
-  const validarLimiteJerarquico = (
-    valor: number,
-    limite: number,
-    campo: string
-  ): boolean => {
-    if (valor > limite) {
-      showNotification(
-        `${campo} no puede ser mayor a ${limite} (límite del nivel superior)`,
-        'error'
-      );
-      return false;
+  // Inicializar automáticamente en modo edición
+  useEffect(() => {
+    setEditingCard({ ...currentTarjeta });
+  }, [currentTarjeta]);
+
+  // Actualizar editingCard cuando cambie selectedLevel
+  useEffect(() => {
+    setEditingCard({ ...currentTarjeta });
+    setHasUnsavedChanges(false); // Reset unsaved changes cuando cambias de nivel
+    setValidationErrors([]); // Limpiar errores de validación cuando cambias de nivel
+  }, [selectedLevel, currentTarjeta]);
+
+  // 🎯 Función para obtener jerarquía de niveles ordenada
+  const JERARQUIA_NIVELES = ['Bronce', 'Plata', 'Oro', 'Diamante', 'Platino'];
+  
+  // 🛡️ Función para validar restricciones jerárquicas  
+  const validateHierarchy = (level: string, points: number, visits: number): { 
+    isValid: boolean; 
+    errors: string[]; 
+    maxAllowedPoints?: number;
+    minRequiredPoints?: number;
+  } => {
+    const errors: string[] = [];
+    const currentIndex = JERARQUIA_NIVELES.indexOf(level);
+    
+    if (currentIndex === -1) {
+      return { isValid: false, errors: ['Nivel no válido'] };
     }
-    return true;
+    
+    // Obtener todas las tarjetas actuales
+    const allCards = config.tarjetas || [];
+    
+    // 🔍 Validar límite superior (no puede ser mayor o igual al siguiente nivel)
+    let maxAllowedPoints: number | undefined;
+    for (let i = currentIndex + 1; i < JERARQUIA_NIVELES.length; i++) {
+      const higherLevelCard = allCards.find(card => card.nivel === JERARQUIA_NIVELES[i]);
+      if (higherLevelCard && higherLevelCard.condiciones) {
+        maxAllowedPoints = higherLevelCard.condiciones.puntosMinimos - 1;
+        if (points >= higherLevelCard.condiciones.puntosMinimos) {
+          errors.push(`❌ ${level} no puede tener ${points} puntos porque ${JERARQUIA_NIVELES[i]} requiere ${higherLevelCard.condiciones.puntosMinimos}. Máximo permitido: ${maxAllowedPoints}`);
+        }
+        break; // Validar contra el primer nivel superior existente
+      }
+    }
+    
+    // 🔍 Validar límite inferior (debe ser mayor al nivel anterior)  
+    let minRequiredPoints: number | undefined;
+    for (let i = currentIndex - 1; i >= 0; i--) {
+      const lowerLevelCard = allCards.find(card => card.nivel === JERARQUIA_NIVELES[i]);
+      if (lowerLevelCard && lowerLevelCard.condiciones) {
+        minRequiredPoints = lowerLevelCard.condiciones.puntosMinimos + 1;
+        if (points <= lowerLevelCard.condiciones.puntosMinimos) {
+          errors.push(`❌ ${level} debe tener más puntos que ${JERARQUIA_NIVELES[i]} (${lowerLevelCard.condiciones.puntosMinimos}). Mínimo requerido: ${minRequiredPoints}`);
+        }
+        break; // Validar contra el primer nivel inferior existente
+      }
+    }
+    
+    // 🚨 VALIDACIÓN ESPECIAL: Solo validar contra niveles EXISTENTES
+    // No restringir niveles si los superiores no están configurados aún
+    for (let i = currentIndex + 1; i < JERARQUIA_NIVELES.length; i++) {
+      const higherLevelCard = allCards.find(card => card.nivel === JERARQUIA_NIVELES[i]);
+      if (higherLevelCard && higherLevelCard.condiciones) {
+        const higherPoints = higherLevelCard.condiciones.puntosMinimos;
+        if (points >= higherPoints) {
+          errors.push(`❌ ${level} (${points} pts) no puede igualar o superar a ${JERARQUIA_NIVELES[i]} (${higherPoints} pts). La jerarquía debe ser: Bronce < Plata < Oro < Diamante < Platino`);
+          maxAllowedPoints = higherPoints - 1;
+          break; // Solo validar contra el primer nivel superior existente
+        }
+      }
+    }
+    
+    // 💡 SUGERENCIA INTELIGENTE: Si un nivel tiene muchos puntos sin nivel superior
+    if (level === 'Diamante' && points > 2000 && currentIndex < JERARQUIA_NIVELES.length - 1) {
+      const platinoCard = allCards.find(card => card.nivel === 'Platino');
+      if (!platinoCard) {
+        // Esto es solo una sugerencia, NO un error que bloquee
+        console.log(`💡 SUGERENCIA: ${level} con ${points} puntos es muy alto. Considera crear una tarjeta Platino con más puntos para mantener la jerarquía.`);
+      }
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors,
+      maxAllowedPoints,
+      minRequiredPoints
+    };
   };
 
   // Función auxiliar para normalizar condiciones de tarjeta
@@ -214,44 +249,143 @@ export default function TarjetaEditor({
     }
   };
 
-  const handleSave = async () => {
+  const handleSaveCard = async () => {
     if (!editingCard) return;
 
-    setSaving(true);
+    // 🛡️ Validar jerarquía antes de guardar
+    const validation = validateHierarchy(
+      selectedLevel,
+      editingCard.condiciones?.puntosMinimos || 0,
+      editingCard.condiciones?.visitasMinimas || 0
+    );
+
+    if (!validation.isValid) {
+      showNotification(
+        `❌ No se puede guardar: ${validation.errors[0]}`,
+        'error'
+      );
+      setValidationErrors(validation.errors);
+      return; // Prevenir guardado
+    }
 
     try {
       const cardToSave = normalizeCardConditions(editingCard);
       const newTarjetas = updateLocalCards(cardToSave);
       await persistCardChanges(newTarjetas);
 
+      // Actualizar estado local inmediatamente
+      setConfig({
+        ...config,
+        tarjetas: newTarjetas,
+      });
+
       showNotification(
         `✅ Tarjeta ${cardToSave.nivel} guardada correctamente`,
         'success'
       );
-      setEditingCard(null);
+      setHasUnsavedChanges(false);
+      setValidationErrors([]); // Limpiar errores al guardar exitosamente
     } catch (error) {
       console.error('Error guardando tarjeta:', error);
       showNotification(
         '❌ Error al guardar los cambios de la tarjeta',
         'error'
       );
-
-      // Revertir cambios locales en caso de error
-      const originalTarjeta = (config.tarjetas || []).find(
-        (t: Tarjeta) => t.nivel === editingCard.nivel
-      );
-      if (originalTarjeta) {
-        setEditingCard(originalTarjeta);
-      }
-    } finally {
-      setSaving(false);
     }
   };
 
+  // Función para manejar cambios en los campos
+  const handleFieldChange = (field: string, value: any) => {
+    setEditingCard({ ...editingCard, [field]: value });
+    setHasUnsavedChanges(true);
+  };
+
+  const handleConditionChange = (field: string, value: any) => {
+    const updatedCard = {
+      ...editingCard,
+      condiciones: {
+        ...editingCard.condiciones,
+        [field]: value,
+      },
+    };
+    
+    // 🛡️ Validar jerarquía solo para puntos mínimos
+    if (field === 'puntosMinimos' && typeof value === 'number') {
+      const validation = validateHierarchy(
+        selectedLevel, 
+        value, 
+        updatedCard.condiciones?.visitasMinimas || 0
+      );
+      
+      setValidationErrors(validation.errors);
+      
+      // Si hay errores, mostrar notificación pero permitir el cambio temporal
+      if (!validation.isValid) {
+        // Mostrar primer error como notificación
+        showNotification(validation.errors[0], 'error');
+      }
+    } else {
+      // Para otros campos, limpiar errores
+      setValidationErrors([]);
+    }
+    
+    setEditingCard(updatedCard);
+    setHasUnsavedChanges(true);
+  };
+
   const handleSaveEmpresa = async (nombreEmpresa: string) => {
-    // Solo actualizar estado local, marcar como cambiado
-    setConfig({ ...config, nombreEmpresa });
-    setEmpresaChanged(true);
+    try {
+      setSavingEmpresa(true);
+      
+      // Actualizar estado local
+      const updatedConfig = { ...config, nombreEmpresa };
+      setConfig(updatedConfig);
+
+      // Persistir inmediatamente en la base de datos
+      const response = await fetch('/api/admin/portal-config', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...updatedConfig,
+          businessId: 'default',
+        }),
+      });
+
+      if (response.ok) {
+        // Actualizar todas las tarjetas existentes de clientes
+        const syncResponse = await fetch('/api/admin/sync-tarjetas-empresa', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            nombreEmpresa,
+          }),
+        });
+
+        if (syncResponse.ok) {
+          showNotification(
+            `✅ Nombre de empresa guardado como "${nombreEmpresa}" y tarjetas actualizadas`,
+            'success'
+          );
+        } else {
+          showNotification(
+            `⚠️ Nombre guardado como "${nombreEmpresa}" pero no se pudieron sincronizar todas las tarjetas`,
+            'warning'
+          );
+        }
+        setEmpresaChanged(false);
+      } else {
+        throw new Error('Error al guardar la configuración');
+      }
+    } catch (error) {
+      console.error('Error al guardar nombre de empresa:', error);
+      showNotification('❌ Error al guardar el nombre de empresa', 'error');
+    } finally {
+      setSavingEmpresa(false);
+    }
   };
 
   const handleSaveEmpresaManual = async () => {
@@ -391,19 +525,10 @@ export default function TarjetaEditor({
           <h6 className="text-white font-medium">
             Editando: Tarjeta {selectedLevel}
           </h6>
-          {!editingCard && (
-            <button
-              onClick={() => setEditingCard({ ...currentTarjeta })}
-              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-            >
-              Editar
-            </button>
-          )}
         </div>
 
-        {editingCard ? (
-          <div className="space-y-6">
-            {/* Información básica */}
+        {editingCard && (
+          <div className="space-y-6">{/* Información básica */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label
@@ -417,10 +542,7 @@ export default function TarjetaEditor({
                   type="text"
                   value={editingCard.nombrePersonalizado}
                   onChange={e =>
-                    setEditingCard({
-                      ...editingCard,
-                      nombrePersonalizado: e.target.value,
-                    })
+                    handleFieldChange('nombrePersonalizado', e.target.value)
                   }
                   className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
                 />
@@ -437,10 +559,7 @@ export default function TarjetaEditor({
                   type="text"
                   value={editingCard.textoCalidad}
                   onChange={e =>
-                    setEditingCard({
-                      ...editingCard,
-                      textoCalidad: e.target.value,
-                    })
+                    handleFieldChange('textoCalidad', e.target.value)
                   }
                   className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
                 />
@@ -468,42 +587,46 @@ export default function TarjetaEditor({
                     id="puntos-minimos"
                     type="text"
                     inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={editingCard.condiciones?.puntosMinimos ?? ''}
+                    value={editingCard.condiciones?.puntosMinimos?.toString() || ''}
                     onChange={e => {
-                      // Validar que solo contenga números
-                      if (
-                        /^\d*$/.test(e.target.value) ||
-                        e.target.value === ''
-                      ) {
-                        const nuevoValor =
-                          e.target.value === '' ? '' : Number(e.target.value);
-
-                        // Validar límites jerárquicos si no está vacío
-                        if (nuevoValor !== '' && nuevoValor > 0) {
-                          const limites = getLimitesMaximos(editingCard.nivel);
-                          if (
-                            !validarLimiteJerarquico(
-                              nuevoValor,
-                              limites.puntosMinimos,
-                              'Puntos mínimos'
-                            )
-                          ) {
-                            return; // No actualizar si excede el límite
-                          }
-                        }
-
-                        setEditingCard({
-                          ...editingCard,
-                          condiciones: {
-                            ...editingCard.condiciones,
-                            puntosMinimos: nuevoValor,
-                          },
-                        });
+                      const value = e.target.value;
+                      // Permitir campo completamente vacío o solo números
+                      if (value === '' || /^\d+$/.test(value)) {
+                        handleConditionChange('puntosMinimos', value === '' ? undefined : Number(value));
                       }
                     }}
-                    className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
+                    placeholder="Ej: 500"
+                    className={`w-full px-3 py-2 bg-dark-700 border rounded-lg text-white focus:outline-none transition-colors ${
+                      validationErrors.length > 0 
+                        ? 'border-red-500 focus:border-red-400' 
+                        : 'border-dark-600 focus:border-primary-500'
+                    }`}
                   />
+                  {/* 💡 Mostrar límites jerárquicos como ayuda */}
+                  {(() => {
+                    const currentPoints = editingCard.condiciones?.puntosMinimos || 0;
+                    const validation = validateHierarchy(selectedLevel, currentPoints, 0);
+                    
+                    return (
+                      <div className="mt-1 text-xs">
+                        {validation.minRequiredPoints !== undefined && (
+                          <p className="text-yellow-400">
+                            💡 Mínimo: {validation.minRequiredPoints} puntos
+                          </p>
+                        )}
+                        {validation.maxAllowedPoints !== undefined && (
+                          <p className="text-blue-400">
+                            💡 Máximo: {validation.maxAllowedPoints} puntos
+                          </p>
+                        )}
+                        {validation.minRequiredPoints === undefined && validation.maxAllowedPoints === undefined && (
+                          <p className="text-green-400">
+                            ✅ Sin restricciones
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div>
                   <label
@@ -516,44 +639,43 @@ export default function TarjetaEditor({
                     id="visitas-minimas"
                     type="text"
                     inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={editingCard.condiciones?.visitasMinimas ?? ''}
+                    value={editingCard.condiciones?.visitasMinimas?.toString() || ''}
                     onChange={e => {
-                      // Validar que solo contenga números
-                      if (
-                        /^\d*$/.test(e.target.value) ||
-                        e.target.value === ''
-                      ) {
-                        const nuevoValor =
-                          e.target.value === '' ? '' : Number(e.target.value);
-
-                        // Validar límites jerárquicos si no está vacío
-                        if (nuevoValor !== '' && nuevoValor > 0) {
-                          const limites = getLimitesMaximos(editingCard.nivel);
-                          if (
-                            !validarLimiteJerarquico(
-                              nuevoValor,
-                              limites.visitasMinimas,
-                              'Visitas mínimas'
-                            )
-                          ) {
-                            return; // No actualizar si excede el límite
-                          }
-                        }
-
-                        setEditingCard({
-                          ...editingCard,
-                          condiciones: {
-                            ...editingCard.condiciones,
-                            visitasMinimas: nuevoValor,
-                          },
-                        });
+                      const value = e.target.value;
+                      // Permitir campo completamente vacío o solo números
+                      if (value === '' || /^\d+$/.test(value)) {
+                        handleConditionChange('visitasMinimas', value === '' ? undefined : Number(value));
                       }
                     }}
+                    placeholder="Ej: 10"
                     className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none"
                   />
                 </div>
               </div>
+              
+              {/* 🛡️ Mostrar errores de validación jerárquica */}
+              {validationErrors.length > 0 && (
+                <div className="mt-4 p-3 bg-red-900/20 border border-red-500/30 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <div className="text-red-400 mt-0.5">⚠️</div>
+                    <div>
+                      <h6 className="text-red-400 font-medium text-sm mb-2">
+                        Restricciones Jerárquicas
+                      </h6>
+                      <ul className="space-y-1">
+                        {validationErrors.map((error, index) => (
+                          <li key={index} className="text-red-300 text-sm">
+                            {error}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-red-300 text-xs mt-2 opacity-80">
+                        💡 La jerarquía debe ser: Bronce &lt; Plata &lt; Oro &lt; Diamante &lt; Platino
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Beneficio del nivel */}
@@ -563,9 +685,7 @@ export default function TarjetaEditor({
               </h6>
               <textarea
                 value={editingCard.beneficio || ''}
-                onChange={e =>
-                  setEditingCard({ ...editingCard, beneficio: e.target.value })
-                }
+                onChange={e => handleFieldChange('beneficio', e.target.value)}
                 placeholder="Describe el beneficio principal que obtienen los clientes con este nivel de tarjeta"
                 rows={3}
                 className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none resize-none"
@@ -578,9 +698,7 @@ export default function TarjetaEditor({
                 type="checkbox"
                 id="activo"
                 checked={editingCard.activo}
-                onChange={e =>
-                  setEditingCard({ ...editingCard, activo: e.target.checked })
-                }
+                onChange={e => handleFieldChange('activo', e.target.checked)}
                 className="w-4 h-4 text-primary-600 bg-dark-700 border-dark-600 rounded focus:ring-primary-500"
               />
               <label htmlFor="activo" className="text-dark-300">
@@ -588,82 +706,33 @@ export default function TarjetaEditor({
               </label>
             </div>
 
-            {/* Botones */}
-            <div className="flex space-x-2 pt-4">
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-4 py-2 bg-success-600 text-white rounded-lg hover:bg-success-700 disabled:bg-success-400 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
-              >
-                {saving && (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            {/* Botón de guardado manual */}
+            <div className="bg-dark-700 rounded-lg p-3 mt-4">
+              <div className="flex items-center justify-between">
+                {hasUnsavedChanges && (
+                  <p className="text-sm text-amber-400 flex items-center">
+                    <span className="w-2 h-2 bg-amber-400 rounded-full mr-2"></span>
+                    {'Cambios sin guardar'}
+                  </p>
                 )}
-                <span>{saving ? 'Guardando...' : 'Guardar Cambios'}</span>
-              </button>
-              <button
-                onClick={() => setEditingCard(null)}
-                disabled={saving}
-                className="px-4 py-2 bg-dark-600 text-white rounded-lg hover:bg-dark-500 disabled:bg-dark-400 disabled:cursor-not-allowed transition-colors"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        ) : (
-          /* Vista de información cuando no está editando */
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-dark-400">Nombre:</p>
-                <p className="text-white font-medium">
-                  {currentTarjeta.nombrePersonalizado}
-                </p>
-              </div>
-              <div>
-                <p className="text-dark-400">Texto de calidad:</p>
-                <p className="text-white font-medium">
-                  {currentTarjeta.textoCalidad}
-                </p>
-              </div>
-            </div>
-
-            <div>
-              <p className="text-dark-400 text-sm mb-2">
-                Condiciones (cualquiera cumple):
-              </p>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-dark-400">Puntos mínimos</p>
-                  <p className="text-white font-medium">
-                    {currentTarjeta.condiciones?.puntosMinimos || 0}
+                {!hasUnsavedChanges && (
+                  <p className="text-sm text-green-400 flex items-center">
+                    <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                    {'Todos los cambios guardados'}
                   </p>
-                </div>
-                <div>
-                  <p className="text-dark-400">Visitas mínimas</p>
-                  <p className="text-white font-medium">
-                    {currentTarjeta.condiciones?.visitasMinimas || 0}
-                  </p>
-                </div>
+                )}
+                <button
+                  onClick={handleSaveCard}
+                  disabled={!hasUnsavedChanges || validationErrors.length > 0}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    hasUnsavedChanges && validationErrors.length === 0
+                      ? 'bg-primary-600 hover:bg-primary-700 text-white'
+                      : 'bg-dark-600 text-dark-400 cursor-not-allowed'
+                  }`}
+                >
+                  {validationErrors.length > 0 ? '🚫 Corrige errores primero' : '💾 Guardar cambios'}
+                </button>
               </div>
-            </div>
-
-            <div>
-              <p className="text-dark-400 text-sm mb-2">Beneficio:</p>
-              <p className="text-white text-sm">
-                {currentTarjeta.beneficio || 'Sin beneficio definido'}
-              </p>
-            </div>
-
-            <div>
-              <span
-                className={`inline-block px-2 py-1 rounded text-xs ${
-                  currentTarjeta.activo
-                    ? 'bg-success-600 text-white'
-                    : 'bg-red-600 text-white'
-                }`}
-              >
-                {currentTarjeta.activo ? 'Activa' : 'Inactiva'}
-              </span>
             </div>
           </div>
         )}

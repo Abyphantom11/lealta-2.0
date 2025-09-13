@@ -10,6 +10,7 @@ const PROTECTED_ROUTES = [
   '/api/business',
   '/api/clients',
   '/api/consumos',
+  // Las rutas /api/admin/* están protegidas pero se manejan de forma especial
 ];
 
 // Rutas públicas (login, signup, etc.)
@@ -38,12 +39,58 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith(route)
   );
 
+  // Manejo especial para rutas de API de admin
+  if (pathname.startsWith('/api/admin/')) {
+    return handleAdminApiRoute(request, pathname);
+  }
+
   if (!isProtectedRoute) {
     return NextResponse.next();
   }
 
   console.log('🔒 Ruta protegida, verificando autenticación...');
   return handleProtectedRoute(request, pathname);
+}
+
+async function handleAdminApiRoute(request: NextRequest, pathname: string) {
+  try {
+    const sessionCookie = request.cookies.get('session')?.value;
+
+    if (!sessionCookie) {
+      console.log('❌ API Admin: No hay cookie de sesión');
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    const sessionData = JSON.parse(sessionCookie);
+
+    if (!sessionData.userId || !sessionData.role) {
+      console.log('❌ API Admin: Datos de sesión incompletos');
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    // Verificar que el usuario tenga permisos de admin o staff
+    if (!['SUPERADMIN', 'ADMIN', 'STAFF'].includes(sessionData.role)) {
+      console.log('❌ API Admin: Rol insuficiente:', sessionData.role);
+      return NextResponse.json({ error: 'Permisos insuficientes' }, { status: 403 });
+    }
+
+    // Pasar headers de autenticación a la API
+    const response = NextResponse.next();
+    response.headers.set('x-user-id', sessionData.userId);
+    response.headers.set('x-user-role', sessionData.role);
+    response.headers.set('x-business-id', sessionData.businessId);
+
+    console.log('✅ API Admin autorizada:', {
+      pathname,
+      role: sessionData.role,
+      userId: sessionData.userId,
+    });
+
+    return response;
+  } catch (error) {
+    console.error('❌ Error en API Admin middleware:', error);
+    return NextResponse.json({ error: 'Error de autenticación' }, { status: 401 });
+  }
 }
 
 async function handleProtectedRoute(request: NextRequest, pathname: string) {

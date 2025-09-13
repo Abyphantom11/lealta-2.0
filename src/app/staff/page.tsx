@@ -121,10 +121,12 @@ interface TodayStats {
 // Types for consumption data
 interface ConsumoData {
   id?: string;
-  cliente: string | {
-    cedula: string;
-    nombre: string;
-  };
+  cliente:
+    | string
+    | {
+        cedula: string;
+        nombre: string;
+      };
   cedula: string;
   productos: Product[];
   total: number;
@@ -136,9 +138,9 @@ interface ConsumoData {
 export default function StaffPage() {
   const { user, loading, logout, isAuthenticated } = useRequireAuth('STAFF');
 
-// ========================================
-// 🎛️ SECCIÓN: ESTADOS PRINCIPALES (135-200)
-// ========================================
+  // ========================================
+  // 🎛️ SECCIÓN: ESTADOS PRINCIPALES (135-200)
+  // ========================================
 
   // Estados principales
   const [cedula, setCedula] = useState('');
@@ -158,13 +160,13 @@ export default function StaffPage() {
   } | null>(null);
 
   // Función para mostrar notificaciones
-  const showNotification = useCallback((
-    type: 'success' | 'error' | 'info',
-    message: string
-  ) => {
-    setNotification({ type, message });
-    setTimeout(() => setNotification(null), 5000);
-  }, []);
+  const showNotification = useCallback(
+    (type: 'success' | 'error' | 'info', message: string) => {
+      setNotification({ type, message });
+      setTimeout(() => setNotification(null), 5000);
+    },
+    []
+  );
 
   // Estados para registro manual
   const [modoManual, setModoManual] = useState(false);
@@ -174,6 +176,9 @@ export default function StaffPage() {
   >([{ id: '1', nombre: '', cantidad: 1 }]);
   const [totalManual, setTotalManual] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Estados para configuración de puntos
+  const [puntosPorDolar, setPuntosPorDolar] = useState(4); // Valor por defecto
 
   // Estados para UI mejorada (sin cámara)
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
@@ -189,19 +194,17 @@ export default function StaffPage() {
   // Referencias para el input de archivo
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Efecto para cargar datos iniciales
-  useEffect(() => {
-    loadRecentTickets();
-  }, []);
-
   // Debug para el cuadro de confirmación
   useEffect(() => {
-    console.log('🎨 Estado de confirmación cambió:', { showConfirmation, editableData });
+    console.log('🎨 Estado de confirmación cambió:', {
+      showConfirmation,
+      editableData,
+    });
   }, [showConfirmation, editableData]);
 
-// ========================================
-// 🔍 SECCIÓN: FUNCIONES DE BÚSQUEDA Y CLIENTE (202-300)
-// ========================================
+  // ========================================
+  // 🔍 SECCIÓN: FUNCIONES DE BÚSQUEDA Y CLIENTE (202-300)
+  // ========================================
 
   // Función para buscar información del cliente en la base de datos REAL
   const searchCustomer = async (cedulaValue: string) => {
@@ -377,9 +380,9 @@ export default function StaffPage() {
     }
   };
 
-// ========================================
-// 🔧 SECCIÓN: FUNCIONES AUXILIARES (375-450)
-// ========================================
+  // ========================================
+  // 🔧 SECCIÓN: FUNCIONES AUXILIARES (375-450)
+  // ========================================
 
   const determineCustomerLevel = (
     puntos: number
@@ -391,18 +394,45 @@ export default function StaffPage() {
   };
 
   // Función para cargar tickets recientes desde la API
-  const loadRecentTickets = async () => {
+  const loadRecentTickets = useCallback(async () => {
     try {
+      console.log('🔄 Cargando estadísticas desde API...');
       const response = await fetch('/api/admin/estadisticas?periodo=today');
       const data = await response.json();
 
-      if (data.success && data.estadisticas.consumosRecientes) {
+      console.log('📊 Respuesta de estadísticas:', {
+        success: data.success,
+        hasEstadisticas: !!data.estadisticas,
+        hasConsumos: !!data.estadisticas?.consumosRecientes,
+        resumen: data.estadisticas?.resumen
+      });
+
+      if (data.success && data.estadisticas) {
+        // Actualizar estadísticas del día
+        const stats = data.estadisticas.resumen;
+        const newStats = {
+          ticketsProcessed: stats.totalConsumos || 0,
+          totalPoints: stats.totalPuntos || 0,
+          uniqueCustomers: stats.clientesUnicos || 0,
+          totalAmount: stats.totalMonto || 0,
+        };
+        
+        setTodayStats(newStats);
+
+        // Solo actualizar tickets recientes si existen
+        if (data.estadisticas.consumosRecientes && data.estadisticas.consumosRecientes.length > 0) {
         const ticketsFormateados = data.estadisticas.consumosRecientes
           .slice(0, 5)
           .map((consumo: ConsumoData) => ({
             id: consumo.id,
-            cedula: typeof consumo.cliente === 'object' ? consumo.cliente.cedula : consumo.cedula,
-            cliente: typeof consumo.cliente === 'object' ? consumo.cliente.nombre : consumo.cliente,
+            cedula:
+              typeof consumo.cliente === 'object'
+                ? consumo.cliente.cedula
+                : consumo.cedula,
+            cliente:
+              typeof consumo.cliente === 'object'
+                ? consumo.cliente.nombre
+                : consumo.cliente,
             monto: consumo.total,
             puntos: consumo.puntos,
             hora: new Date(consumo.fecha).toLocaleTimeString('es-ES', {
@@ -416,22 +446,43 @@ export default function StaffPage() {
           }));
 
         setRecentTickets(ticketsFormateados);
-
-        // Actualizar estadísticas del día también
-        const stats = data.estadisticas.resumen;
-        setTodayStats({
-          ticketsProcessed: stats.totalConsumos,
-          totalPoints: stats.totalPuntos,
-          uniqueCustomers: stats.clientesUnicos,
-          totalAmount: stats.totalMonto,
-        });
+        } else {
+          setRecentTickets([]);
+        }
+      } else {
+        console.warn('⚠️ No se pudieron cargar estadísticas:', data);
+        // Mantener valores por defecto si no hay datos
       }
     } catch (error) {
-      console.error('Error loading recent tickets:', error);
-      // Mantener datos mock como fallback
+      console.error('❌ Error loading recent tickets:', error);
+      // Mantener datos mock como fallback pero con logs para debug
+      console.log('📊 Manteniendo valores por defecto del staff');
       setRecentTickets([]);
     }
-  };
+  }, []);
+
+  // Función para cargar configuración de puntos
+  const loadPuntosConfig = useCallback(async () => {
+    try {
+      const response = await fetch('/api/admin/puntos');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data?.puntosPorDolar) {
+          setPuntosPorDolar(data.data.puntosPorDolar);
+          console.log('✅ Configuración de puntos cargada en staff desde API:', data.data.puntosPorDolar);
+        }
+      }
+    } catch (error) {
+      console.error('⚠️ Error cargando configuración de puntos desde API, usando valor por defecto:', error);
+      // Mantener valor por defecto de 4
+    }
+  }, []);
+
+  // Efecto para cargar datos iniciales (movido después de las declaraciones de funciones)
+  useEffect(() => {
+    loadRecentTickets();
+    loadPuntosConfig();
+  }, [loadRecentTickets, loadPuntosConfig]);
 
   // Función para mostrar instrucciones de captura optimizadas
   const openSnippingTool = () => {
@@ -497,7 +548,9 @@ export default function StaffPage() {
     console.log('3. Selecciona el área del ticket');
     console.log('4. Regresa a Lealta (se detecta automáticamente)');
     console.log('');
-    console.log('⚡ IMPORTANTE: NO necesitas guardar archivo, solo regresa a Lealta');
+    console.log(
+      '⚡ IMPORTANTE: NO necesitas guardar archivo, solo regresa a Lealta'
+    );
 
     // Timeout de 5 minutos para dar tiempo suficiente
     setTimeout(() => {
@@ -507,45 +560,48 @@ export default function StaffPage() {
         setLastClipboardCheck(null);
         showNotification(
           'info',
-          '⏰ Tiempo de captura expirado. Inténtalo de nuevo'
+          '⏰ Tiempo de captura expirado. Inténtalo de nuevo.'
         );
       }
     }, 300000); // 5 minutos
   };
 
-// ========================================
-// 📸 SECCIÓN: FUNCIONES DE CAPTURA Y PROCESAMIENTO (515-650)
-// ========================================
+  // ========================================
+  // 📸 SECCIÓN: FUNCIONES DE CAPTURA Y PROCESAMIENTO (515-650)
+  // ========================================
 
   // Función para verificar si debe procesar la imagen
-  const shouldProcessImage = useCallback((
-    currentTime: number,
-    currentClipboardId: string
-  ): boolean => {
-    const timeCondition = currentTime > captureStartTime + 2000; // 2 segundos mínimo
-    const newImageCondition = currentClipboardId !== lastClipboardCheck;
-    return timeCondition && newImageCondition;
-  }, [captureStartTime, lastClipboardCheck]);
+  const shouldProcessImage = useCallback(
+    (currentTime: number, currentClipboardId: string): boolean => {
+      const timeCondition = currentTime > captureStartTime + 2000; // 2 segundos mínimo
+      const newImageCondition = currentClipboardId !== lastClipboardCheck;
+      return timeCondition && newImageCondition;
+    },
+    [captureStartTime, lastClipboardCheck]
+  );
 
   // Función para procesar la imagen capturada
-  const processClipboardImage = useCallback(async (blob: Blob, currentTime: number) => {
-    const file = new File([blob], `captura-pos-${currentTime}.png`, {
-      type: blob.type,
-    });
+  const processClipboardImage = useCallback(
+    async (blob: Blob, currentTime: number) => {
+      const file = new File([blob], `captura-pos-${currentTime}.png`, {
+        type: blob.type,
+      });
 
-    setSelectedFile(file);
-    const reader = new FileReader();
-    reader.onload = e => setPreview(e.target?.result as string);
-    reader.readAsDataURL(file);
+      setSelectedFile(file);
+      const reader = new FileReader();
+      reader.onload = e => setPreview(e.target?.result as string);
+      reader.readAsDataURL(file);
 
-    // Finalizar proceso
-    setIsWaitingForCapture(false);
-    setCaptureStartTime(0);
-    setLastClipboardCheck(null);
+      // Finalizar proceso
+      setIsWaitingForCapture(false);
+      setCaptureStartTime(0);
+      setLastClipboardCheck(null);
 
-    showNotification('success', '🎉 ¡Captura del POS detectada y cargada!');
-    console.log('✅ Captura procesada exitosamente');
-  }, [showNotification]);
+      showNotification('success', '🎉 ¡Captura del POS detectada y cargada!');
+      console.log('✅ Captura procesada exitosamente');
+    },
+    [showNotification]
+  );
 
   // Función para leer imagen del portapapeles
   const checkClipboardForImage = useCallback(async () => {
@@ -590,7 +646,12 @@ export default function StaffPage() {
       console.error('Error leyendo portapapeles:', error);
       return false;
     }
-  }, [isWaitingForCapture, processClipboardImage, shouldProcessImage, lastClipboardCheck]);
+  }, [
+    isWaitingForCapture,
+    processClipboardImage,
+    shouldProcessImage,
+    lastClipboardCheck,
+  ]);
 
   // Función para detectar cuando el usuario regresa a la ventana
   const handleWindowFocus = useCallback(async () => {
@@ -721,32 +782,44 @@ export default function StaffPage() {
           productos: data.data.analisis.productos.map((p: AnalysisProduct) => ({
             name: p.nombre,
             price: p.precio,
-            line: `${p.nombre} x${p.cantidad} - $${p.precio.toFixed(2)}`
+            line: `${p.nombre} x${p.cantidad} - $${p.precio.toFixed(2)}`,
           })),
           total: data.data.analisis.total,
         });
         setShowConfirmation(true);
         console.log('🔍 showConfirmation establecido a true');
-        showNotification('success', `🤖 IA procesó el ticket con ${data.data.analisis.confianza}% de confianza. Revisa y confirma los datos.`);
+        showNotification(
+          'success',
+          `🤖 IA procesó el ticket con ${data.data.analisis.confianza}% de confianza. Revisa y confirma los datos.`
+        );
       } else {
         console.log('❌ No se cumplió la condición para mostrar confirmación');
-        showNotification('error', `Error al procesar: ${data.error || 'Respuesta inesperada'}`);
+        showNotification(
+          'error',
+          `Error al procesar: ${data.error || 'Respuesta inesperada'}`
+        );
       }
     } catch (error) {
       console.error('Error de conexión:', error);
       if (error instanceof Error && error.name === 'AbortError') {
-        showNotification('error', '⏰ El procesamiento tomó demasiado tiempo. Intenta de nuevo.');
+        showNotification(
+          'error',
+          '⏰ El procesamiento tomó demasiado tiempo. Intenta de nuevo.'
+        );
       } else {
-        showNotification('error', 'Error de conexión: No se pudo procesar la solicitud');
+        showNotification(
+          'error',
+          'Error de conexión: No se pudo procesar la solicitud'
+        );
       }
     } finally {
       setIsProcessing(false);
     }
   };
 
-// ========================================
-// ✅ SECCIÓN: FUNCIONES DE CONFIRMACIÓN (745-850)
-// ========================================
+  // ========================================
+  // ✅ SECCIÓN: FUNCIONES DE CONFIRMACIÓN (745-850)
+  // ========================================
 
   // Funciones para confirmación de IA
   const confirmarDatosIA = async () => {
@@ -766,7 +839,7 @@ export default function StaffPage() {
           categoria: 'otro', // Categoría por defecto
         })),
         total: editableData.total,
-        puntos: Math.floor(editableData.total), // 1 punto por peso
+        puntos: Math.floor(editableData.total * puntosPorDolar), // Puntos dinámicos basados en configuración
         empleadoDetectado: editableData.empleado,
         confianza: aiResult.analisis.confianza / 100, // Convertir a decimal
         imagenUrl: aiResult.metadata.imagenUrl,
@@ -786,7 +859,10 @@ export default function StaffPage() {
 
       if (response.ok) {
         setResult(data.data);
-        showNotification('success', '✅ Consumo confirmado y registrado exitosamente');
+        showNotification(
+          'success',
+          '✅ Consumo confirmado y registrado exitosamente'
+        );
 
         // Actualizar estadísticas del día
         setTodayStats(prev => ({
@@ -801,12 +877,14 @@ export default function StaffPage() {
           id: data.data.consumoId?.toString() || Date.now().toString(),
           cedula: data.data.clienteCedula || '',
           cliente: data.data.clienteNombre || '',
-          productos: editableData.productos?.map((p: EditableProduct) => p.name) || [],
+          productos:
+            editableData.productos?.map((p: EditableProduct) => p.name) || [],
           total: data.data.totalRegistrado,
           puntos: data.data.puntosGenerados,
           fecha: new Date().toISOString().split('T')[0],
           monto: data.data.totalRegistrado,
-          items: editableData.productos?.map((p: EditableProduct) => p.name) || [],
+          items:
+            editableData.productos?.map((p: EditableProduct) => p.name) || [],
           hora: new Date().toLocaleTimeString('es-ES', {
             hour: '2-digit',
             minute: '2-digit',
@@ -834,7 +912,10 @@ export default function StaffPage() {
     setAiResult(null);
     setEditableData(null);
     setIsProcessing(false);
-    showNotification('info', 'Confirmación cancelada. Puedes capturar otra imagen.');
+    showNotification(
+      'info',
+      'Confirmación cancelada. Puedes capturar otra imagen.'
+    );
   };
 
   const resetFormularioOCR = () => {
@@ -910,7 +991,9 @@ export default function StaffPage() {
               <div className="w-2 h-2 rounded-full bg-blue-400 mt-2 flex-shrink-0" />
             )}
             <div className="flex-1">
-              <p className="text-white text-sm font-medium leading-relaxed">{notification.message}</p>
+              <p className="text-white text-sm font-medium leading-relaxed">
+                {notification.message}
+              </p>
             </div>
             <button
               onClick={() => setNotification(null)}
@@ -922,7 +1005,7 @@ export default function StaffPage() {
         </motion.div>
       )}
 
-{/* ========================================
+      {/* ========================================
     🎨 SECCIÓN: RENDER PRINCIPAL - HEADER Y NAVEGACIÓN (925-1000)
     ======================================== */}
 
@@ -1051,7 +1134,7 @@ export default function StaffPage() {
           </div>
         </motion.div>
 
-{/* ========================================
+        {/* ========================================
     📋 SECCIÓN: FORMULARIOS PRINCIPALES (1056-1300)
     ======================================== */}
 
@@ -1156,7 +1239,7 @@ export default function StaffPage() {
                         <AlertCircle className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                         <div className="text-sm text-blue-300">
                           <p className="font-medium mb-1">
-                            🚀 Captura Automática - Flujo Súper Optimizado
+                            🚀 Captura Automática - Flujo SúPER Optimizado
                           </p>
                           <ul className="space-y-1 text-xs">
                             <li>
@@ -1208,21 +1291,31 @@ export default function StaffPage() {
                           <div className="bg-green-500/20 border border-green-500/40 rounded-lg p-3">
                             <div className="flex items-center space-x-2 mb-1">
                               <span className="text-green-400">🚀</span>
-                              <span className="text-green-300 font-bold">MÁS RÁPIDO</span>
+                              <span className="text-green-300 font-bold">
+                                MÁS RÁPIDO
+                              </span>
                             </div>
                             <p className="text-green-200 text-xs">
-                              <kbd className="bg-green-600/30 px-1 py-0.5 rounded">Win + PrtScr</kbd>
-                              <br />Captura completa instantánea
+                              <kbd className="bg-green-600/30 px-1 py-0.5 rounded">
+                                Win + PrtScr
+                              </kbd>
+                              <br />
+                              Captura completa instantánea
                             </p>
                           </div>
                           <div className="bg-blue-500/20 border border-blue-500/40 rounded-lg p-3">
                             <div className="flex items-center space-x-2 mb-1">
                               <span className="text-blue-400">📐</span>
-                              <span className="text-blue-300 font-bold">MÁS PRECISO</span>
+                              <span className="text-blue-300 font-bold">
+                                MÁS PRECISO
+                              </span>
                             </div>
                             <p className="text-blue-200 text-xs">
-                              <kbd className="bg-blue-600/30 px-1 py-0.5 rounded">Win + Shift + S</kbd>
-                              <br />Selecciona área específica
+                              <kbd className="bg-blue-600/30 px-1 py-0.5 rounded">
+                                Win + Shift + S
+                              </kbd>
+                              <br />
+                              Selecciona área específica
                             </p>
                           </div>
                         </div>
@@ -1477,7 +1570,7 @@ export default function StaffPage() {
                       Productos Consumidos *
                     </label>
                     <div className="space-y-3">
-                      {productos.map((producto) => (
+                      {productos.map(producto => (
                         <div
                           key={producto.id}
                           className="flex space-x-3 items-center"
@@ -1517,7 +1610,7 @@ export default function StaffPage() {
                             <button
                               type="button"
                               onClick={() => eliminarProducto(producto.id)}
-                              className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+                              className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colores"
                             >
                               <X className="w-4 h-4" />
                             </button>
@@ -1590,7 +1683,7 @@ export default function StaffPage() {
             )}
           </div>
 
-{/* ========================================
+          {/* ========================================
     📊 SECCIÓN: SIDEBAR Y RESULTADOS (1590-1750)
     ======================================== */}
 
@@ -1642,19 +1735,21 @@ export default function StaffPage() {
                         Productos detectados:
                       </h4>
                       <div className="space-y-1">
-                        {result.productos.map((item: Product, index: number) => (
-                          <div
-                            key={`${item.name || 'producto'}-${index}`}
-                            className="flex justify-between text-sm"
-                          >
-                            <span className="text-dark-400">
-                              {item.name || `Producto ${index + 1}`}
-                            </span>
-                            <span className="text-white">
-                              ${item.price || 'N/A'}
-                            </span>
-                          </div>
-                        ))}
+                        {result.productos.map(
+                          (item: Product, index: number) => (
+                            <div
+                              key={`${item.name || 'producto'}-${index}`}
+                              className="flex justify-between text-sm"
+                            >
+                              <span className="text-dark-400">
+                                {item.name || `Producto ${index + 1}`}
+                              </span>
+                              <span className="text-white">
+                                ${item.price || 'N/A'}
+                              </span>
+                            </div>
+                          )
+                        )}
                       </div>
                     </div>
                   )}
@@ -1755,7 +1850,7 @@ export default function StaffPage() {
         </div>
       </div>
 
-{/* ========================================
+      {/* ========================================
     📝 SECCIÓN: MODAL DE CONFIRMACIÓN IA (1760-1874)
     ======================================== */}
 
@@ -1785,60 +1880,92 @@ export default function StaffPage() {
             {/* Alerta de revisión */}
             <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-4 mb-6">
               <p className="text-yellow-300 text-center font-medium">
-                ⚠️ <strong>Revisa los datos antes de confirmar</strong> para asegurar precisión
+                ⚠️ <strong>Revisa los datos antes de confirmar</strong> para
+                asegurar precisión
               </p>
             </div>
-            
+
             {/* Contenido principal */}
             <div className="bg-gray-800/80 backdrop-blur-sm p-6 rounded-xl mb-6 border border-gray-700">
               {/* Cliente y Empleado */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div className="space-y-2">
-                  <p className="text-gray-400 text-sm uppercase tracking-wider">Cliente</p>
-                  <p className="text-white text-xl font-bold">{aiResult.cliente.nombre}</p>
-                  <p className="text-gray-400">Cédula: {aiResult.cliente.cedula}</p>
+                  <p className="text-gray-400 text-sm uppercase tracking-wider">
+                    Cliente
+                  </p>
+                  <p className="text-white text-xl font-bold">
+                    {aiResult.cliente.nombre}
+                  </p>
+                  <p className="text-gray-400">
+                    Cédula: {aiResult.cliente.cedula}
+                  </p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-gray-400 text-sm uppercase tracking-wider">Empleado POS</p>
-                  <p className="text-white text-xl font-bold">{editableData.empleado || 'No detectado'}</p>
+                  <p className="text-gray-400 text-sm uppercase tracking-wider">
+                    Empleado POS
+                  </p>
+                  <p className="text-white text-xl font-bold">
+                    {editableData.empleado || 'No detectado'}
+                  </p>
                 </div>
               </div>
-              
+
               {/* Productos */}
               <div className="mb-6">
-                <p className="text-gray-400 text-sm uppercase tracking-wider mb-3">Productos detectados</p>
+                <p className="text-gray-400 text-sm uppercase tracking-wider mb-3">
+                  Productos detectados
+                </p>
                 <div className="bg-gray-900/50 rounded-lg border border-gray-600 overflow-hidden">
-                  {editableData.productos.map((p: EditableProduct, i: number) => (
-                    <div key={`producto-${p.name}-${i}`} className="flex justify-between items-center py-3 px-4 border-b border-gray-700 last:border-b-0">
-                      <span className="text-gray-300 flex items-center">
-                        <span className="w-2 h-2 bg-green-400 rounded-full mr-3"></span>
-                        {p.name}
-                      </span>
-                      <span className="text-green-400 font-mono text-lg font-bold">${p.price.toFixed(2)}</span>
-                    </div>
-                  ))}
+                  {editableData.productos.map(
+                    (p: EditableProduct, i: number) => (
+                      <div
+                        key={`producto-${p.name}-${i}`}
+                        className="flex justify-between items-center py-3 px-4 border-b border-gray-700 last:border-b-0"
+                      >
+                        <span className="text-gray-300 flex items-center">
+                          <span className="w-2 h-2 bg-green-400 rounded-full mr-3"></span>
+                          {p.name}
+                        </span>
+                        <span className="text-green-400 font-mono text-lg font-bold">
+                          ${p.price.toFixed(2)}
+                        </span>
+                      </div>
+                    )
+                  )}
                 </div>
               </div>
-              
+
               {/* Totales */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div className="text-center p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                  <p className="text-blue-400 text-sm uppercase tracking-wider">Total</p>
-                  <p className="text-white text-3xl font-bold">${editableData.total.toFixed(2)}</p>
+                  <p className="text-blue-400 text-sm uppercase tracking-wider">
+                    Total
+                  </p>
+                  <p className="text-white text-3xl font-bold">
+                    ${editableData.total.toFixed(2)}
+                  </p>
                 </div>
                 <div className="text-center p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
-                  <p className="text-green-400 text-sm uppercase tracking-wider">Puntos</p>
-                  <p className="text-green-400 text-3xl font-bold">{Math.floor(editableData.total)}</p>
+                  <p className="text-green-400 text-sm uppercase tracking-wider">
+                    Puntos
+                  </p>
+                  <p className="text-green-400 text-3xl font-bold">
+                    {Math.floor(editableData.total * puntosPorDolar)}
+                  </p>
                 </div>
                 <div className="text-center p-4 bg-purple-500/10 border border-purple-500/30 rounded-lg">
-                  <p className="text-purple-400 text-sm uppercase tracking-wider">Confianza IA</p>
-                  <p className={`text-3xl font-bold ${getConfianzaColor(aiResult.analisis.confianza)}`}>
+                  <p className="text-purple-400 text-sm uppercase tracking-wider">
+                    Confianza IA
+                  </p>
+                  <p
+                    className={`text-3xl font-bold ${getConfianzaColor(aiResult.analisis.confianza)}`}
+                  >
                     {aiResult.analisis.confianza}%
                   </p>
                 </div>
               </div>
             </div>
-            
+
             {/* Botones de acción */}
             <div className="flex flex-col sm:flex-row gap-4">
               <button
@@ -1867,11 +1994,14 @@ export default function StaffPage() {
                 <span>CANCELAR</span>
               </button>
             </div>
-            
+
             {/* Tip */}
             <p className="text-center text-gray-500 text-sm mt-6 flex items-center justify-center space-x-2">
               <span>💡</span>
-              <span>Si los datos no son correctos, cancela y vuelve a capturar la imagen</span>
+              <span>
+                Si los datos no son correctos, cancela y vuelve a capturar la
+                imagen
+              </span>
             </p>
           </motion.div>
         </div>

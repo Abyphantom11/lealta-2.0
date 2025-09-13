@@ -39,13 +39,13 @@ export async function POST(request: NextRequest) {
                 nivel: cliente.tarjetaLealtad.nivel,
                 activa: cliente.tarjetaLealtad.activa,
                 fechaAsignacion: cliente.tarjetaLealtad.fechaAsignacion,
-                puntos: cliente.puntos, // Incluir los puntos también aquí
+                puntos: cliente.puntos, // Los puntos siempre vienen del cliente
               }
             : {
                 nivel: 'Bronce',
                 activa: true,
                 fechaAsignacion: new Date(),
-                puntos: cliente.puntos, // Fallback si no hay tarjeta
+                puntos: cliente.puntos, // Los puntos siempre vienen del cliente
               },
         },
       });

@@ -11,9 +11,10 @@ import PromocionesManager from './PromocionesManager';
 import RecompensasManager from './RecompensasManager';
 import TarjetaCompacta from './TarjetaCompacta';
 import AsignacionTarjetas from './AsignacionTarjetas';
-import TarjetaEditor from './TarjetaEditorNew';
+import TarjetaEditor from './TarjetaEditor';
 import BrandingManager from './BrandingManager';
 import { SharedBrandingConfig } from './shared-branding-types';
+import { Tarjeta } from './types';
 
 // Configuración temporal para evitar conflictos de tipos
 
@@ -97,17 +98,6 @@ interface Recompensa {
   descripcion?: string;
   puntosRequeridos?: number;
   stock?: number;
-  activo?: boolean;
-}
-
-interface Tarjeta {
-  id?: string;
-  nivel?: string;
-  nombre?: string;
-  descripcion?: string;
-  puntosRequeridos?: number;
-  beneficios?: string[];
-  color?: string;
   activo?: boolean;
 }
 
@@ -259,10 +249,10 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
           config={{
             nivelesConfig: config.nivelesConfig || {},
             empresa: config.empresa || {
-              nombre: config.nombreEmpresa || 'Love me',
+              nombre: config.nombreEmpresa || 'Rosita',
             },
             nombreEmpresa:
-              config.nombreEmpresa || config.empresa?.nombre || 'Love me',
+              config.nombreEmpresa || config.empresa?.nombre || 'Rosita',
           }}
         />
       );
@@ -930,15 +920,8 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
 
             {/* Gestión de tarjetas separada - como en admin original */}
             <TarjetaEditor
-              config={
-                {
-                  ...config,
-                  nivelesConfig: config.nivelesConfig || {},
-                  nombreEmpresa: config.nombreEmpresa || 'Love me',
-                  tarjetas: config.tarjetas || [],
-                } as any
-              }
-              setConfig={(newConfig: any) => setConfig(newConfig)}
+              config={config}
+              setConfig={(newConfig) => setConfig(newConfig)}
               showNotification={(message: string, type: any) =>
                 showNotification(message, type)
               }

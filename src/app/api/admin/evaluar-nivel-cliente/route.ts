@@ -9,23 +9,6 @@ import {
 
 const prisma = new PrismaClient();
 
-interface NivelConfig {
-  nombre: string;
-  puntosRequeridos: number;
-  visitasRequeridas: number;
-  beneficio: string;
-  colores: string[];
-}
-
-interface TarjetaConfig {
-  id: string;
-  nombre: string;
-  descripcion: string;
-  activa: boolean;
-  condicional: string;
-  niveles: NivelConfig[];
-}
-
 // Función para obtener la configuración del portal
 async function getPortalConfig() {
   try {
@@ -39,42 +22,47 @@ async function getPortalConfig() {
 }
 
 // Función para evaluar el nivel más alto que le corresponde a un cliente
-function evaluarNivelCliente(cliente: any, tarjetasConfig: TarjetaConfig[]) {
-  const puntos = cliente.puntos || 0;
+function evaluarNivelCliente(cliente: any, tarjetasConfig: any[]) {
+  // Usar puntos acumulados para nivel (no se reducen por canjes)
+  const puntosAcumulados = cliente.puntosAcumulados || cliente.puntos || 0;
   const visitas = cliente.totalVisitas || 0;
 
-  // Usar la primera tarjeta activa
-  const tarjetaActiva = tarjetasConfig.find(t => t.activa);
-  if (!tarjetaActiva) {
+  // Usar las tarjetas activas de la nueva estructura
+  const tarjetasActivas = tarjetasConfig.filter(t => t.activo);
+  if (!tarjetasActivas.length) {
     console.warn('No hay tarjetas activas configuradas');
     return 'Bronce';
   }
 
-  // Ordenar niveles por requisitos de puntos (de mayor a menor) para evaluar desde el más alto
-  const nivelesOrdenados = tarjetaActiva.niveles
+  // Ordenar tarjetas por requisitos de puntos (de mayor a menor) para evaluar desde el más alto
+  const tarjetasOrdenadas = tarjetasActivas
     .slice() // crear copia para no mutar el original
-    .sort((a, b) => b.puntosRequeridos - a.puntosRequeridos);
+    .sort((a, b) => (b.condiciones?.puntosMinimos || 0) - (a.condiciones?.puntosMinimos || 0));
 
-  // Encontrar el nivel MÁS ALTO que cumple (lógica OR)
-  for (const nivel of nivelesOrdenados) {
-    const cumplePuntos = puntos >= nivel.puntosRequeridos;
-    const cumpleVisitas = visitas >= nivel.visitasRequeridas;
+  // Encontrar el nivel MÁS ALTO que cumple los requisitos (lógica OR)
+  for (const tarjeta of tarjetasOrdenadas) {
+    const puntosRequeridos = tarjeta.condiciones?.puntosMinimos || 0;
+    const visitasRequeridas = tarjeta.condiciones?.visitasMinimas || 0;
+    
+    const cumplePuntos = puntosAcumulados >= puntosRequeridos;
+    const cumpleVisitas = visitas >= visitasRequeridas;
 
     // Lógica OR: cumple si tiene puntos suficientes O visitas suficientes
+    // Esto permite que clientes VIP (mucho gasto, pocas visitas) o 
+    // clientes frecuentes (poco gasto, muchas visitas) obtengan beneficios
     if (cumplePuntos || cumpleVisitas) {
-      // Solo log para cambios de nivel importantes
+      // Solo log para cambios importantes
       if (process.env.NODE_ENV === 'development') {
         console.log(
-          `Cliente califica para ${nivel.nombre} (Puntos: ${puntos}, Visitas: ${visitas})`
+          `Cliente califica para ${tarjeta.nivel} (Puntos acumulados: ${puntosAcumulados}/${puntosRequeridos}, Visitas: ${visitas}/${visitasRequeridas})`
         );
       }
-      return nivel.nombre;
+      return tarjeta.nivel;
     }
   }
 
-  // Si no cumple ninguno, devolver el nivel más bajo (primer nivel)
-  const nivelMinimo = tarjetaActiva.niveles[0]?.nombre || 'Bronce';
-  return nivelMinimo;
+  // Si no cumple ninguno, devolver Bronce (nivel mínimo)
+  return 'Bronce';
 }
 
 export async function POST(request: NextRequest) {
@@ -180,11 +168,21 @@ export async function POST(request: NextRequest) {
     // Enviar notificación de cambio de nivel
     await enviarNotificacionClientes(TipoNotificacion.NIVEL_CAMBIADO);
 
+    // 🎯 Determinar si es subida o bajada para la animación
+    const jerarquia = ['Bronce', 'Plata', 'Oro', 'Diamante', 'Platino'];
+    const indicePrevio = jerarquia.indexOf(nivelActual);
+    const indiceNuevo = jerarquia.indexOf(nivelCorrespondiente);
+    const esSubida = indiceNuevo > indicePrevio;
+    const esBajada = indiceNuevo < indicePrevio;
+
     return NextResponse.json({
       message: `Cliente actualizado de ${nivelActual} a ${nivelCorrespondiente}`,
       nivelAnterior: nivelActual,
       nivelNuevo: nivelCorrespondiente,
       actualizado: true,
+      esSubida,
+      esBajada,
+      mostrarAnimacion: esSubida, // Solo mostrar animación para subidas
       tarjeta: tarjetaActualizada,
     });
   } catch (error) {

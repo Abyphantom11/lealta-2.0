@@ -1,15 +1,5 @@
 {
-  "banners": [
-    {
-      "id": "banner_jueves_1757610944183",
-      "dia": "jueves",
-      "titulo": "como que vero",
-      "descripcion": "mamaguevo",
-      "imagenUrl": "/uploads/1757610976000-w96ael.jpg",
-      "horaPublicacion": "04:00",
-      "activo": true
-    }
-  ],
+  "banners": [],
   "promotions": [],
   "events": [
     {
@@ -58,94 +48,101 @@
     }
   ],
   "settings": {
-    "lastUpdated": "2025-09-11T17:16:17.028Z",
+    "lastUpdated": "2025-09-13T19:04:04.085Z",
     "version": "1.0.0"
   },
   "favoritoDelDia": [],
   "promociones": [],
-  "recompensas": [
-    {
-      "nombre": "Agua gratis",
-      "descripcion": "sfsfsf",
-      "puntosRequeridos": 1000,
-      "id": "recompensas_1757510629200",
-      "activo": true
-    },
-    {
-      "nombre": "fsfsffs",
-      "descripcion": "sdfsfsf",
-      "puntosRequeridos": 434,
-      "id": "recompensas_1757552147751",
-      "activo": true
-    },
-    {
-      "nombre": "sdfsfsf",
-      "descripcion": "sfsfsfs",
-      "puntosRequeridos": 342,
-      "id": "recompensas_1757552156336",
-      "activo": true
-    }
-  ],
+  "recompensas": [],
   "tarjetas": [
     {
-      "id": "tarjeta_principal",
-      "nombre": "Tarjeta Love Me",
-      "descripcion": "Sistema de lealtad progresivo",
-      "activa": true,
-      "condicional": "OR",
-      "niveles": [
-        {
-          "nombre": "Bronce",
-          "puntosRequeridos": 0,
-          "visitasRequeridas": 0,
-          "beneficio": "Cliente Inicial",
-          "colores": [
-            "#CD7F32",
-            "#B8860B"
-          ]
-        },
-        {
-          "nombre": "Plata",
-          "puntosRequeridos": 300,
-          "visitasRequeridas": 5,
-          "beneficio": "5% descuento en compras",
-          "colores": [
-            "#C0C0C0",
-            "#A9A9A9"
-          ]
-        },
-        {
-          "nombre": "Oro",
-          "puntosRequeridos": 500,
-          "visitasRequeridas": 10,
-          "beneficio": "10% descuento ",
-          "colores": [
-            "#FFD700",
-            "#FFA500"
-          ]
-        },
-        {
-          "nombre": "Diamante",
-          "puntosRequeridos": 1500,
-          "visitasRequeridas": 20,
-          "beneficio": "15% descuento + acceso VIP",
-          "colores": [
-            "#B9F2FF",
-            "#87CEEB"
-          ]
-        },
-        {
-          "nombre": "Platino",
-          "puntosRequeridos": 3000,
-          "visitasRequeridas": 30,
-          "beneficio": "20% descuento ",
-          "colores": [
-            "#E5E4E2",
-            "#BCC6CC"
-          ]
-        }
-      ]
+      "nivel": "Oro",
+      "nombrePersonalizado": "Tarjeta Dorada",
+      "textoCalidad": "Cliente locp",
+      "colores": {
+        "gradiente": [
+          "#FFD700",
+          "#FFA500"
+        ],
+        "texto": "#000000",
+        "nivel": "#FFD700"
+      },
+      "condiciones": {
+        "puntosMinimos": 500,
+        "visitasMinimas": 10
+      },
+      "beneficio": "10% de descuento",
+      "activo": true,
+      "id": "tarjeta_Oro_1757757632206"
+    },
+    {
+      "nivel": "Bronce",
+      "nombrePersonalizado": "Tarjeta Bronce",
+      "textoCalidad": "Cliente Inicial",
+      "colores": {
+        "gradiente": [
+          "#CD7F32",
+          "#8B4513"
+        ],
+        "texto": "#FFFFFF",
+        "nivel": "#CD7F32"
+      },
+      "condiciones": {
+        "puntosMinimos": 9,
+        "visitasMinimas": 0
+      },
+      "beneficio": "Acceso a ",
+      "activo": true,
+      "id": "tarjeta_Bronce_1757758005827"
+    },
+    {
+      "nivel": "Plata",
+      "nombrePersonalizado": "Tarjeta Plata",
+      "textoCalidad": "Cliente VIP",
+      "colores": {
+        "gradiente": [
+          "#C0C0C0",
+          "#808080"
+        ],
+        "texto": "#FFFFFF",
+        "nivel": "#C0C0C0"
+      },
+      "condiciones": {
+        "puntosMinimos": 400,
+        "visitasMinimas": 5
+      },
+      "beneficio": "5% de descuento en compras",
+      "activo": true,
+      "id": "tarjeta_Plata_1757787988344"
+    },
+    {
+      "nivel": "Diamante",
+      "nombrePersonalizado": "Tarjeta Diamante",
+      "textoCalidad": "Cliente VIP",
+      "colores": {
+        "gradiente": [
+          "#B9F2FF",
+          "#0891B2"
+        ],
+        "texto": "#FFFFFF",
+        "nivel": "#B9F2FF"
+      },
+      "condiciones": {
+        "puntosMinimos": 15000,
+        "visitasMinimas": 20
+      },
+      "beneficio": "15% de descuento en compras",
+      "activo": true,
+      "id": "tarjeta_Diamante_1757788673937"
     }
   ],
-  "nombreEmpresa": "Love me"
+  "nombreEmpresa": "juan",
+  "configuracionPuntos": {
+    "puntosPorDolar": 4,
+    "bonusPorRegistro": 400,
+    "limites": {
+      "maxPuntosPorDolar": 10,
+      "maxBonusRegistro": 1000
+    }
+  }
 }

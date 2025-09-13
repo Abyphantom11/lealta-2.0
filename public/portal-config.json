@@ -1,0 +1,82 @@
+{
+  "banners": [],
+  "promotions": [],
+  "events": [
+    {
+      "id": "event-1",
+      "title": "Gran Apertura",
+      "description": "Celebra con nosotros la gran apertura de nuestra nueva tienda",
+      "location": "Centro Comercial Plaza Norte",
+      "startDate": "2024-06-01T18:00:00.000Z",
+      "endDate": "2024-06-01T22:00:00.000Z",
+      "imageUrl": "/api/placeholder/600/300",
+      "isActive": true,
+      "maxAttendees": 200,
+      "currentAttendees": 0,
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "rewards": [
+    {
+      "id": "reward-1",
+      "title": "Producto Gratis",
+      "description": "Canjea 500 puntos por un producto de tu eleccion",
+      "pointsCost": 500,
+      "category": "productos",
+      "imageUrl": "/api/placeholder/300/300",
+      "isActive": true,
+      "stock": 50,
+      "availableFrom": "2024-01-01T00:00:00.000Z",
+      "availableTo": "2024-12-31T23:59:59.000Z",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "favorites": [
+    {
+      "id": "fav-1",
+      "title": "Cafe Premium",
+      "description": "Nuestro cafe de especialidad mas popular",
+      "imageUrl": "/api/placeholder/400/300",
+      "category": "bebidas",
+      "price": 12.99,
+      "isActive": true,
+      "order": 1,
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "settings": {
+    "lastUpdated": "2025-09-12T18:26:27.681Z",
+    "version": "1.0.0"
+  },
+  "favoritoDelDia": [],
+  "promociones": [],
+  "recompensas": [
+    {
+      "nombre": "fsfsfsf",
+      "descripcion": "fdsfsfsd",
+      "puntosRequeridos": 100,
+      "id": "recompensas_1757701109768",
+      "activo": true
+    },
+    {
+      "nombre": "dfsfsdfsdf",
+      "descripcion": "dfsfsfsd",
+      "puntosRequeridos": 200,
+      "id": "recompensas_1757701121594",
+      "activo": true
+    }
+  ],
+  "tarjetas": [],
+  "nombreEmpresa": "Rosita",
+  "configuracionPuntos": {
+    "puntosPorDolar": 4,
+    "bonusPorRegistro": 400,
+    "limites": {
+      "maxPuntosPorDolar": 10,
+      "maxBonusRegistro": 1000
+    }
+  }
+}

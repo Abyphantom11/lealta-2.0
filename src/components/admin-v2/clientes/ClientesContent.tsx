@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  Plus,
   Search,
   Filter,
   X,
@@ -24,6 +23,13 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '' }) => 
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
+  
+  // Estado para las pestañas
+  const [activeTab, setActiveTab] = useState<'clientes' | 'historial'>('clientes');
+  
+  // Estados para historial de canjes
+  const [historialCanjes, setHistorialCanjes] = useState<any[]>([]);
+  const [loadingHistorial, setLoadingHistorial] = useState(false);
 
   // Cargar clientes al montar el componente
   useEffect(() => {
@@ -44,6 +50,28 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '' }) => 
 
     fetchClientes();
   }, []);
+
+  // Cargar historial de canjes cuando se active esa pestaña
+  useEffect(() => {
+    const fetchHistorialCanjes = async () => {
+      if (activeTab !== 'historial') return;
+      
+      setLoadingHistorial(true);
+      try {
+        const response = await fetch('/api/admin/canjes');
+        const data = await response.json();
+        if (data.success) {
+          setHistorialCanjes(data.canjes);
+        }
+      } catch (error) {
+        console.error('Error cargando historial de canjes:', error);
+      } finally {
+        setLoadingHistorial(false);
+      }
+    };
+
+    fetchHistorialCanjes();
+  }, [activeTab]);
 
   // Función para filtrar clientes localmente
   const filterClientsLocally = useCallback(
@@ -115,197 +143,340 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '' }) => 
       .slice(0, 2);
   };
 
+  // Función para calcular nivel de tarjeta automáticamente basado en métricas
+  const calcularNivelAutomatico = (cliente: Cliente) => {
+    const { puntos, totalGastado = 0, totalVisitas = 0 } = cliente;
+
+    // Criterios para niveles (basados en tu configuración del dashboard)
+    if (puntos >= 5000 && totalGastado >= 8000 && totalVisitas >= 50) {
+      return 'Diamante';
+    } else if (puntos >= 3000 && totalGastado >= 5000 && totalVisitas >= 30) {
+      return 'Platino';
+    } else if (puntos >= 500 && totalGastado >= 1500 && totalVisitas >= 10) {
+      return 'Oro';
+    } else if (puntos >= 100 && totalGastado >= 500 && totalVisitas >= 5) {
+      return 'Plata';
+    } else {
+      return 'Bronce';
+    }
+  };
+
+  // Función para obtener el color del nivel de tarjeta
+  const getColorNivel = (nivel: string) => {
+    switch (nivel) {
+      case 'Diamante':
+        return 'text-cyan-400';
+      case 'Platino':
+        return 'text-gray-300';
+      case 'Oro':
+        return 'text-yellow-400';
+      case 'Plata':
+        return 'text-gray-400';
+      case 'Bronce':
+        return 'text-orange-400';
+      default:
+        return 'text-dark-400';
+    }
+  };
+
   return (
     <div className={`space-y-6 ${className}`}>
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-semibold text-white">
           Gestión de Clientes
         </h3>
-        <button className="flex items-center space-x-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors">
-          <Plus className="w-4 h-4 text-white" />
-          <span className="text-white">Nuevo Cliente</span>
-        </button>
+        {/* Pestañas */}
+        <div className="flex space-x-1 bg-dark-700 rounded-lg p-1">
+          <button
+            onClick={() => setActiveTab('clientes')}
+            className={`px-4 py-2 rounded-md transition-colors ${
+              activeTab === 'clientes'
+                ? 'bg-primary-600 text-white'
+                : 'text-dark-300 hover:text-white hover:bg-dark-600'
+            }`}
+          >
+            Clientes
+          </button>
+          <button
+            onClick={() => setActiveTab('historial')}
+            className={`px-4 py-2 rounded-md transition-colors ${
+              activeTab === 'historial'
+                ? 'bg-primary-600 text-white'
+                : 'text-dark-300 hover:text-white hover:bg-dark-600'
+            }`}
+          >
+            Historial de Canjes
+          </button>
+        </div>
       </div>
 
       <div className="premium-card">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-4">
-            {/* Barra de búsqueda */}
-            <div className="relative">
-              <Search
-                className={`w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 ${
-                  isSearching ? 'text-primary-500 animate-pulse' : 'text-dark-400'
-                }`}
-              />
-              <input
-                type="text"
-                placeholder="Buscar clientes..."
-                className="pl-10 pr-10 py-2 bg-dark-800 border border-dark-600 rounded-lg text-white placeholder-dark-400 focus:outline-none focus:border-primary-500"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-dark-400 hover:text-white"
-                >
-                  <X className="w-4 h-4" />
+        {activeTab === 'clientes' ? (
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-4">
+                {/* Barra de búsqueda */}
+                <div className="relative">
+                  <Search
+                    className={`w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 ${
+                      isSearching ? 'text-primary-500 animate-pulse' : 'text-dark-400'
+                    }`}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Buscar clientes..."
+                    className="pl-10 pr-10 py-2 bg-dark-800 border border-dark-600 rounded-lg text-white placeholder-dark-400 focus:outline-none focus:border-primary-500"
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-dark-400 hover:text-white"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+                
+              <div className="flex items-center space-x-4">
+                {/* Botón de filtros */}
+                <button className="p-2 bg-dark-800 hover:bg-dark-700 rounded-lg transition-colors">
+                  <Filter className="w-4 h-4 text-dark-400" />
                 </button>
-              )}
+              </div>
+              
+              {/* Contador */}
+              <div className="text-dark-400 text-sm">
+                {(() => {
+                  if (isLoading) return 'Cargando...';
+                  return `${filteredClientes.length} cliente${
+                    filteredClientes.length !== 1 ? 's' : ''
+                  }`;
+                })()}
+              </div>
             </div>
-            
-            {/* Botón de filtros */}
-            <button className="p-2 bg-dark-800 hover:bg-dark-700 rounded-lg transition-colors">
-              <Filter className="w-4 h-4 text-dark-400" />
-            </button>
-          </div>
-          
-          {/* Contador */}
-          <div className="text-dark-400 text-sm">
-            {(() => {
-              if (isLoading) return 'Cargando...';
-              return `${filteredClientes.length} cliente${
-                filteredClientes.length !== 1 ? 's' : ''
-              }`;
-            })()}
-          </div>
-        </div>
 
-        {/* Tabla de clientes */}
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-dark-700">
-                <th className="text-left py-3 text-dark-300 font-medium">
-                  Cliente
-                </th>
-                <th className="text-left py-3 text-dark-300 font-medium">
-                  Cédula
-                </th>
-                <th className="text-left py-3 text-dark-300 font-medium">
-                  Contacto
-                </th>
-                <th className="text-left py-3 text-dark-300 font-medium">
-                  Puntos
-                </th>
-                <th className="text-left py-3 text-dark-300 font-medium">
-                  Registro
-                </th>
-                <th className="text-left py-3 text-dark-300 font-medium">
-                  Tarjeta
-                </th>
-                <th className="text-left py-3 text-dark-300 font-medium">
-                  Estado
-                </th>
-                <th className="text-left py-3 text-dark-300 font-medium">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {(() => {
-                // Loading state
-                if (isLoading) {
-                  return (
-                    <tr>
-                      <td
-                        colSpan={8}
-                        className="py-8 text-center text-dark-400"
-                      >
-                        <div className="flex items-center justify-center space-x-2">
-                          <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
-                          <span>Cargando clientes...</span>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                }
-
-                // Empty state
-                if (filteredClientes.length === 0) {
-                  return (
-                    <tr>
-                      <td
-                        colSpan={8}
-                        className="py-8 text-center text-dark-400"
-                      >
-                        {clientes.length > 0
-                          ? 'No se encontraron clientes con ese criterio de búsqueda'
-                          : 'No hay clientes registrados aún'}
-                      </td>
-                    </tr>
-                  );
-                }
-
-                // Clientes data
-                return filteredClientes.map(client => (
-                  <tr
-                    key={client.id}
-                    className="border-b border-dark-800/50 hover:bg-dark-800/30 transition-colors"
-                  >
-                    <td className="py-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-gradient-to-r from-primary-600 to-purple-600 rounded-full flex items-center justify-center">
-                          <span className="text-white font-semibold text-xs">
-                            {getClientInitials(client.nombre)}
-                          </span>
-                        </div>
-                        <span className="text-white">{client.nombre}</span>
-                      </div>
-                    </td>
-                    <td className="py-4 text-dark-300">{client.cedula}</td>
-                    <td className="py-4">
-                      <div className="text-dark-300 text-sm">
-                        <div>{client.telefono}</div>
-                        <div className="text-dark-500">{client.correo}</div>
-                      </div>
-                    </td>
-                    <td className="py-4 text-success-400 font-semibold">
-                      {client.puntos} pts
-                    </td>
-                    <td className="py-4 text-dark-300">
-                      {new Date(client.registeredAt).toLocaleDateString('es-ES')}
-                    </td>
-                    <td className="py-4">
-                      {client.tarjetaLealtad ? (
-                        <div className="flex flex-col">
-                          <span
-                            className={`text-sm font-medium ${
-                              client.tarjetaLealtad.activa
-                                ? 'text-success-400'
-                                : 'text-red-400'
-                            }`}
-                          >
-                            {client.tarjetaLealtad.nivel}
-                          </span>
-                          <span className="text-xs text-dark-400">
-                            {client.tarjetaLealtad.asignacionManual
-                              ? 'Manual'
-                              : 'Auto'}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-dark-400">
-                          Sin tarjeta
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-4">
-                      <span className="px-2 py-1 rounded-full text-xs bg-success-500/20 text-success-400">
-                        Activo
-                      </span>
-                    </td>
-                    <td className="py-4">
-                      <button className="p-1 hover:bg-dark-700 rounded transition-colors">
-                        <MoreVertical className="w-4 h-4 text-dark-400" />
-                      </button>
-                    </td>
+            {/* Tabla de clientes */}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-dark-700">
+                    <th className="text-left py-3 text-dark-300 font-medium">
+                      Cliente
+                    </th>
+                    <th className="text-left py-3 text-dark-300 font-medium">
+                      Cédula
+                    </th>
+                    <th className="text-left py-3 text-dark-300 font-medium">
+                      Contacto
+                    </th>
+                    <th className="text-left py-3 text-dark-300 font-medium">
+                      Puntos
+                    </th>
+                    <th className="text-left py-3 text-dark-300 font-medium">
+                      Registro
+                    </th>
+                    <th className="text-left py-3 text-dark-300 font-medium">
+                      Tarjeta
+                    </th>
+                    <th className="text-left py-3 text-dark-300 font-medium">
+                      Estado
+                    </th>
+                    <th className="text-left py-3 text-dark-300 font-medium">
+                      Acciones
+                    </th>
                   </tr>
-                ));
-              })()}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {(() => {
+                    // Loading state
+                    if (isLoading) {
+                      return (
+                        <tr>
+                          <td
+                            colSpan={8}
+                            className="py-8 text-center text-dark-400"
+                          >
+                            <div className="flex items-center justify-center space-x-2">
+                              <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+                              <span>Cargando clientes...</span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    // Empty state
+                    if (filteredClientes.length === 0) {
+                      return (
+                        <tr>
+                          <td
+                            colSpan={8}
+                            className="py-8 text-center text-dark-400"
+                          >
+                            {clientes.length > 0
+                              ? 'No se encontraron clientes con ese criterio de búsqueda'
+                              : 'No hay clientes registrados aún'}
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    // Clientes data
+                    return filteredClientes.map(client => (
+                      <tr
+                        key={client.id}
+                        className="border-b border-dark-800/50 hover:bg-dark-800/30 transition-colors"
+                      >
+                        <td className="py-4">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-gradient-to-r from-primary-600 to-purple-600 rounded-full flex items-center justify-center">
+                              <span className="text-white font-semibold text-xs">
+                                {getClientInitials(client.nombre)}
+                              </span>
+                            </div>
+                            <span className="text-white">{client.nombre}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 text-dark-300">{client.cedula}</td>
+                        <td className="py-4">
+                          <div className="text-dark-300 text-sm">
+                            <div>{client.telefono}</div>
+                            <div className="text-dark-500">{client.correo}</div>
+                          </div>
+                        </td>
+                        <td className="py-4 text-success-400 font-semibold">
+                          {client.puntos} pts
+                        </td>
+                        <td className="py-4 text-dark-300">
+                          {new Date(client.registeredAt).toLocaleDateString('es-ES')}
+                        </td>
+                        <td className="py-4">
+                          {client.tarjetaLealtad ? (
+                            <div className="flex flex-col">
+                              <span
+                                className={`text-sm font-medium ${
+                                  client.tarjetaLealtad.activa
+                                    ? getColorNivel(client.tarjetaLealtad.nivel)
+                                    : 'text-red-400'
+                                }`}
+                              >
+                                {client.tarjetaLealtad.nivel}
+                              </span>
+                              <span className="text-xs text-dark-400">
+                                {client.tarjetaLealtad.asignacionManual
+                                  ? 'Manual'
+                                  : 'Auto'}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col">
+                              <span className={`text-sm font-medium ${getColorNivel(calcularNivelAutomatico(client))}`}>
+                                {calcularNivelAutomatico(client)}
+                              </span>
+                              <span className="text-xs text-dark-500">
+                                Calculado
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-4">
+                          <span className="px-2 py-1 rounded-full text-xs bg-success-500/20 text-success-400">
+                            Activo
+                          </span>
+                        </td>
+                        <td className="py-4">
+                          <button className="p-1 hover:bg-dark-700 rounded transition-colors">
+                            <MoreVertical className="w-4 h-4 text-dark-400" />
+                          </button>
+                        </td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <h4 className="text-lg font-medium text-white">Historial de Canjes</h4>
+              <div className="text-dark-400 text-sm">
+                {(() => {
+                  if (loadingHistorial) return 'Cargando...';
+                  return `${historialCanjes.length} canje${historialCanjes.length !== 1 ? 's' : ''}`;
+                })()}
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-dark-600">
+                    <th className="text-left py-3 px-4 font-medium text-dark-300">Cliente</th>
+                    <th className="text-left py-3 px-4 font-medium text-dark-300">Recompensa</th>
+                    <th className="text-left py-3 px-4 font-medium text-dark-300">Puntos</th>
+                    <th className="text-left py-3 px-4 font-medium text-dark-300">Fecha</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    if (loadingHistorial) {
+                      return (
+                        <tr>
+                          <td colSpan={4} className="text-center py-8 text-dark-400">
+                            <div className="flex items-center justify-center">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500 mr-3"></div>
+                              Cargando historial...
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    }
+                    
+                    if (historialCanjes.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={4} className="text-center py-8 text-dark-400">
+                            No hay canjes registrados
+                          </td>
+                        </tr>
+                      );
+                    }
+                    
+                    return historialCanjes.map((canje) => (
+                      <tr key={canje.id} className="border-b border-dark-700/50 hover:bg-dark-700/30">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white text-xs font-medium">
+                              {canje.clienteNombre.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                            </div>
+                            <span className="text-white font-medium">{canje.clienteNombre}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-white">{canje.recompensaNombre}</td>
+                        <td className="py-3 px-4">
+                          <span className="text-red-400 font-medium">-{canje.puntosDescontados} pts</span>
+                        </td>
+                        <td className="py-3 px-4 text-dark-300">
+                          {new Date(canje.fecha).toLocaleDateString('es-ES', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

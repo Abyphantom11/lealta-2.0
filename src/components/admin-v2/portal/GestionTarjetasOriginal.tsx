@@ -23,7 +23,7 @@ export default function GestionTarjetasOriginal({
   showNotification
 }: GestionTarjetasOriginalProps) {
   const [nombreEmpresa, setNombreEmpresa] = useState(
-    config.nombreEmpresa || config.empresa?.nombre || 'Love me'
+    config.nombreEmpresa || config.empresa?.nombre || 'Rosita'
   );
   const [editingEmpresa, setEditingEmpresa] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -109,7 +109,7 @@ export default function GestionTarjetasOriginal({
                   <button
                     onClick={() => {
                       setEditingEmpresa(false);
-                      setNombreEmpresa(config.nombreEmpresa || config.empresa?.nombre || 'Love me');
+                      setNombreEmpresa(config.nombreEmpresa || config.empresa?.nombre || 'Rosita');
                     }}
                     disabled={saving}
                     className="text-gray-600 px-3 py-1 rounded text-sm hover:bg-gray-100 disabled:opacity-50"

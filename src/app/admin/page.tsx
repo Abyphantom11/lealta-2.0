@@ -1,11 +1,11 @@
 'use client';
 
-import AdminV2Page from '../../components/admin-v2/page';
+import AdminV2Page from '../../components/admin-v2/AdminV2Page';
 
 /**
- * Página de ruta para Admin V2
- * Importa y renderiza el componente modular AdminV2Page
+ * Página principal del panel de administración
+ * Renderiza el componente modular AdminV2Page con todas las funcionalidades actualizadas
  */
-export default function AdminV2Route() {
+export default function AdminPage() {
   return <AdminV2Page />;
 }

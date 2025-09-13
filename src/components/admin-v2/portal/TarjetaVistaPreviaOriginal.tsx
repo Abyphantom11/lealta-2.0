@@ -128,7 +128,7 @@ export default function TarjetaVistaPreviaOriginal({ config }: TarjetaVistaPrevi
   };
 
   // Nombre de empresa editable
-  const nombreEmpresa = config.nombreEmpresa || config.empresa?.nombre || 'Love me';
+  const nombreEmpresa = config.nombreEmpresa || config.empresa?.nombre || 'Rosita';
 
   return (
     <div className="space-y-4">

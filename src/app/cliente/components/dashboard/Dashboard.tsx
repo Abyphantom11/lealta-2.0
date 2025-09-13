@@ -13,6 +13,7 @@ import {
 import { clientSession } from '@/utils/mobileStorage';
 import { logger } from '@/utils/logger';
 import { initializePWA, showPWANotificationIfAvailable } from '@/services/pwaService';
+import { useVisitTracking } from '@/hooks/useVisitTracking';
 import BannersSection from '../sections/BannersSection';
 import PromocionesSection from '../sections/PromocionesSection';
 import RecompensasSection from '../sections/RecompensasSection';
@@ -31,6 +32,7 @@ interface DashboardProps {
   portalConfig: any;
   onMenuOpen?: () => void;
   handleLogout?: () => void;
+  refreshClienteData?: () => void;
   // Compatibilidad con versiones antiguas
   setStep?: (step: 'initial' | 'cedula' | 'register' | 'dashboard') => void;
   setIsMenuDrawerOpen?: (open: boolean) => void;
@@ -57,12 +59,15 @@ const LoyaltyLevelDisplay = ({
     portalConfig?.tarjetas?.length || 0
   );
 
-  const tarjetaConfig = portalConfig?.tarjetas?.[0];
+  // Extraer niveles de las tarjetas configuradas
+  // Definir jerarquía correcta de niveles
+  const niveles = ['Bronce', 'Plata', 'Oro', 'Diamante', 'Platino'];
 
-  if (!tarjetaConfig) {
-    // Fallback si no hay configuración
+  // Verificar que hay tarjetas configuradas
+  if (!(portalConfig?.tarjetas?.length)) {
+    // Fallback si no hay configuración de tarjetas
     console.warn(
-      '❌ No se encontró configuración de tarjetas en portalConfig:',
+      '❌ No se encontraron tarjetas configuradas en portalConfig:',
       portalConfig
     );
     return (
@@ -73,49 +78,103 @@ const LoyaltyLevelDisplay = ({
   }
 
   console.log(
-    '✅ LoyaltyLevelDisplay - tarjetaConfig encontrado:',
-    tarjetaConfig
+    '✅ LoyaltyLevelDisplay - tarjetas encontradas:',
+    portalConfig.tarjetas
   );
   console.log(
-    '📊 LoyaltyLevelDisplay - niveles disponibles:',
-    tarjetaConfig.niveles?.length || 0
+    '📊 LoyaltyLevelDisplay - tarjetas disponibles:',
+    portalConfig.tarjetas.length
   );
 
-  const niveles = tarjetaConfig.niveles.map((n: any) => n.nombre);
-
   // Crear mapas dinámicos basados en la configuración actual
-  const puntosRequeridos: { [key: string]: number } = {};
-  const visitasRequeridas: { [key: string]: number } = {};
+  const puntosRequeridos: { [key: string]: number } = {
+    'Bronce': 0,
+    'Plata': 100,
+    'Oro': 500, 
+    'Diamante': 15000,  // ✅ Corregido: debe coincidir con la configuración
+    'Platino': 25000    // ✅ Aumentado para mantener jerarquía
+  };
+  
+  const visitasRequeridas: { [key: string]: number } = {
+    'Bronce': 0,
+    'Plata': 5,
+    'Oro': 10,
+    'Diamante': 20,
+    'Platino': 30
+  };
 
-  tarjetaConfig.niveles.forEach((nivelConfig: any) => {
-    puntosRequeridos[nivelConfig.nombre] = nivelConfig.puntosRequeridos;
-    visitasRequeridas[nivelConfig.nombre] = nivelConfig.visitasRequeridas;
+  // Sobrescribir con configuración del admin si existe
+  (portalConfig?.tarjetas || []).forEach((tarjeta: any) => {
+    if (tarjeta.activo && tarjeta.condiciones) {
+      puntosRequeridos[tarjeta.nivel] = tarjeta.condiciones.puntosMinimos || puntosRequeridos[tarjeta.nivel];
+      visitasRequeridas[tarjeta.nivel] = tarjeta.condiciones.visitasMinimas || visitasRequeridas[tarjeta.nivel];
+    }
+  });
+
+  // 🔍 DEBUG: Verificar configuración cargada
+  console.log('🔍 DEBUG Niveles - Configuración actual:', {
+    clientePuntos: clienteData?.puntosAcumulados || clienteData?.puntos,
+    nivelActual: nivel,
+    puntosRequeridos,
+    portalConfigTarjetas: portalConfig?.tarjetas?.map((t: any) => ({ nivel: t.nivel, puntos: t.condiciones?.puntosMinimos }))
   });
 
   const currentIndex = niveles.indexOf(nivel);
-  const puntosActuales = clienteData?.puntos || 100;
+  const puntosAcumulados = clienteData?.puntosAcumulados || clienteData?.puntos || 100; // Para progreso de nivel
+  const visitasActuales = clienteData?.totalVisitas || 0;
 
-  // Calcular progreso hacia el siguiente nivel (SIEMPRE basado en puntos)
+  // Calcular progreso hacia el siguiente nivel (basado en puntos Y visitas)
   let progress = 0;
-  let siguienteNivel = 'Platino';
+  let siguienteNivel = '';
   let descripcionProgreso = '';
 
   if (currentIndex < niveles.length - 1) {
     // No es el nivel máximo
     siguienteNivel = niveles[currentIndex + 1];
-    const puntosSiguienteNivel =
-      puntosRequeridos[siguienteNivel as keyof typeof puntosRequeridos];
+    const puntosSiguienteNivel = puntosRequeridos[siguienteNivel];
+    const visitasSiguienteNivel = visitasRequeridas[siguienteNivel];
 
-    // SIEMPRE calcular progreso basado en puntos únicamente
-    progress = Math.min((puntosActuales / puntosSiguienteNivel) * 100, 100);
+    // 🔧 ARREGLO: Verificar si el cliente YA TIENE el nivel actual
+    const puntosNivelActual = puntosRequeridos[nivel] || 0;
+    const visitasNivelActual = visitasRequeridas[nivel] || 0;
+    
+    const tieneNivelActualPorPuntos = puntosAcumulados >= puntosNivelActual;
+    const tieneNivelActualPorVisitas = visitasActuales >= visitasNivelActual;
+    const tieneNivelActual = tieneNivelActualPorPuntos || tieneNivelActualPorVisitas;
 
-    // Determinar qué mostrar (siempre en puntos)
-    const puntosNecesarios = Math.max(0, puntosSiguienteNivel - puntosActuales);
+    if (tieneNivelActual) {
+      // Ya tiene el nivel actual, calcular progreso hacia el SIGUIENTE
+      const progresoPuntos = puntosSiguienteNivel > 0 ? Math.min((puntosAcumulados / puntosSiguienteNivel) * 100, 100) : 100;
+      const progresoVisitas = visitasSiguienteNivel > 0 ? Math.min((visitasActuales / visitasSiguienteNivel) * 100, 100) : 100;
+      progress = Math.max(progresoPuntos, progresoVisitas);
 
-    if (puntosActuales >= puntosSiguienteNivel) {
-      descripcionProgreso = '¡Ya tienes suficientes puntos!';
+      // Determinar el mensaje basado en cuál criterio está más cerca
+      const puntosNecesarios = Math.max(0, puntosSiguienteNivel - puntosAcumulados);
+      const visitasNecesarias = Math.max(0, visitasSiguienteNivel - visitasActuales);
+
+      if (puntosAcumulados >= puntosSiguienteNivel || visitasActuales >= visitasSiguienteNivel) {
+        descripcionProgreso = '¡Ya cumples los requisitos para ascender!';
+      } else if (progresoPuntos > progresoVisitas) {
+        descripcionProgreso = `${puntosNecesarios} puntos para ${siguienteNivel}`;
+      } else {
+        descripcionProgreso = `${visitasNecesarias} visitas para ${siguienteNivel}`;
+      }
     } else {
-      descripcionProgreso = `${puntosNecesarios} puntos para ${siguienteNivel}`;
+      // NO tiene el nivel actual, calcular progreso hacia el nivel ACTUAL
+      const progresoPuntos = puntosNivelActual > 0 ? Math.min((puntosAcumulados / puntosNivelActual) * 100, 100) : 100;
+      const progresoVisitas = visitasNivelActual > 0 ? Math.min((visitasActuales / visitasNivelActual) * 100, 100) : 100;
+      progress = Math.max(progresoPuntos, progresoVisitas);
+
+      const puntosNecesarios = Math.max(0, puntosNivelActual - puntosAcumulados);
+      const visitasNecesarias = Math.max(0, visitasNivelActual - visitasActuales);
+
+      if (puntosAcumulados >= puntosNivelActual || visitasActuales >= visitasNivelActual) {
+        descripcionProgreso = '¡Ya cumples los requisitos para ascender!';
+      } else if (progresoPuntos > progresoVisitas) {
+        descripcionProgreso = `${puntosNecesarios} puntos para ${nivel}`;
+      } else {
+        descripcionProgreso = `${visitasNecesarias} visitas para ${nivel}`;
+      }
     }
   } else {
     // Nivel máximo alcanzado
@@ -128,13 +187,13 @@ const LoyaltyLevelDisplay = ({
     <div className="space-y-2">
       <div className="flex justify-between text-sm text-white/80">
         <span>Progreso</span>
-        <span>{progress.toFixed(0)}%</span>
+        <span>{Math.round(progress)}%</span>
       </div>
       <div className="w-full bg-dark-700 rounded-full h-3">
         <div
           className="h-3 rounded-full transition-all duration-500"
           style={{
-            width: `${progress}%`,
+            width: `${Math.min(progress, 100)}%`,
             background: `linear-gradient(90deg, ${tarjeta.colores.gradiente[0]}, ${tarjeta.colores.gradiente[1]})`,
           }}
         />
@@ -170,9 +229,17 @@ export const Dashboard = ({
   portalConfig,
   handleLogout: externalHandleLogout,
   onMenuOpen,
+  refreshClienteData, // eslint-disable-line @typescript-eslint/no-unused-vars
 }: DashboardProps) => {
   // Estado para el drawer de perfil
   const [isProfileDrawerOpen, setIsProfileDrawerOpen] = React.useState(false);
+
+  // 📊 Tracking de visitas automático
+  useVisitTracking({
+    clienteId: cedula,
+    enabled: true,
+    path: '/cliente'
+  });
 
   // Inicializar PWA cuando se carga el Dashboard (solo registrar service worker, no mostrar prompt)
   useEffect(() => {
@@ -382,14 +449,14 @@ export const Dashboard = ({
                     const tarjeta = {
                       nivel: nivel,
                       nombrePersonalizado:
-                        portalConfig?.tarjetas?.[0]?.nombre ||
+                        portalConfig?.tarjetas?.find((t: any) => t.nivel === nivel)?.nombrePersonalizado ||
                         `Tarjeta ${nivel}`,
                       textoCalidad:
-                        nivelConfig?.descripcion ||
+                        portalConfig?.tarjetas?.find((t: any) => t.nivel === nivel)?.textoCalidad ||
                         nivelesConfig[nivel].textoDefault,
                       colores: nivelesConfig[nivel].colores,
                       beneficios:
-                        nivelConfig?.beneficio ||
+                        portalConfig?.tarjetas?.find((t: any) => t.nivel === nivel)?.beneficio ||
                         nivelesConfig[nivel].beneficio,
                     };
 
@@ -635,8 +702,8 @@ export const Dashboard = ({
                               Beneficios de tu nivel:
                             </h4>
                             <p className="text-white/80 text-xs">
-                              {portalConfig?.tarjetas?.[0]?.niveles?.find(
-                                (n: any) => n.nombre === nivel
+                              {portalConfig?.tarjetas?.find(
+                                (t: any) => t.nivel === nivel
                               )?.beneficio || tarjeta.beneficios}
                             </p>
                           </div>

@@ -8,9 +8,9 @@ datasource db {
 }
 
 enum Role {
-  SUPERADMIN  // Dueño del negocio - acceso total
-  ADMIN       // Administrador - gestión de staff y reportes
-  STAFF       // Empleado - solo registro de consumos
+  SUPERADMIN // Dueño del negocio - acceso total
+  ADMIN // Administrador - gestión de staff y reportes
+  STAFF // Empleado - solo registro de consumos
 }
 
 enum SubscriptionPlan {
@@ -21,86 +21,90 @@ enum SubscriptionPlan {
 
 model Business {
   id               String           @id @default(cuid())
-  name             String           // "Restaurante Plaza"
+  name             String // "Restaurante Plaza"
   slug             String           @unique // "restaurante-plaza"
   subdomain        String           @unique // "rest-plaza" 
-  customDomain     String?          // "pedidos.empresa.com" (opcional)
+  customDomain     String? // "pedidos.empresa.com" (opcional)
   subscriptionPlan SubscriptionPlan @default(BASIC)
   isActive         Boolean          @default(true)
-  settings         Json?            // configuración personalizada
+  settings         Json? // configuración personalizada
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
   // Relaciones
-  users      User[]    @relation("BusinessUsers")
-  clientes   Cliente[] @relation("BusinessClientes")
-  locations  Location[] @relation("BusinessLocations")
-  consumos   Consumo[] @relation("BusinessConsumos")
-  goals      BusinessGoals? @relation("BusinessGoals")
+  users          User[]         @relation("BusinessUsers")
+  clientes       Cliente[]      @relation("BusinessClientes")
+  locations      Location[]     @relation("BusinessLocations")
+  consumos       Consumo[]      @relation("BusinessConsumos")
+  goals          BusinessGoals? @relation("BusinessGoals")
   // portalConfig PortalConfig? @relation("BusinessPortalConfig") // Removido temporalmente
   menuCategories MenuCategory[] @relation("BusinessMenuCategories")
 }
 
 model User {
-  id           String   @id @default(cuid())
-  businessId   String   // FK a Business - OBLIGATORIO
-  email        String   
-  passwordHash String
-  name         String?
-  role         Role     @default(STAFF)
-  createdBy    String?  // ID del SuperAdmin que lo creó
-  isActive     Boolean  @default(true)
-  lastLogin    DateTime?
-  permissions  Json?    // Permisos específicos granulares
-  loginAttempts Int     @default(0) // Control de intentos fallidos
-  lockedUntil  DateTime? // Bloqueo temporal por intentos fallidos
-  sessionToken String?   // Token de sesión único
+  id             String    @id @default(cuid())
+  businessId     String // FK a Business - OBLIGATORIO
+  email          String
+  passwordHash   String
+  name           String?
+  role           Role      @default(STAFF)
+  createdBy      String? // ID del SuperAdmin que lo creó
+  isActive       Boolean   @default(true)
+  lastLogin      DateTime?
+  permissions    Json? // Permisos específicos granulares
+  loginAttempts  Int       @default(0) // Control de intentos fallidos
+  lockedUntil    DateTime? // Bloqueo temporal por intentos fallidos
+  sessionToken   String? // Token de sesión único
   sessionExpires DateTime? // Expiración de sesión
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
   // Relaciones
-  business     Business @relation("BusinessUsers", fields: [businessId], references: [id], onDelete: Cascade)
-  creator      User?    @relation("UserHierarchy", fields: [createdBy], references: [id])
-  createdUsers User[]   @relation("UserHierarchy")
-  consumos     Consumo[] @relation("EmpleadoConsumos")
+  business     Business         @relation("BusinessUsers", fields: [businessId], references: [id], onDelete: Cascade)
+  creator      User?            @relation("UserHierarchy", fields: [createdBy], references: [id])
+  createdUsers User[]           @relation("UserHierarchy")
+  consumos     Consumo[]        @relation("EmpleadoConsumos")
+  canjes       HistorialCanje[] @relation("EmpleadoCanjes")
 
   // Email único por empresa
   @@unique([businessId, email])
 }
 
 model Location {
-  id        String    @id @default(cuid())
-  businessId String   // FK a Business
-  name      String
-  createdAt DateTime  @default(now())
-  
+  id         String   @id @default(cuid())
+  businessId String // FK a Business
+  name       String
+  createdAt  DateTime @default(now())
+
   // Relaciones
-  business  Business  @relation("BusinessLocations", fields: [businessId], references: [id], onDelete: Cascade)
-  consumos  Consumo[]
+  business Business  @relation("BusinessLocations", fields: [businessId], references: [id], onDelete: Cascade)
+  consumos Consumo[]
 }
 
 model Cliente {
-  id           String     @id @default(cuid())
-  businessId   String?    // FK a Business - temporalmente opcional
-  cedula       String     @unique // Cédula única global temporalmente
+  id           String    @id @default(cuid())
+  businessId   String? // FK a Business - temporalmente opcional
+  cedula       String    @unique // Cédula única global temporalmente
   nombre       String
   correo       String
   telefono     String
-  puntos       Int        @default(0)
-  totalVisitas Int        @default(0)
-  totalGastado Float      @default(0)
-  defaultCount Int        @default(0)
-  riskLevel    String     @default("LOW") // LOW, MEDIUM, HIGH
+  puntos       Int       @default(0)     // Puntos disponibles para canje
+  puntosAcumulados Int   @default(0)     // Puntos totales acumulados (para nivel de tarjeta)
+  totalVisitas Int       @default(0)
+  totalGastado Float     @default(0)
+  defaultCount Int       @default(0)
+  riskLevel    String    @default("LOW") // LOW, MEDIUM, HIGH
   lastLogin    DateTime?
-  portalViews  Int        @default(0)
-  registeredAt DateTime   @default(now())
-  
+  portalViews  Int       @default(0)
+  registeredAt DateTime  @default(now())
+
   // Relaciones
-  business     Business?  @relation("BusinessClientes", fields: [businessId], references: [id], onDelete: Cascade)
-  consumos     Consumo[]
-  visits       VisitLog[]
+  business       Business?       @relation("BusinessClientes", fields: [businessId], references: [id], onDelete: Cascade)
+  consumos       Consumo[]
+  visits         VisitLog[]
   tarjetaLealtad TarjetaLealtad?
+  visitas        Visita[]        @relation("ClienteVisitas")
+  canjes         HistorialCanje[]
 
   // Temporalmente removemos la restricción compuesta
   // @@unique([businessId, cedula])
@@ -108,7 +112,7 @@ model Cliente {
 
 model Consumo {
   id             String    @id @default(cuid())
-  businessId     String?   // FK a Business - temporalmente opcional
+  businessId     String? // FK a Business - temporalmente opcional
   clienteId      String
   locationId     String
   productos      Json // items parseados por OCR
@@ -124,9 +128,9 @@ model Consumo {
 
   // Relaciones
   business Business? @relation("BusinessConsumos", fields: [businessId], references: [id], onDelete: Cascade)
-  cliente  Cliente  @relation(fields: [clienteId], references: [id])
-  location Location @relation(fields: [locationId], references: [id])
-  empleado User     @relation("EmpleadoConsumos", fields: [empleadoId], references: [id])
+  cliente  Cliente   @relation(fields: [clienteId], references: [id])
+  location Location  @relation(fields: [locationId], references: [id])
+  empleado User      @relation("EmpleadoConsumos", fields: [empleadoId], references: [id])
 }
 
 model VisitLog {
@@ -141,87 +145,87 @@ model VisitLog {
 
 // Configuración del Portal Cliente
 model PortalConfig {
-  id         String   @id @default(cuid())
-  businessId String   @unique
-  
+  id         String @id @default(cuid())
+  businessId String @unique
+
   // Banners y promociones
-  banners    Json     // Array de banners con imagen, título, descripción, fechas
-  promociones Json    // Array de promociones activas
-  eventos    Json     // Eventos del día/semana
-  
+  banners     Json // Array de banners con imagen, título, descripción, fechas
+  promociones Json // Array de promociones activas
+  eventos     Json // Eventos del día/semana
+
   // Configuración de recompensas
-  recompensas Json    // Catálogo de recompensas canjeables por puntos
-  
+  recompensas Json // Catálogo de recompensas canjeables por puntos
+
   // Favorito del día
   favoritoDelDia Json? // Producto favorito del día con imagen
-  
+
   // Configuración visual
-  colores    Json?    // Theme colors personalizados
-  logo       String?  // URL del logo del negocio
-  
+  colores Json? // Theme colors personalizados
+  logo    String? // URL del logo del negocio
+
   // Metadatos
-  isActive   Boolean  @default(true)
-  updatedAt  DateTime @updatedAt
-  updatedBy  String   // User ID que hizo el último cambio
-  
+  isActive  Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+  updatedBy String // User ID que hizo el último cambio
+
   // Relaciones removidas temporalmente para evitar constraint issues
   // business   Business @relation("BusinessPortalConfig", fields: [businessId], references: [id], onDelete: Cascade)
 }
 
 // Gestión del Menú
 model MenuCategory {
-  id          String      @id @default(cuid())
+  id          String  @id @default(cuid())
   businessId  String
-  nombre      String      // "Cócteles", "Mockteles", "Platos", "Botellas"
+  nombre      String // "Cócteles", "Mockteles", "Platos", "Botellas"
   descripcion String?
-  orden       Int         @default(0)
-  activo      Boolean     @default(true)
-  icono       String?     // Nombre del icono o URL
-  
+  orden       Int     @default(0)
+  activo      Boolean @default(true)
+  icono       String? // Nombre del icono o URL
+
   // Soporte para subcategorías
-  parentId    String?     // ID de la categoría padre (null = categoría principal)
-  
+  parentId String? // ID de la categoría padre (null = categoría principal)
+
   // Relaciones
-  business     Business     @relation("BusinessMenuCategories", fields: [businessId], references: [id], onDelete: Cascade)
-  productos    MenuProduct[]
-  
+  business  Business      @relation("BusinessMenuCategories", fields: [businessId], references: [id], onDelete: Cascade)
+  productos MenuProduct[]
+
   // Auto-relación para subcategorías
-  parent       MenuCategory? @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  parent        MenuCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
   subcategorias MenuCategory[] @relation("CategoryHierarchy")
-  
+
   @@unique([businessId, nombre, parentId])
 }
 
 model MenuProduct {
-  id           String       @id @default(cuid())
-  categoryId   String
-  nombre       String
-  descripcion  String?
-  
+  id          String  @id @default(cuid())
+  categoryId  String
+  nombre      String
+  descripcion String?
+
   // Precios flexibles
-  precio       Float?       // Precio base (comida, cócteles)
-  precioVaso   Float?       // Para botellas por vaso
-  precioBotella Float?      // Para botellas completas
-  
+  precio        Float? // Precio base (comida, cócteles)
+  precioVaso    Float? // Para botellas por vaso
+  precioBotella Float? // Para botellas completas
+
   // Configuración del producto
-  tipoProducto String       @default("simple") // "simple", "botella", "variable"
-  disponible   Boolean      @default(true)
-  destacado    Boolean      @default(false)
-  orden        Int          @default(0)
-  
+  tipoProducto String  @default("simple") // "simple", "botella", "variable"
+  disponible   Boolean @default(true)
+  destacado    Boolean @default(false)
+  orden        Int     @default(0)
+
   // Multimedia
-  imagenUrl    String?      // URL de la imagen del producto
-  
+  imagenUrl String? // URL de la imagen del producto
+
   // Opciones del producto
-  opciones     Json?        // Array de opciones como tamaños, extras, etc.
-  
+  opciones Json? // Array de opciones como tamaños, extras, etc.
+
   // Metadatos
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relaciones
-  category     MenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  
+  category MenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
   @@unique([categoryId, nombre])
 }
 
@@ -229,91 +233,154 @@ model MenuProduct {
 model TarjetaLealtad {
   id               String   @id @default(cuid())
   clienteId        String   @unique // Un cliente solo puede tener una tarjeta
-  businessId       String?  // FK a Business
-  nivel            String   // "Bronce", "Plata", "Oro", "Diamante", "Platino"
+  businessId       String? // FK a Business
+  nivel            String // "Bronce", "Plata", "Oro", "Diamante", "Platino"
   fechaAsignacion  DateTime @default(now())
   asignacionManual Boolean  @default(false) // true si fue asignada manualmente por admin
   activa           Boolean  @default(true)
-  
+
   // Historial de niveles
-  historicoNiveles Json?    // Array con historial de cambios de nivel
-  
+  historicoNiveles Json? // Array con historial de cambios de nivel
+
   // Metadatos
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relaciones
-  cliente          Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  cliente Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
 }
 
 // Modelo para configuración de niveles de tarjetas
 model ConfiguracionTarjeta {
-  id                String   @id @default(cuid())
-  businessId        String   @unique
-  nivel             String   // "Bronce", "Plata", "Oro", "Diamante", "Platino"
+  id                  String @id @default(cuid())
+  businessId          String @unique
+  nivel               String // "Bronce", "Plata", "Oro", "Diamante", "Platino"
   nombrePersonalizado String // "Tarjeta VIP Premium"
-  textoCalidad      String   // "Cliente Exclusivo"
-  
+  textoCalidad        String // "Cliente Exclusivo"
+
   // Condiciones para obtener el nivel
-  puntosMinimos     Int      @default(0)
-  gastosMinimos     Float    @default(0)
-  visitasMinimas    Int      @default(0)
-  
+  puntosMinimos  Int   @default(0)
+  gastosMinimos  Float @default(0)
+  visitasMinimas Int   @default(0)
+
   // Beneficios
-  beneficio         String?  // Descripción del beneficio principal
-  beneficiosExtra   Json?    // Array de beneficios adicionales
-  
+  beneficio       String? // Descripción del beneficio principal
+  beneficiosExtra Json? // Array de beneficios adicionales
+
   // Configuración visual
-  colores           Json     // { gradiente: ["#color1", "#color2"] }
-  
+  colores Json // { gradiente: ["#color1", "#color2"] }
+
   // Estado
-  activa            Boolean  @default(true)
-  
+  activa Boolean @default(true)
+
   // Metadatos
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([businessId, nivel])
 }
 
 model BusinessGoals {
-  id          String   @id @default(cuid())
-  businessId  String   // FK a Business
-  
+  id         String @id @default(cuid())
+  businessId String // FK a Business
+
   // Metas de Ingresos
-  dailyRevenue    Float @default(100)    // Meta diaria de ingresos
-  weeklyRevenue   Float @default(700)    // Meta semanal de ingresos
-  monthlyRevenue  Float @default(3000)   // Meta mensual de ingresos
-  
+  dailyRevenue   Float @default(100) // Meta diaria de ingresos
+  weeklyRevenue  Float @default(700) // Meta semanal de ingresos
+  monthlyRevenue Float @default(3000) // Meta mensual de ingresos
+
   // Metas de Clientes
-  dailyClients    Int @default(5)        // Meta diaria de clientes únicos
-  weeklyClients   Int @default(25)       // Meta semanal de clientes únicos
-  monthlyClients  Int @default(100)      // Meta mensual de clientes únicos
-  
+  dailyClients   Int @default(5) // Meta diaria de clientes únicos
+  weeklyClients  Int @default(25) // Meta semanal de clientes únicos
+  monthlyClients Int @default(100) // Meta mensual de clientes únicos
+
   // Metas de Transacciones
-  dailyTransactions    Int @default(8)   // Meta diaria de transacciones
-  weeklyTransactions   Int @default(50)  // Meta semanal de transacciones
-  monthlyTransactions  Int @default(200) // Meta mensual de transacciones
-  
+  dailyTransactions   Int @default(8) // Meta diaria de transacciones
+  weeklyTransactions  Int @default(50) // Meta semanal de transacciones
+  monthlyTransactions Int @default(200) // Meta mensual de transacciones
+
   // Metas de Ticket Promedio
-  targetTicketAverage  Float @default(20) // Meta de ticket promedio
-  
+  targetTicketAverage Float @default(20) // Meta de ticket promedio
+
   // Metas de Retención y Conversión
   targetRetentionRate  Float @default(70) // Meta de retención (%)
   targetConversionRate Float @default(80) // Meta de conversión (%)
-  
+
   // Meta de Cliente Top
-  targetTopClient      Float @default(150) // Meta de gasto del mejor cliente
-  
+  targetTopClient Float @default(150) // Meta de gasto del mejor cliente
+
   // Meta de Clientes Activos
-  targetActiveClients  Int @default(50)   // Meta de clientes activos por mes
-  
+  targetActiveClients Int @default(50) // Meta de clientes activos por mes
+
   // Metadatos
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Relaciones
   business Business @relation("BusinessGoals", fields: [businessId], references: [id], onDelete: Cascade)
-  
+
   @@unique([businessId])
+}
+
+// Tabla para registrar visitas al portal cliente
+model Visita {
+  id           String   @id @default(cuid())
+  clienteId    String? // Puede ser NULL para visitas anónimas
+  sessionId    String // ID único de sesión
+  timestamp    DateTime @default(now())
+  userAgent    String?
+  ip           String?
+  referrer     String?
+  path         String   @default("/cliente")
+  isRegistered Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relaciones
+  cliente Cliente? @relation("ClienteVisitas", fields: [clienteId], references: [cedula], onDelete: SetNull)
+
+  // Índices para consultas rápidas
+  @@index([timestamp])
+  @@index([clienteId])
+  @@index([sessionId])
+  @@index([path])
+}
+
+// Tabla para estadísticas agregadas (cache)
+model EstadisticaVisita {
+  id                 String   @id @default(cuid())
+  fecha              DateTime
+  periodo            String // 'dia', 'semana', 'mes'
+  totalVisitas       Int      @default(0)
+  visitasRegistradas Int      @default(0)
+  visitasAnonimas    Int      @default(0)
+  sesionesUnicas     Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([fecha, periodo])
+}
+
+// Tabla para el historial de canjes de recompensas
+model HistorialCanje {
+  id                 String   @id @default(cuid())
+  businessId         String? // FK a Business
+  clienteId          String // FK a Cliente
+  clienteNombre      String // Nombre del cliente al momento del canje
+  clienteCedula      String // Cédula del cliente
+  recompensaId       String // ID de la recompensa canjeada
+  recompensaNombre   String // Nombre de la recompensa al momento del canje
+  puntosDescontados  Int // Puntos que se descontaron
+  empleadoId         String? // ID del empleado que procesó el canje
+  metadata           Json? // Información adicional del canje
+  createdAt          DateTime @default(now())
+
+  // Relaciones
+  cliente  Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  empleado User?   @relation("EmpleadoCanjes", fields: [empleadoId], references: [id], onDelete: SetNull)
+
+  // Índices para consultas rápidas
+  @@index([clienteId])
+  @@index([businessId])
+  @@index([createdAt])
 }

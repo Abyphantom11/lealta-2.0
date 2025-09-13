@@ -231,7 +231,10 @@ const RecompensasManager: React.FC<RecompensasManagerProps> = ({
             </p>
           </div>
         ) : (
-          recompensas.map((recompensa: Recompensa) => (
+          // Ordenar recompensas de menor a mayor puntos
+          [...recompensas]
+            .sort((a, b) => (a.puntosRequeridos || 0) - (b.puntosRequeridos || 0))
+            .map((recompensa: Recompensa) => (
             <div key={recompensa.id} className="bg-dark-800 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div className="flex-1">

@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import fs from 'fs/promises';
+import { join } from 'path';
+
+const PORTAL_CONFIG_PATH = join(process.cwd(), 'portal-config.json');
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
@@ -40,6 +44,60 @@ async function getDefaultIds(
     locationId: location.id,
   };
 }
+// Función para validar los datos de entrada
+function validateRequestData(body: any) {
+  const { cedula, empleadoVenta, productos, totalManual } = body;
+
+  if (!cedula || !empleadoVenta || !productos || !totalManual) {
+    return {
+      error: 'Faltan campos requeridos: cedula, empleadoVenta, productos, totalManual',
+      status: 400
+    };
+  }
+
+  if (!Array.isArray(productos) || productos.length === 0) {
+    return {
+      error: 'Debe incluir al menos un producto',
+      status: 400
+    };
+  }
+
+  const total = parseFloat(totalManual);
+  if (isNaN(total) || total <= 0) {
+    return {
+      error: 'El total debe ser un número válido mayor a 0',
+      status: 400
+    };
+  }
+
+  return null; // Sin errores
+}
+
+// Función para validar productos
+function validateProducts(productos: any[]) {
+  for (const producto of productos) {
+    if (!producto.nombre || typeof producto.nombre !== 'string') {
+      return {
+        error: 'Todos los productos deben tener un nombre válido',
+        status: 400
+      };
+    }
+
+    if (
+      !producto.cantidad ||
+      typeof producto.cantidad !== 'number' ||
+      producto.cantidad <= 0
+    ) {
+      return {
+        error: 'Todos los productos deben tener una cantidad válida mayor a 0',
+        status: 400
+      };
+    }
+  }
+
+  return null; // Sin errores
+}
+
 export async function POST(request: NextRequest) {
   try {
     console.log('🔍 API Manual Consumption - TEMPORARILY NO AUTH FOR TESTING');
@@ -58,55 +116,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { cedula, empleadoVenta, productos, totalManual, ocrText, ticketImageUrl } = body;
 
-    // Validaciones básicas
-    if (!cedula || !empleadoVenta || !productos || !totalManual) {
-      return NextResponse.json(
-        {
-          error:
-            'Faltan campos requeridos: cedula, empleadoVenta, productos, totalManual',
-        },
-        { status: 400 }
-      );
-    }
-
-    if (!Array.isArray(productos) || productos.length === 0) {
-      return NextResponse.json(
-        { error: 'Debe incluir al menos un producto' },
-        { status: 400 }
-      );
-    }
-
-    const total = parseFloat(totalManual);
-    if (isNaN(total) || total <= 0) {
-      return NextResponse.json(
-        { error: 'El total debe ser un número válido mayor a 0' },
-        { status: 400 }
-      );
+    // Validar datos de entrada
+    const validationError = validateRequestData(body);
+    if (validationError) {
+      return NextResponse.json({ error: validationError.error }, { status: validationError.status });
     }
 
     // Validar productos
-    for (const producto of productos) {
-      if (!producto.nombre || typeof producto.nombre !== 'string') {
-        return NextResponse.json(
-          { error: 'Todos los productos deben tener un nombre válido' },
-          { status: 400 }
-        );
-      }
-
-      if (
-        !producto.cantidad ||
-        typeof producto.cantidad !== 'number' ||
-        producto.cantidad <= 0
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              'Todos los productos deben tener una cantidad válida mayor a 0',
-          },
-          { status: 400 }
-        );
-      }
+    const productValidationError = validateProducts(productos);
+    if (productValidationError) {
+      return NextResponse.json({ error: productValidationError.error }, { status: productValidationError.status });
     }
+
+    const total = parseFloat(totalManual);
 
     // Buscar cliente
     const cliente = await prisma.cliente.findUnique({
@@ -123,8 +145,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calcular puntos (2 puntos por cada $1 gastado)
-    const puntosGanados = Math.floor(total * 2);
+    // 🔧 Obtener configuración de puntos dinámica
+    let puntosPorDolar = 4; // Valor por defecto actualizado para coincidir con config actual
+    try {
+      const configContent = await fs.readFile(PORTAL_CONFIG_PATH, 'utf-8');
+      const config = JSON.parse(configContent);
+      puntosPorDolar = config.configuracionPuntos?.puntosPorDolar || 4;
+      console.log('✅ Configuración de puntos cargada:', {
+        puntosPorDolar,
+        configPath: PORTAL_CONFIG_PATH,
+        fullConfig: config.configuracionPuntos
+      });
+    } catch (error) {
+      console.warn('⚠️ No se pudo cargar configuración de puntos, usando valor por defecto:', error);
+    }
+
+    // Calcular puntos dinámicos por cada $1 gastado
+    const puntosGanados = Math.floor(total * puntosPorDolar); // ✅ Puntos dinámicos
 
     // Crear transacción para consistencia
     const result = await prisma.$transaction(async tx => {
@@ -139,7 +176,7 @@ export async function POST(request: NextRequest) {
         data: {
           clienteId: cliente.id,
           locationId: locationId,
-          productos: productos.map(p => ({
+          productos: productos.map((p: any) => ({
             nombre: p.nombre.trim(),
             cantidad: p.cantidad,
           })),
@@ -153,11 +190,12 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // 2. Actualizar puntos del cliente
+      // 2. Actualizar puntos del cliente (disponibles y acumulados)
       const clienteActualizado = await tx.cliente.update({
         where: { id: cliente.id },
         data: {
           puntos: { increment: puntosGanados },
+          puntosAcumulados: { increment: puntosGanados },
           totalGastado: { increment: total },
           totalVisitas: { increment: 1 },
         },
@@ -214,6 +252,27 @@ export async function POST(request: NextRequest) {
         puntosGanados,
       };
     });
+
+    // Disparar evaluación automática de nivel después de la transacción
+    try {
+      const evaluacionResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3001'}/api/admin/evaluar-nivel-cliente`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ clienteId: cliente.id })
+      });
+
+      if (evaluacionResponse.ok) {
+        const evaluacionData = await evaluacionResponse.json();
+        
+        if (evaluacionData.actualizado) {
+          console.log(`🆙 ¡Cliente ascendió automáticamente de ${evaluacionData.nivelAnterior} a ${evaluacionData.nivelNuevo}!`);
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ Error en evaluación automática de nivel:', error);
+    }
 
     // Respuesta exitosa
     return NextResponse.json({
