@@ -72,7 +72,9 @@ export interface ClienteData {
   email?: string;
   tarjetaLealtad?: {
     nivel: string;
-    puntos: number;
+    puntos: number; // Puntos canjeables del cliente
+    puntosProgreso: number; // ✅ NUEVO: Puntos específicos para progreso de tarjeta
+    asignacionManual?: boolean; // ✅ AGREGAR CAMPO PARA DETECTAR ASIGNACIONES MANUALES
   };
 }
 

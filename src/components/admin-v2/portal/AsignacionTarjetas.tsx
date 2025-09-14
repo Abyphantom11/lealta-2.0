@@ -139,11 +139,11 @@ export default function AsignacionTarjetas({
     );
 
     try {
-      const response = await fetch('/api/tarjetas/asignar', {
+      const response = await fetch('/api/tarjetas/asignar/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          clienteId: selectedClient.id,
+          clienteId: selectedClient.id, // ✅ CORREGIDO: Usar ID interno en lugar de cédula
           nivel: selectedLevel,
           asignacionManual: true,
           fastUpdate: true, // Indicador para procesamiento rápido
@@ -151,10 +151,31 @@ export default function AsignacionTarjetas({
       });
 
       if (response.ok) {
+        const result = await response.json();
+
         showNotification(
           `Tarjeta ${selectedLevel} asignada exitosamente a ${selectedClient.nombre}`,
           'success'
         );
+
+        // ✅ DETECTAR ASCENSO MANUAL Y MOSTRAR NOTIFICACIÓN ESPECIAL
+        if (result.mostrarAnimacion && result.esSubida) {
+          console.log(`🎉 Ascenso manual detectado: ${result.nivelAnterior} → ${result.nivelNuevo}`);
+
+          // Notificación especial para ascensos
+          showNotification(
+            `🎉 ¡ASCENSO! ${selectedClient.nombre} subió de ${result.nivelAnterior} a ${result.nivelNuevo}`,
+            'success'
+          );
+
+          // Agregar un pequeño delay para que se note la diferencia
+          setTimeout(() => {
+            showNotification(
+              `💡 El cliente verá el popup de ascenso al ingresar al portal`,
+              'info'
+            );
+          }, 2000);
+        }
 
         // Limpiar la selección y búsqueda inmediatamente para mejor UX
         setSelectedClient(null);

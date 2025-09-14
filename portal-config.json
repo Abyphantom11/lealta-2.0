@@ -1,5 +1,15 @@
 {
-  "banners": [],
+  "banners": [
+    {
+      "id": "banner_sabado_1757791136863",
+      "dia": "sabado",
+      "titulo": "adadadasd",
+      "descripcion": "sdadada",
+      "imagenUrl": "/uploads/1757791136840-lhnvgd.jpg",
+      "horaPublicacion": "04:00",
+      "activo": true
+    }
+  ],
   "promotions": [],
   "events": [
     {
@@ -48,33 +58,59 @@
     }
   ],
   "settings": {
-    "lastUpdated": "2025-09-13T19:04:04.085Z",
+    "lastUpdated": "2025-09-14T18:43:46.214Z",
     "version": "1.0.0"
   },
-  "favoritoDelDia": [],
-  "promociones": [],
-  "recompensas": [],
-  "tarjetas": [
+  "favoritoDelDia": [
     {
-      "nivel": "Oro",
-      "nombrePersonalizado": "Tarjeta Dorada",
-      "textoCalidad": "Cliente locp",
-      "colores": {
-        "gradiente": [
-          "#FFD700",
-          "#FFA500"
-        ],
-        "texto": "#000000",
-        "nivel": "#FFD700"
-      },
-      "condiciones": {
-        "puntosMinimos": 500,
-        "visitasMinimas": 10
-      },
-      "beneficio": "10% de descuento",
+      "id": "favorito_sabado_1757791212756",
+      "dia": "sabado",
+      "nombre": "asdada",
+      "descripcion": "dadadad",
+      "imagenUrl": "/uploads/1757791212748-w4ks1.jpg",
+      "horaPublicacion": "09:00",
+      "activo": true
+    }
+  ],
+  "promociones": [
+    {
+      "dia": "lunes",
+      "titulo": "asdadad",
+      "descripcion": "asdadad",
+      "descuento": 0,
+      "horaTermino": "04:00",
       "activo": true,
-      "id": "tarjeta_Oro_1757757632206"
+      "id": "promociones_1757791148008"
     },
+    {
+      "dia": "sabado",
+      "titulo": "asdada",
+      "descripcion": "asdad",
+      "descuento": 0,
+      "horaTermino": "04:00",
+      "activo": true,
+      "id": "promociones_1757791161838"
+    },
+    {
+      "dia": "sabado",
+      "titulo": "asdadad",
+      "descripcion": "adaddad",
+      "descuento": 9,
+      "horaTermino": "04:00",
+      "activo": true,
+      "id": "promociones_1757791180279"
+    }
+  ],
+  "recompensas": [
+    {
+      "nombre": "dsadad",
+      "descripcion": "asdada",
+      "puntosRequeridos": 200,
+      "id": "recompensas_1757791370741",
+      "activo": true
+    }
+  ],
+  "tarjetas": [
     {
       "nivel": "Bronce",
       "nombrePersonalizado": "Tarjeta Bronce",
@@ -88,17 +124,17 @@
         "nivel": "#CD7F32"
       },
       "condiciones": {
-        "puntosMinimos": 9,
+        "puntosMinimos": 0,
         "visitasMinimas": 0
       },
-      "beneficio": "Acceso a ",
+      "beneficio": "Acceso básico al",
       "activo": true,
       "id": "tarjeta_Bronce_1757758005827"
     },
     {
       "nivel": "Plata",
       "nombrePersonalizado": "Tarjeta Plata",
-      "textoCalidad": "Cliente VIP",
+      "textoCalidad": "Cliente Frecuente",
       "colores": {
         "gradiente": [
           "#C0C0C0",
@@ -114,6 +150,26 @@
       "beneficio": "5% de descuento en compras",
       "activo": true,
       "id": "tarjeta_Plata_1757787988344"
+    },
+    {
+      "nivel": "Oro",
+      "nombrePersonalizado": "Tarjeta Oro",
+      "textoCalidad": "Cliente Premium",
+      "colores": {
+        "gradiente": [
+          "#FFD700",
+          "#FFA500"
+        ],
+        "texto": "#000000",
+        "nivel": "#FFD700"
+      },
+      "condiciones": {
+        "puntosMinimos": 480,
+        "visitasMinimas": 10
+      },
+      "beneficio": "10% de descuento",
+      "activo": true,
+      "id": "tarjeta_Oro_1757757632206"
     },
     {
       "nivel": "Diamante",
@@ -134,6 +190,26 @@
       "beneficio": "15% de descuento en compras",
       "activo": true,
       "id": "tarjeta_Diamante_1757788673937"
+    },
+    {
+      "nivel": "Platino",
+      "nombrePersonalizado": "Tarjeta Platino",
+      "textoCalidad": "Cliente Exclusivo",
+      "colores": {
+        "gradiente": [
+          "#E5E4E2",
+          "#C0C0C0"
+        ],
+        "texto": "#000000",
+        "nivel": "#E5E4E2"
+      },
+      "condiciones": {
+        "puntosMinimos": 25000,
+        "visitasMinimas": 30
+      },
+      "beneficio": "20% de descuento + servicio VIP personalizado",
+      "activo": true,
+      "id": "tarjeta_Platino_1757799999999"
     }
   ],
   "nombreEmpresa": "juan",

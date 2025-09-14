@@ -11,7 +11,7 @@ interface FidelityCardModalProps {
   portalConfig: any;
 }
 
-// Componente para mostrar nivel de lealtad - EXTRAÍDO DEL ORIGINAL
+// Componente para mostrar nivel de lealtad - ACTUALIZADO PARA USAR FUNCIÓN UNIFICADA
 function LoyaltyLevelDisplay({ portalConfig, clienteData, tarjeta, nivel }: { 
   readonly portalConfig: any, 
   readonly clienteData: any, 
@@ -19,7 +19,8 @@ function LoyaltyLevelDisplay({ portalConfig, clienteData, tarjeta, nivel }: {
   readonly nivel: string 
 }) {
   const levelData = calculateLoyaltyLevel(portalConfig, clienteData);
-  const { nivelesOrdenados, puntosRequeridos, maxPuntos, puntosActuales } = levelData;
+  const { nivelesOrdenados, puntosRequeridos,
+          progreso, mensaje, esAsignacionManual } = levelData;
   
   return (
     <>
@@ -33,24 +34,35 @@ function LoyaltyLevelDisplay({ portalConfig, clienteData, tarjeta, nivel }: {
         </div>
         <div className="text-right">
           <span className="text-xs font-semibold inline-block text-white/80">
-            {puntosActuales} / {maxPuntos} pts
+            {progreso}%
           </span>
         </div>
       </div>
       <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-dark-700">
-        <motion.div 
+        <motion.div
           initial={{ width: 0 }}
-          animate={{ 
-            width: `${Math.min((puntosActuales / maxPuntos) * 100, 100)}%` 
+          animate={{
+            width: `${Math.min(progreso, 100)}%`
           }}
           transition={{ duration: 0.5, ease: "easeOut" }}
-          style={{ 
+          style={{
             background: `linear-gradient(90deg, ${tarjeta.colores.gradiente[0]}, ${tarjeta.colores.gradiente[1]})`
-          }} 
+          }}
           className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center rounded"
         />
       </div>
-      <div className="grid grid-cols-5 text-xs text-white/60 mb-1">
+
+      {/* Progreso personalizado según función unificada */}
+      <div className="text-center">
+        <div className="text-sm text-white/90 font-medium mb-2">
+          {nivel} {esAsignacionManual ? '(Asignación Manual)' : ''}
+        </div>
+        <div className="text-xs text-white/70">
+          {mensaje}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-5 text-xs text-white/60 mb-1 mt-3">
         {nivelesOrdenados.map(nivelNombre => (
           <div key={nivelNombre} className="text-center">{nivelNombre}</div>
         ))}

@@ -1,7 +1,0 @@
-{
-  "scripts": {
-    "clear-cache": "rimraf .next && rimraf node_modules/.cache && rimraf dist && npm run build",
-    "fresh-start": "rimraf .next && rimraf node_modules && npm install && npm run build",
-    "dev-clean": "rimraf .next && npm run dev"
-  }
-}

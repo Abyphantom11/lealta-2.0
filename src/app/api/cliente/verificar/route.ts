@@ -39,13 +39,17 @@ export async function POST(request: NextRequest) {
                 nivel: cliente.tarjetaLealtad.nivel,
                 activa: cliente.tarjetaLealtad.activa,
                 fechaAsignacion: cliente.tarjetaLealtad.fechaAsignacion,
-                puntos: cliente.puntos, // Los puntos siempre vienen del cliente
+                puntos: cliente.puntos, // Los puntos canjeables del cliente
+                puntosProgreso: cliente.tarjetaLealtad.puntosProgreso, // ✅ NUEVO: Puntos de progreso de tarjeta
+                asignacionManual: cliente.tarjetaLealtad.asignacionManual || false, // ✅ AGREGAR CAMPO MANUAL
               }
             : {
                 nivel: 'Bronce',
                 activa: true,
                 fechaAsignacion: new Date(),
-                puntos: cliente.puntos, // Los puntos siempre vienen del cliente
+                puntos: cliente.puntos, // Los puntos canjeables del cliente
+                puntosProgreso: cliente.puntos, // ✅ NUEVO: Inicializar con puntos del cliente
+                asignacionManual: false, // ✅ AGREGAR CAMPO MANUAL
               },
         },
       });

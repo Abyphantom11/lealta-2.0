@@ -101,19 +101,41 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
 
   // Función para calcular nivel automático del cliente
   const calculateClientLevel = (client: Cliente) => {
-    const puntos = client.puntos || 0;
-    const gastos = client.totalGastado || 0;
+    // ✅ CORRECCIÓN: Usar puntos para determinar nivel
+    const puntosAcumulados = client.puntos || 0;
     const visitas = client.totalVisitas || 0;
 
-    // Buscar el nivel más alto que cumple
-    const niveles = ['Diamante', 'Platino', 'Oro', 'Plata', 'Bronce'];
+    // ✅ CORRECCIÓN: Usar configuración real del portal en lugar de valores hardcodeados
+    if (portalConfig?.tarjetas) {
+      const tarjetasActivas = portalConfig.tarjetas.filter((t: any) => t.activo);
+      if (tarjetasActivas.length > 0) {
+        // Ordenar tarjetas por requisitos de puntos (de mayor a menor)
+        const tarjetasOrdenadas = tarjetasActivas
+          .slice()
+          .sort((a: any, b: any) => (b.condiciones?.puntosMinimos || 0) - (a.condiciones?.puntosMinimos || 0));
 
+        // Encontrar el nivel MÁS ALTO que cumple los requisitos (lógica OR)
+        for (const tarjeta of tarjetasOrdenadas) {
+          const puntosRequeridos = tarjeta.condiciones?.puntosMinimos || 0;
+          const visitasRequeridas = tarjeta.condiciones?.visitasMinimas || 0;
+
+          const cumplePuntos = puntosAcumulados >= puntosRequeridos;
+          const cumpleVisitas = visitas >= visitasRequeridas;
+
+          // Lógica OR: cumple si tiene puntos suficientes O visitas suficientes
+          if (cumplePuntos || cumpleVisitas) {
+            return tarjeta.nivel;
+          }
+        }
+      }
+    }
+
+    // Fallback a la lógica anterior si no hay configuración del portal
+    const niveles = ['Diamante', 'Platino', 'Oro', 'Plata', 'Bronce'];
     for (const nivel of niveles) {
-      const condiciones =
-        nivelesConfig[nivel as keyof typeof nivelesConfig].condiciones;
+      const condiciones = nivelesConfig[nivel as keyof typeof nivelesConfig].condiciones;
       if (
-        puntos >= condiciones.puntosMinimos &&
-        gastos >= condiciones.gastosMinimos &&
+        puntosAcumulados >= condiciones.puntosMinimos &&
         visitas >= condiciones.visitasMinimas
       ) {
         return nivel;
@@ -152,6 +174,9 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
         maxBonusRegistro: 1000,
       },
     });
+
+  // ✅ NUEVO: Estado para configuración del portal (niveles de tarjetas)
+  const [portalConfig, setPortalConfig] = useState<any>(null);
 
   const [guardandoConfig, setGuardandoConfig] = useState(false);
   const [mensajeGuardado, setMensajeGuardado] = useState<string | null>(null);
@@ -432,6 +457,10 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
         console.log('API no disponible, cargando desde portal-config.json...');
         const configResponse = await fetch('/portal-config.json');
         const config = await configResponse.json();
+
+        // ✅ NUEVO: Cargar configuración completa del portal (incluye tarjetas)
+        console.log('📊 Cargando configuración del portal:', config);
+        setPortalConfig(config);
 
         if (config.configuracionPuntos) {
           const nuevaConfig = {

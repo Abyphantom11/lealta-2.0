@@ -13,6 +13,7 @@ import {
 import { clientSession } from '@/utils/mobileStorage';
 import { logger } from '@/utils/logger';
 import { initializePWA, showPWANotificationIfAvailable } from '@/services/pwaService';
+import { calcularProgresoUnificado } from '@/lib/loyalty-progress';
 import { useVisitTracking } from '@/hooks/useVisitTracking';
 import BannersSection from '../sections/BannersSection';
 import PromocionesSection from '../sections/PromocionesSection';
@@ -59,10 +60,6 @@ const LoyaltyLevelDisplay = ({
     portalConfig?.tarjetas?.length || 0
   );
 
-  // Extraer niveles de las tarjetas configuradas
-  // Definir jerarquía correcta de niveles
-  const niveles = ['Bronce', 'Plata', 'Oro', 'Diamante', 'Platino'];
-
   // Verificar que hay tarjetas configuradas
   if (!(portalConfig?.tarjetas?.length)) {
     // Fallback si no hay configuración de tarjetas
@@ -86,101 +83,30 @@ const LoyaltyLevelDisplay = ({
     portalConfig.tarjetas.length
   );
 
-  // Crear mapas dinámicos basados en la configuración actual
-  const puntosRequeridos: { [key: string]: number } = {
-    'Bronce': 0,
-    'Plata': 100,
-    'Oro': 500, 
-    'Diamante': 15000,  // ✅ Corregido: debe coincidir con la configuración
-    'Platino': 25000    // ✅ Aumentado para mantener jerarquía
-  };
-  
-  const visitasRequeridas: { [key: string]: number } = {
-    'Bronce': 0,
-    'Plata': 5,
-    'Oro': 10,
-    'Diamante': 20,
-    'Platino': 30
-  };
-
-  // Sobrescribir con configuración del admin si existe
-  (portalConfig?.tarjetas || []).forEach((tarjeta: any) => {
-    if (tarjeta.activo && tarjeta.condiciones) {
-      puntosRequeridos[tarjeta.nivel] = tarjeta.condiciones.puntosMinimos || puntosRequeridos[tarjeta.nivel];
-      visitasRequeridas[tarjeta.nivel] = tarjeta.condiciones.visitasMinimas || visitasRequeridas[tarjeta.nivel];
-    }
-  });
-
-  // 🔍 DEBUG: Verificar configuración cargada
-  console.log('🔍 DEBUG Niveles - Configuración actual:', {
-    clientePuntos: clienteData?.puntosAcumulados || clienteData?.puntos,
-    nivelActual: nivel,
-    puntosRequeridos,
-    portalConfigTarjetas: portalConfig?.tarjetas?.map((t: any) => ({ nivel: t.nivel, puntos: t.condiciones?.puntosMinimos }))
-  });
-
-  const currentIndex = niveles.indexOf(nivel);
-  const puntosAcumulados = clienteData?.puntosAcumulados || clienteData?.puntos || 100; // Para progreso de nivel
-  const visitasActuales = clienteData?.totalVisitas || 0;
-
-  // Calcular progreso hacia el siguiente nivel (basado en puntos Y visitas)
+  // 🎯 USAR FUNCIÓN UNIFICADA PARA CALCULAR PROGRESO CORRECTO
   let progress = 0;
-  let siguienteNivel = '';
-  let descripcionProgreso = '';
+  let siguienteNivel = 'Platino'; // Por defecto
+  let mensaje: string;
 
-  if (currentIndex < niveles.length - 1) {
-    // No es el nivel máximo
-    siguienteNivel = niveles[currentIndex + 1];
-    const puntosSiguienteNivel = puntosRequeridos[siguienteNivel];
-    const visitasSiguienteNivel = visitasRequeridas[siguienteNivel];
+  try {
+    // 🔧 USAR LA FUNCIÓN UNIFICADA QUE RESPETA ASIGNACIÓN MANUAL
+    const puntosProgreso = clienteData.tarjetaLealtad?.puntosProgreso || clienteData.puntos || 0;
+    const resultado = calcularProgresoUnificado(
+      puntosProgreso, // ✅ USAR PUNTOS DE PROGRESO
+      clienteData.totalVisitas || 0,
+      clienteData.tarjetaLealtad?.nivel || 'Bronce',
+      clienteData.tarjetaLealtad?.asignacionManual || false
+    );
 
-    // 🔧 ARREGLO: Verificar si el cliente YA TIENE el nivel actual
-    const puntosNivelActual = puntosRequeridos[nivel] || 0;
-    const visitasNivelActual = visitasRequeridas[nivel] || 0;
-    
-    const tieneNivelActualPorPuntos = puntosAcumulados >= puntosNivelActual;
-    const tieneNivelActualPorVisitas = visitasActuales >= visitasNivelActual;
-    const tieneNivelActual = tieneNivelActualPorPuntos || tieneNivelActualPorVisitas;
+    progress = resultado.progreso;
+    siguienteNivel = resultado.siguienteNivel;
+    mensaje = resultado.mensaje;
 
-    if (tieneNivelActual) {
-      // Ya tiene el nivel actual, calcular progreso hacia el SIGUIENTE
-      const progresoPuntos = puntosSiguienteNivel > 0 ? Math.min((puntosAcumulados / puntosSiguienteNivel) * 100, 100) : 100;
-      const progresoVisitas = visitasSiguienteNivel > 0 ? Math.min((visitasActuales / visitasSiguienteNivel) * 100, 100) : 100;
-      progress = Math.max(progresoPuntos, progresoVisitas);
+    console.log('✅ Progreso calculado:', resultado);
 
-      // Determinar el mensaje basado en cuál criterio está más cerca
-      const puntosNecesarios = Math.max(0, puntosSiguienteNivel - puntosAcumulados);
-      const visitasNecesarias = Math.max(0, visitasSiguienteNivel - visitasActuales);
-
-      if (puntosAcumulados >= puntosSiguienteNivel || visitasActuales >= visitasSiguienteNivel) {
-        descripcionProgreso = '¡Ya cumples los requisitos para ascender!';
-      } else if (progresoPuntos > progresoVisitas) {
-        descripcionProgreso = `${puntosNecesarios} puntos para ${siguienteNivel}`;
-      } else {
-        descripcionProgreso = `${visitasNecesarias} visitas para ${siguienteNivel}`;
-      }
-    } else {
-      // NO tiene el nivel actual, calcular progreso hacia el nivel ACTUAL
-      const progresoPuntos = puntosNivelActual > 0 ? Math.min((puntosAcumulados / puntosNivelActual) * 100, 100) : 100;
-      const progresoVisitas = visitasNivelActual > 0 ? Math.min((visitasActuales / visitasNivelActual) * 100, 100) : 100;
-      progress = Math.max(progresoPuntos, progresoVisitas);
-
-      const puntosNecesarios = Math.max(0, puntosNivelActual - puntosAcumulados);
-      const visitasNecesarias = Math.max(0, visitasNivelActual - visitasActuales);
-
-      if (puntosAcumulados >= puntosNivelActual || visitasActuales >= visitasNivelActual) {
-        descripcionProgreso = '¡Ya cumples los requisitos para ascender!';
-      } else if (progresoPuntos > progresoVisitas) {
-        descripcionProgreso = `${puntosNecesarios} puntos para ${nivel}`;
-      } else {
-        descripcionProgreso = `${visitasNecesarias} visitas para ${nivel}`;
-      }
-    }
-  } else {
-    // Nivel máximo alcanzado
-    progress = 100;
-    siguienteNivel = 'Máximo';
-    descripcionProgreso = 'Nivel máximo alcanzado';
+  } catch (error) {
+    console.error('Error calculando progreso:', error);
+    mensaje = 'Error al calcular progreso';
   }
 
   return (
@@ -202,9 +128,9 @@ const LoyaltyLevelDisplay = ({
         <span>{nivel}</span>
         <span>{siguienteNivel}</span>
       </div>
-      {descripcionProgreso && siguienteNivel !== 'Máximo' && (
+      {mensaje && siguienteNivel !== 'Máximo' && (
         <div className="text-center text-xs text-white/50">
-          {descripcionProgreso} para {siguienteNivel}
+          {mensaje}
         </div>
       )}
     </div>
@@ -371,17 +297,19 @@ export const Dashboard = ({
                 {/* Vista de la tarjeta */}
                 <div className="p-4">
                   {(() => {
-                    // Obtener el nivel directamente desde la API si está disponible
-                    // o calcular basado en puntos como fallback
-                    const puntos = clienteData?.tarjetaLealtad?.puntos || 100;
+                    // ✅ USAR PUNTOS CORRECTOS: Canjeables para mostrar, progreso para nivel
+                    const puntosCanjeables = clienteData?.puntos || 100;
+                    const puntosProgreso = clienteData?.tarjetaLealtad?.puntosProgreso || puntosCanjeables;
                     let nivel = clienteData?.tarjetaLealtad?.nivel || 'Bronce';
 
-                    // Si no hay tarjeta asignada, calcular nivel sugerido basado en puntos (solo visualización)
+                    // Solo calcular si NO hay tarjeta asignada (no sobrescribir la BD)
                     if (!clienteData?.tarjetaLealtad) {
-                      if (puntos >= 3000) nivel = 'Platino';
-                      else if (puntos >= 1500) nivel = 'Diamante';
-                      else if (puntos >= 500) nivel = 'Oro';
-                      else if (puntos >= 100) nivel = 'Plata';
+                      // Si no hay tarjeta, calcular basado en puntos usando configuración dinámica
+                      if (puntosProgreso >= 25000) nivel = 'Platino';
+                      else if (puntosProgreso >= 15000) nivel = 'Diamante';
+                      else if (puntosProgreso >= 480) nivel = 'Oro';
+                      else if (puntosProgreso >= 400) nivel = 'Plata';
+                      else nivel = 'Bronce';
                     }
 
                     // Obtener configuración de niveles desde el portal config

@@ -60,11 +60,13 @@ export async function POST(request: NextRequest) {
 
     // Iniciar transacción para actualizar puntos y guardar historial
     const resultado = await prisma.$transaction(async (tx) => {
-      // Descontar puntos del cliente
+      // ✅ CORRECCIÓN: Solo descontar puntos DISPONIBLES, NO puntosAcumulados
+      // Los puntosAcumulados determinan el nivel y NUNCA deben disminuir
       const clienteActualizado = await tx.cliente.update({
         where: { id: clienteId },
         data: {
           puntos: cliente.puntos - puntosDescontados,
+          // ❌ NO tocar puntosAcumulados - se mantienen para el nivel
         },
       });
 

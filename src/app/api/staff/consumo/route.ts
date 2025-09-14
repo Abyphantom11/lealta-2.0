@@ -66,9 +66,9 @@ async function saveImageFile(image: File): Promise<{ filepath: string; publicUrl
   if (image.size > MAX_FILE_SIZE) {
     throw new Error(`Archivo demasiado grande: ${Math.round(image.size / 1024 / 1024)}MB. Máximo permitido: 10MB`);
   }
-  
+
   console.log(`📁 Procesando imagen: ${Math.round(image.size / 1024)}KB`);
-  
+
   const bytes = await image.arrayBuffer();
   const buffer = Buffer.from(bytes);
 
@@ -99,10 +99,10 @@ async function processImageWithGemini(filepath: string): Promise<{
     const mimeType = 'image/jpeg';
 
     console.log('🤖 Procesando imagen con Gemini AI...');
-    
+
     // Analizar con Gemini
     const analysis = await geminiAnalyzer.analyzeImage(imageBuffer, mimeType);
-    
+
     console.log('✅ Análisis completado:', {
       total: analysis.total,
       productos: analysis.productos.length,
@@ -127,7 +127,7 @@ async function processImageWithGemini(filepath: string): Promise<{
 
   } catch (error) {
     console.error('❌ Error en procesamiento con Gemini:', error);
-    
+
     // Fallback values si falla el análisis
     return {
       ocrText: 'Error en procesamiento automático',
@@ -145,6 +145,86 @@ async function processImageWithGemini(filepath: string): Promise<{
   }
 }
 
+// Helper functions para reducir complejidad cognitiva
+async function loadPuntosConfiguration(): Promise<number> {
+  let puntosPorDolar = 4;
+
+  try {
+    const configContent = await fs.promises.readFile(PORTAL_CONFIG_PATH, 'utf-8');
+    const config = JSON.parse(configContent);
+    puntosPorDolar = config.configuracionPuntos?.puntosPorDolar || 4;
+    console.log('✅ Configuración de puntos cargada (OCR):', { puntosPorDolar });
+  } catch (error) {
+    console.warn('⚠️ No se pudo cargar configuración de puntos, usando valor por defecto:', error);
+  }
+
+  return puntosPorDolar;
+}
+
+async function createConsumo(cliente: any, validatedData: any, analysis: any, montoFinal: number, puntosGenerados: number, publicUrl: string) {
+  const locationId = await getOrCreateDefaultLocation(validatedData.businessId);
+
+  return await prisma.consumo.create({
+    data: {
+      clienteId: cliente.id,
+      businessId: validatedData.businessId,
+      locationId: locationId,
+      empleadoId: validatedData.empleadoId || '',
+      productos: {
+        items: analysis.productos,
+        total: montoFinal,
+        empleado: analysis.empleadoDetectado,
+        confianza: analysis.confianza
+      },
+      total: montoFinal,
+      puntos: puntosGenerados,
+      pagado: true,
+      metodoPago: 'efectivo',
+      ticketImageUrl: publicUrl,
+      ocrText: analysis.ocrText
+    }
+  });
+}
+
+async function updateClientePuntos(cliente: any, puntosGenerados: number) {
+  return await prisma.cliente.update({
+    where: { id: cliente.id },
+    data: {
+      puntos: { increment: puntosGenerados },
+      puntosAcumulados: { increment: puntosGenerados }
+    },
+    include: { tarjetaLealtad: true }
+  });
+}
+
+async function syncTarjetaPuntos(clienteActualizado: any) {
+  if (clienteActualizado.tarjetaLealtad) {
+    await prisma.tarjetaLealtad.update({
+      where: { clienteId: clienteActualizado.id },
+      data: { puntosProgreso: clienteActualizado.puntosAcumulados }
+    });
+    console.log(`📊 PuntosProgreso actualizados a ${clienteActualizado.puntosAcumulados}`);
+  }
+}
+
+async function triggerLevelEvaluation(cliente: any) {
+  try {
+    const evaluacionResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3001'}/api/admin/evaluar-nivel-cliente`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clienteId: cliente.id })
+    });
+
+    if (evaluacionResponse.ok) {
+      const evaluacionData = await evaluacionResponse.json();
+      return evaluacionData;
+    }
+  } catch (error) {
+    console.warn('⚠️ Error disparando evaluación automática:', error);
+  }
+  return null;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -152,130 +232,44 @@ export async function POST(request: NextRequest) {
     const image = formData.get('image') as File;
 
     if (!image) {
-      return NextResponse.json(
-        { success: false, error: 'No se recibió ninguna imagen' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'No se recibió ninguna imagen' }, { status: 400 });
     }
 
     if (!image.type.startsWith('image/')) {
-      return NextResponse.json(
-        { success: false, error: 'El archivo debe ser una imagen' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'El archivo debe ser una imagen' }, { status: 400 });
     }
 
     if (image.size > 10 * 1024 * 1024) {
-      return NextResponse.json(
-        { success: false, error: 'La imagen es demasiado grande (máximo 10MB)' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'La imagen es demasiado grande (máximo 10MB)' }, { status: 400 });
     }
 
-    // Buscar cliente por cédula
     const cliente = await prisma.cliente.findUnique({
       where: { cedula: validatedData.cedula }
     });
 
     if (!cliente) {
-      return NextResponse.json(
-        { success: false, error: 'Cliente no encontrado' },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: 'Cliente no encontrado' }, { status: 404 });
     }
 
-    // Guardar imagen
     const { filepath, publicUrl } = await saveImageFile(image);
-
-    // Procesar imagen con Gemini AI
     const analysis = await processImageWithGemini(filepath);
 
-    // Verificar confianza mínima
     if (analysis.confianza < 0.3) {
       console.log('⚠️ Confianza baja en el análisis:', analysis.confianza);
     }
 
-    // Obtener ubicación por defecto
-    const locationId = await getOrCreateDefaultLocation(validatedData.businessId);
-
-    // 🔧 Obtener configuración de puntos dinámica
-    let puntosPorDolar = 4; // Valor por defecto actualizado para coincidir con config actual
-    try {
-      const configContent = await fs.promises.readFile(PORTAL_CONFIG_PATH, 'utf-8');
-      const config = JSON.parse(configContent);
-      puntosPorDolar = config.configuracionPuntos?.puntosPorDolar || 4;
-      console.log('✅ Configuración de puntos cargada (OCR):', {
-        puntosPorDolar,
-        configPath: PORTAL_CONFIG_PATH,
-        montoDetectado: analysis.total
-      });
-    } catch (error) {
-      console.warn('⚠️ No se pudo cargar configuración de puntos, usando valor por defecto:', error);
-    }
-
-    // Usar el monto detectado por AI o el manual como respaldo
+    const puntosPorDolar = await loadPuntosConfiguration();
     const montoFinal = analysis.total > 0 ? analysis.total : parseFloat(validatedData.monto);
-    const puntosGenerados = Math.floor(montoFinal * puntosPorDolar); // ✅ Puntos dinámicos por dólar
+    const puntosGenerados = Math.floor(montoFinal * puntosPorDolar);
 
-    // Crear registro de consumo
-    const consumo = await prisma.consumo.create({
-      data: {
-        clienteId: cliente.id,
-        businessId: validatedData.businessId,
-        locationId: locationId,
-        empleadoId: validatedData.empleadoId || '',
-        productos: {
-          items: analysis.productos,
-          total: montoFinal,
-          empleado: analysis.empleadoDetectado,
-          confianza: analysis.confianza
-        },
-        total: montoFinal,
-        puntos: puntosGenerados,
-        pagado: true,
-        metodoPago: 'efectivo',
-        ticketImageUrl: publicUrl,
-        ocrText: analysis.ocrText
-      }
-    });
+    const consumo = await createConsumo(cliente, validatedData, analysis, montoFinal, puntosGenerados, publicUrl);
+    const clienteActualizado = await updateClientePuntos(cliente, puntosGenerados);
+    await syncTarjetaPuntos(clienteActualizado);
 
-    // Actualizar puntos del cliente (disponibles y acumulados)
-    const clienteActualizado = await prisma.cliente.update({
-      where: { id: cliente.id },
-      data: {
-        puntos: {
-          increment: puntosGenerados
-        },
-        puntosAcumulados: {
-          increment: puntosGenerados
-        }
-      },
-      include: {
-        tarjetaLealtad: true
-      }
-    });
+    const evaluacionData = await triggerLevelEvaluation(cliente);
 
-    // Disparar evaluación automática de nivel después de actualizar puntos
-    try {
-      const evaluacionResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3001'}/api/admin/evaluar-nivel-cliente`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ clienteId: cliente.id })
-      });
-
-      if (evaluacionResponse.ok) {
-        const evaluacionData = await evaluacionResponse.json();
-        
-        if (evaluacionData.actualizado) {
-          console.log(`🆙 ¡Cliente ascendió automáticamente de ${evaluacionData.nivelAnterior} a ${evaluacionData.nivelNuevo}!`);
-          // TODO: Aquí se podría enviar una notificación push al cliente
-        }
-      }
-    } catch (error) {
-      console.warn('⚠️ Error en evaluación automática de nivel:', error);
-      // No fallar el consumo si la evaluación falla
+    if (evaluacionData?.actualizado) {
+      console.log(`🆙 ¡Cliente ascendió automáticamente de ${evaluacionData.nivelAnterior} a ${evaluacionData.nivelNuevo}!`);
     }
 
     console.log('✅ Consumo registrado exitosamente:', {
@@ -295,7 +289,7 @@ export async function POST(request: NextRequest) {
         clienteCedula: cliente.cedula,
         puntosGenerados: puntosGenerados,
         montoDetectado: montoFinal,
-        puntosAcumulados: cliente.puntos + puntosGenerados,
+        puntosAcumulados: clienteActualizado.puntos,
         analisisIA: {
           productos: analysis.productos,
           empleadoDetectado: analysis.empleadoDetectado,
@@ -308,7 +302,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error en registro de consumo:', error);
-    
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, error: 'Datos inválidos', details: error.errors },

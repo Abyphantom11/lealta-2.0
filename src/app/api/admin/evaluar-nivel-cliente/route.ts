@@ -23,9 +23,15 @@ async function getPortalConfig() {
 
 // Función para evaluar el nivel más alto que le corresponde a un cliente
 function evaluarNivelCliente(cliente: any, tarjetasConfig: any[]) {
-  // Usar puntos acumulados para nivel (no se reducen por canjes)
-  const puntosAcumulados = cliente.puntosAcumulados || cliente.puntos || 0;
+  // 🎯 CAMBIO CRÍTICO: Usar puntosProgreso de la tarjeta para evaluación automática
+  // Esto respeta los reseteos/actualizaciones de asignaciones manuales
+  const puntosProgreso = cliente.tarjetaLealtad?.puntosProgreso || cliente.puntosAcumulados || cliente.puntos || 0;
   const visitas = cliente.totalVisitas || 0;
+
+  console.log(`🤖 Evaluación automática usando:`);
+  console.log(`   • puntosProgreso: ${puntosProgreso} (desde tarjeta)`);
+  console.log(`   • puntos canjeables: ${cliente.puntos || 0} (se mantienen separados)`);
+  console.log(`   • visitas: ${visitas}`);
 
   // Usar las tarjetas activas de la nueva estructura
   const tarjetasActivas = tarjetasConfig.filter(t => t.activo);
@@ -43,18 +49,18 @@ function evaluarNivelCliente(cliente: any, tarjetasConfig: any[]) {
   for (const tarjeta of tarjetasOrdenadas) {
     const puntosRequeridos = tarjeta.condiciones?.puntosMinimos || 0;
     const visitasRequeridas = tarjeta.condiciones?.visitasMinimas || 0;
-    
-    const cumplePuntos = puntosAcumulados >= puntosRequeridos;
+
+    const cumplePuntos = puntosProgreso >= puntosRequeridos;
     const cumpleVisitas = visitas >= visitasRequeridas;
 
     // Lógica OR: cumple si tiene puntos suficientes O visitas suficientes
-    // Esto permite que clientes VIP (mucho gasto, pocas visitas) o 
+    // Esto permite que clientes VIP (mucho gasto, pocas visitas) o
     // clientes frecuentes (poco gasto, muchas visitas) obtengan beneficios
     if (cumplePuntos || cumpleVisitas) {
       // Solo log para cambios importantes
       if (process.env.NODE_ENV === 'development') {
         console.log(
-          `Cliente califica para ${tarjeta.nivel} (Puntos acumulados: ${puntosAcumulados}/${puntosRequeridos}, Visitas: ${visitas}/${visitasRequeridas})`
+          `Cliente califica para ${tarjeta.nivel} (Puntos progreso: ${puntosProgreso}/${puntosRequeridos}, Visitas: ${visitas}/${visitasRequeridas})`
         );
       }
       return tarjeta.nivel;
@@ -63,6 +69,87 @@ function evaluarNivelCliente(cliente: any, tarjetasConfig: any[]) {
 
   // Si no cumple ninguno, devolver Bronce (nivel mínimo)
   return 'Bronce';
+}
+
+// Helper functions para reducir complejidad cognitiva
+async function processHistoricoNiveles(historico: any): Promise<any[]> {
+  let historicoActual = [];
+
+  try {
+    if (Array.isArray(historico)) {
+      historicoActual = historico;
+    } else if (typeof historico === 'string') {
+      try {
+        historicoActual = JSON.parse(historico);
+      } catch {
+        console.log('Error parsing JSON string, iniciando array vacío');
+        historicoActual = [];
+      }
+    } else if (typeof historico === 'object' && historico !== null) {
+      historicoActual = [historico];
+    } else {
+      historicoActual = [];
+    }
+  } catch (error) {
+    console.log('Error procesando historicoNiveles, iniciando array vacío:', error);
+    historicoActual = [];
+  }
+
+  return historicoActual;
+}
+
+async function updateExistingCard(cliente: any, nivelCorrespondiente: string, nivelActual: string) {
+  const historicoActual = await processHistoricoNiveles(cliente.tarjetaLealtad.historicoNiveles);
+
+  historicoActual.push({
+    fecha: new Date().toISOString(),
+    nivelAnterior: nivelActual,
+    nivelNuevo: nivelCorrespondiente,
+    motivo: 'Actualización automática',
+  });
+
+  return await prisma.tarjetaLealtad.update({
+    where: { id: cliente.tarjetaLealtad.id },
+    data: {
+      nivel: nivelCorrespondiente,
+      fechaAsignacion: new Date(),
+      asignacionManual: false,
+      puntosProgreso: cliente.puntosAcumulados || cliente.puntos || 0,
+      historicoNiveles: JSON.stringify(historicoActual),
+    },
+  });
+}
+
+async function createNewCard(cliente: any, nivelCorrespondiente: string) {
+  return await prisma.tarjetaLealtad.create({
+    data: {
+      clienteId: cliente.id,
+      nivel: nivelCorrespondiente,
+      activa: true,
+      fechaAsignacion: new Date(),
+      asignacionManual: false,
+      puntosProgreso: cliente.puntosAcumulados || cliente.puntos || 0,
+      historicoNiveles: JSON.stringify([
+        {
+          fecha: new Date().toISOString(),
+          nivelAnterior: null,
+          nivelNuevo: nivelCorrespondiente,
+          motivo: 'Asignación automática inicial',
+        },
+      ]),
+    },
+  });
+}
+
+function calculateLevelChange(nivelActual: string, nivelCorrespondiente: string) {
+  const jerarquia = ['Bronce', 'Plata', 'Oro', 'Diamante', 'Platino'];
+  const indicePrevio = jerarquia.indexOf(nivelActual);
+  const indiceNuevo = jerarquia.indexOf(nivelCorrespondiente);
+
+  return {
+    esSubida: indiceNuevo > indicePrevio,
+    esBajada: indiceNuevo < indicePrevio
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -76,7 +163,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Obtener configuración del portal
     const portalConfig = await getPortalConfig();
     if (!portalConfig?.tarjetas) {
       return NextResponse.json(
@@ -85,31 +171,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Buscar cliente
     const whereClause = cedula ? { cedula } : { id: clienteId };
     const cliente = await prisma.cliente.findUnique({
       where: whereClause,
-      include: {
-        tarjetaLealtad: true,
-        consumos: true,
-      },
+      include: { tarjetaLealtad: true, consumos: true },
     });
 
     if (!cliente) {
-      return NextResponse.json(
-        { error: 'Cliente no encontrado' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 });
     }
 
-    // Evaluar nivel que le corresponde
-    const nivelCorrespondiente = evaluarNivelCliente(
-      cliente,
-      portalConfig.tarjetas
-    );
+    const nivelCorrespondiente = evaluarNivelCliente(cliente, portalConfig.tarjetas);
     const nivelActual = cliente.tarjetaLealtad?.nivel || 'Bronce';
+    const esAsignacionManual = cliente.tarjetaLealtad?.asignacionManual || false;
 
-    // Si ya tiene el nivel correcto, no hacer nada
+    if (esAsignacionManual && nivelActual !== nivelCorrespondiente) {
+      console.log(`🚫 Tarjeta asignada manualmente (${nivelActual}), saltando evaluación automática`);
+      return NextResponse.json({
+        message: 'Tarjeta asignada manualmente, no se modifica automáticamente',
+        nivelActual,
+        nivelCorrespondiente,
+        actualizado: false,
+        razon: 'asignacion_manual_preservada',
+        info: `La tarjeta ${nivelActual} fue asignada manualmente. Para cambiarla, use asignación manual.`
+      });
+    }
+
     if (nivelActual === nivelCorrespondiente) {
       return NextResponse.json({
         message: 'Cliente ya tiene el nivel correcto',
@@ -119,61 +206,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Actualizar o crear tarjeta de lealtad
     let tarjetaActualizada;
-
     if (cliente.tarjetaLealtad) {
-      // Actualizar tarjeta existente
-      const historicoActual = cliente.tarjetaLealtad.historicoNiveles
-        ? JSON.parse(cliente.tarjetaLealtad.historicoNiveles as string)
-        : [];
-
-      historicoActual.push({
-        fecha: new Date().toISOString(),
-        nivelAnterior: nivelActual,
-        nivelNuevo: nivelCorrespondiente,
-        motivo: 'Actualización automática',
-      });
-
-      tarjetaActualizada = await prisma.tarjetaLealtad.update({
-        where: { id: cliente.tarjetaLealtad.id },
-        data: {
-          nivel: nivelCorrespondiente,
-          fechaAsignacion: new Date(),
-          asignacionManual: false,
-          historicoNiveles: JSON.stringify(historicoActual),
-        },
-      });
+      tarjetaActualizada = await updateExistingCard(cliente, nivelCorrespondiente, nivelActual);
     } else {
-      // Crear nueva tarjeta
-      tarjetaActualizada = await prisma.tarjetaLealtad.create({
-        data: {
-          clienteId: cliente.id,
-          nivel: nivelCorrespondiente,
-          activa: true,
-          fechaAsignacion: new Date(),
-          asignacionManual: false,
-          historicoNiveles: JSON.stringify([
-            {
-              fecha: new Date().toISOString(),
-              nivelAnterior: null,
-              nivelNuevo: nivelCorrespondiente,
-              motivo: 'Asignación automática inicial',
-            },
-          ]),
-        },
-      });
+      tarjetaActualizada = await createNewCard(cliente, nivelCorrespondiente);
     }
 
-    // Enviar notificación de cambio de nivel
     await enviarNotificacionClientes(TipoNotificacion.NIVEL_CAMBIADO);
 
-    // 🎯 Determinar si es subida o bajada para la animación
-    const jerarquia = ['Bronce', 'Plata', 'Oro', 'Diamante', 'Platino'];
-    const indicePrevio = jerarquia.indexOf(nivelActual);
-    const indiceNuevo = jerarquia.indexOf(nivelCorrespondiente);
-    const esSubida = indiceNuevo > indicePrevio;
-    const esBajada = indiceNuevo < indicePrevio;
+    const { esSubida, esBajada } = calculateLevelChange(nivelActual, nivelCorrespondiente);
 
     return NextResponse.json({
       message: `Cliente actualizado de ${nivelActual} a ${nivelCorrespondiente}`,
@@ -182,15 +224,12 @@ export async function POST(request: NextRequest) {
       actualizado: true,
       esSubida,
       esBajada,
-      mostrarAnimacion: esSubida, // Solo mostrar animación para subidas
+      mostrarAnimacion: esSubida,
       tarjeta: tarjetaActualizada,
     });
   } catch (error) {
     console.error('Error evaluando nivel de cliente:', error);
-    return NextResponse.json(
-      { error: 'Error interno del servidor' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   } finally {
     await prisma.$disconnect();
   }

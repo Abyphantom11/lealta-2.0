@@ -23,9 +23,11 @@ import {
 } from './types';
 import { IdCard } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useClientNotifications } from '@/services/clientNotificationService';
 
 export default function AuthHandler() {
   const { brandingConfig } = useBranding();
+  const { notifyLevelUpManual } = useClientNotifications();
 
   // Estados principales de autenticación - EXTRAÍDOS DEL ORIGINAL
   // Estado local
@@ -209,10 +211,32 @@ export default function AuthHandler() {
     }
   }, []); // useCallback dependencies
 
-  // Función para refrescar datos del cliente
+  // Función para refrescar datos del cliente Y verificar notificaciones
   const refreshClienteData = useCallback(async () => {
     if (!cedula) return;
-    
+
+    // Función para verificar notificaciones en tiempo real (dentro del callback)
+    const verificarNotificacionesEnTiempoReal = async (clienteAnterior: any, clienteNuevo: any) => {
+      if (!clienteNuevo?.tarjetaLealtad?.asignacionManual) return;
+
+      try {
+        // Detectar si hubo un cambio de nivel
+        const nivelAnterior = clienteAnterior?.tarjetaLealtad?.nivel;
+        const nivelNuevo = clienteNuevo?.tarjetaLealtad?.nivel;
+
+        if (nivelAnterior && nivelNuevo && nivelAnterior !== nivelNuevo) {
+          // Hubo un cambio de nivel - crear notificación inmediatamente
+          console.log(`🎉 Ascenso detectado en tiempo real: ${nivelAnterior} → ${nivelNuevo}`);
+          notifyLevelUpManual(nivelAnterior, nivelNuevo, clienteNuevo.id);
+
+          // Marcar como notificado
+          localStorage.setItem(`lastNotifiedLevel_${clienteNuevo.cedula}`, nivelNuevo);
+        }
+      } catch (error) {
+        console.error('Error verificando notificaciones en tiempo real:', error);
+      }
+    };
+
     try {
       logger.log('🔄 Refrescando datos del cliente...');
       const response = await fetch('/api/cliente/verificar', {
@@ -224,18 +248,24 @@ export default function AuthHandler() {
       const data = await response.json();
       if (response.ok && data.existe) {
         logger.log('✅ Datos del cliente actualizados:', data.cliente);
+
+        // Verificar notificaciones ANTES de actualizar los datos
+        const clienteAnterior = clienteData;
         setClienteData(data.cliente);
+
+        // ✅ Verificar notificaciones de ascenso manual en tiempo real
+        await verificarNotificacionesEnTiempoReal(clienteAnterior, data.cliente);
       }
     } catch (error) {
       console.error('❌ Error refrescando datos del cliente:', error);
     }
-  }, [cedula]);
+  }, [cedula, clienteData, notifyLevelUpManual]);
 
-  // Configurar polling para refrescar datos automáticamente
+  // Configurar polling para refrescar datos automáticamente (con notificaciones en tiempo real)
   useEffect(() => {
     if (step === 'dashboard' && cedula) {
-      // Refrescar cada 30 segundos
-      const interval = setInterval(refreshClienteData, 30000);
+      // Refrescar cada 5 segundos para notificaciones casi instantáneas
+      const interval = setInterval(refreshClienteData, 5000);
       return () => clearInterval(interval);
     }
   }, [step, cedula, refreshClienteData]);
@@ -305,6 +335,9 @@ export default function AuthHandler() {
               setClienteData(data.cliente);
               setCedula(savedCedula);
               setStep('dashboard');
+
+              // Las notificaciones se verificarán automáticamente con el useEffect
+
               // No establecer isInitialLoading a false aquí - se hace al final
             } else {
               // Cliente no existe, limpiar sesión
@@ -333,10 +366,8 @@ export default function AuthHandler() {
       }
     };
 
-    checkSavedSession();
-  }, [loadPortalConfig]);
-
-  // Función simplificada para el fondo (sin SVG dinámico para evitar hidratación)
+        checkSavedSession();
+      }, [loadPortalConfig]); // Función simplificada para inicialización  // Función simplificada para el fondo (sin SVG dinámico para evitar hidratación)
   const getBackgroundStyle = () => {
     if (!isClient) return { backgroundColor: '#1a1a1a' }; // Fondo simple en el servidor
 
@@ -478,6 +509,8 @@ export default function AuthHandler() {
           if (response.ok && data.existe) {
             setClienteData(data.cliente);
             setStep('dashboard');
+
+            // Las notificaciones se verificarán automáticamente con el useEffect
           } else {
             clientSession.clear();
             setStep('presentation');
@@ -492,7 +525,7 @@ export default function AuthHandler() {
     };
 
     checkSession();
-  }, []);
+  }, []); // Hook de inicialización de sesión
 
   // Hook para cargar datos cuando se entra al dashboard
   useEffect(() => {
@@ -501,61 +534,89 @@ export default function AuthHandler() {
     }
   }, [step, loadMenuCategories]);
 
+  // Helper functions para reducir complejidad cognitiva
+  const updateClienteDataOnly = async (cedula: string) => {
+    const clienteResponse = await fetch('/api/cliente/verificar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cedula }),
+    });
+
+    if (clienteResponse.ok) {
+      const clienteActualizado = await clienteResponse.json();
+      if (clienteActualizado.existe) {
+        setClienteData(clienteActualizado.cliente);
+      }
+    }
+  };
+
+  const evaluateClientLevel = async (cedula: string) => {
+    const evaluacionResponse = await fetch('/api/admin/evaluar-nivel-cliente', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cedula }),
+    });
+
+    if (evaluacionResponse.ok) {
+      const evaluacionData = await evaluacionResponse.json();
+      return evaluacionData;
+    }
+    return null;
+  };
+
+  const handleLevelUpdate = useCallback((evaluacionData: any) => {
+    if (evaluacionData.actualizado && evaluacionData.mostrarAnimacion) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🆙 Cliente subió de ${evaluacionData.nivelAnterior} a ${evaluacionData.nivelNuevo}!`);
+      }
+
+      setOldLevel(evaluacionData.nivelAnterior);
+      setNewLevel(evaluacionData.nivelNuevo);
+      setShowLevelUpAnimation(true);
+
+      localStorage.setItem(`lastLevel_${clienteData?.cedula}`, evaluacionData.nivelNuevo);
+    } else if (evaluacionData.actualizado && evaluacionData.esBajada) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`📉 Cliente bajó de ${evaluacionData.nivelAnterior} a ${evaluacionData.nivelNuevo} (sin animación)`);
+      }
+      localStorage.setItem(`lastLevel_${clienteData?.cedula}`, evaluacionData.nivelNuevo);
+    }
+  }, [clienteData?.cedula, setOldLevel, setNewLevel, setShowLevelUpAnimation]);
+
+  const checkStoredLevelChange = (cliente: any) => {
+    const clientLevel = cliente.tarjetaLealtad?.nivel || 'Bronce';
+    const storedLevel = localStorage.getItem(`lastLevel_${cliente.cedula}`);
+
+    if (storedLevel && clientLevel !== storedLevel && isHigherLevel(clientLevel, storedLevel)) {
+      setOldLevel(storedLevel);
+      setNewLevel(clientLevel);
+      setShowLevelUpAnimation(true);
+      localStorage.setItem(`lastLevel_${cliente.cedula}`, clientLevel);
+    } else if (!storedLevel) {
+      localStorage.setItem(`lastLevel_${cliente.cedula}`, clientLevel);
+    }
+  };
+
   // Actualización periódica de datos del cliente para mantener la tarjeta actualizada
   useEffect(() => {
-    // Solo si estamos en la vista del dashboard y tenemos datos del cliente
     if (step === 'dashboard' && clienteData?.id) {
       const fetchClienteActualizado = async () => {
         try {
-          // Primero evaluar si necesita actualización de nivel
-          const evaluacionResponse = await fetch(
-            '/api/admin/evaluar-nivel-cliente',
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ cedula: clienteData.cedula }),
-            }
-          );
+          const esAsignacionManual = clienteData?.tarjetaLealtad?.asignacionManual || false;
 
-          if (evaluacionResponse.ok) {
-            const evaluacionData = await evaluacionResponse.json();
-
-            // Si hubo actualización de nivel, activar animación SOLO PARA SUBIDAS
-            if (evaluacionData.actualizado && evaluacionData.mostrarAnimacion) {
-              // Log solo para cambios importantes
-              if (process.env.NODE_ENV === 'development') {
-                console.log(
-                  `🆙 Cliente subió de ${evaluacionData.nivelAnterior} a ${evaluacionData.nivelNuevo}!`
-                );
-              }
-
-              // Activar animación de subida de nivel
-              setOldLevel(evaluacionData.nivelAnterior);
-              setNewLevel(evaluacionData.nivelNuevo);
-              setShowLevelUpAnimation(true);
-
-              // Actualizar localStorage para evitar duplicados
-              localStorage.setItem(
-                `lastLevel_${clienteData.cedula}`,
-                evaluacionData.nivelNuevo
-              );
-            } else if (evaluacionData.actualizado && evaluacionData.esBajada) {
-              // Log para bajadas (sin animación)
-              if (process.env.NODE_ENV === 'development') {
-                console.log(
-                  `📉 Cliente bajó de ${evaluacionData.nivelAnterior} a ${evaluacionData.nivelNuevo} (sin animación)`
-                );
-              }
-              
-              // Actualizar localStorage sin animación
-              localStorage.setItem(
-                `lastLevel_${clienteData.cedula}`,
-                evaluacionData.nivelNuevo
-              );
-            }
+          if (esAsignacionManual) {
+            console.log('🚫 Saltando evaluación automática: Tarjeta asignada manualmente');
+            await updateClienteDataOnly(clienteData.cedula);
+            return;
           }
 
-          // Luego obtener datos actualizados del cliente
+          console.log('🤖 Ejecutando evaluación automática: Tarjeta NO es manual');
+          const evaluacionData = await evaluateClientLevel(clienteData.cedula);
+
+          if (evaluacionData) {
+            handleLevelUpdate(evaluacionData);
+          }
+
           const response = await fetch('/api/cliente/verificar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -565,44 +626,11 @@ export default function AuthHandler() {
           if (response.ok) {
             const data = await response.json();
             if (data.existe) {
-              // Debug: Verificar datos actualizados
-              console.log(
-                '🐛 AuthHandler - Actualización periódica:',
-                data.cliente
-              );
-              console.log(
-                '🐛 AuthHandler - TarjetaLealtad actualizada:',
-                data.cliente?.tarjetaLealtad
-              );
+              console.log('🐛 AuthHandler - Actualización periódica:', data.cliente);
+              console.log('🐛 AuthHandler - TarjetaLealtad actualizada:', data.cliente?.tarjetaLealtad);
 
-              // Actualizar los datos del cliente
               setClienteData(data.cliente);
-
-              // Verificar si hubo un cambio de nivel
-              const clientLevel =
-                data.cliente.tarjetaLealtad?.nivel || 'Bronce';
-
-              // Intentar recuperar el último nivel conocido del localStorage
-              const storedLevel = localStorage.getItem(
-                `lastLevel_${data.cliente.cedula}`
-              );
-
-              if (
-                storedLevel &&
-                clientLevel !== storedLevel &&
-                isHigherLevel(clientLevel, storedLevel)
-              ) {
-                // Hay un ascenso de nivel, mostrar animación
-                setOldLevel(storedLevel);
-                setNewLevel(clientLevel);
-                setShowLevelUpAnimation(true);
-              }
-
-              // Guardar el nivel actual en localStorage
-              localStorage.setItem(
-                `lastLevel_${data.cliente.cedula}`,
-                clientLevel
-              );
+              checkStoredLevelChange(data.cliente);
             }
           }
         } catch (error) {
@@ -618,7 +646,7 @@ export default function AuthHandler() {
 
       return () => clearInterval(updateInterval);
     }
-  }, [step, clienteData?.id, clienteData?.cedula]);
+  }, [step, clienteData?.id, clienteData?.cedula, clienteData?.tarjetaLealtad?.asignacionManual, handleLevelUpdate]);
 
   // Mostrar loading inicial mientras se carga el branding
   if (isInitialLoading) {

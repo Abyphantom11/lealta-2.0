@@ -72,10 +72,9 @@ export default function AsignacionTarjetasComponent({
 
     setLoading(true);
     try {
-      const response = await fetch('/api/admin/customers/search', {
-        method: 'POST',
+      const response = await fetch(`/api/clientes/search?q=${encodeURIComponent(term)}`, {
+        method: 'GET',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ searchTerm: term }),
       });
 
       if (response.ok) {
@@ -113,15 +112,15 @@ export default function AsignacionTarjetasComponent({
     );
 
     try {
-      const response = await fetch('/api/admin/cards/assign', {
+      const response = await fetch('/api/tarjetas/asignar/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          customerId: selectedClient.id,
-          level: selectedLevel,
-          config: config.nivelesConfig[selectedLevel],
+          clienteId: selectedClient.id, // ✅ CORREGIDO: Usar clienteId en lugar de customerId
+          nivel: selectedLevel, // ✅ CORREGIDO: Usar nivel en lugar de level
+          asignacionManual: true, // ✅ NUEVO: Marcar como asignación manual
         }),
       });
 
@@ -142,7 +141,7 @@ export default function AsignacionTarjetasComponent({
       } else {
         const error = await response.json();
         showNotification(
-          `Error al asignar tarjeta: ${error.message}`,
+          `Error al asignar tarjeta: ${error.error || error.message || 'Error desconocido'}`,
           'error'
         );
       }

@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Actualizar puntos del cliente (disponibles y acumulados)
-    await prisma.cliente.update({
+    const clienteActualizado = await prisma.cliente.update({
       where: { id: cliente.id },
       data: {
         puntos: {
@@ -122,6 +122,17 @@ export async function POST(request: NextRequest) {
         tarjetaLealtad: true
       }
     });
+
+    // ✅ SINCRONIZAR: Actualizar también puntosProgreso en tarjeta (SIEMPRE - tanto automáticas como manuales)
+    if (clienteActualizado.tarjetaLealtad) {
+      await prisma.tarjetaLealtad.update({
+        where: { clienteId: cliente.id },
+        data: {
+          puntosProgreso: clienteActualizado.puntosAcumulados
+        }
+      });
+      console.log(`📊 PuntosProgreso actualizados a ${clienteActualizado.puntosAcumulados} (tarjeta ${clienteActualizado.tarjetaLealtad.asignacionManual ? 'manual' : 'automática'})`);
+    }
 
     // Disparar evaluación automática de nivel
     try {

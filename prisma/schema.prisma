@@ -239,6 +239,9 @@ model TarjetaLealtad {
   asignacionManual Boolean  @default(false) // true si fue asignada manualmente por admin
   activa           Boolean  @default(true)
 
+  // ✅ NUEVO: Puntos de progreso independientes para la tarjeta
+  puntosProgreso   Int      @default(0) // Puntos específicos para el progreso de la tarjeta
+
   // Historial de niveles
   historicoNiveles Json? // Array con historial de cambios de nivel
 

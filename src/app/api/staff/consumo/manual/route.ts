@@ -199,7 +199,21 @@ export async function POST(request: NextRequest) {
           totalGastado: { increment: total },
           totalVisitas: { increment: 1 },
         },
+        include: {
+          tarjetaLealtad: true
+        }
       });
+
+      // ✅ SINCRONIZAR: Actualizar también puntosProgreso en tarjeta (SIEMPRE - tanto automáticas como manuales)
+      if (clienteActualizado.tarjetaLealtad) {
+        await tx.tarjetaLealtad.update({
+          where: { clienteId: cliente.id },
+          data: {
+            puntosProgreso: clienteActualizado.puntosAcumulados
+          }
+        });
+        console.log(`📊 PuntosProgreso actualizados a ${clienteActualizado.puntosAcumulados} (tarjeta ${clienteActualizado.tarjetaLealtad.asignacionManual ? 'manual' : 'automática'})`);
+      }
 
       // 3. Buscar o crear productos en MenuProduct (opcional)
       for (const producto of productos) {

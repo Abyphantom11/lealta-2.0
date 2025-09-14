@@ -272,6 +272,15 @@ class ClientNotificationService {
   }
 
   // Notificación específica para ascensos manuales
+  notifyLevelUpManual(nivelAnterior: string, nivelNuevo: string, clienteId?: string) {
+    return this.addNotification({
+      tipo: 'nivel',
+      titulo: '🎉 ¡Felicidades por tu Ascenso!',
+      mensaje: `Has ascendido de ${nivelAnterior} a ${nivelNuevo}. ¡Disfruta de tus nuevos beneficios!`,
+      leida: false,
+      clienteId,
+    });
+  }
 }
 
 // Instancia única del servicio
@@ -310,5 +319,6 @@ export function useClientNotifications(clienteId?: string) {
     notifyMenuUpdate: clientNotificationService.notifyMenuUpdate.bind(clientNotificationService),
     notifyGeneral: clientNotificationService.notifyGeneral.bind(clientNotificationService),
     notifyPWAInstall: clientNotificationService.notifyPWAInstall.bind(clientNotificationService),
+    notifyLevelUpManual: clientNotificationService.notifyLevelUpManual.bind(clientNotificationService),
   };
 }
