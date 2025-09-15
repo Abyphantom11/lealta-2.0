@@ -23,6 +23,8 @@ import {
   Award,
   X,
   Zap,
+  UserPlus,
+  Copy,
 } from 'lucide-react';
 
 // ========================================
@@ -93,6 +95,9 @@ interface AIResult {
     businessId: string;
     empleadoId: string;
     imagenUrl: string;
+    isBatchProcess?: boolean;
+    totalImages?: number;
+    successfulImages?: number;
   };
 }
 
@@ -145,10 +150,123 @@ export default function StaffPage() {
   // Estados principales
   const [cedula, setCedula] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  // Función para detectar si un producto debe ser filtrado por calidad
+  const shouldFilterProduct = (producto: AnalysisProduct): boolean => {
+    const name = producto.nombre.toLowerCase().trim();
+    
+    // Filtrar productos con nombres muy cortos o poco claros
+    if (name.length < 3) return true;
+    
+    // Filtrar productos que son claramente fragmentos o errores de OCR
+    const suspiciousPatterns = [
+      /^[a-z]{1,2}$/, // 1-2 letras solamente
+      /^\d+$/, // Solo números
+      /^[^\w\s]+$/, // Solo símbolos
+      /doval(?!.*lemonade.*royal)/i, // "doval" que no sea parte de corrección a "royal"
+      /^(agua|virgin|jose|smirnoff)$/i, // Nombres incompletos comunes
+    ];
+    
+    for (const pattern of suspiciousPatterns) {
+      if (pattern.test(name)) return true;
+    }
+    
+    // Filtrar productos con precios irreales
+    if (producto.precio < 0.5 || producto.precio > 50) return true;
+    
+    // Filtrar productos con cantidad 0 o negativa
+    if (producto.cantidad <= 0) return true;
+    
+    return false;
+  };
+
+  // Función para detectar si múltiples resultados son de la misma cuenta
+  const detectSameReceipt = (results: any[]): boolean => {
+    if (results.length < 2) return false;
+    
+    const totals = results.map(r => r.analysis?.total || 0);
+    const firstTotal = totals[0];
+    
+    // Si todos los totales son iguales o muy similares, es la misma cuenta
+    const areSimilar = totals.every(total => Math.abs(total - firstTotal) < 0.1);
+    
+    if (areSimilar && firstTotal > 0) {
+      console.log('🔍 Detectada misma cuenta en múltiples imágenes. Total: $', firstTotal);
+      return true;
+    }
+    
+    return false;
+  };
+
+  // Función para corregir nombres de productos parciales o cortados
+  const correctPartialProductName = (partialName: string): string | null => {
+    const knownProducts = [
+      'SMIRNOFF SPICY VASO',
+      'PALOMA', 
+      'VIRGIN MULE',
+      'AGUA NORMAL',
+      'ROYAL LEMONADE',
+      'JOSE CUERVO BLANCO SHOT'
+    ];
+    
+    // Limpiar el nombre de entrada
+    const cleanPartial = partialName.toLowerCase().trim();
+    
+    // NO corregir nombres que son claramente fragmentos incorrectos
+    const invalidFragments = ['doval', 'dovai', 'roval'];
+    if (invalidFragments.includes(cleanPartial)) {
+      console.log(`❌ Fragmento inválido detectado y filtrado: "${cleanPartial}"`);
+      return null; // Retornar null para que se filtre
+    }
+    
+    // Solo corregir si hay una coincidencia muy fuerte (75%+ de las letras)
+    for (const product of knownProducts) {
+      const cleanProduct = product.toLowerCase();
+      
+      // Verificar coincidencia exacta al inicio con al menos 70% del nombre
+      if (cleanProduct.startsWith(cleanPartial) && cleanPartial.length >= cleanProduct.length * 0.7) {
+        console.log(`✅ Corrección por prefijo: "${partialName}" → "${product}"`);
+        return product;
+      }
+      
+      // Verificar coincidencias por palabras clave completas
+      const partialWords = cleanPartial.split(' ').filter(w => w.length > 2);
+      const productWords = cleanProduct.split(' ');
+      let exactMatches = 0;
+      
+      partialWords.forEach(word => {
+        if (productWords.includes(word)) {
+          exactMatches++;
+        }
+      });
+      
+      // Solo si todas las palabras del fragmento coinciden exactamente
+      if (partialWords.length > 0 && exactMatches === partialWords.length && exactMatches >= 2) {
+        console.log(`✅ Corrección por palabras clave: "${partialName}" → "${product}"`);
+        return product;
+      }
+    }
+    
+    // Correcciones muy específicas y confiables únicamente
+    const highConfidenceCorrections: { [key: string]: string } = {
+      'jose cuervo blanco': 'JOSE CUERVO BLANCO SHOT',
+      'smirnoff spicy': 'SMIRNOFF SPICY VASO',
+      'virgin mul': 'VIRGIN MULE',
+      'royal lemon': 'ROYAL LEMONADE'
+    };
+    
+    if (highConfidenceCorrections[cleanPartial]) {
+      console.log(`✅ Corrección específica: "${partialName}" → "${highConfidenceCorrections[cleanPartial]}"`);
+      return highConfidenceCorrections[cleanPartial];
+    }
+    
+    // Si no hay coincidencia confiable, retornar null para filtrar
+    return null;
+  };
+
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]); // 🆕 Para múltiples imágenes
   const [notification, setNotification] = useState<NotificationType>(null);
   const [preview, setPreview] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [result, setResult] = useState<ConsumoData | null>(null);
 
   // Estados para confirmación de IA
   const [aiResult, setAiResult] = useState<AIResult | null>(null);
@@ -159,6 +277,44 @@ export default function StaffPage() {
     total: number;
   } | null>(null);
 
+  // Estados para registro de cliente
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [registerData, setRegisterData] = useState({
+    cedula: '',
+    nombre: '',
+    telefono: '',
+    email: '',
+  });
+  const [isRegistering, setIsRegistering] = useState(false);
+
+  // Estados para popup de datos del cliente
+  const [showClientModal, setShowClientModal] = useState(false);
+  const [selectedClientData, setSelectedClientData] = useState<any>(null);
+
+  // Función para mostrar popup con datos del cliente
+  const showClientDetails = () => {
+    if (customerInfo) {
+      setSelectedClientData(customerInfo);
+      setShowClientModal(true);
+    }
+  };
+
+  // Función para copiar texto individual al portapapeles
+  const copyToClipboard = async (text: string, successMessage: string) => {
+    if (!text || text.trim() === '') {
+      showNotification('error', 'No hay datos para copiar');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      showNotification('success', successMessage);
+    } catch (error) {
+      console.error('Error copiando al portapapeles:', error);
+      showNotification('error', 'Error al copiar');
+    }
+  };
+
   // Función para mostrar notificaciones
   const showNotification = useCallback(
     (type: 'success' | 'error' | 'info', message: string) => {
@@ -167,6 +323,65 @@ export default function StaffPage() {
     },
     []
   );
+
+  // Función para abrir modal de registro
+  const handleRegisterClient = () => {
+    setRegisterData({
+      cedula: cedula,
+      nombre: '',
+      telefono: '',
+      email: '',
+    });
+    setShowRegisterModal(true);
+  };
+
+  // Función para registrar cliente
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsRegistering(true);
+
+    try {
+      const response = await fetch('/api/clientes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(registerData),
+      });
+
+      if (response.ok) {
+        const newClient = await response.json();
+        showNotification('success', `Cliente ${newClient.nombre} registrado exitosamente`);
+        setShowRegisterModal(false);
+        
+        // Actualizar la información del cliente automáticamente
+        setCustomerInfo({
+          nombre: newClient.nombre,
+          cedula: newClient.cedula,
+          telefono: newClient.telefono,
+          email: newClient.email,
+          puntos: 0,
+          tarjetaFidelizacion: null,
+        });
+        
+        // Limpiar formulario
+        setRegisterData({
+          cedula: '',
+          nombre: '',
+          telefono: '',
+          email: '',
+        });
+      } else {
+        const error = await response.json();
+        showNotification('error', error.message || 'Error al registrar cliente');
+      }
+    } catch (error) {
+      console.error('Error registrando cliente:', error);
+      showNotification('error', 'Error de conexión al registrar cliente');
+    } finally {
+      setIsRegistering(false);
+    }
+  };
 
   // Estados para registro manual
   const [modoManual, setModoManual] = useState(false);
@@ -183,6 +398,11 @@ export default function StaffPage() {
   // Estados para UI mejorada (sin cámara)
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
   const [isSearchingCustomer, setIsSearchingCustomer] = useState(false);
+  
+  // Estados para búsqueda en tiempo real
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  
   const [recentTickets, setRecentTickets] = useState<RecentTicket[]>([]);
   const [todayStats, setTodayStats] = useState<TodayStats>({
     ticketsProcessed: 12,
@@ -207,6 +427,62 @@ export default function StaffPage() {
   // ========================================
 
   // Función para buscar información del cliente en la base de datos REAL
+  // Función para buscar clientes en tiempo real
+  const searchClients = useCallback(async (searchTerm: string) => {
+    if (searchTerm.length < 2) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    setIsSearchingCustomer(true);
+    try {
+      const response = await fetch(
+        `/api/clientes/search?q=${encodeURIComponent(searchTerm)}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          setSearchResults(data);
+          setShowSearchResults(data.length > 0);
+        } else {
+          console.error('Formato de respuesta inesperado:', data);
+          setSearchResults([]);
+          setShowSearchResults(false);
+        }
+      } else {
+        console.error('Error en la respuesta:', response.status);
+        setSearchResults([]);
+        setShowSearchResults(false);
+      }
+    } catch (error) {
+      console.error('Error buscando clientes:', error);
+      setSearchResults([]);
+      setShowSearchResults(false);
+    } finally {
+      setIsSearchingCustomer(false);
+    }
+  }, []);
+
+  // Función para seleccionar cliente de los resultados
+  const selectClientFromSearch = (client: any) => {
+    setCedula(client.cedula);
+    setCustomerInfo({
+      id: client.cedula,
+      cedula: client.cedula,
+      nombre: client.nombre,
+      email: client.email,
+      telefono: client.telefono,
+      puntos: client.puntos || 0,
+      nivel: client.tarjetaFidelizacion?.nivel || 'Sin tarjeta',
+      ultimaVisita: null,
+      totalGastado: 0,
+      frecuencia: `${client.visitas || 0} visitas registradas`,
+    });
+    setShowSearchResults(false);
+    setSearchResults([]);
+  };
+
   const searchCustomer = async (cedulaValue: string) => {
     if (cedulaValue.length < 6) {
       setCustomerInfo(null);
@@ -237,10 +513,10 @@ export default function StaffPage() {
           id: cliente.cedula, // Usar cédula como ID
           cedula: cliente.cedula,
           nombre: cliente.nombre,
-          email: undefined, // La API actual no devuelve email, se puede extender
-          telefono: undefined, // La API actual no devuelve teléfono, se puede extender
+          email: cliente.email, // Obtener del cliente si está disponible
+          telefono: cliente.telefono, // Obtener del cliente si está disponible
           puntos: cliente.puntos || 0,
-          nivel: determineCustomerLevel(cliente.puntos || 0),
+          nivel: cliente.tarjetaFidelizacion?.nivel || 'Sin tarjeta',
           ultimaVisita: null, // Se puede agregar a la API si se necesita
           totalGastado: 0, // Se puede calcular desde las transacciones si se necesita
           frecuencia: `${cliente.visitas || 0} visitas registradas`,
@@ -248,21 +524,9 @@ export default function StaffPage() {
 
         console.log('✅ Cliente encontrado en base de datos:', cliente);
       } else {
-        // Cliente no encontrado - nuevo cliente
-        setCustomerInfo({
-          id: cedulaValue, // Usar cédula como ID
-          cedula: cedulaValue,
-          nombre: 'Cliente Nuevo',
-          email: undefined,
-          telefono: undefined,
-          puntos: 0,
-          nivel: 'Bronze',
-          ultimaVisita: null,
-          totalGastado: 0,
-          frecuencia: 'Primera visita',
-        });
-
-        console.log('ℹ️ Cliente nuevo - no encontrado en base de datos');
+        // Cliente no encontrado - limpiar customerInfo para mostrar botón de registro
+        setCustomerInfo(null);
+        console.log('ℹ️ Cliente no encontrado - mostrando opción de registro');
       }
     } catch (error) {
       console.error('❌ Error buscando cliente:', error);
@@ -383,15 +647,6 @@ export default function StaffPage() {
   // ========================================
   // 🔧 SECCIÓN: FUNCIONES AUXILIARES (375-450)
   // ========================================
-
-  const determineCustomerLevel = (
-    puntos: number
-  ): 'Bronze' | 'Silver' | 'Gold' | 'Platinum' => {
-    if (puntos >= 500) return 'Platinum';
-    if (puntos >= 300) return 'Gold';
-    if (puntos >= 100) return 'Silver';
-    return 'Bronze';
-  };
 
   // Función para cargar tickets recientes desde la API
   const loadRecentTickets = useCallback(async () => {
@@ -587,10 +842,30 @@ export default function StaffPage() {
         type: blob.type,
       });
 
-      setSelectedFile(file);
-      const reader = new FileReader();
-      reader.onload = e => setPreview(e.target?.result as string);
-      reader.readAsDataURL(file);
+      // Verificar si ya tenemos 3 imágenes
+      const currentFiles = selectedFiles.length > 0 ? selectedFiles : [];
+      const fallbackFiles = selectedFile ? [selectedFile] : [];
+      const existingFiles = currentFiles.length > 0 ? currentFiles : fallbackFiles;
+      
+      if (existingFiles.length >= 3) {
+        showNotification('error', 'Ya tienes 3 imágenes seleccionadas. Elimina alguna para agregar más.');
+        setIsWaitingForCapture(false);
+        setCaptureStartTime(0);
+        setLastClipboardCheck(null);
+        return;
+      }
+
+      // Agregar a la lista de archivos existentes
+      const newCombinedFiles = [...existingFiles, file];
+      setSelectedFiles(newCombinedFiles);
+      setSelectedFile(newCombinedFiles[0]); // Mantener el primero como principal
+
+      // Solo crear preview si no existe uno
+      if (!preview) {
+        const reader = new FileReader();
+        reader.onload = e => setPreview(e.target?.result as string);
+        reader.readAsDataURL(file);
+      }
 
       // Finalizar proceso
       setIsWaitingForCapture(false);
@@ -600,7 +875,7 @@ export default function StaffPage() {
       showNotification('success', '🎉 ¡Captura del POS detectada y cargada!');
       console.log('✅ Captura procesada exitosamente');
     },
-    [showNotification]
+    [showNotification, selectedFiles, selectedFile, preview]
   );
 
   // Función para leer imagen del portapapeles
@@ -675,64 +950,124 @@ export default function StaffPage() {
   }, [isWaitingForCapture, handleWindowFocus]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file?.type.startsWith('image/')) {
-      setSelectedFile(file);
-      const reader = new FileReader();
-      reader.onload = e => setPreview(e.target?.result as string);
-      reader.readAsDataURL(file);
-      showNotification('info', 'Captura cargada exitosamente');
-    } else {
+    const files = Array.from(e.target.files || []);
+    
+    if (files.length === 0) return;
+
+    // Filtrar solo archivos de imagen
+    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    
+    if (imageFiles.length === 0) {
       showNotification(
         'error',
-        'Por favor selecciona un archivo de imagen válido para la captura'
+        'Por favor selecciona archivos de imagen válidos'
       );
+      return;
     }
+
+    // Combinar con imágenes existentes
+    const currentFiles = selectedFiles.length > 0 ? selectedFiles : [];
+    const fallbackFiles = selectedFile ? [selectedFile] : [];
+    const existingFiles = currentFiles.length > 0 ? currentFiles : fallbackFiles;
+    const newCombinedFiles = [...existingFiles, ...imageFiles];
+
+    if (newCombinedFiles.length > 3) {
+      const allowedCount = 3 - existingFiles.length;
+      if (allowedCount <= 0) {
+        showNotification(
+          'error',
+          'Ya tienes 3 imágenes seleccionadas. Elimina alguna para agregar más.'
+        );
+        return;
+      } else {
+        showNotification(
+          'error',
+          `Solo puedes agregar ${allowedCount} imagen${allowedCount > 1 ? 'es' : ''} más. Máximo 3 en total.`
+        );
+        return;
+      }
+    }
+
+    // Guardar todas las imágenes combinadas
+    setSelectedFiles(newCombinedFiles);
+    
+    // También mantener la primera imagen en selectedFile para compatibilidad
+    const primaryFile = newCombinedFiles[0];
+    setSelectedFile(primaryFile);
+    
+    // Crear preview de la primera imagen si no existe
+    if (!preview) {
+      const reader = new FileReader();
+      reader.onload = e => setPreview(e.target?.result as string);
+      reader.readAsDataURL(primaryFile);
+    }
+
+    // Limpiar el input para permitir seleccionar los mismos archivos de nuevo
+    e.target.value = '';
+
+    const newCount = imageFiles.length;
+    showNotification(
+      'success',
+      `${newCount} imagen${newCount > 1 ? 'es' : ''} agregada${newCount > 1 ? 's' : ''} exitosamente. Total: ${newCombinedFiles.length}/3`
+    );
   };
 
   // Debounce timer para la búsqueda automática
   const [searchTimer, setSearchTimer] = useState<NodeJS.Timeout | null>(null);
 
   const handleCedulaChange = (value: string) => {
-    // Solo permitir números
-    const numericValue = value.replace(/\D/g, '');
-    setCedula(numericValue);
+    // Permitir números y letras para búsqueda más flexible
+    const cleanValue = value.trim();
+    setCedula(cleanValue);
 
     // Limpiar timer anterior
     if (searchTimer) {
       clearTimeout(searchTimer);
     }
 
-    // Si hay menos de 4 dígitos, limpiar info del cliente
-    if (numericValue.length < 4) {
+    // Si hay menos de 2 caracteres, limpiar búsqueda
+    if (cleanValue.length < 2) {
       setCustomerInfo(null);
+      setSearchResults([]);
+      setShowSearchResults(false);
       setIsSearchingCustomer(false);
       return;
     }
 
-    // Buscar automáticamente después de 500ms de pausa en escritura
-    if (numericValue.length >= 4) {
+    // Buscar en tiempo real después de 300ms de pausa (como el asignador de tarjetas)
+    if (cleanValue.length >= 2) {
       setIsSearchingCustomer(true);
       const newTimer = setTimeout(() => {
-        searchCustomer(numericValue);
-      }, 500);
+        // Usar la nueva función de búsqueda en tiempo real
+        searchClients(cleanValue);
+      }, 300);
       setSearchTimer(newTimer);
     }
   };
 
-  // Limpiar timer al desmontar componente
+  // Limpiar timer al desmontar componente y cerrar resultados al hacer clic fuera
   useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.search-container')) {
+        setShowSearchResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    
     return () => {
       if (searchTimer) {
         clearTimeout(searchTimer);
       }
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [searchTimer]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedFile || !cedula) {
+    if ((!selectedFile && selectedFiles.length === 0) || !cedula) {
       showNotification(
         'error',
         'Por favor complete todos los campos requeridos'
@@ -746,21 +1081,46 @@ export default function StaffPage() {
     }
 
     setIsProcessing(true);
-    showNotification('info', '📸 Subiendo imagen y procesando con IA...');
+    
+    // Determinar si usar múltiples imágenes o una sola
+    const isMultipleImages = selectedFiles.length > 1;
+    
+    if (isMultipleImages) {
+      showNotification('info', `📸 Subiendo ${selectedFiles.length} imágenes y procesando con IA...`);
+    } else {
+      showNotification('info', '📸 Subiendo imagen y procesando con IA...');
+    }
 
     try {
       const formData = new FormData();
-      formData.append('image', selectedFile);
-      formData.append('cedula', cedula);
-      formData.append('businessId', user?.businessId || '');
-      formData.append('empleadoId', user?.id || '');
+      
+      if (isMultipleImages) {
+        // Para múltiples imágenes, usar analyze-multi
+        selectedFiles.forEach((file) => {
+          formData.append(`images`, file);
+        });
+        formData.append('cedula', cedula);
+        formData.append('businessId', user?.businessId || '');
+        formData.append('empleadoId', user?.id || '');
+      } else {
+        // Para una sola imagen, usar analyze normal
+        const fileToUpload = selectedFile || selectedFiles[0];
+        if (fileToUpload) {
+          formData.append('image', fileToUpload);
+          formData.append('cedula', cedula);
+          formData.append('businessId', user?.businessId || '');
+          formData.append('empleadoId', user?.id || '');
+        }
+      }
 
       // Aumentar timeout para procesamiento con IA
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutos para múltiples imágenes
 
-      // Usar el nuevo endpoint de análisis (NO guarda, solo analiza)
-      const response = await fetch('/api/staff/consumo/analyze', {
+      // Usar el endpoint apropiado según el número de imágenes
+      const endpoint = isMultipleImages ? '/api/staff/consumo/analyze-multi' : '/api/staff/consumo/analyze';
+      
+      const response = await fetch(endpoint, {
         method: 'POST',
         body: formData,
         signal: controller.signal,
@@ -775,23 +1135,180 @@ export default function StaffPage() {
 
       if (response.ok && data.requiresConfirmation) {
         console.log('✅ Mostrando cuadro de confirmación...');
-        // Mostrar datos para confirmación
-        setAiResult(data.data);
-        setEditableData({
-          empleado: data.data.analisis.empleadoDetectado || 'No detectado',
-          productos: data.data.analisis.productos.map((p: AnalysisProduct) => ({
-            name: p.nombre,
-            price: p.precio,
-            line: `${p.nombre} x${p.cantidad} - $${p.precio.toFixed(2)}`,
-          })),
-          total: data.data.analisis.total,
-        });
+        
+        if (isMultipleImages && data.isBatchProcess) {
+          // Procesamiento de múltiples imágenes - consolidar datos inteligentemente
+          const batch = data.data.batch;
+          const summary = batch.summary;
+          const successfulResults = batch.results.filter((r: any) => r.status === 'completed' && r.analysis);
+          
+          console.log('🔍 Analizando múltiples imágenes...');
+          console.log('Resultados exitosos:', successfulResults.length);
+          
+          // Detectar si todas las imágenes son de la misma cuenta
+          const isSameReceipt = detectSameReceipt(successfulResults);
+          
+          // Consolidar productos de forma inteligente evitando duplicados
+          const productMap = new Map<string, AnalysisProduct>();
+          const allEmployees: string[] = [];
+          let consolidatedTotal = 0;
+          
+          successfulResults.forEach((result: any, index: number) => {
+            if (result.analysis) {
+              console.log(`📄 Procesando imagen ${index + 1}:`, result.analysis.productos.length, 'productos');
+              
+              // Filtrar y procesar productos de esta imagen
+              const validProducts = result.analysis.productos.filter((p: AnalysisProduct) => !shouldFilterProduct(p));
+              console.log(`✅ Productos válidos en imagen ${index + 1}:`, validProducts.length, 'de', result.analysis.productos.length);
+              
+              validProducts.forEach((producto: AnalysisProduct) => {
+                const normalizedName = producto.nombre.toLowerCase().trim();
+                
+                // Detectar nombres cortados o parciales y corregirlos o filtrarlos
+                const correctedName = correctPartialProductName(normalizedName);
+                
+                // Si correctPartialProductName retorna null, significa que el producto debe filtrarse
+                if (correctedName === null && normalizedName !== producto.nombre.toLowerCase().trim()) {
+                  console.log(`🚫 Producto filtrado por nombre poco confiable: "${producto.nombre}"`);
+                  return; // Saltar este producto
+                }
+                
+                // Detectar el formato de mayúsculas del POS basándose en el producto original
+                const isUpperCase = producto.nombre === producto.nombre.toUpperCase();
+                const finalName = correctedName || producto.nombre;
+                
+                // Aplicar formato consistente basado en el estilo detectado
+                const formattedName = isUpperCase ? finalName.toUpperCase() : finalName;
+                const finalKey = finalName.toLowerCase().trim();
+                
+                console.log(`🔍 Procesando: "${producto.nombre}" → "${formattedName}" (formato: ${isUpperCase ? 'MAYÚSCULAS' : 'minúsculas'})`);
+                
+                // Lógica inteligente para manejar duplicados
+                if (productMap.has(finalKey)) {
+                  const existing = productMap.get(finalKey)!;
+                  console.log(`🔄 Producto duplicado encontrado: ${formattedName} (existente: x${existing.cantidad}, nuevo: x${producto.cantidad})`);
+                  
+                  // Si las cantidades son diferentes, tomar el mayor (más confiable)
+                  if (producto.cantidad !== existing.cantidad) {
+                    if (producto.cantidad > existing.cantidad) {
+                      console.log(`📈 Actualizando cantidad: x${existing.cantidad} → x${producto.cantidad}`);
+                      productMap.set(finalKey, {
+                        ...producto,
+                        nombre: formattedName
+                      });
+                    }
+                  } else {
+                    // Si tienen la misma cantidad, mantener el formato más consistente
+                    // Preferir MAYÚSCULAS si el sistema POS las usa
+                    if (isUpperCase && !existing.nombre.includes(existing.nombre.toUpperCase())) {
+                      productMap.set(finalKey, {
+                        ...producto,
+                        nombre: formattedName
+                      });
+                    }
+                  }
+                } else {
+                  // Producto nuevo, agregarlo
+                  console.log(`✨ Nuevo producto agregado: ${formattedName} x${producto.cantidad}`);
+                  productMap.set(finalKey, {
+                    ...producto,
+                    nombre: formattedName
+                  });
+                }
+              });
+              
+              // Agregar empleado si fue detectado
+              if (result.analysis.empleadoDetectado) {
+                allEmployees.push(result.analysis.empleadoDetectado);
+              }
+              
+              // Solo sumar el total de la primera imagen si es la misma cuenta
+              if (!isSameReceipt || index === 0) {
+                consolidatedTotal += result.analysis.total || 0;
+              }
+            }
+          });
+          
+          // Convertir el Map a array
+          const consolidatedProducts = Array.from(productMap.values());
+          
+          // Usar el total detectado correctamente
+          const finalTotal = isSameReceipt ? 
+            (successfulResults[0]?.analysis?.total || summary.totalAmount) : 
+            consolidatedTotal;
+          
+          // Log de depuración para ver la consolidación
+          console.log('🔍 Consolidación de productos:');
+          console.log(`📊 Imágenes procesadas: ${successfulResults.length}`);
+          console.log(`📦 Productos únicos consolidados: ${consolidatedProducts.length}`);
+          console.log(`💰 Total final: $${finalTotal} (misma cuenta: ${isSameReceipt})`);
+          consolidatedProducts.forEach(p => {
+            console.log(`  • ${p.nombre} x${p.cantidad} - $${p.precio.toFixed(2)}`);
+          });
+          
+          // Obtener empleados únicos
+          const uniqueEmployees = [...new Set(allEmployees.filter(Boolean))];
+          const primaryEmployee = uniqueEmployees.length > 0 ? uniqueEmployees.join(', ') : 'No detectado';
+          
+          // Crear datos consolidados para el popup
+          const consolidatedData = {
+            cliente: data.data.cliente,
+            analisis: {
+              empleadoDetectado: primaryEmployee,
+              productos: consolidatedProducts,
+              total: finalTotal,
+              confianza: Math.round(summary.averageConfidence * 100),
+            },
+            metadata: {
+              ...data.data.metadata,
+              imagenUrl: `/uploads/multi/batch_${batch.batchId}`, // URL representativa
+              isBatchProcess: true,
+              totalImages: batch.totalImages,
+              successfulImages: batch.successfulImages,
+              sameReceipt: isSameReceipt,
+            }
+          };
+          
+          setAiResult(consolidatedData);
+          setEditableData({
+            empleado: primaryEmployee,
+            productos: consolidatedProducts.map((p: AnalysisProduct) => ({
+              name: p.nombre,
+              price: p.precio,
+              line: `${p.nombre} x${p.cantidad} - $${p.precio.toFixed(2)}`,
+            })),
+            total: finalTotal,
+          });
+          
+          const receiptMsg = isSameReceipt ? 
+            ` (misma cuenta detectada - total único: $${finalTotal.toFixed(2)})` : 
+            ` (múltiples cuentas - total combinado: $${finalTotal.toFixed(2)})`;
+          
+          showNotification(
+            'success',
+            `🤖 IA procesó ${batch.successfulImages}/${batch.totalImages} imágenes. ${consolidatedProducts.length} productos únicos detectados${receiptMsg}`
+          );
+        } else {
+          // Procesamiento de imagen única (lógica original)
+          setAiResult(data.data);
+          setEditableData({
+            empleado: data.data.analisis.empleadoDetectado || 'No detectado',
+            productos: data.data.analisis.productos.map((p: AnalysisProduct) => ({
+              name: p.nombre,
+              price: p.precio,
+              line: `${p.nombre} x${p.cantidad} - $${p.precio.toFixed(2)}`,
+            })),
+            total: data.data.analisis.total,
+          });
+          
+          showNotification(
+            'success',
+            `🤖 IA procesó el ticket con ${data.data.analisis.confianza}% de confianza. Revisa y confirma los datos.`
+          );
+        }
+        
         setShowConfirmation(true);
         console.log('🔍 showConfirmation establecido a true');
-        showNotification(
-          'success',
-          `🤖 IA procesó el ticket con ${data.data.analisis.confianza}% de confianza. Revisa y confirma los datos.`
-        );
       } else {
         console.log('❌ No se cumplió la condición para mostrar confirmación');
         showNotification(
@@ -921,6 +1438,7 @@ export default function StaffPage() {
   const resetFormularioOCR = () => {
     setCedula('');
     setSelectedFile(null);
+    setSelectedFiles([]);
     setPreview('');
     setCustomerInfo(null);
     setShowConfirmation(false);
@@ -978,7 +1496,7 @@ export default function StaffPage() {
           initial={{ opacity: 0, x: 100 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 100 }}
-          className={`fixed top-6 right-6 p-4 rounded-xl shadow-2xl z-50 max-w-sm ${getNotificationClasses(notification.type)}`}
+          className={`fixed top-6 right-6 p-4 rounded-xl shadow-2xl z-[60] max-w-sm ${getNotificationClasses(notification.type)}`}
         >
           <div className="flex items-start space-x-3">
             {notification.type === 'success' && (
@@ -1032,12 +1550,6 @@ export default function StaffPage() {
                 <span className="text-white font-medium">
                   {user?.name || 'Staff'}
                 </span>
-                <button
-                  onClick={logout}
-                  className="text-dark-400 hover:text-white transition-colors"
-                >
-                  <LogOut className="w-5 h-5" />
-                </button>
               </div>
             </div>
           </div>
@@ -1160,25 +1672,65 @@ export default function StaffPage() {
                       htmlFor="cedula"
                       className="block text-sm font-medium text-dark-300 mb-2"
                     >
-                      Cédula del Cliente
+                      Buscar Cliente (cédula, nombre, teléfono)
                     </label>
-                    <div className="relative">
+                    <div className="relative search-container">
                       <input
                         id="cedula"
                         type="text"
                         value={cedula}
                         onChange={e => handleCedulaChange(e.target.value)}
-                        placeholder="Ingrese la cédula..."
+                        placeholder="Ej: 123456789, Juan Pérez, +58412..."
                         className="w-full p-4 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-dark-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        maxLength={12}
                       />
                       {isSearchingCustomer && (
                         <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-500"></div>
                         </div>
                       )}
+                      
+                      {/* Resultados de búsqueda en tiempo real */}
+                      {showSearchResults && searchResults.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 bg-dark-700 border border-dark-600 rounded-lg mt-1 max-h-60 overflow-y-auto z-10 shadow-2xl">
+                          {searchResults.map((client, index) => (
+                            <button
+                              key={client.cedula || index}
+                              type="button"
+                              onClick={() => selectClientFromSearch(client)}
+                              className="w-full p-3 text-left hover:bg-dark-600 transition-colors border-b border-dark-600 last:border-b-0"
+                            >
+                              <div className="text-white font-medium">{client.nombre}</div>
+                              <div className="text-dark-400 text-sm">
+                                {client.cedula} • {client.telefono || 'Sin teléfono'} • {client.puntos || 0} puntos
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
+
+                  {/* Botón Registrar Cliente */}
+                  {(() => {
+                    const shouldShow = !customerInfo && cedula.length >= 8;
+                    console.log('🔍 Botón Registrar Cliente:', { 
+                      customerInfo: !!customerInfo, 
+                      cedulaLength: cedula.length, 
+                      shouldShow 
+                    });
+                    return shouldShow;
+                  })() && (
+                    <div className="flex justify-center">
+                      <button
+                        type="button"
+                        onClick={handleRegisterClient}
+                        className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors duration-200"
+                      >
+                        <UserPlus className="w-4 h-4 mr-2" />
+                        Registrar Cliente
+                      </button>
+                    </div>
+                  )}
 
                   {/* Info del Cliente */}
                   <AnimatePresence>
@@ -1187,20 +1739,24 @@ export default function StaffPage() {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="bg-dark-700/50 border border-dark-600 rounded-lg p-4"
+                        className="bg-dark-700/50 border border-dark-600 rounded-lg p-4 cursor-pointer hover:bg-dark-700/70 transition-colors"
+                        onClick={showClientDetails}
                       >
                         <div className="flex items-center justify-between mb-3">
                           <h3 className="font-medium text-white">
                             {customerInfo.nombre}
                           </h3>
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${getCustomerLevelClasses(customerInfo.nivel)}`}
-                          >
-                            {customerInfo.nivel}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${getCustomerLevelClasses(customerInfo.nivel)}`}
+                            >
+                              {customerInfo.nivel}
+                            </span>
+                            <span className="text-dark-400 text-xs">👆 Click para más datos</span>
+                          </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="grid grid-cols-1 gap-4 text-sm">
                           <div>
                             <span className="text-dark-400">
                               Puntos Actuales:
@@ -1210,14 +1766,6 @@ export default function StaffPage() {
                             </span>
                           </div>
                           <div>
-                            <span className="text-dark-400">
-                              Total Gastado:
-                            </span>
-                            <span className="text-green-400 font-medium ml-2">
-                              ${customerInfo.totalGastado}
-                            </span>
-                          </div>
-                          <div className="col-span-2">
                             <span className="text-dark-400">Estado:</span>
                             <span className="text-blue-400 font-medium ml-2">
                               {customerInfo.frecuencia}
@@ -1376,21 +1924,121 @@ export default function StaffPage() {
                           className="flex-1 flex items-center justify-center space-x-2 p-3 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colors text-sm"
                         >
                           <Upload className="w-5 h-5" />
-                          <span>Subir Captura</span>
+                          <span>Subir Captura(s)</span>
                         </button>
                       </div>
+                      
+                      {/* Tip para múltiples imágenes */}
+                      <p className="text-center text-gray-400 text-xs mt-2">
+                        💡 Puedes seleccionar hasta 3 imágenes para una sola cuenta
+                      </p>
                     </div>
 
                     <input
                       ref={fileInputRef}
                       type="file"
                       accept="image/*"
+                      multiple
                       onChange={handleFileSelect}
                       className="hidden"
                     />
 
-                    {/* Preview */}
-                    {preview && (
+                    {/* Preview Mejorado para Múltiples Imágenes */}
+                    {selectedFiles.length > 0 ? (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-dark-700 rounded-lg p-4 space-y-4"
+                      >
+                        {/* Header con contador */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <CheckCircle className="w-5 h-5 text-green-400" />
+                            <span className="text-white font-medium">
+                              {selectedFiles.length}/3 Imagen{selectedFiles.length !== 1 ? 'es' : ''} Seleccionada{selectedFiles.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedFiles([]);
+                              setSelectedFile(null);
+                              setPreview('');
+                            }}
+                            className="text-red-400 hover:text-red-300 transition-colors"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        {/* Grid de previews */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {selectedFiles.map((file, index) => (
+                            <div key={`${file.name}-${index}`} className="relative">
+                              <img
+                                src={URL.createObjectURL(file)}
+                                alt={`Preview ${index + 1}`}
+                                className="w-full h-24 object-cover rounded-lg"
+                              />
+                              <div className="absolute top-1 right-1 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                {index + 1}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newFiles = selectedFiles.filter((_, i) => i !== index);
+                                  setSelectedFiles(newFiles);
+                                  if (newFiles.length === 0) {
+                                    setSelectedFile(null);
+                                    setPreview('');
+                                  } else {
+                                    setSelectedFile(newFiles[0]);
+                                    const reader = new FileReader();
+                                    reader.onload = e => setPreview(e.target?.result as string);
+                                    reader.readAsDataURL(newFiles[0]);
+                                  }
+                                }}
+                                className="absolute top-1 left-1 bg-red-600 hover:bg-red-700 text-white p-1 rounded-full transition-colors"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ))}
+                          
+                          {/* Botón para agregar más imágenes */}
+                          {selectedFiles.length < 3 && (
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              className="h-24 border-2 border-dashed border-gray-500 hover:border-gray-400 rounded-lg flex flex-col items-center justify-center text-gray-400 hover:text-gray-300 transition-colors"
+                            >
+                              <Upload className="w-5 h-5 mb-1" />
+                              <span className="text-xs">Agregar</span>
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Info y progreso */}
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-400">
+                            {selectedFiles.length === 3 ? '✅ Máximo alcanzado' : `Puedes agregar ${3 - selectedFiles.length} más`}
+                          </span>
+                          <div className="flex items-center space-x-2">
+                            <div className="flex space-x-1">
+                              {[1, 2, 3].map((num) => (
+                                <div
+                                  key={num}
+                                  className={`w-2 h-2 rounded-full ${
+                                    num <= selectedFiles.length ? 'bg-green-400' : 'bg-gray-600'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ) : preview && (
+                      // Fallback para compatibilidad con captura automática
                       <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
@@ -1408,6 +2056,7 @@ export default function StaffPage() {
                           onClick={() => {
                             setPreview('');
                             setSelectedFile(null);
+                            setSelectedFiles([]);
                           }}
                           className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white p-2 rounded-full transition-colors"
                         >
@@ -1423,7 +2072,7 @@ export default function StaffPage() {
                   {/* Submit Button */}
                   <button
                     type="submit"
-                    disabled={isProcessing || !selectedFile || !cedula}
+                    disabled={isProcessing || (!selectedFile && selectedFiles.length === 0) || !cedula}
                     className="w-full py-4 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 disabled:from-dark-700 disabled:to-dark-700 disabled:text-dark-400 text-white font-semibold rounded-lg transition-all duration-200 flex items-center justify-center space-x-2"
                   >
                     {isProcessing ? (
@@ -1687,76 +2336,8 @@ export default function StaffPage() {
     📊 SECCIÓN: SIDEBAR Y RESULTADOS (1590-1750)
     ======================================== */}
 
-          {/* Sidebar - Tickets Recientes y Resultado */}
+          {/* Sidebar - Tickets Recientes */}
           <div className="space-y-6">
-            {/* Resultado */}
-            <AnimatePresence>
-              {result && (
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  className="bg-gradient-to-br from-green-500/10 to-green-600/10 border border-green-500/20 rounded-xl p-6"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-white">
-                      ✅ Procesado
-                    </h3>
-                    <button
-                      onClick={() => setResult(null)}
-                      className="text-dark-400 hover:text-white transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-dark-400">Total:</span>
-                      <span className="text-white font-semibold">
-                        ${result.total}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-dark-400">Puntos ganados:</span>
-                      <span className="text-yellow-400 font-semibold">
-                        +{result.puntos}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-dark-400">Estado:</span>
-                      <span className="text-green-400">Completado</span>
-                    </div>
-                  </div>
-
-                  {result.productos && result.productos.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-green-500/20">
-                      <h4 className="text-sm font-medium text-dark-300 mb-2">
-                        Productos detectados:
-                      </h4>
-                      <div className="space-y-1">
-                        {result.productos.map(
-                          (item: Product, index: number) => (
-                            <div
-                              key={`${item.name || 'producto'}-${index}`}
-                              className="flex justify-between text-sm"
-                            >
-                              <span className="text-dark-400">
-                                {item.name || `Producto ${index + 1}`}
-                              </span>
-                              <span className="text-white">
-                                ${item.price || 'N/A'}
-                              </span>
-                            </div>
-                          )
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-
             {/* Tickets Recientes */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
@@ -1867,6 +2448,11 @@ export default function StaffPage() {
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-bold text-white flex items-center">
                 🤖 <span className="ml-2">DATOS DETECTADOS POR IA</span>
+                {aiResult?.metadata?.isBatchProcess && (
+                  <span className="ml-3 px-2 py-1 bg-blue-500/20 border border-blue-500/50 rounded-lg text-blue-300 text-sm">
+                    📸 {aiResult.metadata.totalImages} imágenes
+                  </span>
+                )}
               </h3>
               <button
                 onClick={cancelarConfirmacion}
@@ -1882,6 +2468,11 @@ export default function StaffPage() {
               <p className="text-yellow-300 text-center font-medium">
                 ⚠️ <strong>Revisa los datos antes de confirmar</strong> para
                 asegurar precisión
+                {aiResult?.metadata?.isBatchProcess && (
+                  <span className="block mt-1 text-sm">
+                    Datos consolidados de {aiResult.metadata.successfulImages} imagen{aiResult.metadata.successfulImages !== 1 ? 'es' : ''} procesada{aiResult.metadata.successfulImages !== 1 ? 's' : ''}
+                  </span>
+                )}
               </p>
             </div>
 
@@ -2006,6 +2597,240 @@ export default function StaffPage() {
           </motion.div>
         </div>
       )}
+
+      {/* Modal de Registro de Cliente */}
+      <AnimatePresence>
+        {showRegisterModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-dark-800 rounded-2xl p-6 w-full max-w-md border border-dark-600 shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold text-white">
+                  Registrar Cliente
+                </h3>
+                <button
+                  onClick={() => setShowRegisterModal(false)}
+                  className="text-dark-400 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleRegisterSubmit} className="space-y-4">
+                {/* Cédula */}
+                <div>
+                  <label className="block text-sm font-medium text-dark-300 mb-2">
+                    Cédula *
+                  </label>
+                  <input
+                    type="text"
+                    value={registerData.cedula}
+                    onChange={e => setRegisterData({...registerData, cedula: e.target.value})}
+                    className="w-full p-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-dark-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                    maxLength={12}
+                  />
+                </div>
+
+                {/* Nombre */}
+                <div>
+                  <label className="block text-sm font-medium text-dark-300 mb-2">
+                    Nombre Completo *
+                  </label>
+                  <input
+                    type="text"
+                    value={registerData.nombre}
+                    onChange={e => setRegisterData({...registerData, nombre: e.target.value})}
+                    className="w-full p-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-dark-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+
+                {/* Teléfono */}
+                <div>
+                  <label className="block text-sm font-medium text-dark-300 mb-2">
+                    Teléfono *
+                  </label>
+                  <input
+                    type="tel"
+                    value={registerData.telefono}
+                    onChange={e => setRegisterData({...registerData, telefono: e.target.value})}
+                    className="w-full p-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-dark-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label className="block text-sm font-medium text-dark-300 mb-2">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={registerData.email}
+                    onChange={e => setRegisterData({...registerData, email: e.target.value})}
+                    className="w-full p-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-dark-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Botones */}
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowRegisterModal(false)}
+                    className="flex-1 px-4 py-3 bg-dark-600 hover:bg-dark-500 text-white rounded-lg transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isRegistering}
+                    className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white rounded-lg transition-colors flex items-center justify-center"
+                  >
+                    {isRegistering ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    ) : (
+                      'Registrar'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Datos del Cliente */}
+      <AnimatePresence>
+        {showClientModal && selectedClientData && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-dark-800 rounded-2xl p-6 w-full max-w-md border border-dark-600 shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold text-white">
+                  Datos del Cliente
+                </h3>
+                <button
+                  onClick={() => setShowClientModal(false)}
+                  className="text-dark-400 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Nombre */}
+                <div className="bg-dark-700 rounded-lg p-4">
+                  <label className="block text-sm font-medium text-dark-300 mb-1">
+                    Nombre Completo
+                  </label>
+                  <div className="flex items-center justify-between">
+                    <p className="text-white font-medium flex-1">{selectedClientData.nombre}</p>
+                    <button
+                      onClick={() => copyToClipboard(selectedClientData.nombre, 'Nombre copiado')}
+                      className="ml-2 p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded-md transition-colors"
+                      title="Copiar nombre"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Cédula */}
+                <div className="bg-dark-700 rounded-lg p-4">
+                  <label className="block text-sm font-medium text-dark-300 mb-1">
+                    Cédula
+                  </label>
+                  <div className="flex items-center justify-between">
+                    <p className="text-white font-medium flex-1">{selectedClientData.cedula}</p>
+                    <button
+                      onClick={() => copyToClipboard(selectedClientData.cedula, 'Cédula copiada')}
+                      className="ml-2 p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded-md transition-colors"
+                      title="Copiar cédula"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Teléfono */}
+                <div className="bg-dark-700 rounded-lg p-4">
+                  <label className="block text-sm font-medium text-dark-300 mb-1">
+                    Teléfono
+                  </label>
+                  <div className="flex items-center justify-between">
+                    <p className="text-white font-medium flex-1">
+                      {selectedClientData.telefono || 'No registrado'}
+                    </p>
+                    <button
+                      onClick={() => copyToClipboard(selectedClientData.telefono || '', 'Teléfono copiado')}
+                      className="ml-2 p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Copiar teléfono"
+                      disabled={!selectedClientData.telefono}
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Email */}
+                <div className="bg-dark-700 rounded-lg p-4">
+                  <label className="block text-sm font-medium text-dark-300 mb-1">
+                    Correo Electrónico
+                  </label>
+                  <div className="flex items-center justify-between">
+                    <p className="text-white font-medium flex-1">
+                      {selectedClientData.email || 'No registrado'}
+                    </p>
+                    <button
+                      onClick={() => copyToClipboard(selectedClientData.email || '', 'Email copiado')}
+                      className="ml-2 p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Copiar email"
+                      disabled={!selectedClientData.email}
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Información adicional */}
+                <div className="bg-dark-700 rounded-lg p-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-dark-300 mb-1">
+                        Puntos
+                      </label>
+                      <p className="text-yellow-400 font-semibold">{selectedClientData.puntos}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-dark-300 mb-1">
+                        Nivel
+                      </label>
+                      <span
+                        className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getCustomerLevelClasses(selectedClientData.nivel)}`}
+                      >
+                        {selectedClientData.nivel}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-center text-gray-500 text-sm mt-4">
+                💡 Usa los botones de copia para copiar cada dato individualmente
+              </p>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
