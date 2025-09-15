@@ -245,11 +245,6 @@ export default function AsignacionTarjetasComponent({
                             {client.email}
                           </p>
                           <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs text-gray-400">
-                              {client.puntos} pts • ${client.totalGastado} • {client.totalVisitas} visitas
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs text-gray-600">Nivel actual:</span>
                             <span className={`text-xs px-2 py-1 rounded bg-gradient-to-r text-white ${getNivelColor(client.nivel || nivelAutomatico)}`}>
                               {client.nivel || nivelAutomatico}
@@ -280,27 +275,17 @@ export default function AsignacionTarjetasComponent({
                   {selectedClient.telefono && (
                     <p className="text-sm"><span className="font-medium">Teléfono:</span> {selectedClient.telefono}</p>
                   )}
-                  <p className="text-sm"><span className="font-medium">Puntos:</span> {selectedClient.puntos}</p>
-                  <p className="text-sm"><span className="font-medium">Total Gastado:</span> ${selectedClient.totalGastado}</p>
-                  <p className="text-sm"><span className="font-medium">Visitas:</span> {selectedClient.totalVisitas}</p>
                   
-                  <div className="mt-3 pt-3 border-t border-gray-200">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">Nivel Sugerido:</span>
-                      <span className={`text-xs px-2 py-1 rounded bg-gradient-to-r text-white ${getNivelColor(calculateClientLevel(selectedClient))}`}>
-                        {calculateClientLevel(selectedClient)}
-                      </span>
-                    </div>
-                    
-                    {selectedClient.nivel && (
-                      <div className="flex items-center gap-2 mt-2">
+                  {selectedClient.nivel && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">Nivel Actual:</span>
                         <span className={`text-xs px-2 py-1 rounded bg-gradient-to-r text-white ${getNivelColor(selectedClient.nivel)}`}>
                           {selectedClient.nivel}
                         </span>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

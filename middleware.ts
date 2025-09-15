@@ -148,12 +148,14 @@ function processUserRole(
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (pathname.startsWith('/admin') && role !== 'ADMIN') {
+  // ADMIN puede acceder a admin y staff
+  // STAFF solo puede acceder a staff
+  if (pathname.startsWith('/admin') && !['SUPERADMIN', 'ADMIN'].includes(role)) {
     const redirectUrl = new URL('/staff', request.url);
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (pathname.startsWith('/staff') && !['ADMIN', 'STAFF'].includes(role)) {
+  if (pathname.startsWith('/staff') && !['SUPERADMIN', 'ADMIN', 'STAFF'].includes(role)) {
     return redirectToLogin(request, pathname);
   }
 

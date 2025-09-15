@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
         puntos: puntosActuales,
         gastoTotal,
         visitas: visitasTotal,
-        tarjeta: tarjetaInfo,
+        tarjetaLealtad: tarjetaInfo, // Cambiar 'tarjeta' por 'tarjetaLealtad'
       };
     });
 

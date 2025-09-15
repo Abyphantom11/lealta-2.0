@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from './motion';
 import { ChevronDown, Shield, UserCog, Users, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { createPortal } from 'react-dom';
 
 interface RoleSwitchProps {
   readonly currentRole: 'SUPERADMIN' | 'ADMIN' | 'STAFF';
@@ -18,28 +18,37 @@ export default function RoleSwitch({
 }: RoleSwitchProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+  const [mounted, setMounted] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
   const { user, logout } = useAuth();
 
+  // Asegurar que el componente esté montado para React Portal
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Determinar el rol real del usuario desde la sesión
   const userActualRole = user?.role || currentRole;
 
-  // Calcular posición del dropdown
-  useEffect(() => {
-    if (isOpen && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      setDropdownPosition({
-        top: rect.bottom + 8,
-        left: rect.right - 256, // 256px es el ancho del dropdown (w-64)
-      });
-    }
-  }, [isOpen]);
+  // Debug inicial - eliminar después
+  console.log('🔍 RoleSwitch Debug:', {
+    userActualRole,
+    currentRole,
+    currentPath,
+    userFromAuth: user?.role
+  });
+
+  console.log('🔧 RoleSwitch está renderizando... Rol actual:', userActualRole);
 
   // Cerrar dropdown cuando se hace clic fuera
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
+      if (buttonRef.current?.contains(event.target as Node)) return;
+      
+      // Verificar si el click es dentro del dropdown (que ahora está en portal)
+      const dropdownElement = document.querySelector('[data-role-switch-dropdown]');
+      if (!dropdownElement?.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
@@ -87,67 +96,133 @@ export default function RoleSwitch({
 
   const roleOptions = getAvailableRoles();
 
+  // Debug después de declarar roleOptions - eliminar después
+  console.log('🎭 Opciones de roles disponibles:', roleOptions.map(r => r.role));
+
   const getCurrentRoleOption = () => {
     if (currentPath.includes('/superadmin')) return allRoleOptions[0];
     if (currentPath.includes('/admin')) return allRoleOptions[1];
     if (currentPath.includes('/staff')) return allRoleOptions[2];
-    return allRoleOptions[userActualRole === 'SUPERADMIN' ? 0 : userActualRole === 'ADMIN' ? 1 : 2];
+    
+    // Fallback basado en el rol del usuario
+    switch (userActualRole) {
+      case 'SUPERADMIN': return allRoleOptions[0];
+      case 'ADMIN': return allRoleOptions[1];
+      default: return allRoleOptions[2];
+    }
   };
 
   const currentOption = getCurrentRoleOption();
 
+  // Debug completo después de todas las declaraciones
+  console.log('🎭 Component rendering with:', {
+    roleOptions: roleOptions.map(r => r.role),
+    currentOption: currentOption?.role,
+    hasUser: !!user
+  });
+
+  // Fallback si no hay currentOption
+  if (!currentOption) {
+    console.error('❌ No currentOption found, using Staff as fallback');
+    const fallbackOption = allRoleOptions[2]; // Staff
+
+    return (
+      <div className="relative" style={{ zIndex: 99998 }}>
+        <button className="flex items-center space-x-2 px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-xl text-white">
+          <fallbackOption.icon className="w-4 h-4" />
+          <span className="text-sm font-medium">{fallbackOption.label}</span>
+        </button>
+      </div>
+    );
+  }
+
+  const handleToggleDropdown = () => {
+    if (!isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + 8,
+        left: rect.right - 256 // 256px es el ancho del dropdown
+      });
+    }
+    setIsOpen(!isOpen);
+  };
+
   const handleRoleSwitch = (path: string) => {
-    router.push(path);
+    console.log('🚀 handleRoleSwitch called with path:', path);
+    console.log('🔍 Router object:', router);
+    console.log('🌐 Current window location:', window.location.href);
+
+    try {
+      router.push(path);
+      console.log('✅ router.push executed successfully');
+    } catch (error) {
+      console.error('❌ Error en router.push:', error);
+      console.log('🔄 Fallback: using window.location');
+      window.location.href = path;
+    }
+
     setIsOpen(false);
   };
 
   const handleLogout = () => {
+    console.log('🚪 handleLogout called');
     logout();
     setIsOpen(false);
   };
 
-  return (
-    <>
-      <div className="relative">
-        <button
-          ref={buttonRef}
-          onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center space-x-2 px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-xl text-white hover:bg-gray-700/50 transition-all"
-        >
-          <currentOption.icon className="w-4 h-4" />
-          <span className="text-sm font-medium">{currentOption.label}</span>
-          <ChevronDown
-            className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-          />
-        </button>
-      </div>
+  const getDropdownTitle = () => {
+    switch (userActualRole) {
+      case 'SUPERADMIN': return 'Cambiar vista como SuperAdmin';
+      case 'ADMIN': return 'Cambiar vista como Admin';
+      default: return 'Opciones de Staff';
+    }
+  };
 
-      {/* Portal para el dropdown */}
-      {isOpen && typeof window !== 'undefined' && createPortal(
+  return (
+    <div className="relative" style={{ zIndex: 99998 }}>
+      <button
+        ref={buttonRef}
+        onClick={handleToggleDropdown}
+        className="flex items-center space-x-2 px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-xl text-white hover:bg-gray-700/50 transition-all"
+        style={{ minWidth: '120px', backgroundColor: 'rgba(55, 65, 81, 0.8)' }} // Debug visibility
+      >
+        <currentOption.icon className="w-4 h-4" />
+        <span className="text-sm font-medium">{currentOption.label}</span>
+        <ChevronDown
+          className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {/* Dropdown usando React Portal para garantizar z-index */}
+      {isOpen && mounted && createPortal(
         <motion.div
+          data-role-switch-dropdown
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
-          className="fixed bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-[9999] w-64"
+          className="fixed bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-64"
           style={{
+            zIndex: 999999,
             top: dropdownPosition.top,
             left: dropdownPosition.left,
+            pointerEvents: 'auto'
           }}
+          onClick={(e) => e.stopPropagation()}
         >
           <div className="p-2">
             <div className="text-xs text-gray-400 px-3 py-2 border-b border-gray-700">
-              {userActualRole === 'SUPERADMIN'
-                ? 'Cambiar vista como SuperAdmin'
-                : userActualRole === 'ADMIN'
-                ? 'Cambiar vista como Admin'
-                : 'Opciones de Staff'}
+              {getDropdownTitle()}
             </div>
             
             {/* Opciones de roles disponibles */}
             {roleOptions.map(option => (
               <button
                 key={option.role}
-                onClick={() => handleRoleSwitch(option.path)}
+                onClick={() => {
+                  console.log('🎯 Click en opción:', option.role, 'path:', option.path);
+                  handleRoleSwitch(option.path);
+                }}
+                type="button"
                 className={`w-full text-left px-3 py-3 rounded-lg transition-colors ${
                   currentOption.role === option.role
                     ? 'bg-blue-600/20 text-blue-300 border border-blue-500/30'
@@ -166,12 +241,16 @@ export default function RoleSwitch({
               </button>
             ))}
 
-            {/* Separador y opción de cerrar sesión - solo para STAFF o cuando esté en vista STAFF */}
+            {/* Separador y opción de cerrar sesión - para usuarios staff o cuando cualquier usuario esté en vista STAFF */}
             {(userActualRole === 'STAFF' || currentPath.includes('/staff')) && (
               <>
                 <div className="border-t border-gray-700 my-2"></div>
                 <button
-                  onClick={handleLogout}
+                  onClick={() => {
+                    console.log('🚪 Click en logout');
+                    handleLogout();
+                  }}
+                  type="button"
                   className="w-full text-left px-3 py-3 rounded-lg text-red-300 hover:bg-red-900/20 transition-colors"
                 >
                   <div className="flex items-center space-x-3">
@@ -179,7 +258,7 @@ export default function RoleSwitch({
                     <div>
                       <div className="text-sm font-medium">Cerrar Sesión</div>
                       <div className="text-xs text-gray-500">
-                        Salir del sistema
+                        {userActualRole === 'STAFF' ? 'Salir del sistema' : 'Salir de vista Staff'}
                       </div>
                     </div>
                   </div>
@@ -190,6 +269,6 @@ export default function RoleSwitch({
         </motion.div>,
         document.body
       )}
-    </>
+    </div>
   );
 }

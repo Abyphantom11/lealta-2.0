@@ -78,17 +78,17 @@ export default function AuthHandler() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isClient, setIsClient] = useState(false);
 
-  // Imágenes del carrusel (obtenidas desde branding config, con fallback a imágenes por defecto)
-  const carouselImages =
-    brandingConfig.carouselImages?.length > 0
-      ? brandingConfig.carouselImages
-      : [
-          'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=250&fit=crop',
-          'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&h=250&fit=crop',
-          'https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=250&fit=crop',
-          'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=400&h=250&fit=crop',
-          'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400&h=250&fit=crop',
-        ];
+  // Mostrar placeholders numerados si no hay imágenes configuradas, o las imágenes reales si las hay
+  const carouselImages = brandingConfig.carouselImages && brandingConfig.carouselImages.length > 0
+    ? brandingConfig.carouselImages
+    : [
+        '/images/placeholder-1.svg',
+        '/images/placeholder-2.svg',
+        '/images/placeholder-3.svg',
+        '/images/placeholder-4.svg',
+        '/images/placeholder-5.svg',
+        '/images/placeholder-6.svg'
+      ];
 
   // useEffect para marcar cuando el componente está montado en el cliente
   useEffect(() => {
@@ -381,7 +381,7 @@ export default function AuthHandler() {
     };
   };
 
-  // useEffect para el carrusel de imágenes (rotación automática cada 6 segundos para mejor sincronización)
+  // useEffect para el carrusel de imágenes - siempre activo (con placeholders o imágenes reales)
   useEffect(() => {
     const carouselInterval = setInterval(() => {
       setCurrentImageIndex(
@@ -688,13 +688,14 @@ export default function AuthHandler() {
               >
                 Sé usuario {brandingConfig.businessName} y descubre todo lo que tenemos para ti!
               </motion.h1>
-              {/* Carrusel de imágenes */}
-              <motion.div
-                className="mb-12 w-full max-w-sm mx-auto"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-              >
+              {/* Carrusel de imágenes - siempre mostrar (con placeholders o imágenes reales) */}
+              {(
+                <motion.div
+                  className="mb-12 w-full max-w-sm mx-auto"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.4 }}
+                >
                 <div className="relative h-[200px] overflow-hidden">
                   <div className="flex items-center justify-center h-full relative z-0">
                     {/* Contenedor de las imágenes con desplazamiento */}
@@ -773,6 +774,8 @@ export default function AuthHandler() {
                   </div>
                 </div>
               </motion.div>
+              )}
+
               {/* botón centrado debajo del carrusel */}
               <div className="flex justify-center mt-8">
                 <motion.button

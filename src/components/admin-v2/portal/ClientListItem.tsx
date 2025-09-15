@@ -6,17 +6,13 @@ interface ClientListItemProps {
   client: Cliente;
   selectedClient: Cliente | null;
   onSelect: (client: Cliente) => void;
-  calculateClientLevel: (client: Cliente) => string;
 }
 
 export default function ClientListItem({
   client,
   selectedClient,
   onSelect,
-  calculateClientLevel,
 }: ClientListItemProps) {
-  const nivelAutomatico = calculateClientLevel(client);
-  const cumpleCondiciones = nivelAutomatico !== 'Bronce';
   const tieneTarjeta = client.tarjetaLealtad !== null;
 
   return (
@@ -35,10 +31,6 @@ export default function ClientListItem({
           <p className="text-sm opacity-75">{client.correo}</p>
         </div>
         <div className="text-right text-sm">
-          <p>Puntos: {client.puntos || 0}</p>
-          <p>Gastos: ${client.totalGastado || 0}</p>
-          <p>Visitas: {client.totalVisitas || 0}</p>
-
           {tieneTarjeta && client.tarjetaLealtad ? (
             <div className="mt-1">
               <p
@@ -54,10 +46,8 @@ export default function ClientListItem({
               </p>
             </div>
           ) : (
-            <p
-              className={`font-medium ${cumpleCondiciones ? 'text-success-400' : 'text-yellow-400'}`}
-            >
-              Nivel sugerido: {nivelAutomatico}
+            <p className="font-medium text-yellow-400">
+              Sin tarjeta asignada
             </p>
           )}
         </div>

@@ -293,7 +293,6 @@ export default function AsignacionTarjetas({
                   client={client}
                   selectedClient={selectedClient}
                   onSelect={setSelectedClient}
-                  calculateClientLevel={calculateClientLevel}
                 />
               ))}
             </div>

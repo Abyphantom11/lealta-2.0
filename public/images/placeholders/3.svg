@@ -1,0 +1,5 @@
+<svg width="400" height="250" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="250" fill="#e5e7eb" stroke="#d1d5db" stroke-width="2" stroke-dasharray="5,5"/>
+  <text x="200" y="135" font-family="Arial, sans-serif" font-size="48" font-weight="bold" text-anchor="middle" fill="#6b7280">3</text>
+  <text x="200" y="170" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#9ca3af">Imagen 3 del carrusel</text>
+</svg>

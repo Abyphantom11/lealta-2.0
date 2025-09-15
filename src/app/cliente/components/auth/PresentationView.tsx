@@ -9,17 +9,23 @@ export const PresentationView = ({ setStep }: PresentationViewProps) => {
   const { brandingConfig } = useBranding();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  // Imágenes del carrusel - usando las mismas que el cliente original
-  const carouselImages = [
-    '/images/menu/bebida-naranja.jpg',
-    '/images/menu/hamburguesa.jpg',
-    '/images/menu/bebida-verde.jpg',
-    '/images/menu/postre.jpg',
-    '/images/menu/cafe.jpg'
-  ];
+  // Mostrar placeholders numerados si no hay imágenes configuradas, o las imágenes reales si las hay
+  const carouselImages = brandingConfig.carouselImages && brandingConfig.carouselImages.length > 0
+    ? brandingConfig.carouselImages
+    : [
+        '/images/placeholder-1.svg',
+        '/images/placeholder-2.svg',
+        '/images/placeholder-3.svg',
+        '/images/placeholder-4.svg',
+        '/images/placeholder-5.svg',
+        '/images/placeholder-6.svg'
+      ];
+  const hasImages = true; // Siempre mostrar el carrusel (con placeholders o imágenes reales)
 
-  // Efecto para el carrusel automático
+  // Efecto para el carrusel automático - solo si hay imágenes configuradas
   useEffect(() => {
+    if (!hasImages) return;
+
     const interval = setInterval(() => {
       setCurrentImageIndex((prevIndex) => 
         (prevIndex + 1) % carouselImages.length
@@ -27,7 +33,7 @@ export const PresentationView = ({ setStep }: PresentationViewProps) => {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [carouselImages.length]);
+  }, [hasImages, carouselImages.length]);
 
   return (
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
@@ -54,10 +60,11 @@ export const PresentationView = ({ setStep }: PresentationViewProps) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          Descubre Nuestro Menú
+          Sé usuario {brandingConfig.businessName} y descubre todo lo que tenemos para ti!
         </motion.h1>
         
-        {/* Carrusel de imágenes */}
+        {/* Carrusel de imágenes - siempre mostrar (con placeholders o imágenes reales) */}
+        {hasImages && (
         <motion.div 
           className="mb-12 w-full max-w-sm mx-auto"
           initial={{ opacity: 0, y: 20 }}
@@ -80,17 +87,16 @@ export const PresentationView = ({ setStep }: PresentationViewProps) => {
                   {carouselImages.map((imageUrl: string, index: number) => {
                     const isCurrent = index === currentImageIndex;
                     const isAdjacent = Math.abs(index - currentImageIndex) === 1;
+                    const getImageClassName = () => {
+                      if (isCurrent) return 'w-24 h-24 border-2 border-white shadow-lg';
+                      if (isAdjacent) return 'w-16 h-16 opacity-60';
+                      return 'w-12 h-12 opacity-30';
+                    };
                     
                     return (
                       <div
-                        key={index}
-                        className={`flex-shrink-0 rounded-lg overflow-hidden mx-2 transition-all duration-500 ${
-                          isCurrent 
-                            ? 'w-24 h-24 border-2 border-white shadow-lg' 
-                            : isAdjacent 
-                              ? 'w-16 h-16 opacity-60' 
-                              : 'w-12 h-12 opacity-30'
-                        }`}
+                        key={`carousel-${imageUrl}-${index}`}
+                        className={`flex-shrink-0 rounded-lg overflow-hidden mx-2 transition-all duration-500 ${getImageClassName()}`}
                       >
                         <img
                           src={imageUrl}
@@ -110,9 +116,9 @@ export const PresentationView = ({ setStep }: PresentationViewProps) => {
             
             {/* Indicadores de puntos */}
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
-              {carouselImages.map((_, index) => (
+              {carouselImages.map((imageUrl, index) => (
                 <div
-                  key={index}
+                  key={`indicator-${imageUrl}-${index}`}
                   className={`w-2 h-2 rounded-full transition-colors duration-300 ${
                     index === currentImageIndex ? 'bg-white' : 'bg-white/30'
                   }`}
@@ -121,7 +127,8 @@ export const PresentationView = ({ setStep }: PresentationViewProps) => {
             </div>
           </div>
         </motion.div>
-        
+        )}
+
         {/* Botón "Acceder con Cédula" */}
         <div className="flex justify-center mt-8">
           <motion.button 

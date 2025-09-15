@@ -14,7 +14,6 @@ import {
   CheckCircle,
   AlertCircle,
   User,
-  LogOut,
   History,
   TrendingUp,
   Users,
@@ -141,7 +140,7 @@ interface ConsumoData {
 }
 
 export default function StaffPage() {
-  const { user, loading, logout, isAuthenticated } = useRequireAuth('STAFF');
+  const { user, loading, isAuthenticated } = useRequireAuth('STAFF');
 
   // ========================================
   // 🎛️ SECCIÓN: ESTADOS PRINCIPALES (135-200)
@@ -340,28 +339,78 @@ export default function StaffPage() {
     e.preventDefault();
     setIsRegistering(true);
 
+    // Validación de campos obligatorios
+    const { cedula, nombre, telefono, email } = registerData;
+
+    if (!cedula.trim()) {
+      showNotification('error', 'La cédula es obligatoria');
+      setIsRegistering(false);
+      return;
+    }
+
+    if (!nombre.trim()) {
+      showNotification('error', 'El nombre completo es obligatorio');
+      setIsRegistering(false);
+      return;
+    }
+
+    if (!telefono.trim()) {
+      showNotification('error', 'El teléfono es obligatorio');
+      setIsRegistering(false);
+      return;
+    }
+
+    if (!email.trim()) {
+      showNotification('error', 'El email es obligatorio');
+      setIsRegistering(false);
+      return;
+    }
+
+    // Validación específica de teléfono (solo números)
+    const phoneRegex = /^\d+$/;
+    if (!phoneRegex.test(telefono)) {
+      showNotification('error', 'El teléfono debe contener solo números');
+      setIsRegistering(false);
+      return;
+    }
+
+    // Validación de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      showNotification('error', 'Por favor ingrese un email válido');
+      setIsRegistering(false);
+      return;
+    }
+
     try {
-      const response = await fetch('/api/clientes', {
+      const response = await fetch('/api/cliente/registro', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(registerData),
+        body: JSON.stringify({
+          cedula: registerData.cedula,
+          nombre: registerData.nombre,
+          telefono: registerData.telefono,
+          correo: registerData.email, // Cambiar email a correo para la API
+        }),
       });
 
       if (response.ok) {
-        const newClient = await response.json();
+        const result = await response.json();
+        const newClient = result.cliente; // La API devuelve { success: true, cliente: {...} }
         showNotification('success', `Cliente ${newClient.nombre} registrado exitosamente`);
         setShowRegisterModal(false);
         
         // Actualizar la información del cliente automáticamente
         setCustomerInfo({
+          id: newClient.id,
           nombre: newClient.nombre,
           cedula: newClient.cedula,
-          telefono: newClient.telefono,
-          email: newClient.email,
-          puntos: 0,
-          tarjetaFidelizacion: null,
+          telefono: registerData.telefono, // Usar el valor del formulario
+          email: registerData.email, // Usar el valor del formulario
+          puntos: newClient.puntos || 0,
+          nivel: 'Bronce', // Nivel asignado automáticamente
         });
         
         // Limpiar formulario
@@ -373,7 +422,7 @@ export default function StaffPage() {
         });
       } else {
         const error = await response.json();
-        showNotification('error', error.message || 'Error al registrar cliente');
+        showNotification('error', error.error || 'Error al registrar cliente');
       }
     } catch (error) {
       console.error('Error registrando cliente:', error);
@@ -1197,15 +1246,13 @@ export default function StaffPage() {
                         nombre: formattedName
                       });
                     }
-                  } else {
+                  } else if (isUpperCase && !existing.nombre.includes(existing.nombre.toUpperCase())) {
                     // Si tienen la misma cantidad, mantener el formato más consistente
                     // Preferir MAYÚSCULAS si el sistema POS las usa
-                    if (isUpperCase && !existing.nombre.includes(existing.nombre.toUpperCase())) {
-                      productMap.set(finalKey, {
-                        ...producto,
-                        nombre: formattedName
-                      });
-                    }
+                    productMap.set(finalKey, {
+                      ...producto,
+                      nombre: formattedName
+                    });
                   }
                 } else {
                   // Producto nuevo, agregarlo
@@ -1375,7 +1422,7 @@ export default function StaffPage() {
       const data = await response.json();
 
       if (response.ok) {
-        setResult(data.data);
+        setAiResult(data.data);
         showNotification(
           'success',
           '✅ Consumo confirmado y registrado exitosamente'
@@ -1544,7 +1591,10 @@ export default function StaffPage() {
             </div>
 
             <div className="flex items-center space-x-4">
-              <RoleSwitch currentRole="STAFF" currentPath="/staff" />
+              <RoleSwitch
+                currentRole={user?.role || 'STAFF'}
+                currentPath="/staff"
+              />
               <div className="flex items-center space-x-3 bg-dark-800/50 px-4 py-2 rounded-lg">
                 <User className="w-5 h-5 text-primary-400" />
                 <span className="text-white font-medium">
@@ -2623,10 +2673,11 @@ export default function StaffPage() {
               <form onSubmit={handleRegisterSubmit} className="space-y-4">
                 {/* Cédula */}
                 <div>
-                  <label className="block text-sm font-medium text-dark-300 mb-2">
+                  <label htmlFor="register-cedula" className="block text-sm font-medium text-dark-300 mb-2">
                     Cédula *
                   </label>
                   <input
+                    id="register-cedula"
                     type="text"
                     value={registerData.cedula}
                     onChange={e => setRegisterData({...registerData, cedula: e.target.value})}
@@ -2638,10 +2689,11 @@ export default function StaffPage() {
 
                 {/* Nombre */}
                 <div>
-                  <label className="block text-sm font-medium text-dark-300 mb-2">
+                  <label htmlFor="register-nombre" className="block text-sm font-medium text-dark-300 mb-2">
                     Nombre Completo *
                   </label>
                   <input
+                    id="register-nombre"
                     type="text"
                     value={registerData.nombre}
                     onChange={e => setRegisterData({...registerData, nombre: e.target.value})}
@@ -2652,28 +2704,38 @@ export default function StaffPage() {
 
                 {/* Teléfono */}
                 <div>
-                  <label className="block text-sm font-medium text-dark-300 mb-2">
+                  <label htmlFor="register-telefono" className="block text-sm font-medium text-dark-300 mb-2">
                     Teléfono *
                   </label>
                   <input
+                    id="register-telefono"
                     type="tel"
                     value={registerData.telefono}
-                    onChange={e => setRegisterData({...registerData, telefono: e.target.value})}
+                    onChange={e => {
+                      // Solo permitir números
+                      const value = e.target.value.replace(/\D/g, '');
+                      setRegisterData({...registerData, telefono: value});
+                    }}
+                    placeholder="Ej: 09XXXXXXXX"
                     className="w-full p-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-dark-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
+                    maxLength={10}
                   />
                 </div>
 
                 {/* Email */}
                 <div>
-                  <label className="block text-sm font-medium text-dark-300 mb-2">
-                    Email
+                  <label htmlFor="register-email" className="block text-sm font-medium text-dark-300 mb-2">
+                    Email *
                   </label>
                   <input
+                    id="register-email"
                     type="email"
                     value={registerData.email}
                     onChange={e => setRegisterData({...registerData, email: e.target.value})}
+                    placeholder="ejemplo@gmail.com"
                     className="w-full p-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-dark-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
                   />
                 </div>
 
@@ -2729,9 +2791,9 @@ export default function StaffPage() {
               <div className="space-y-4">
                 {/* Nombre */}
                 <div className="bg-dark-700 rounded-lg p-4">
-                  <label className="block text-sm font-medium text-dark-300 mb-1">
+                  <div className="block text-sm font-medium text-dark-300 mb-1">
                     Nombre Completo
-                  </label>
+                  </div>
                   <div className="flex items-center justify-between">
                     <p className="text-white font-medium flex-1">{selectedClientData.nombre}</p>
                     <button
@@ -2746,9 +2808,9 @@ export default function StaffPage() {
 
                 {/* Cédula */}
                 <div className="bg-dark-700 rounded-lg p-4">
-                  <label className="block text-sm font-medium text-dark-300 mb-1">
+                  <div className="block text-sm font-medium text-dark-300 mb-1">
                     Cédula
-                  </label>
+                  </div>
                   <div className="flex items-center justify-between">
                     <p className="text-white font-medium flex-1">{selectedClientData.cedula}</p>
                     <button
@@ -2763,9 +2825,9 @@ export default function StaffPage() {
 
                 {/* Teléfono */}
                 <div className="bg-dark-700 rounded-lg p-4">
-                  <label className="block text-sm font-medium text-dark-300 mb-1">
+                  <div className="block text-sm font-medium text-dark-300 mb-1">
                     Teléfono
-                  </label>
+                  </div>
                   <div className="flex items-center justify-between">
                     <p className="text-white font-medium flex-1">
                       {selectedClientData.telefono || 'No registrado'}
@@ -2783,9 +2845,9 @@ export default function StaffPage() {
 
                 {/* Email */}
                 <div className="bg-dark-700 rounded-lg p-4">
-                  <label className="block text-sm font-medium text-dark-300 mb-1">
+                  <div className="block text-sm font-medium text-dark-300 mb-1">
                     Correo Electrónico
-                  </label>
+                  </div>
                   <div className="flex items-center justify-between">
                     <p className="text-white font-medium flex-1">
                       {selectedClientData.email || 'No registrado'}
@@ -2805,15 +2867,15 @@ export default function StaffPage() {
                 <div className="bg-dark-700 rounded-lg p-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-dark-300 mb-1">
+                      <div className="block text-sm font-medium text-dark-300 mb-1">
                         Puntos
-                      </label>
+                      </div>
                       <p className="text-yellow-400 font-semibold">{selectedClientData.puntos}</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-dark-300 mb-1">
+                      <div className="block text-sm font-medium text-dark-300 mb-1">
                         Nivel
-                      </label>
+                      </div>
                       <span
                         className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getCustomerLevelClasses(selectedClientData.nivel)}`}
                       >

@@ -44,9 +44,5 @@ export const convertToBase64 = (file: File): Promise<string> => {
 export const DEFAULT_BRANDING_CONFIG: SharedBrandingConfig = {
   businessName: 'Mi Empresa',
   primaryColor: '#3B82F6',
-  carouselImages: [
-    'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=250&fit=crop',
-    'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&h=250&fit=crop',
-    'https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=250&fit=crop',
-  ],
+  carouselImages: [], // Sin imágenes por defecto - el admin debe configurarlas
 };
