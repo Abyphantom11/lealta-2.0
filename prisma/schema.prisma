@@ -387,3 +387,32 @@ model HistorialCanje {
   @@index([businessId])
   @@index([createdAt])
 }
+
+// Tabla para usuarios de trial (sistema de pruebas)
+model TrialUser {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  company           String
+  name              String
+  phone             String?
+  trialToken        String    @unique
+  createdAt         DateTime  @default(now())
+  activatedAt       DateTime?
+  expiresAt         DateTime
+  isActive          Boolean   @default(true)
+  hasUpgraded       Boolean   @default(false)
+  lastLoginAt       DateTime?
+  notificationsSent Int       @default(0)
+  
+  // Metadata adicional
+  businessType      String?   // "restaurant", "retail", "services"
+  expectedLocations Int?      // Cuántas sucursales planea tener
+  currentSolution   String?   // Qué usa actualmente
+  referralSource    String?   // Cómo se enteró de Lealta
+  
+  // Índices para consultas rápidas
+  @@index([email])
+  @@index([trialToken])
+  @@index([expiresAt])
+  @@index([isActive])
+}

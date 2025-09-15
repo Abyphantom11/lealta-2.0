@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { 
   ArrowRight, 
@@ -19,6 +20,7 @@ import {
 import { motion } from '../components/motion';
 import { PlatformAware } from '../components/ElectronProvider';
 import { DesktopTitleBar } from '../components/DesktopUI';
+import TrialModal from '../components/TrialModal';
 
 // ========================================
 // 🎨 COMPONENTES AUXILIARES PREMIUM
@@ -104,6 +106,8 @@ function ModuleCard({
 }
 
 export default function HomePage() {
+  const [showTrialModal, setShowTrialModal] = useState(false);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black">
       {/* Desktop Title Bar - Only shown in Electron */}
@@ -194,24 +198,25 @@ export default function HomePage() {
               transition={{ delay: 0.8 }}
               className="flex flex-col sm:flex-row gap-6 justify-center items-center"
             >
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowTrialModal(true)}
+                className="group px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl shadow-2xl shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300 flex items-center text-lg"
+              >
+                Prueba Gratis 14 Días
+                <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+              </motion.button>
               <Link href="/login">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="group px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl shadow-2xl shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300 flex items-center text-lg"
+                  className="px-8 py-4 border-2 border-gray-600 text-gray-300 font-semibold rounded-xl hover:border-gray-400 hover:text-white transition-all duration-300 flex items-center text-lg"
                 >
-                  Solicitar Demo Ejecutiva
-                  <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                  <Rocket className="w-5 h-5 mr-2" />
+                  Ver Demo
                 </motion.button>
               </Link>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="px-8 py-4 border-2 border-gray-600 text-gray-300 font-semibold rounded-xl hover:border-gray-400 hover:text-white transition-all duration-300 flex items-center text-lg"
-              >
-                <Rocket className="w-5 h-5 mr-2" />
-                Ver Caso de Éxito
-              </motion.button>
             </motion.div>
           </motion.div>
 
@@ -339,20 +344,25 @@ export default function HomePage() {
               Tu negocio merece herramientas de siguiente nivel.
             </p>
             
-            <Link href="/login">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="group px-12 py-5 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl shadow-2xl shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300 flex items-center mx-auto text-xl"
-              >
-                <Sparkles className="w-6 h-6 mr-3" />
-                Comenzar Ahora
-                <ArrowRight className="w-6 h-6 ml-3 group-hover:translate-x-1 transition-transform" />
-              </motion.button>
-            </Link>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowTrialModal(true)}
+              className="group px-12 py-5 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl shadow-2xl shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300 flex items-center mx-auto text-xl"
+            >
+              <Sparkles className="w-6 h-6 mr-3" />
+              Comenzar Ahora
+              <ArrowRight className="w-6 h-6 ml-3 group-hover:translate-x-1 transition-transform" />
+            </motion.button>
           </motion.div>
         </div>
       </div>
+      
+      {/* Trial Modal */}
+      <TrialModal
+        isOpen={showTrialModal}
+        onClose={() => setShowTrialModal(false)}
+      />
     </div>
   );
 }
