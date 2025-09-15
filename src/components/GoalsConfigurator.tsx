@@ -111,19 +111,10 @@ export default function GoalsConfigurator({ onClose, onSave }: Readonly<GoalsCon
   const [goals, setGoals] = useState<BusinessGoals>(defaultGoals);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [isAutoSaving, setIsAutoSaving] = useState(false);
 
   useEffect(() => {
     fetchCurrentGoals();
-    
-    // Cleanup function para limpiar timeout al desmontar
-    return () => {
-      if (saveTimeout) {
-        clearTimeout(saveTimeout);
-      }
-    };
-  }, [saveTimeout]);
+  }, []);
 
   const fetchCurrentGoals = async () => {
     try {
@@ -154,19 +145,26 @@ export default function GoalsConfigurator({ onClose, onSave }: Readonly<GoalsCon
       if (response.ok) {
         const data = await response.json();
         
-        // Limpiar timeout si existe
-        if (saveTimeout) {
-          clearTimeout(saveTimeout);
-          setSaveTimeout(null);
-        }
-        
         // Notificar al componente padre
         onSave(data.goals);
         
         // Disparar evento para actualizar dashboard
-        window.dispatchEvent(new CustomEvent('goalsUpdated', { 
-          detail: data.goals 
-        }));
+        const customEvent = new CustomEvent('goalsUpdated', {
+          detail: data.goals
+        });
+        console.log('🎯 Disparando evento goalsUpdated:', data.goals);
+        window.dispatchEvent(customEvent);
+
+        // También forzar un refresh de las estadísticas directamente
+        setTimeout(() => {
+          console.log('🔄 Forzando refresh del dashboard después de 500ms');
+          window.dispatchEvent(new CustomEvent('forceStatsRefresh'));
+          
+          // Forzar reload de la página si es necesario (para debugging)
+          if (window.location.href.includes('debug=reload')) {
+            window.location.reload();
+          }
+        }, 500);
         
         onClose();
       } else {
@@ -185,48 +183,13 @@ export default function GoalsConfigurator({ onClose, onSave }: Readonly<GoalsCon
     setGoals(defaultGoals);
   };
 
-  const saveGoals = async (goalsToSave?: BusinessGoals) => {
-    const dataToSave = goalsToSave || goals;
-    try {
-      const response = await fetch('/api/admin/goals', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataToSave),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        
-        // Disparar evento personalizado para notificar al dashboard
-        window.dispatchEvent(new CustomEvent('goalsUpdated', { 
-          detail: result.goals 
-        }));
-        
-        console.log('✅ Metas guardadas automáticamente');
-      }
-    } catch (error) {
-      console.error('❌ Error en auto-guardado:', error);
-    }
-  };
-
   const updateGoal = (field: keyof BusinessGoals, value: string) => {
     // Permitir valores vacíos temporalmente para mejor UX
     const numericValue = value === '' ? 0 : parseFloat(value) || 0;
     setGoals(prev => ({ ...prev, [field]: numericValue }));
     
-    // Auto-guardar después de 1 segundo de inactividad
-    if (saveTimeout) {
-      clearTimeout(saveTimeout);
-    }
-    
-    setIsAutoSaving(true);
-    
-    const newTimeout = setTimeout(async () => {
-      await saveGoals({ ...goals, [field]: numericValue });
-      setIsAutoSaving(false);
-    }, 1000);
-    
-    setSaveTimeout(newTimeout);
+    // ELIMINADO: Auto-guardado agresivo que impedía editar
+    // Solo actualizar el estado local, el guardado será manual
   };
 
   // Renderizar InputField con las props necesarias
@@ -274,15 +237,7 @@ export default function GoalsConfigurator({ onClose, onSave }: Readonly<GoalsCon
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">Configurar Metas del Negocio</h2>
-                <div className="flex items-center space-x-2">
-                  <p className="text-gray-400 text-sm">Personaliza los objetivos de tu dashboard</p>
-                  {isAutoSaving && (
-                    <div className="flex items-center space-x-1 text-xs text-blue-400">
-                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                      <span>Guardando...</span>
-                    </div>
-                  )}
-                </div>
+                <p className="text-gray-400 text-sm">Personaliza los objetivos de tu dashboard</p>
               </div>
             </div>
             <button

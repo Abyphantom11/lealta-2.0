@@ -290,6 +290,7 @@ export async function GET(request: NextRequest) {
     };
 
     // Calcular metas dinámicas
+    console.log('📊 BusinessGoals cargadas:', businessGoals);
     const targetRevenue = getTargetForPeriod(businessGoals, 'Revenue');
     const targetClients = getTargetForPeriod(businessGoals, 'Clients');
     const targetTransactions = getTargetForPeriod(businessGoals, 'Transactions');
@@ -298,6 +299,17 @@ export async function GET(request: NextRequest) {
     const targetConversionRate = businessGoals?.targetConversionRate || 80;
     const targetTopClient = businessGoals?.targetTopClient || 150;
     const targetActiveClients = businessGoals?.targetActiveClients || 50;
+    
+    console.log('🎯 Targets calculados:', {
+      targetRevenue,
+      targetClients,
+      targetTransactions,
+      targetTicketAverage,
+      targetRetentionRate,
+      targetConversionRate,
+      targetTopClient,
+      targetActiveClients
+    });
 
     // Cliente top (mayor gastador del período)
     const clienteTop = topClientes[0];
@@ -343,20 +355,14 @@ export async function GET(request: NextRequest) {
       else if (index < 6) nivel = 'Silver';
       
       const ultimaVisita = cliente.consumos[0]?.registeredAt || new Date();
-      const promedioPorVisita = cliente.totalVisitas > 0 ? cliente.totalGastado / cliente.totalVisitas : 0;
       
       return {
         id: cliente.id,
         nombre: cliente.nombre,
         cedula: cliente.cedula,
         totalGastado: cliente.totalGastado,
-        totalVisitas: cliente.totalVisitas,
         ultimaVisita: ultimaVisita.toISOString(),
-        promedioPorVisita: Math.round(promedioPorVisita * 100) / 100,
         nivel,
-        puntos: cliente.puntos,
-        tendencia: Math.random() > 0.5 ? 'up' : 'down' as 'up' | 'down' | 'stable', // Temporal
-        crecimiento: Math.floor(Math.random() * 20) + 5, // Temporal, porcentaje entre 5-25%
       };
     });
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { Crown, TrendingUp, Calendar, DollarSign, ShoppingBag, Star } from 'lucide-react';
+import { Crown, Calendar } from 'lucide-react';
 import { motion } from './motion';
 
 interface ClientData {
@@ -8,13 +8,8 @@ interface ClientData {
   nombre: string;
   cedula: string;
   totalGastado: number;
-  totalVisitas: number;
   ultimaVisita: string;
-  promedioPorVisita: number;
   nivel: 'Gold' | 'Silver' | 'Bronze';
-  puntos: number;
-  tendencia: 'up' | 'down' | 'stable';
-  crecimiento: number; // porcentaje
 }
 
 interface TopClientsProps {
@@ -70,12 +65,6 @@ const getNivelBadgeClasses = (nivel: string) => {
   if (nivel === 'Gold') return 'bg-yellow-500/20 text-yellow-400';
   if (nivel === 'Silver') return 'bg-gray-500/20 text-gray-400';
   return 'bg-amber-600/20 text-amber-400';
-};
-
-const getTendenciaClasses = (tendencia: string) => {
-  if (tendencia === 'up') return 'bg-green-500/20 text-green-400';
-  if (tendencia === 'down') return 'bg-red-500/20 text-red-400';
-  return 'bg-gray-500/20 text-gray-400';
 };
 
 export default function TopClients({ clients, isLoading = false, periodo = 'mes' }: Readonly<TopClientsProps>) {
@@ -161,16 +150,8 @@ export default function TopClients({ clients, isLoading = false, periodo = 'mes'
                   </div>
                   <div className="flex items-center space-x-4 text-xs text-gray-400">
                     <span className="flex items-center space-x-1">
-                      <ShoppingBag className="w-3 h-3" />
-                      <span>{client.totalVisitas || 0} visitas</span>
-                    </span>
-                    <span className="flex items-center space-x-1">
                       <Calendar className="w-3 h-3" />
                       <span>{formatDate(client.ultimaVisita)}</span>
-                    </span>
-                    <span className="flex items-center space-x-1">
-                      <Star className="w-3 h-3" />
-                      <span>{(client.puntos || 0).toLocaleString()} pts</span>
                     </span>
                   </div>
                 </div>
@@ -178,26 +159,9 @@ export default function TopClients({ clients, isLoading = false, periodo = 'mes'
 
               {/* Métricas */}
               <div className="text-right">
-                <div className="flex items-center space-x-2 mb-1">
-                  <p className="text-green-400 font-semibold text-lg">
-                    {formatCurrency(client.totalGastado || 0)}
-                  </p>
-                  {/* Tendencia */}
-                  <div className={`flex items-center space-x-1 px-2 py-0.5 rounded-lg ${getTendenciaClasses(client.tendencia || 'up')}`}>
-                    <TrendingUp className={`w-3 h-3 ${
-                      (client.tendencia || 'up') === 'down' ? 'rotate-180' : ''
-                    }`} />
-                    <span className="text-xs font-medium">
-                      {(client.crecimiento || 0) > 0 ? '+' : ''}{(client.crecimiento || 0).toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-4 text-xs text-gray-400">
-                  <span className="flex items-center space-x-1">
-                    <DollarSign className="w-3 h-3" />
-                    <span>{formatCurrency(client.promedioPorVisita || 0)} avg</span>
-                  </span>
-                </div>
+                <p className="text-green-400 font-semibold text-lg">
+                  {formatCurrency(client.totalGastado || 0)}
+                </p>
               </div>
             </div>
           </motion.div>

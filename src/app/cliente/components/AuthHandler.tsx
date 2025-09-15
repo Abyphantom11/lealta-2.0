@@ -78,17 +78,17 @@ export default function AuthHandler() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isClient, setIsClient] = useState(false);
 
-  // Mostrar placeholders numerados si no hay imágenes configuradas, o las imágenes reales si las hay
-  const carouselImages = brandingConfig.carouselImages && brandingConfig.carouselImages.length > 0
-    ? brandingConfig.carouselImages
-    : [
-        '/images/placeholder-1.svg',
-        '/images/placeholder-2.svg',
-        '/images/placeholder-3.svg',
-        '/images/placeholder-4.svg',
-        '/images/placeholder-5.svg',
-        '/images/placeholder-6.svg'
-      ];
+  // Imágenes del carrusel (obtenidas desde branding config, con fallback a imágenes por defecto)
+  const carouselImages =
+    brandingConfig.carouselImages?.length > 0
+      ? brandingConfig.carouselImages
+      : [
+          'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=250&fit=crop',
+          'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&h=250&fit=crop',
+          'https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=250&fit=crop',
+          'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=400&h=250&fit=crop',
+          'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400&h=250&fit=crop',
+        ];
 
   // useEffect para marcar cuando el componente está montado en el cliente
   useEffect(() => {
@@ -381,7 +381,7 @@ export default function AuthHandler() {
     };
   };
 
-  // useEffect para el carrusel de imágenes - siempre activo (con placeholders o imágenes reales)
+  // useEffect para el carrusel de imágenes (rotación automática cada 6 segundos para mejor sincronización)
   useEffect(() => {
     const carouselInterval = setInterval(() => {
       setCurrentImageIndex(
@@ -564,7 +564,22 @@ export default function AuthHandler() {
     return null;
   };
 
-  const handleLevelUpdate = useCallback((evaluacionData: any) => {
+  const checkStoredLevelChange = (cliente: any) => {
+    const clientLevel = cliente.tarjetaLealtad?.nivel || 'Bronce';
+    const storedLevel = localStorage.getItem(`lastLevel_${cliente.cedula}`);
+
+    if (storedLevel && clientLevel !== storedLevel && isHigherLevel(clientLevel, storedLevel)) {
+      setOldLevel(storedLevel);
+      setNewLevel(clientLevel);
+      setShowLevelUpAnimation(true);
+      localStorage.setItem(`lastLevel_${cliente.cedula}`, clientLevel);
+    } else if (!storedLevel) {
+      localStorage.setItem(`lastLevel_${cliente.cedula}`, clientLevel);
+    }
+  };
+
+  // Función extraída para manejar actualizaciones de nivel y reducir complejidad cognitiva
+  const handleLevelUpdateInEffect = useCallback((evaluacionData: any) => {
     if (evaluacionData.actualizado && evaluacionData.mostrarAnimacion) {
       if (process.env.NODE_ENV === 'development') {
         console.log(`🆙 Cliente subió de ${evaluacionData.nivelAnterior} a ${evaluacionData.nivelNuevo}!`);
@@ -583,20 +598,6 @@ export default function AuthHandler() {
     }
   }, [clienteData?.cedula, setOldLevel, setNewLevel, setShowLevelUpAnimation]);
 
-  const checkStoredLevelChange = (cliente: any) => {
-    const clientLevel = cliente.tarjetaLealtad?.nivel || 'Bronce';
-    const storedLevel = localStorage.getItem(`lastLevel_${cliente.cedula}`);
-
-    if (storedLevel && clientLevel !== storedLevel && isHigherLevel(clientLevel, storedLevel)) {
-      setOldLevel(storedLevel);
-      setNewLevel(clientLevel);
-      setShowLevelUpAnimation(true);
-      localStorage.setItem(`lastLevel_${cliente.cedula}`, clientLevel);
-    } else if (!storedLevel) {
-      localStorage.setItem(`lastLevel_${cliente.cedula}`, clientLevel);
-    }
-  };
-
   // Actualización periódica de datos del cliente para mantener la tarjeta actualizada
   useEffect(() => {
     if (step === 'dashboard' && clienteData?.id) {
@@ -612,9 +613,9 @@ export default function AuthHandler() {
 
           console.log('🤖 Ejecutando evaluación automática: Tarjeta NO es manual');
           const evaluacionData = await evaluateClientLevel(clienteData.cedula);
-
+          
           if (evaluacionData) {
-            handleLevelUpdate(evaluacionData);
+            handleLevelUpdateInEffect(evaluacionData);
           }
 
           const response = await fetch('/api/cliente/verificar', {
@@ -646,7 +647,7 @@ export default function AuthHandler() {
 
       return () => clearInterval(updateInterval);
     }
-  }, [step, clienteData?.id, clienteData?.cedula, clienteData?.tarjetaLealtad?.asignacionManual, handleLevelUpdate]);
+  }, [step, clienteData?.id, clienteData?.cedula, clienteData?.tarjetaLealtad?.asignacionManual, handleLevelUpdateInEffect]);
 
   // Mostrar loading inicial mientras se carga el branding
   if (isInitialLoading) {
@@ -688,14 +689,13 @@ export default function AuthHandler() {
               >
                 Sé usuario {brandingConfig.businessName} y descubre todo lo que tenemos para ti!
               </motion.h1>
-              {/* Carrusel de imágenes - siempre mostrar (con placeholders o imágenes reales) */}
-              {(
-                <motion.div
-                  className="mb-12 w-full max-w-sm mx-auto"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.4 }}
-                >
+              {/* Carrusel de imágenes */}
+              <motion.div
+                className="mb-12 w-full max-w-sm mx-auto"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+              >
                 <div className="relative h-[200px] overflow-hidden">
                   <div className="flex items-center justify-center h-full relative z-0">
                     {/* Contenedor de las imágenes con desplazamiento */}
@@ -774,8 +774,6 @@ export default function AuthHandler() {
                   </div>
                 </div>
               </motion.div>
-              )}
-
               {/* botón centrado debajo del carrusel */}
               <div className="flex justify-center mt-8">
                 <motion.button

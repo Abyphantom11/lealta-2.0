@@ -9,22 +9,12 @@ export const PresentationView = ({ setStep }: PresentationViewProps) => {
   const { brandingConfig } = useBranding();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  // Mostrar placeholders numerados si no hay imágenes configuradas, o las imágenes reales si las hay
-  const carouselImages = brandingConfig.carouselImages && brandingConfig.carouselImages.length > 0
-    ? brandingConfig.carouselImages
-    : [
-        '/images/placeholder-1.svg',
-        '/images/placeholder-2.svg',
-        '/images/placeholder-3.svg',
-        '/images/placeholder-4.svg',
-        '/images/placeholder-5.svg',
-        '/images/placeholder-6.svg'
-      ];
-  const hasImages = true; // Siempre mostrar el carrusel (con placeholders o imágenes reales)
+  // Solo usar imágenes del carrusel si el admin las ha configurado
+  const carouselImages = brandingConfig.carouselImages || [];
 
   // Efecto para el carrusel automático - solo si hay imágenes configuradas
   useEffect(() => {
-    if (!hasImages) return;
+    if (carouselImages.length === 0) return;
 
     const interval = setInterval(() => {
       setCurrentImageIndex((prevIndex) => 
@@ -33,7 +23,7 @@ export const PresentationView = ({ setStep }: PresentationViewProps) => {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [hasImages, carouselImages.length]);
+  }, [carouselImages.length]);
 
   return (
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
@@ -63,14 +53,14 @@ export const PresentationView = ({ setStep }: PresentationViewProps) => {
           Sé usuario {brandingConfig.businessName} y descubre todo lo que tenemos para ti!
         </motion.h1>
         
-        {/* Carrusel de imágenes - siempre mostrar (con placeholders o imágenes reales) */}
-        {hasImages && (
-        <motion.div 
-          className="mb-12 w-full max-w-sm mx-auto"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-        >
+        {/* Carrusel de imágenes - solo si el admin configuró imágenes */}
+        {carouselImages.length > 0 && (
+          <motion.div
+            className="mb-12 w-full max-w-sm mx-auto"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+          >
           <div className="relative h-[200px] overflow-hidden">
             <div className="flex items-center justify-center h-full relative z-0">
               {/* Contenedor de las imágenes con desplazamiento */}
@@ -87,16 +77,19 @@ export const PresentationView = ({ setStep }: PresentationViewProps) => {
                   {carouselImages.map((imageUrl: string, index: number) => {
                     const isCurrent = index === currentImageIndex;
                     const isAdjacent = Math.abs(index - currentImageIndex) === 1;
-                    const getImageClassName = () => {
-                      if (isCurrent) return 'w-24 h-24 border-2 border-white shadow-lg';
-                      if (isAdjacent) return 'w-16 h-16 opacity-60';
-                      return 'w-12 h-12 opacity-30';
-                    };
                     
+                    // Determinar las clases CSS basado en la posición
+                    let sizeClass = 'w-12 h-12 opacity-30';
+                    if (isCurrent) {
+                      sizeClass = 'w-24 h-24 border-2 border-white shadow-lg';
+                    } else if (isAdjacent) {
+                      sizeClass = 'w-16 h-16 opacity-60';
+                    }
+
                     return (
                       <div
-                        key={`carousel-${imageUrl}-${index}`}
-                        className={`flex-shrink-0 rounded-lg overflow-hidden mx-2 transition-all duration-500 ${getImageClassName()}`}
+                        key={`carousel-image-${imageUrl}-${index}`}
+                        className={`flex-shrink-0 rounded-lg overflow-hidden mx-2 transition-all duration-500 ${sizeClass}`}
                       >
                         <img
                           src={imageUrl}

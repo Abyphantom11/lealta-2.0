@@ -11,11 +11,25 @@ export async function GET() {
       const branding = JSON.parse(data);
       return NextResponse.json(branding);
     } else {
-      // Valores por defecto
+      // Si no existe branding-config.json, intentar obtener el nombre desde portal-config.json
+      const portalConfigFile = path.join(process.cwd(), 'portal-config.json');
+      let businessName = 'Mi Empresa'; // Fallback final
+
+      try {
+        if (fs.existsSync(portalConfigFile)) {
+          const portalData = fs.readFileSync(portalConfigFile, 'utf8');
+          const portalConfig = JSON.parse(portalData);
+          businessName = portalConfig.nombreEmpresa || businessName;
+        }
+      } catch (portalError) {
+        console.warn('No se pudo leer portal-config.json:', portalError);
+      }
+
+      // Valores por defecto sin imágenes hardcodeadas
       const defaultBranding = {
-        businessName: 'LEALTA',
+        businessName,
         primaryColor: '#2563EB',
-        carouselImages: [],
+        carouselImages: [], // Sin imágenes hasta que el admin las configure
       };
       return NextResponse.json(defaultBranding);
     }

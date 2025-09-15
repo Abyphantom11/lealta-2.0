@@ -8,8 +8,8 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    // TEMPORAL: Sin autenticación para simplificar
-    const businessId = 'business_1'; 
+    // TEMPORAL: Usar el mismo businessId que en estadísticas para consistencia
+    const businessId = 'cmes3g9wd0000eyggpbqfl9r6';
 
     console.log('✅ Getting goals for business:', businessId);
 
@@ -18,13 +18,19 @@ export async function GET() {
       where: { businessId: businessId }
     });
 
+    console.log('📊 Goals encontradas en DB:', goals);
+
     // Si no existen metas, crear las predeterminadas
-    goals ??= await prisma.businessGoals.create({
-      data: {
-        businessId: businessId,
-        // Los valores por defecto ya están definidos en el schema
-      }
-    });
+    if (!goals) {
+      console.log('🆕 Creando metas por defecto...');
+      goals = await prisma.businessGoals.create({
+        data: {
+          businessId: businessId,
+          // Los valores por defecto ya están definidos en el schema
+        }
+      });
+      console.log('✅ Metas creadas:', goals);
+    }
 
     return NextResponse.json({ goals });
   } catch (error) {
@@ -37,8 +43,8 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
-    // TEMPORAL: Sin autenticación para simplificar
-    const businessId = 'business_1';
+    // TEMPORAL: Usar el mismo businessId que en estadísticas para consistencia
+    const businessId = 'cmes3g9wd0000eyggpbqfl9r6';
 
     const body = await request.json();
     
@@ -99,6 +105,8 @@ export async function PUT(request: NextRequest) {
         targetActiveClients: targetActiveClients || 50,
       }
     });
+
+    console.log('✅ Metas actualizadas exitosamente:', goals);
 
     return NextResponse.json({ 
       success: true, 

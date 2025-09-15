@@ -1,0 +1,324 @@
+'use client';
+
+export interface ClientNotification {
+  id: string;
+  tipo: 'promocion' | 'puntos' | 'nivel' | 'menu' | 'general' | 'pwa';
+  titulo: string;
+  mensaje: string;
+  fecha: Date;
+  leida: boolean;
+  clienteId?: string;
+}
+
+class ClientNotificationService {
+  private notifications: ClientNotification[] = [];
+  private readonly listeners: Array<(notifications: ClientNotification[]) => void> = [];
+  private isInitialized = false;
+
+  // Inicializar el servicio
+  initialize() {
+    if (this.isInitialized) return;
+
+    // Limpiar notificaciones antiguas y cargar desde localStorage
+    this.loadFromStorage();
+
+    // Forzar limpieza de notificaciones hardcodeadas antiguas
+    this.cleanOldTestNotifications();
+
+    // No crear notificaciones de ejemplo automáticamente
+    // Solo usar las que se generen dinámicamente por eventos reales
+
+    this.isInitialized = true;
+    this.notifyListeners();
+  }
+
+  // Limpiar notificaciones de prueba antiguas
+  private cleanOldTestNotifications() {
+    const testTitles = [
+      '🎉 Nueva Promoción Disponible',
+      '⭐ Puntos Actualizados',
+      '🏆 ¡Cerca del Siguiente Nivel!'
+    ];
+
+    this.notifications = this.notifications.filter(n =>
+      !testTitles.includes(n.titulo)
+    );
+
+    this.saveToStorage();
+  }
+
+  // Agregar nueva notificación
+  addNotification(notification: Omit<ClientNotification, 'id' | 'fecha'>) {
+    const newNotification: ClientNotification = {
+      ...notification,
+      id: this.generateId(),
+      fecha: new Date(),
+    };
+
+    this.notifications.unshift(newNotification);
+    this.saveToStorage();
+    this.notifyListeners();
+    
+    return newNotification.id;
+  }
+
+  // Obtener todas las notificaciones
+  getNotifications(): ClientNotification[] {
+    return [...this.notifications];
+  }
+
+  // Obtener notificaciones no leídas
+  getUnreadNotifications(): ClientNotification[] {
+    return this.notifications.filter(n => !n.leida);
+  }
+
+  // Marcar como leída
+  markAsRead(notificationId: string) {
+    const notification = this.notifications.find(n => n.id === notificationId);
+    if (notification && !notification.leida) {
+      notification.leida = true;
+      this.saveToStorage();
+      this.notifyListeners();
+    }
+  }
+
+  // Marcar todas como leídas
+  markAllAsRead() {
+    let hasChanges = false;
+    this.notifications.forEach(notification => {
+      if (!notification.leida) {
+        notification.leida = true;
+        hasChanges = true;
+      }
+    });
+
+    if (hasChanges) {
+      this.saveToStorage();
+      this.notifyListeners();
+    }
+  }
+
+  // Eliminar notificación
+  removeNotification(notificationId: string) {
+    const index = this.notifications.findIndex(n => n.id === notificationId);
+    if (index !== -1) {
+      this.notifications.splice(index, 1);
+      this.saveToStorage();
+      this.notifyListeners();
+    }
+  }
+
+  // Limpiar todas las notificaciones
+  clearAll() {
+    this.notifications = [];
+    this.saveToStorage();
+    this.notifyListeners();
+  }
+
+  // Limpieza completa de localStorage (incluyendo versiones anteriores)
+  forceCleanStorage() {
+    if (typeof window !== 'undefined') {
+      try {
+        // Eliminar versiones anteriores
+        localStorage.removeItem('client-notifications');
+        localStorage.removeItem('client-notifications-v2');
+        this.notifications = [];
+        this.saveToStorage();
+        this.notifyListeners();
+        console.log('🧹 Notificaciones limpiadas completamente');
+      } catch (error) {
+        console.warn('Error al limpiar localStorage:', error);
+      }
+    }
+  }
+
+  // Suscribirse a cambios
+  subscribe(callback: (notifications: ClientNotification[]) => void) {
+    this.listeners.push(callback);
+    
+    // Llamada inicial
+    callback([...this.notifications]);
+
+    // Retornar función para cancelar suscripción
+    return () => {
+      const index = this.listeners.indexOf(callback);
+      if (index !== -1) {
+        this.listeners.splice(index, 1);
+      }
+    };
+  }
+
+  // Notificar a todos los listeners
+  private notifyListeners() {
+    this.listeners.forEach(callback => {
+      callback([...this.notifications]);
+    });
+  }
+
+  // Generar ID único
+  private generateId(): string {
+    return `notification-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+  }
+
+  // Guardar en localStorage
+  private saveToStorage() {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('client-notifications-v2', JSON.stringify(this.notifications));
+      } catch (error) {
+        console.warn('No se pudo guardar notificaciones en localStorage:', error);
+      }
+    }
+  }
+
+  // Cargar desde localStorage
+  private loadFromStorage() {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('client-notifications-v2');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          // Convertir fechas de strings a Date objects
+          this.notifications = parsed.map((n: any) => ({
+            ...n,
+            fecha: new Date(n.fecha)
+          }));
+        }
+      } catch (error) {
+        console.warn('No se pudo cargar notificaciones desde localStorage:', error);
+        this.notifications = [];
+      }
+    }
+  }
+
+  // Métodos específicos para diferentes tipos de notificaciones
+  notifyPromotion(titulo: string, mensaje: string, clienteId?: string) {
+    return this.addNotification({
+      tipo: 'promocion',
+      titulo,
+      mensaje,
+      leida: false,
+      clienteId,
+    });
+  }
+
+  notifyPointsUpdate(puntos: number, clienteId?: string) {
+    return this.addNotification({
+      tipo: 'puntos',
+      titulo: '⭐ Puntos Actualizados',
+      mensaje: `Has ganado ${puntos} puntos. ¡Sigue acumulando!`,
+      leida: false,
+      clienteId,
+    });
+  }
+
+  notifyLevelProgress(nivelActual: string, puntosNecesarios: number, clienteId?: string) {
+    return this.addNotification({
+      tipo: 'nivel',
+      titulo: '🏆 Progreso de Nivel',
+      mensaje: `Necesitas ${puntosNecesarios} puntos más para alcanzar el siguiente nivel desde ${nivelActual}.`,
+      leida: false,
+      clienteId,
+    });
+  }
+
+  // Notificación específica para ascensos manuales
+  notifyLevelUpManual(nivelAnterior: string, nivelNuevo: string, clienteId?: string) {
+    return this.addNotification({
+      tipo: 'nivel',
+      titulo: '🎉 ¡Felicidades! Ascendiste de Nivel',
+      mensaje: `Has ascendido de ${nivelAnterior} a ${nivelNuevo}. ¡Disfruta de tus nuevos beneficios!`,
+      leida: false,
+      clienteId,
+    });
+  }
+
+  notifyMenuUpdate(clienteId?: string) {
+    return this.addNotification({
+      tipo: 'menu',
+      titulo: '🍽️ Menú Actualizado',
+      mensaje: 'Hay nuevos productos disponibles en nuestro menú. ¡Descúbrelos!',
+      leida: false,
+      clienteId,
+    });
+  }
+
+  notifyGeneral(titulo: string, mensaje: string, clienteId?: string) {
+    return this.addNotification({
+      tipo: 'general',
+      titulo,
+      mensaje,
+      leida: false,
+      clienteId,
+    });
+  }
+
+  // Notificación específica para PWA
+  notifyPWAInstall() {
+    // Verificar si ya existe una notificación PWA no leída
+    const existingPWANotification = this.notifications.find(
+      n => n.tipo === 'pwa' && !n.leida
+    );
+
+    // Solo crear si no existe una ya
+    if (!existingPWANotification) {
+      return this.addNotification({
+        tipo: 'pwa',
+        titulo: '📱 Acceso Rápido Disponible',
+        mensaje: 'Agrega Lealta a tu pantalla de inicio para acceso más fácil y rápido',
+        leida: false,
+      });
+    }
+  }
+
+  // Notificación específica para ascensos manuales
+  notifyLevelUpManual(nivelAnterior: string, nivelNuevo: string, clienteId?: string) {
+    return this.addNotification({
+      tipo: 'nivel',
+      titulo: '🎉 ¡Felicidades por tu Ascenso!',
+      mensaje: `Has ascendido de ${nivelAnterior} a ${nivelNuevo}. ¡Disfruta de tus nuevos beneficios!`,
+      leida: false,
+      clienteId,
+    });
+  }
+}
+
+// Instancia única del servicio
+export const clientNotificationService = new ClientNotificationService();
+
+// Hook de React para usar el servicio
+import { useState, useEffect } from 'react';
+
+export function useClientNotifications(clienteId?: string) {
+  const [notifications, setNotifications] = useState<ClientNotification[]>([]);
+
+  useEffect(() => {
+    // Inicializar el servicio
+    clientNotificationService.initialize();
+
+    // Suscribirse a cambios
+    const unsubscribe = clientNotificationService.subscribe(setNotifications);
+
+    return unsubscribe;
+  }, [clienteId]);
+
+  return {
+    notifications,
+    unreadCount: notifications.filter(n => !n.leida).length,
+    markAsRead: clientNotificationService.markAsRead.bind(clientNotificationService),
+    markAllAsRead: clientNotificationService.markAllAsRead.bind(clientNotificationService),
+    removeNotification: clientNotificationService.removeNotification.bind(clientNotificationService),
+    clearAll: clientNotificationService.clearAll.bind(clientNotificationService),
+    forceCleanStorage: clientNotificationService.forceCleanStorage.bind(clientNotificationService),
+    addNotification: clientNotificationService.addNotification.bind(clientNotificationService),
+    // Métodos específicos
+    notifyPromotion: clientNotificationService.notifyPromotion.bind(clientNotificationService),
+    notifyPointsUpdate: clientNotificationService.notifyPointsUpdate.bind(clientNotificationService),
+    notifyLevelProgress: clientNotificationService.notifyLevelProgress.bind(clientNotificationService),
+    notifyLevelUpManual: clientNotificationService.notifyLevelUpManual.bind(clientNotificationService),
+    notifyMenuUpdate: clientNotificationService.notifyMenuUpdate.bind(clientNotificationService),
+    notifyGeneral: clientNotificationService.notifyGeneral.bind(clientNotificationService),
+    notifyPWAInstall: clientNotificationService.notifyPWAInstall.bind(clientNotificationService),
+    notifyLevelUpManual: clientNotificationService.notifyLevelUpManual.bind(clientNotificationService),
+  };
+}

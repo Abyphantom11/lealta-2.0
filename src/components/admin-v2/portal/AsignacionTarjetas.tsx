@@ -106,6 +106,7 @@ export default function AsignacionTarjetas({
   }, [searchTerm, setClients, setLoading]);
 
   // Calcular nivel automático basado en historial del cliente
+  // Función pasada como prop a ClientListItem - falso positivo de ESLint
   const calculateClientLevel = (client: Cliente) => {
     const puntos = client.puntos || 0;
     const gastos = client.totalGastado || 0;
@@ -293,6 +294,7 @@ export default function AsignacionTarjetas({
                   client={client}
                   selectedClient={selectedClient}
                   onSelect={setSelectedClient}
+                  calculateClientLevel={calculateClientLevel}
                 />
               ))}
             </div>

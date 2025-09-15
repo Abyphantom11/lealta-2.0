@@ -11,18 +11,23 @@ import {
   BarChart3,
   Users,
   TrendingUp,
-  Activity,
   DollarSign,
   UserPlus,
-  Server,
   LogOut,
   Trash2,
   Eye,
   Settings,
+  FileText,
+  X,
+  Star,
+  User,
+  Edit3,
+  Scan,
 } from 'lucide-react';
 import DateRangePicker from '../../components/DateRangePicker';
 import AdvancedMetrics from '../../components/AdvancedMetrics';
 import TopClients from '../../components/TopClients';
+import ProductosTendenciasChart from '../../components/ProductosTendenciasChart';
 import GoalsConfigurator from '../../components/GoalsConfigurator';
 
 // ========================================
@@ -62,20 +67,6 @@ if (typeof document !== 'undefined') {
 // 🔧 SECCIÓN: HELPER FUNCTIONS (51-85)
 // ========================================
 // Helper functions
-const getActivityColor = (type: string) => {
-  switch (type) {
-    case 'success':
-      return 'bg-green-500 shadow-green-500/50';
-    case 'warning':
-      return 'bg-yellow-500 shadow-yellow-500/50';
-    case 'error':
-      return 'bg-red-500 shadow-red-500/50';
-    case 'info':
-      return 'bg-blue-500 shadow-blue-500/50';
-    default:
-      return 'bg-gray-500 shadow-gray-500/50';
-  }
-};
 
 const getChangeColor = (change: string) => {
   if (change.startsWith('+')) return 'text-green-400';
@@ -137,7 +128,7 @@ export default function SuperAdminPage() {
   const { user, loading, logout, isAuthenticated } =
     useRequireAuth('SUPERADMIN');
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'analytics' | 'users' | 'system' | 'historial'
+    'overview' | 'analytics' | 'users' | 'historial'
   >('overview');
 
   // Estados para datos reales
@@ -157,6 +148,10 @@ export default function SuperAdminPage() {
   );
   const [clienteDetalles, setClienteDetalles] = useState<any>(null);
   const [showClienteDetalles, setShowClienteDetalles] = useState(false);
+  
+  // Estados para el modal de productos
+  const [showProductosModal, setShowProductosModal] = useState(false);
+  const [productosModal, setProductosModal] = useState<any>(null);
 
   // Estados para el gráfico de ingresos
   const [tipoGrafico, setTipoGrafico] = useState<
@@ -185,6 +180,7 @@ export default function SuperAdminPage() {
   // Estado para datos de estadísticas
   const [statsData, setStatsData] = useState<any>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [metricsRefreshKey, setMetricsRefreshKey] = useState(0);
   
   // Estado para el selector de fechas
   const [selectedDateRange, setSelectedDateRange] = useState('7days');
@@ -195,10 +191,21 @@ export default function SuperAdminPage() {
     
     setIsLoadingStats(true);
     try {
-      const response = await fetch(`/api/admin/estadisticas?periodo=${selectedDateRange}`);
+      console.log('🔄 Cargando estadísticas con período:', selectedDateRange);
+      const response = await fetch(`/api/admin/estadisticas?periodo=${selectedDateRange}`, {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
       if (response.ok) {
         const data = await response.json();
+        console.log('📊 Estadísticas cargadas:', data);
         setStatsData(data);
+      } else {
+        console.error('Error cargando estadísticas:', response.status);
       }
     } catch (error) {
       console.error('Error fetching estadísticas:', error);
@@ -279,15 +286,24 @@ export default function SuperAdminPage() {
 
   // Listener para eventos de actualización de metas
   useEffect(() => {
-    const handleGoalsUpdateEvent = () => {
-      console.log('🎯 Metas actualizadas, refrescando dashboard...');
+    const handleGoalsUpdateEvent = (event: any) => {
+      console.log('🎯 Metas actualizadas, refrescando dashboard...', event.detail);
       fetchEstadisticas();
+      setMetricsRefreshKey(prev => prev + 1); // Forzar re-render de métricas
+    };
+
+    const handleForceRefresh = () => {
+      console.log('🔄 Refresh forzado del dashboard...');
+      fetchEstadisticas();
+      setMetricsRefreshKey(prev => prev + 1); // Forzar re-render de métricas
     };
 
     window.addEventListener('goalsUpdated', handleGoalsUpdateEvent);
+    window.addEventListener('forceStatsRefresh', handleForceRefresh);
     
     return () => {
       window.removeEventListener('goalsUpdated', handleGoalsUpdateEvent);
+      window.removeEventListener('forceStatsRefresh', handleForceRefresh);
     };
   }, [fetchEstadisticas]);
 
@@ -315,23 +331,14 @@ export default function SuperAdminPage() {
           riskClients: Math.floor(stats.resumen.totalClientes * 0.05),
           dailyTransactions: stats.resumen.totalConsumos,
           topProducts:
-            stats.topProducts && stats.topProducts.length > 0
-              ? stats.topProducts.map((p: any) => ({
-                  name: p.nombre || p.name,
+            stats.estadisticas?.topProducts && stats.estadisticas.topProducts.length > 0
+              ? stats.estadisticas.topProducts.map((p: any) => ({
+                  name: p.name,
                   sales: p.sales,
                   revenue: p.revenue,
-                  trend: p.trend,
+                  trend: p.trend || '+0%', // API ya incluye trend, usar fallback si no existe
                 }))
-              : [
-                  {
-                    name: 'Café Americano',
-                    sales: 150,
-                    revenue: 750,
-                    trend: '+12%',
-                  },
-                  { name: 'Croissant', sales: 89, revenue: 445, trend: '+8%' },
-                  { name: 'Latte', sales: 76, revenue: 532, trend: '+15%' },
-                ],
+              : [], // Sin productos fallback, mostrar array vacío
         });
 
         console.log('📊 Analytics actualizado:', {
@@ -399,6 +406,18 @@ export default function SuperAdminPage() {
     } catch (error) {
       console.error('Error loading detalles cliente:', error);
     }
+  };
+
+  const mostrarProductosConsumo = (consumo: any) => {
+    setProductosModal({
+      fecha: consumo.fecha,
+      total: consumo.total,
+      puntos: consumo.puntos,
+      productos: consumo.productos || [],
+      empleado: consumo.empleado,
+      tipo: consumo.tipo,
+    });
+    setShowProductosModal(true);
   };
 
   const toggleExpandCliente = async (clienteId: string, cedula: string) => {
@@ -717,57 +736,11 @@ export default function SuperAdminPage() {
 
   const currentAnalytics = analytics || defaultAnalytics;
 
-  const recentActivity = [
-    {
-      time: '14:32',
-      action: 'Nuevo cliente registrado',
-      detail: 'Juan Pérez - Portal Centro',
-      type: 'success',
-      user: 'System',
-    },
-    {
-      time: '14:30',
-      action: 'Usuario Admin creado',
-      detail: 'María García - Sucursal Norte',
-      type: 'info',
-      user: 'SuperAdmin',
-    },
-    {
-      time: '14:28',
-      action: 'Consumo procesado',
-      detail: '$45.50 - Carlos López',
-      type: 'success',
-      user: 'Staff Ana',
-    },
-    {
-      time: '14:25',
-      action: 'Cliente de riesgo detectado',
-      detail: 'Luis Martín - 3 impagos consecutivos',
-      type: 'warning',
-      user: 'System',
-    },
-    {
-      time: '14:20',
-      action: 'Backup automático',
-      detail: 'Base de datos - Completado',
-      type: 'success',
-      user: 'System',
-    },
-    {
-      time: '14:15',
-      action: 'Staff login',
-      detail: 'Ana Rodríguez - Terminal Centro',
-      type: 'info',
-      user: 'Staff Ana',
-    },
-  ];
-
   const tabs = [
     { id: 'overview', label: 'Resumen', icon: BarChart3 },
     { id: 'analytics', label: 'Analytics', icon: TrendingUp },
     { id: 'users', label: 'Usuarios', icon: Users },
     { id: 'historial', label: 'Historial Clientes', icon: Eye },
-    { id: 'system', label: 'Sistema', icon: Server },
   ];
 
 // ========================================
@@ -870,7 +843,7 @@ export default function SuperAdminPage() {
               <MetricCard
                 title="Transacciones"
                 value={formatNumber(currentAnalytics.dailyTransactions)}
-                icon={<Activity className="w-6 h-6" />}
+                icon={<DollarSign className="w-6 h-6" />}
                 gradient="from-purple-600 to-blue-600"
                 change="+18.2%"
                 subtitle="hoy"
@@ -1185,91 +1158,7 @@ export default function SuperAdminPage() {
                   </div>
                 )}
               </motion.div>
-
-              {/* Top Products */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
-                className="bg-gray-900/60 backdrop-blur-sm rounded-2xl p-6 border border-gray-800/50 shadow-2xl"
-              >
-                <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
-                  <TrendingUp className="w-5 h-5 mr-2 text-green-400" />
-                  Top Productos por Cantidad
-                </h2>
-
-                <div className="space-y-4">
-                  {currentAnalytics.topProducts.map((product, index) => (
-                    <div
-                      key={`${product.name}-${product.sales}`}
-                      className="flex items-center justify-between p-4 bg-black/20 rounded-xl border border-gray-800/30 hover:border-gray-700/50 transition-all"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                          {index + 1}
-                        </div>
-                        <div>
-                          <p className="text-white font-medium text-sm">
-                            {product.name}
-                          </p>
-                          <p className="text-gray-400 text-xs">
-                            Producto más vendido
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-green-400 font-semibold text-lg">
-                          {product.sales}
-                        </p>
-                        <p className="text-gray-400 text-xs">
-                          unidades vendidas
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
             </div>
-
-            {/* Activity Feed */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="mt-8 bg-gray-900/60 backdrop-blur-sm rounded-2xl p-6 border border-gray-800/50 shadow-2xl"
-            >
-              <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
-                <Activity className="w-5 h-5 mr-2 text-cyan-400" />
-                Actividad Reciente del Sistema
-              </h2>
-
-              <div className="space-y-3">
-                {recentActivity.map((activity, index) => (
-                  <div
-                    key={`${activity.action}-${activity.time}-${index}`}
-                    className="flex items-center space-x-4 p-4 bg-black/20 rounded-xl border border-gray-800/30 hover:border-gray-700/50 transition-all"
-                  >
-                    <div className="flex-shrink-0">
-                      <div
-                        className={`w-3 h-3 rounded-full ${getActivityColor(activity.type)} shadow-lg`}
-                      ></div>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-white text-sm font-medium">
-                        {activity.action}
-                      </p>
-                      <p className="text-gray-400 text-xs">{activity.detail}</p>
-                    </div>
-                    <div className="flex-shrink-0 text-right">
-                      <span className="text-gray-500 text-xs">
-                        {activity.time}
-                      </span>
-                      <p className="text-gray-600 text-xs">{activity.user}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
           </>
         )}
 
@@ -1626,51 +1515,64 @@ export default function SuperAdminPage() {
                         {/* Lista de Transacciones */}
                         <div className="space-y-3 max-h-64 overflow-y-auto">
                           {clienteHistorial.historial?.map(
-                            (consumo: any, index: number) => (
-                              <div
-                                key={`${consumo.id}-${index}`}
-                                className="bg-gray-700/30 rounded-lg p-4"
-                              >
-                                <div className="flex justify-between items-start">
-                                  <div>
-                                    <div className="flex items-center space-x-2 mb-1">
-                                      <span className="text-white font-semibold">
-                                        ${consumo.total}
-                                      </span>
-                                      <span className="text-yellow-400">
-                                        +{consumo.puntos} pts
-                                      </span>
-                                      <span
-                                        className={`px-2 py-1 rounded text-xs ${
-                                          consumo.tipo === 'MANUAL'
-                                            ? 'bg-blue-500/20 text-blue-400'
-                                            : 'bg-green-500/20 text-green-400'
-                                        }`}
-                                      >
-                                        {consumo.tipo}
-                                      </span>
+                            (consumo: any, index: number) => {
+                              // 🔍 Debug temporal para ver los datos del consumo
+                              console.log('🔍 Consumo data:', {
+                                id: consumo.id,
+                                productos: consumo.productos,
+                                tieneProductos: consumo.productos && consumo.productos.length > 0
+                              });
+                              
+                              return (
+                                <div
+                                  key={`${consumo.id}-${index}`}
+                                  className="bg-gray-700/30 rounded-lg p-4"
+                                >
+                                  <div className="flex justify-between items-start">
+                                    <div className="flex-1">
+                                      <div className="flex items-center space-x-2 mb-1">
+                                        <span className="text-white font-semibold">
+                                          ${consumo.total}
+                                        </span>
+                                        <span className="text-yellow-400">
+                                          +{consumo.puntos} pts
+                                        </span>
+                                        <span
+                                          className={`px-2 py-1 rounded text-xs ${
+                                            consumo.tipo === 'MANUAL'
+                                              ? 'bg-blue-500/20 text-blue-400'
+                                              : 'bg-green-500/20 text-green-400'
+                                          }`}
+                                        >
+                                          {consumo.tipo}
+                                        </span>
+                                      </div>
+                                      <p className="text-gray-400 text-sm">
+                                        {new Date(
+                                          consumo.fecha
+                                        ).toLocaleDateString('es-ES')}{' '}
+                                        - {consumo.empleado}
+                                      </p>
+                                      {consumo.productos &&
+                                        consumo.productos.length > 0 && (
+                                          <p className="text-gray-300 text-sm mt-1">
+                                            {consumo.productos.length} producto{consumo.productos.length !== 1 ? 's' : ''} consumido{consumo.productos.length !== 1 ? 's' : ''}
+                                          </p>
+                                        )}
                                     </div>
-                                    <p className="text-gray-400 text-sm">
-                                      {new Date(
-                                        consumo.fecha
-                                      ).toLocaleDateString('es-ES')}{' '}
-                                      - {consumo.empleado}
-                                    </p>
-                                    {consumo.productos &&
-                                      consumo.productos.length > 0 && (
-                                        <p className="text-gray-300 text-sm mt-1">
-                                          {consumo.productos
-                                            .map(
-                                              (p: any) =>
-                                                `${p.nombre} (${p.cantidad})`
-                                            )
-                                            .join(', ')}
-                                        </p>
-                                      )}
+                                    
+                                    {/* Botón para ver productos - TEMPORAL: siempre visible para debug */}
+                                    <button
+                                      onClick={() => mostrarProductosConsumo(consumo)}
+                                      className="ml-3 p-2 bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded-lg transition-colors"
+                                      title="Ver productos consumidos"
+                                    >
+                                      <FileText className="w-4 h-4" />
+                                    </button>
                                   </div>
                                 </div>
-                              </div>
-                            )
+                              );
+                            }
                           ) || (
                             <p className="text-gray-400 text-center py-4">
                               No hay transacciones registradas
@@ -1687,7 +1589,7 @@ export default function SuperAdminPage() {
             {/* Estado Vacío */}
             {!isLoadingClientes && clientesConTransacciones.length === 0 && (
               <div className="bg-gray-900/60 backdrop-blur-sm rounded-2xl border border-gray-800/50 shadow-2xl p-8 text-center">
-                <Activity className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                <BarChart3 className="w-16 h-16 text-gray-600 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-white mb-2">
                   No hay transacciones registradas
                 </h3>
@@ -1780,7 +1682,7 @@ export default function SuperAdminPage() {
                         {clienteDetalles.cliente.tarjetaLealtad?.fechaAsignacion
                           ? new Date(
                               clienteDetalles.cliente.tarjetaLealtad.fechaAsignacion
-                            ).toLocaleDateString()
+                            ).toLocaleDateString('es-ES')
                           : 'N/A'}
                       </p>
                     </div>
@@ -1789,19 +1691,28 @@ export default function SuperAdminPage() {
                         Tipo de Asignación
                       </p>
                       <p className="text-white font-semibold">
-                        {clienteDetalles.cliente.tarjetaLealtad
-                          ?.asignacionManual
+                        {clienteDetalles.cliente.tarjetaLealtad?.asignacionManual
                           ? 'Manual'
-                          : 'Automática'}
+                          : clienteDetalles.cliente.tarjetaLealtad
+                          ? 'Automática'
+                          : 'N/A'}
                       </p>
                     </div>
                     <div>
                       <p className="text-gray-400 text-sm">Estado</p>
                       <p
-                        className={`font-semibold ${clienteDetalles.cliente.tarjetaLealtad?.nivel ? 'text-green-400' : 'text-red-400'}`}
+                        className={`font-semibold ${
+                          clienteDetalles.cliente.tarjetaLealtad?.activa
+                            ? 'text-green-400'
+                            : clienteDetalles.cliente.tarjetaLealtad
+                            ? 'text-yellow-400'
+                            : 'text-red-400'
+                        }`}
                       >
-                        {clienteDetalles.cliente.tarjetaLealtad?.nivel
+                        {clienteDetalles.cliente.tarjetaLealtad?.activa
                           ? 'Activa'
+                          : clienteDetalles.cliente.tarjetaLealtad
+                          ? 'Inactiva'
                           : 'No Asignada'}
                       </p>
                     </div>
@@ -1909,6 +1820,7 @@ export default function SuperAdminPage() {
               
               {/* Métricas Avanzadas */}
               <AdvancedMetrics 
+                key={`metrics-${selectedDateRange}-${metricsRefreshKey}`}
                 data={statsData?.estadisticas?.metricas}
               />
             </div>
@@ -1923,128 +1835,249 @@ export default function SuperAdminPage() {
                 />
               </div>
 
-              {/* Gráfico de Tendencias */}
-              <div className="bg-gray-900/60 backdrop-blur-sm rounded-2xl p-6 border border-gray-800/50 shadow-2xl">
-                <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-3">
-                  <TrendingUp className="w-6 h-6 text-emerald-400" />
-                  Tendencias de Ventas
-                </h3>
-                
-                {isLoadingGrafico ? (
-                  <div className="h-64 flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
-                  </div>
-                ) : (
-                  <div className="h-64 flex items-center justify-center">
-                    <div className="text-center text-gray-400">
-                      <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <p>Gráfico de tendencias en desarrollo</p>
-                    </div>
-                  </div>
-                )}
-              </div>
+              {/* Gráfico de Tendencias de Productos */}
+              <ProductosTendenciasChart />
             </div>
 
-            {/* Métricas Adicionales */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-gray-900/60 backdrop-blur-sm rounded-2xl p-6 border border-gray-800/50 shadow-2xl">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-purple-700 rounded-xl flex items-center justify-center">
-                    <Users className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-semibold text-white">Clientes Activos</h4>
-                    <p className="text-sm text-gray-400">Últimos 30 días</p>
-                  </div>
-                </div>
-                <div className="text-3xl font-bold text-white mb-2">
-                  {isLoadingStats ? '...' : statsData?.estadisticas?.resumen?.clientesActivos || 0}
-                </div>
-                <div className="text-sm text-emerald-400">
-                  +12% vs período anterior
-                </div>
-              </div>
-
-              <div className="bg-gray-900/60 backdrop-blur-sm rounded-2xl p-6 border border-gray-800/50 shadow-2xl">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-xl flex items-center justify-center">
-                    <DollarSign className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-semibold text-white">Ticket Promedio</h4>
-                    <p className="text-sm text-gray-400">Por transacción</p>
-                  </div>
-                </div>
-                <div className="text-3xl font-bold text-white mb-2">
-                  ${isLoadingStats ? '...' : statsData?.estadisticas?.resumen?.promedioVenta?.toFixed(0) || 0}
-                </div>
-                <div className="text-sm text-emerald-400">
-                  +5% vs período anterior
-                </div>
-              </div>
-
-              <div className="bg-gray-900/60 backdrop-blur-sm rounded-2xl p-6 border border-gray-800/50 shadow-2xl">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center">
-                    <Activity className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-semibold text-white">Transacciones</h4>
-                    <p className="text-sm text-gray-400">Total del período</p>
-                  </div>
-                </div>
-                <div className="text-3xl font-bold text-white mb-2">
-                  {isLoadingStats ? '...' : statsData?.estadisticas?.resumen?.totalConsumos || 0}
-                </div>
-                <div className="text-sm text-emerald-400">
-                  +18% vs período anterior
-                </div>
-              </div>
-            </div>
           </motion.div>
         )}
+      </div>
 
-        {/* Other Tabs Placeholder */}
-        {activeTab !== 'overview' &&
-          activeTab !== 'users' &&
-          activeTab !== 'historial' &&
-          activeTab !== 'analytics' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-gray-900/60 backdrop-blur-sm rounded-2xl p-8 border border-gray-800/50 shadow-2xl"
-            >
-              <div className="text-center py-16">
-                {activeTab === 'system' && (
-                  <Server className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                )}
-
-                <h3 className="text-2xl font-semibold text-white mb-3 capitalize">
-                  {activeTab}
+      {/* Modal de Productos Consumidos */}
+      {showProductosModal && productosModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={e => e.target === e.currentTarget && setShowProductosModal(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-gray-900 rounded-2xl p-6 border border-gray-800 shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-white flex items-center">
+                  <FileText className="w-5 h-5 mr-2 text-green-400" />
+                  Productos Consumidos
                 </h3>
-                <p className="text-gray-400 mb-8 text-lg">
-                  Esta sección está en desarrollo
+                <p className="text-gray-400 text-sm mt-1">
+                  {new Date(productosModal.fecha).toLocaleDateString('es-ES', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
                 </p>
+              </div>
+              <button
+                onClick={() => setShowProductosModal(false)}
+                className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-gray-500 max-w-lg mx-auto">
-                  {activeTab === 'system' && (
-                    <>
-                      <div className="p-3 bg-black/20 rounded-lg border border-gray-800/30">
-                        <p>• Estado del servidor</p>
-                      </div>
-                      <div className="p-3 bg-black/20 rounded-lg border border-gray-800/30">
-                        <p>• Configuración</p>
-                      </div>
-                      <div className="p-3 bg-black/20 rounded-lg border border-gray-800/30">
-                        <p>• Logs del sistema</p>
-                      </div>
-                    </>
-                  )}
+            {/* Información del Consumo - Mejorada para Data Engagement */}
+            <div className="bg-gradient-to-r from-gray-800/50 to-gray-700/30 rounded-xl p-6 mb-6 border border-gray-600/30">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div className="text-center group">
+                  <div className="bg-green-500/10 rounded-full w-12 h-12 mx-auto mb-2 flex items-center justify-center">
+                    <DollarSign className="w-6 h-6 text-green-400" />
+                  </div>
+                  <p className="text-2xl font-bold text-green-400">
+                    ${productosModal.total}
+                  </p>
+                  <p className="text-gray-400 text-sm">Total Gastado</p>
+                </div>
+                <div className="text-center group">
+                  <div className="bg-yellow-500/10 rounded-full w-12 h-12 mx-auto mb-2 flex items-center justify-center">
+                    <Star className="w-6 h-6 text-yellow-400" />
+                  </div>
+                  <p className="text-2xl font-bold text-yellow-400">
+                    +{productosModal.puntos}
+                  </p>
+                  <p className="text-gray-400 text-sm">Puntos Ganados</p>
+                </div>
+                <div className="text-center group">
+                  <div className="bg-blue-500/10 rounded-full w-12 h-12 mx-auto mb-2 flex items-center justify-center">
+                    <User className="w-6 h-6 text-blue-400" />
+                  </div>
+                  <p className="text-white font-semibold">
+                    {productosModal.empleado}
+                  </p>
+                  <p className="text-gray-400 text-sm">Atendido por</p>
+                </div>
+                <div className="text-center group">
+                  <div className="bg-purple-500/10 rounded-full w-12 h-12 mx-auto mb-2 flex items-center justify-center">
+                    {productosModal.tipo === 'MANUAL' ? (
+                      <Edit3 className="w-6 h-6 text-purple-400" />
+                    ) : (
+                      <Scan className="w-6 h-6 text-purple-400" />
+                    )}
+                  </div>
+                  <span
+                    className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      productosModal.tipo === 'MANUAL'
+                        ? 'bg-blue-500/20 text-blue-400'
+                        : 'bg-green-500/20 text-green-400'
+                    }`}
+                  >
+                    {productosModal.tipo}
+                  </span>
+                  <p className="text-gray-400 text-sm mt-1">Registro</p>
                 </div>
               </div>
-            </motion.div>
-          )}
-      </div>
+              
+              {/* Métricas adicionales */}
+              <div className="mt-6 pt-4 border-t border-gray-600/30">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-400">
+                    💰 Valor promedio por producto:
+                    <span className="text-white font-medium ml-1">
+                      ${(productosModal.total / Math.max(productosModal.productos.length, 1)).toFixed(2)}
+                    </span>
+                  </span>
+                  <span className="text-gray-400">
+                    🛍️ Total de artículos:
+                    <span className="text-white font-medium ml-1">
+                      {productosModal.productos.reduce((sum: number, p: any) => sum + (p.cantidad || 1), 0)}
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Lista de Productos - Mejorada para Data Engagement */}
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h4 className="text-lg font-semibold text-white flex items-center">
+                  <FileText className="w-5 h-5 mr-2 text-green-400" />
+                  Productos Consumidos ({productosModal.productos.length})
+                </h4>
+                <div className="text-sm text-gray-400">
+                  {productosModal.productos.length > 0 ? 'Detalle del consumo' : 'Sin productos registrados'}
+                </div>
+              </div>
+              
+              {productosModal.productos.length > 0 ? (
+                <div className="space-y-4">
+                  {productosModal.productos.map((producto: any, index: number) => (
+                    <motion.div
+                      key={`producto-${producto.nombre || 'item'}-${index}`}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="bg-gradient-to-r from-gray-800/50 to-gray-700/20 rounded-xl p-5 border border-gray-600/30 hover:border-gray-500/50 transition-all duration-200"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center mb-2">
+                            <div className="bg-green-500/10 rounded-lg w-10 h-10 flex items-center justify-center mr-3">
+                              <span className="text-green-400 font-bold">
+                                {(producto.nombre || 'P')[0].toUpperCase()}
+                              </span>
+                            </div>
+                            <div>
+                              <h5 className="text-white font-medium text-lg">
+                                {producto.nombre || 'Producto sin nombre'}
+                              </h5>
+                              {producto.precio && (
+                                <p className="text-gray-400 text-sm">
+                                  💰 ${producto.precio} por unidad
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          {producto.descripcion && (
+                            <p className="text-gray-400 text-sm ml-13">
+                              {producto.descripcion}
+                            </p>
+                          )}
+                        </div>
+                        
+                        <div className="text-right ml-4">
+                          <div className="bg-blue-500/10 rounded-lg px-4 py-2 mb-2">
+                            <p className="text-white font-bold text-lg">
+                              x{producto.cantidad || 1}
+                            </p>
+                            <p className="text-blue-400 text-xs">Cantidad</p>
+                          </div>
+                          {producto.precio && (
+                            <div className="bg-green-500/10 rounded-lg px-4 py-2">
+                              <p className="text-green-400 font-bold text-lg">
+                                ${((producto.precio || 0) * (producto.cantidad || 1)).toFixed(2)}
+                              </p>
+                              <p className="text-green-300 text-xs">Subtotal</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Barra de progreso visual */}
+                      {producto.precio && (
+                        <div className="mt-4 pt-3 border-t border-gray-600/30">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-400">
+                              Contribución al total:
+                            </span>
+                            <span className="text-white font-medium">
+                              {(((producto.precio * (producto.cantidad || 1)) / productosModal.total) * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-700 rounded-full h-2 mt-1">
+                            <div
+                              className="bg-gradient-to-r from-green-500 to-green-400 h-2 rounded-full transition-all duration-500"
+                              style={{
+                                width: `${Math.min(((producto.precio * (producto.cantidad || 1)) / productosModal.total) * 100, 100)}%`
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  ))}
+                  
+                  {/* Resumen final */}
+                  <div className="mt-6 p-4 bg-gradient-to-r from-gray-800/70 to-gray-700/40 rounded-xl border border-gray-600/30">
+                    <div className="flex justify-between items-center">
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-white">
+                          {productosModal.productos.reduce((sum: number, p: any) => sum + (p.cantidad || 1), 0)}
+                        </p>
+                        <p className="text-gray-400 text-sm">Artículos totales</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-green-400">
+                          ${productosModal.total}
+                        </p>
+                        <p className="text-gray-400 text-sm">Total gastado</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-yellow-400">
+                          +{productosModal.puntos}
+                        </p>
+                        <p className="text-gray-400 text-sm">Puntos ganados</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="bg-gray-700/30 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                    <FileText className="w-8 h-8 text-gray-500" />
+                  </div>
+                  <p className="text-gray-400 text-lg">No hay productos registrados</p>
+                  <p className="text-gray-500 text-sm mt-1">Este consumo no tiene productos asociados</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
 
       {/* Modal de Configuración de Metas */}
       {showGoalsConfigurator && (

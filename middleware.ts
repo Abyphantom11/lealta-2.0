@@ -134,7 +134,7 @@ function processUserRole(
 ) {
   const role = sessionData.role;
 
-  // SUPERADMIN puede acceder a todo
+  // SUPERADMIN puede acceder a todas las rutas
   if (role === 'SUPERADMIN') {
     return createResponseWithHeaders(sessionData, role);
   }
@@ -148,14 +148,12 @@ function processUserRole(
     return NextResponse.redirect(redirectUrl);
   }
 
-  // ADMIN puede acceder a admin y staff
-  // STAFF solo puede acceder a staff
-  if (pathname.startsWith('/admin') && !['SUPERADMIN', 'ADMIN'].includes(role)) {
+  if (pathname.startsWith('/admin') && role !== 'ADMIN') {
     const redirectUrl = new URL('/staff', request.url);
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (pathname.startsWith('/staff') && !['SUPERADMIN', 'ADMIN', 'STAFF'].includes(role)) {
+  if (pathname.startsWith('/staff') && !['ADMIN', 'STAFF'].includes(role)) {
     return redirectToLogin(request, pathname);
   }
 

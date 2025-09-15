@@ -12,12 +12,9 @@ const store: RateLimitStore = {};
 export function createRateLimit({
   maxRequests = 100,
   windowMs = 15 * 60 * 1000, // 15 minutos
-  skipSuccessfulRequests = false,
-  skipFailedRequests = false,
 } = {}) {
   return async function rateLimit(
-    request: NextRequest,
-    response?: NextResponse
+    request: NextRequest
   ): Promise<NextResponse | null> {
     const ip =
       request.ip || request.headers.get('x-forwarded-for') || 'unknown';

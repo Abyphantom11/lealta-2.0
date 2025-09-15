@@ -3,12 +3,12 @@
 import { Cliente } from './types';
 
 interface CardAssignmentFormProps {
-  selectedClient: Cliente | null;
-  selectedLevel: string;
-  setSelectedLevel: (level: string) => void;
-  nivelesConfig: Record<string, any>;
-  onAssign: () => void;
-  onCancel: () => void;
+  readonly selectedClient: Cliente | null;
+  readonly selectedLevel: string;
+  readonly setSelectedLevel: (level: string) => void;
+  readonly nivelesConfig: Record<string, any>;
+  readonly onAssign: () => void;
+  readonly onCancel: () => void;
 }
 
 export default function CardAssignmentForm({
@@ -29,6 +29,25 @@ export default function CardAssignmentForm({
         <p className="text-red-400">Error: No se ha seleccionado ningún cliente</p>
       ) : (
         <>
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            <div>
+              <p className="text-dark-400 text-sm">Puntos Actuales</p>
+              <p className="text-white font-medium">{selectedClient.puntos || 0}</p>
+            </div>
+            <div>
+              <p className="text-dark-400 text-sm">Gastos Totales</p>
+              <p className="text-white font-medium">
+                ${selectedClient.totalGastado || 0}
+              </p>
+            </div>
+            <div>
+              <p className="text-dark-400 text-sm">Visitas</p>
+              <p className="text-white font-medium">
+                {selectedClient.totalVisitas || 0}
+              </p>
+            </div>
+          </div>
+
           <div className="mb-4">
             <label
               htmlFor="nivel-select"
@@ -43,13 +62,25 @@ export default function CardAssignmentForm({
               className="w-full px-3 py-2 bg-dark-600 border border-dark-500 rounded-lg text-white focus:border-primary-500 focus:outline-none"
             >
               {Object.entries(nivelesConfig).map(([nivel, conf]: [string, any]) => {
+                const cumple =
+                  (selectedClient.puntos || 0) >= conf.condiciones.puntosMinimos &&
+                  (selectedClient.totalGastado || 0) >=
+                    conf.condiciones.gastosMinimos &&
+                  (selectedClient.totalVisitas || 0) >= conf.condiciones.visitasMinimas;
+
                 return (
                   <option key={nivel} value={nivel}>
-                    {conf.nombrePersonalizado || nivel}
+                    {nivel} {cumple ? '✓' : '⚠️'}
+                    (Req: {conf.condiciones.puntosMinimos}pts, $
+                    {conf.condiciones.gastosMinimos},{' '}
+                    {conf.condiciones.visitasMinimas} visitas)
                   </option>
                 );
               })}
             </select>
+            <p className="text-dark-400 text-xs mt-1">
+              ✓ = Cumple condiciones automáticamente | ⚠️ = Asignación manual
+            </p>
           </div>
 
           <div className="flex space-x-2">

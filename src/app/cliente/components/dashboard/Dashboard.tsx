@@ -86,7 +86,7 @@ const LoyaltyLevelDisplay = ({
   // 🎯 USAR FUNCIÓN UNIFICADA PARA CALCULAR PROGRESO CORRECTO
   let progress = 0;
   let siguienteNivel = 'Platino'; // Por defecto
-  let mensaje: string;
+  let mensaje = 'Cargando...';
 
   try {
     // 🔧 USAR LA FUNCIÓN UNIFICADA QUE RESPETA ASIGNACIÓN MANUAL

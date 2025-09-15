@@ -58,6 +58,8 @@ const calculateChange = (current: number, previous?: number): { percentage: numb
 const MetricCard = ({ title, icon: Icon, data, color, subtitle, delay = 0 }: MetricCardProps) => {
   const change = calculateChange(data.current, data.previous);
   const targetProgress = data.target ? Math.min((data.current / data.target) * 100, 100) : null;
+  const actualProgress = data.target ? (data.current / data.target) * 100 : null;
+  const isOverTarget = actualProgress && actualProgress > 100;
 
   return (
     <motion.div
@@ -110,19 +112,29 @@ const MetricCard = ({ title, icon: Icon, data, color, subtitle, delay = 0 }: Met
         <div className="space-y-2">
           <div className="flex justify-between text-xs">
             <span className="text-gray-400">Progreso hacia meta</span>
-            <span className={color}>{targetProgress.toFixed(1)}%</span>
+            <span className={`${color} flex items-center gap-1`}>
+              {actualProgress?.toFixed(1)}%
+              {isOverTarget && <span className="text-green-400">🎯</span>}
+            </span>
           </div>
           <div className="w-full bg-gray-800 rounded-full h-1.5">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${targetProgress}%` }}
               transition={{ delay: delay + 0.3, duration: 1 }}
-              className={`h-1.5 rounded-full ${color.replace('text-', 'bg-')} opacity-80`}
+              className={`h-1.5 rounded-full ${
+                isOverTarget
+                  ? 'bg-green-500'
+                  : color.replace('text-', 'bg-')
+              } opacity-80 ${isOverTarget ? 'animate-pulse' : ''}`}
             />
           </div>
           {data.target && (
-            <p className="text-gray-500 text-xs">
-              Meta: {formatValue(data.target, data.format)}
+            <p className="text-gray-500 text-xs flex justify-between">
+              <span>Meta: {formatValue(data.target, data.format)}</span>
+              {isOverTarget && (
+                <span className="text-green-400 text-xs">¡Meta superada!</span>
+              )}
             </p>
           )}
         </div>
@@ -132,12 +144,25 @@ const MetricCard = ({ title, icon: Icon, data, color, subtitle, delay = 0 }: Met
 };
 
 export default function AdvancedMetrics({ data }: Readonly<AdvancedMetricsProps>) {
+  // 🔍 DEBUG: Log para verificar datos recibidos
+  console.log('📊 AdvancedMetrics - Datos recibidos:', data);
+  console.log('📊 AdvancedMetrics - Targets disponibles:', {
+    totalRevenue: data?.totalRevenue?.target,
+    totalClients: data?.totalClients?.target,
+    avgTicket: data?.avgTicket?.target,
+    totalTransactions: data?.totalTransactions?.target,
+    clientRetention: data?.clientRetention?.target,
+    conversionRate: data?.conversionRate?.target,
+    topClientValue: data?.topClientValue?.target,
+    activeClients: data?.activeClients?.target,
+  });
+
   // Valores por defecto si data es undefined - con targets para mostrar barras de progreso
-  const defaultMetricValue: MetricData = { 
-    current: 0, 
-    previous: 0, 
+  const defaultMetricValue: MetricData = {
+    current: 0,
+    previous: 0,
     target: 100, // Target por defecto para mostrar progreso
-    format: 'number' 
+    format: 'number'
   };
 
   // Si no hay datos de la API, usar datos simulados basados en los logs del terminal
@@ -192,12 +217,15 @@ export default function AdvancedMetrics({ data }: Readonly<AdvancedMetricsProps>
     }
   };
   
+  // Usar datos reales si están disponibles, sino usar simulados
+  const actualData = data || simulatedData;
+
   const metrics = [
     {
       title: 'Ingresos Totales',
       subtitle: 'Período seleccionado',
       icon: DollarSign,
-      data: simulatedData?.totalRevenue || defaultMetricValue,
+      data: actualData?.totalRevenue || defaultMetricValue,
       color: 'text-green-400',
       delay: 0
     },
@@ -205,7 +233,7 @@ export default function AdvancedMetrics({ data }: Readonly<AdvancedMetricsProps>
       title: 'Total Clientes',
       subtitle: 'Base de datos',
       icon: Users,
-      data: simulatedData?.totalClients || defaultMetricValue,
+      data: actualData?.totalClients || defaultMetricValue,
       color: 'text-blue-400',
       delay: 0.1
     },
@@ -213,7 +241,7 @@ export default function AdvancedMetrics({ data }: Readonly<AdvancedMetricsProps>
       title: 'Ticket Promedio',
       subtitle: 'Por transacción',
       icon: Target,
-      data: simulatedData?.avgTicket || defaultMetricValue,
+      data: actualData?.avgTicket || defaultMetricValue,
       color: 'text-purple-400',
       delay: 0.2
     },
@@ -221,7 +249,7 @@ export default function AdvancedMetrics({ data }: Readonly<AdvancedMetricsProps>
       title: 'Transacciones',
       subtitle: 'Período actual',
       icon: ShoppingCart,
-      data: simulatedData?.totalTransactions || defaultMetricValue,
+      data: actualData?.totalTransactions || defaultMetricValue,
       color: 'text-cyan-400',
       delay: 0.3
     },
@@ -229,7 +257,7 @@ export default function AdvancedMetrics({ data }: Readonly<AdvancedMetricsProps>
       title: 'Retención Clientes',
       subtitle: 'Clientes recurrentes',
       icon: Activity,
-      data: simulatedData?.clientRetention || defaultMetricValue,
+      data: actualData?.clientRetention || defaultMetricValue,
       color: 'text-orange-400',
       delay: 0.4
     },
@@ -237,7 +265,7 @@ export default function AdvancedMetrics({ data }: Readonly<AdvancedMetricsProps>
       title: 'Tasa Conversión',
       subtitle: 'Visitas vs compras',
       icon: TrendingUp,
-      data: simulatedData?.conversionRate || defaultMetricValue,
+      data: actualData?.conversionRate || defaultMetricValue,
       color: 'text-yellow-400',
       delay: 0.5
     },
@@ -245,7 +273,7 @@ export default function AdvancedMetrics({ data }: Readonly<AdvancedMetricsProps>
       title: 'Cliente Top',
       subtitle: 'Mayor gastador',
       icon: Crown,
-      data: simulatedData?.topClientValue || defaultMetricValue,
+      data: actualData?.topClientValue || defaultMetricValue,
       color: 'text-pink-400',
       delay: 0.6
     },
@@ -253,7 +281,7 @@ export default function AdvancedMetrics({ data }: Readonly<AdvancedMetricsProps>
       title: 'Clientes Activos',
       subtitle: 'Últimos 30 días',
       icon: Users,
-      data: simulatedData?.activeClients || defaultMetricValue,
+      data: actualData?.activeClients || defaultMetricValue,
       color: 'text-indigo-400',
       delay: 0.7
     }

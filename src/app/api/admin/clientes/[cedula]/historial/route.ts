@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { ProductoHistorial, EstadisticasMensual } from '../../../../../../types/api-routes';
+import { EstadisticasMensual } from '../../../../../../types/api-routes';
 
 const prisma = new PrismaClient();
 
@@ -33,6 +33,7 @@ export async function GET(
     const cliente = await prisma.cliente.findUnique({
       where: { cedula },
       include: {
+        tarjetaLealtad: true, // ✨ Agregar información de tarjeta de lealtad
         consumos: {
           include: {
             empleado: {
@@ -78,17 +79,29 @@ export async function GET(
     // Productos más consumidos
     const productosConsumidos = cliente.consumos.reduce(
       (acc, consumo) => {
-        if (Array.isArray(consumo.productos)) {
-          (consumo.productos as unknown as ProductoHistorial[]).forEach((producto: ProductoHistorial) => {
-            const nombre = producto.nombre || 'Producto sin nombre';
-            const cantidad = producto.cantidad || 1;
-
-            if (!acc[nombre]) {
-              acc[nombre] = 0;
-            }
-            acc[nombre] += cantidad;
-          });
+        // ✨ Extraer productos del objeto anidado
+        let productos = [];
+        if (consumo.productos && typeof consumo.productos === 'object') {
+          // Si productos tiene estructura { items: [...] }
+          if ((consumo.productos as any).items && Array.isArray((consumo.productos as any).items)) {
+            productos = (consumo.productos as any).items;
+          }
+          // Si productos es directamente un array (legacy)
+          else if (Array.isArray(consumo.productos)) {
+            productos = consumo.productos;
+          }
         }
+
+        productos.forEach((producto: any) => {
+          const nombre = producto.nombre || producto.name || 'Producto sin nombre';
+          const cantidad = producto.cantidad || 1;
+
+          if (!acc[nombre]) {
+            acc[nombre] = 0;
+          }
+          acc[nombre] += cantidad;
+        });
+        
         return acc;
       },
       {} as Record<string, number>
@@ -101,18 +114,33 @@ export async function GET(
       .map(([nombre, cantidad]) => ({ nombre, cantidad }));
 
     // Historial formateado
-    const historial = cliente.consumos.map(consumo => ({
-      id: consumo.id,
-      fecha: consumo.registeredAt,
-      total: consumo.total,
-      puntos: consumo.puntos,
-      empleado: consumo.empleado.name || 'Staff',
-      ubicacion: consumo.location?.name || 'Ubicación principal',
-      tipo: consumo.ocrText?.startsWith('MANUAL:') ? 'MANUAL' : 'OCR',
-      productos: Array.isArray(consumo.productos) ? consumo.productos : [],
-      pagado: consumo.pagado,
-      metodoPago: consumo.metodoPago,
-    }));
+    const historial = cliente.consumos.map(consumo => {
+      // ✨ Extraer productos del objeto anidado usando la misma lógica
+      let productos = [];
+      if (consumo.productos && typeof consumo.productos === 'object') {
+        // Si productos tiene estructura { items: [...] }
+        if ((consumo.productos as any).items && Array.isArray((consumo.productos as any).items)) {
+          productos = (consumo.productos as any).items;
+        }
+        // Si productos es directamente un array (legacy)
+        else if (Array.isArray(consumo.productos)) {
+          productos = consumo.productos;
+        }
+      }
+
+      return {
+        id: consumo.id,
+        fecha: consumo.registeredAt,
+        total: consumo.total,
+        puntos: consumo.puntos,
+        empleado: consumo.empleado.name || 'Staff',
+        ubicacion: consumo.location?.name || 'Ubicación principal',
+        tipo: consumo.ocrText?.startsWith('MANUAL:') ? 'MANUAL' : 'OCR',
+        productos: productos,
+        pagado: consumo.pagado,
+        metodoPago: consumo.metodoPago,
+      };
+    });
 
     // Estadísticas por mes (últimos 6 meses)
     const seiseMesesAtras = new Date();
@@ -148,6 +176,14 @@ export async function GET(
         defaultCount: cliente.defaultCount,
         riskLevel: cliente.riskLevel,
         registeredAt: cliente.registeredAt,
+        // ✨ Agregar información de tarjeta de lealtad
+        tarjetaLealtad: cliente.tarjetaLealtad ? {
+          id: cliente.tarjetaLealtad.id,
+          nivel: cliente.tarjetaLealtad.nivel,
+          fechaAsignacion: cliente.tarjetaLealtad.fechaAsignacion,
+          asignacionManual: cliente.tarjetaLealtad.asignacionManual,
+          activa: cliente.tarjetaLealtad.activa,
+        } : null,
       },
       estadisticas: {
         totalConsumos,
