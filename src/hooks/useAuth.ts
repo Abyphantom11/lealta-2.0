@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { validateBusinessForRedirect, handleRoleRedirect } from '@/utils/redirect-helpers';
 
 export type UserRole = 'SUPERADMIN' | 'ADMIN' | 'STAFF';
 
@@ -32,20 +33,35 @@ export function useAuth(requiredRole?: UserRole) {
   const router = useRouter();
 
   useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const response = await fetch('/api/auth/me');
+    const checkAuth = async () => {
+      console.log('🔐 useAuth: Iniciando verificación de autenticación');
+      
+      try {
+        const response = await fetch('/api/auth/me');
+      
+      console.log('🔐 useAuth: Respuesta recibida:', {
+        status: response.status,
+        ok: response.ok
+      });
 
       if (response.ok) {
         const userData = await response.json();
+        
+        console.log('🔐 useAuth: Datos de usuario:', {
+          userId: userData.user?.id,
+          role: userData.user?.role,
+          businessId: userData.user?.businessId,
+          businessSlug: userData.user?.business?.slug,
+          requiredRole
+        });
 
         // Verificar rol requerido
         if (requiredRole && userData.user.role !== requiredRole) {
+          console.log('🔐 useAuth: Rol no coincide - verificando SUPERADMIN');
+          
           // SUPERADMIN puede acceder a cualquier dashboard
           if (userData.user.role === 'SUPERADMIN') {
+            console.log('✅ useAuth: Usuario es SUPERADMIN - acceso permitido');
             setAuthState({
               user: userData.user,
               loading: false,
@@ -54,27 +70,36 @@ export function useAuth(requiredRole?: UserRole) {
             return;
           }
 
-          // Para otros roles, redirigir al dashboard apropiado
-          const roleRedirect: Record<string, string> = {
-            ADMIN: '/admin',
-            STAFF: '/staff',
-          };
+          console.log('❌ useAuth: Usuario no es SUPERADMIN - redirigiendo');
+          
+          // ✅ Usar helper centralizado para redirecciones
+          if (!validateBusinessForRedirect(userData.user.business)) {
+            console.error('❌ useAuth: Business inválido para redirección');
+            router.push('/login');
+            return;
+          }
 
-          router.push(roleRedirect[userData.user.role] || '/login');
+          handleRoleRedirect(
+            userData.user,
+            router,
+            window.location.pathname
+          );
           return;
         }
 
+        console.log('✅ useAuth: Autenticación exitosa');
         setAuthState({
           user: userData.user,
           loading: false,
           error: null,
         });
       } else {
+        console.log('❌ useAuth: No autenticado - redirigiendo a login');
         // No autenticado, redirigir a login
         router.push('/login');
       }
     } catch (error) {
-      console.error('Auth check error:', error);
+      console.error('💥 useAuth: Error durante verificación:', error);
       setAuthState({
         user: null,
         loading: false,
@@ -82,6 +107,13 @@ export function useAuth(requiredRole?: UserRole) {
       });
       router.push('/login');
     }
+    };
+
+    checkAuth();
+  }, [requiredRole, router]);
+
+  const checkAuth = async () => {
+    // La implementación ya está en el useEffect
   };
 
   const logout = async () => {
@@ -162,13 +194,26 @@ export function useAuth(requiredRole?: UserRole) {
 export function useRequireAuth(requiredRole?: UserRole) {
   const auth = useAuth(requiredRole);
 
+  console.log('🔒 useRequireAuth: Estado actual:', {
+    loading: auth.loading,
+    hasUser: !!auth.user,
+    userRole: auth.user?.role,
+    requiredRole,
+    error: auth.error
+  });
+
   // Mostrar loading mientras se verifica
   if (auth.loading) {
+    console.log('⏳ useRequireAuth: Mostrando loading');
     return {
       ...auth,
       isAuthenticated: false,
     };
   }
+
+  console.log('🔓 useRequireAuth: Autenticación completada:', {
+    isAuthenticated: !!auth.user
+  });
 
   // Si no hay usuario, el hook ya redirigió
   return {

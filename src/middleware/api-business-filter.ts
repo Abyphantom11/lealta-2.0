@@ -72,9 +72,10 @@ export async function validateBusinessAccess(
       }
     });
 
+    console.log('🔍 validateBusinessAccess:', { userId, businessId, found: !!user });
     return !!user;
   } catch (error) {
-    console.error('Error validating business access:', error);
+    console.error('❌ Error validating business access:', error);
     return false;
   }
 }
@@ -89,16 +90,23 @@ export async function requireBusinessContext(request: NextRequest): Promise<{
 } | null> {
   const context = getBusinessContextFromAPI(request);
   
+  console.log('🔍 requireBusinessContext context:', context);
+  
   if (!context.businessId || !context.userId) {
+    console.log('❌ requireBusinessContext: Missing businessId or userId');
     return null;
   }
 
   // Validar acceso
   const hasAccess = await validateBusinessAccess(context.userId, context.businessId);
+  console.log('🔍 requireBusinessContext hasAccess:', hasAccess);
+  
   if (!hasAccess) {
+    console.log('❌ requireBusinessContext: Access denied');
     return null;
   }
 
+  console.log('✅ requireBusinessContext: Success');
   return {
     businessId: context.businessId,
     userId: context.userId,

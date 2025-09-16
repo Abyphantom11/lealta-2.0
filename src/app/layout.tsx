@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { ElectronProvider } from '../components/ElectronProvider';
 import NotificationContainer from '@/components/ui/NotificationContainer';
+import RedirectInterceptor from '../components/RedirectInterceptor';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: 'lealta 2.0',
     // startupImage: '/icons/icon-512x512.png',
   },
@@ -27,6 +28,7 @@ export const metadata: Metadata = {
   other: {
     'mobile-web-app-capable': 'yes',
     'apple-mobile-web-app-status-bar-style': 'black-translucent',
+    'theme-color': '#0f172a',
   },
 };
 
@@ -42,9 +44,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
+      <head>
+        <meta name="theme-color" content="#0f172a" />
+        <meta name="msapplication-navbutton-color" content="#0f172a" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+      </head>
       <body className={inter.className}>
         <ElectronProvider>
-          <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-800">
+          <RedirectInterceptor />
+          <div className="min-h-screen bg-gradient-to-br from-slate-950 via-gray-950 to-black">
             {children}
             <NotificationContainer />
           </div>

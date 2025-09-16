@@ -150,13 +150,15 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
   useEffect(() => {
     const currentPath = window.location.pathname;
 
-    // Si estamos en ruta legacy sin business context, redirigir
+    // Si estamos en ruta legacy sin business context, redirigir a login
     if (currentPath === '/staff' || (currentPath.startsWith('/staff/') && !currentPath.includes('/cafedani/') && !currentPath.includes('/arepa/'))) {
-      console.log('🚫 Staff: Ruta legacy detectada, redirigiendo automáticamente');
+      console.log('🚫 Staff: Ruta legacy detectada, redirigiendo a login');
 
-      // Para staff, hacer redirect inteligente
-      const redirectUrl = '/business-selection?blocked_route=' + encodeURIComponent(currentPath) + '&reason=legacy-staff-redirect';
-      window.location.href = redirectUrl;
+      // Redirigir a login con mensaje de error
+      const redirectUrl = new URL('/login', window.location.origin);
+      redirectUrl.searchParams.set('error', 'access-denied');
+      redirectUrl.searchParams.set('message', 'Staff requiere contexto de business válido');
+      window.location.href = redirectUrl.toString();
     }
   }, []);
 
@@ -1613,7 +1615,8 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
             <div className="flex items-center space-x-4">
               <RoleSwitch
                 currentRole={user?.role || 'STAFF'}
-                currentPath="/staff"
+                currentPath={`/${businessId}/staff`}
+                businessId={businessId}
               />
               <div className="flex items-center space-x-3 bg-dark-800/50 px-4 py-2 rounded-lg">
                 <User className="w-5 h-5 text-primary-400" />
@@ -2732,14 +2735,14 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                     type="tel"
                     value={registerData.telefono}
                     onChange={e => {
-                      // Solo permitir números
-                      const value = e.target.value.replace(/\D/g, '');
+                      // Solo permitir números y algunos símbolos comunes de teléfono
+                      const value = e.target.value.replace(/[^0-9+\-() ]/g, '');
                       setRegisterData({...registerData, telefono: value});
                     }}
                     placeholder="Ej: 09XXXXXXXX"
                     className="w-full p-3 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-dark-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
-                    maxLength={10}
+                    maxLength={15}
                   />
                 </div>
 

@@ -133,19 +133,21 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
   useEffect(() => {
     const currentPath = window.location.pathname;
     
-    // Si estamos en ruta legacy sin business context, redirigir
-    if (currentPath === '/superadmin' || currentPath.startsWith('/superadmin/')) {
-      console.log('🚫 SuperAdmin: Ruta legacy detectada, redirigiendo a business-selection');
+    // Solo bloquear rutas legacy exactas sin contexto de business
+    // Rutas válidas: /[businessSlug]/superadmin
+    // Rutas bloqueadas: /superadmin, /superadmin/, /superadmin/[cualquier-cosa]
+    if (currentPath === '/superadmin' || currentPath === '/superadmin/' || 
+        (currentPath.startsWith('/superadmin/') && !businessId)) {
+      console.log('🚫 SuperAdmin: Ruta legacy detectada, redirigiendo a login');
       
-      const redirectUrl = new URL('/business-selection', window.location.origin);
-      redirectUrl.searchParams.set('blocked_route', currentPath);
-      redirectUrl.searchParams.set('reason', 'legacy-superadmin-blocked');
-      redirectUrl.searchParams.set('message', 'SuperAdmin requiere contexto de business');
+      const redirectUrl = new URL('/login', window.location.origin);
+      redirectUrl.searchParams.set('error', 'access-denied');
+      redirectUrl.searchParams.set('message', 'SuperAdmin requiere contexto de business válido');
       
       window.location.href = redirectUrl.toString();
       return;
     }
-  }, []);
+  }, [businessId]);
 
   const { user, loading, logout, isAuthenticated } =
     useRequireAuth('SUPERADMIN');
@@ -796,7 +798,8 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
               </div>
               <RoleSwitch
                 currentRole={user?.role || 'SUPERADMIN'}
-                currentPath="/superadmin"
+                currentPath={businessId ? `/${businessId}/superadmin` : '/superadmin'}
+                businessId={businessId}
               />
               <div className="px-4 py-2 bg-green-500/10 text-green-400 rounded-xl border border-green-500/20 backdrop-blur-sm">
                 <span className="text-sm font-medium">Sistema Operativo</span>

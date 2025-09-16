@@ -13,8 +13,8 @@ export default function ClienteV2Page() {
     if (currentPath === '/cliente' || (currentPath.startsWith('/cliente/') && !currentPath.includes('/cafedani/') && !currentPath.includes('/arepa/'))) {
       console.log('🚫 Cliente: Ruta legacy detectada, redirigiendo automáticamente');
       
-      // Para cliente, hacer redirect inteligente
-      const redirectUrl = '/business-selection?blocked_route=' + encodeURIComponent(currentPath) + '&reason=legacy-cliente-redirect';
+      // Para cliente, hacer redirect al login
+      const redirectUrl = '/login?error=no-business&message=Acceso incorrecto. Inicia sesión para continuar.';
       window.location.href = redirectUrl;
       return;
     }

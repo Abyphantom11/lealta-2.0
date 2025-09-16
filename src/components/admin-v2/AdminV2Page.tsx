@@ -39,7 +39,7 @@ const validateBusinessAccess = async (businessId: string) => {
     }
   } catch (error) {
     console.error('Error validating business access:', error);
-    window.location.href = '/business-selection?error=invalid-business';
+    window.location.href = '/login?error=invalid-business&message=El negocio no es válido o no tienes acceso';
   }
 };
 
@@ -104,9 +104,9 @@ export default function AdminV2Page({ businessId }: AdminV2PageProps = {}) {
     
     // Si no tenemos businessId y estamos en ruta legacy, redirigir
     if (!currentBusinessId && (currentPath === '/admin' || (currentPath.startsWith('/admin/') && !currentPath.includes('/business')))) {
-      console.log('🚫 Admin: Sin business context, redirigiendo a business selection');
+      console.log('🚫 Admin: Sin business context, redirigiendo a login');
       
-      const redirectUrl = '/business-selection?blocked_route=' + encodeURIComponent(currentPath) + '&reason=no-business-context';
+      const redirectUrl = '/login?error=no-business&message=No se pudo determinar el negocio. Inicia sesión nuevamente.';
       window.location.href = redirectUrl;
       return;
     }
@@ -234,7 +234,8 @@ export default function AdminV2Page({ businessId }: AdminV2PageProps = {}) {
               </div>
               <RoleSwitch
                 currentRole={user?.role || 'ADMIN'}
-                currentPath="/admin"
+                currentPath={businessId ? `/${businessId}/admin` : '/admin'}
+                businessId={businessId}
               />
               <button
                 onClick={logout}

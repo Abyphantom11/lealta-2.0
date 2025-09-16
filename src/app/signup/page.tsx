@@ -280,11 +280,14 @@ export default function SignupPage() {
                 <input
                   type="tel"
                   className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  placeholder="+1234567890"
+                  placeholder="09xxxxxxxx"
                   value={formData.contactPhone}
-                  onChange={e =>
-                    setFormData({ ...formData, contactPhone: e.target.value })
-                  }
+                  onChange={e => {
+                    // Solo permitir números y algunos caracteres especiales como +, -, (, ), espacios
+                    const phoneValue = e.target.value.replace(/[^0-9+\-() ]/g, '');
+                    setFormData({ ...formData, contactPhone: phoneValue });
+                  }}
+                  maxLength={15}
                 />
               </div>
             </div>

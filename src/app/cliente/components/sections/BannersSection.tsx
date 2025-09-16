@@ -16,7 +16,11 @@ interface Banner {
   horaPublicacion?: string;
 }
 
-export default function BannersSection() {
+interface BannersProps {
+  businessId?: string;
+}
+
+export default function BannersSection({ businessId }: BannersProps) {
   const [banners, setBanners] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(true);
@@ -42,8 +46,10 @@ export default function BannersSection() {
   // Definimos fetchBanners ANTES de usarlo en useEffect
   const fetchBanners = useCallback(async () => {
     try {
+      // Usar businessId si está disponible, sino usar 'default'
+      const configBusinessId = businessId || 'default';
       const response = await fetch(
-        '/api/admin/portal-config?businessId=default&t=' + new Date().getTime(),
+        `/api/admin/portal-config?businessId=${configBusinessId}&t=` + new Date().getTime(),
         {
           cache: 'no-store',
           headers: {
@@ -109,7 +115,7 @@ export default function BannersSection() {
     } finally {
       setIsLoading(false);
     }
-  }, [diaActual, simulatedDay]);
+  }, [diaActual, simulatedDay, businessId]);
 
   // Verificar si hay un día simulado configurado desde el administrador
   useEffect(() => {
@@ -207,7 +213,8 @@ export default function BannersSection() {
     fetchBanners();
 
     // Polling simple cada 5 segundos
-    const interval = setInterval(fetchBanners, 5000);
+    // Polling optimizado: cada 30 segundos para banners
+    const interval = setInterval(fetchBanners, 30000);
 
     return () => {
       clearInterval(interval);

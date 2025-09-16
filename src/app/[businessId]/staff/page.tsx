@@ -37,12 +37,12 @@ export default function BusinessStaffPage() {
           setIsValidBusiness(true);
         } else {
           console.log(`❌ Business validation failed for staff: ${businessId}`);
-          window.location.href = `/business-selection?error=invalid-business&businessId=${businessId}`;
+          window.location.href = `/login?error=invalid-business&message=El negocio no es válido o no existe`;
         }
       } catch (error) {
         console.error('Error validating business for staff:', error);
         setIsValidBusiness(false);
-        window.location.href = '/business-selection?error=validation-error';
+        window.location.href = '/login?error=validation-error&message=Error validando el negocio';
       } finally {
         setIsLoading(false);
       }
@@ -87,10 +87,10 @@ export default function BusinessStaffPage() {
           No tienes acceso de staff al negocio &quot;{businessId}&quot;.
         </p>
         <button
-          onClick={() => (window.location.href = '/business-selection')}
+          onClick={() => (window.location.href = '/login?error=access-denied&message=No tienes acceso de staff a este negocio')}
           className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
         >
-          Seleccionar Negocio
+          Volver al Login
         </button>
       </div>
     </div>

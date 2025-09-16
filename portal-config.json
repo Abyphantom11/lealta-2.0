@@ -19,7 +19,7 @@
       "location": "Centro Comercial Plaza Norte",
       "startDate": "2024-06-01T18:00:00.000Z",
       "endDate": "2024-06-01T22:00:00.000Z",
-      "imageUrl": "/api/placeholder/600/300",
+      "imageUrl": "",
       "isActive": true,
       "maxAttendees": 200,
       "currentAttendees": 0,
@@ -34,7 +34,7 @@
       "description": "Canjea 500 puntos por un producto de tu eleccion",
       "pointsCost": 500,
       "category": "productos",
-      "imageUrl": "/api/placeholder/300/300",
+      "imageUrl": "",
       "isActive": true,
       "stock": 50,
       "availableFrom": "2024-01-01T00:00:00.000Z",
@@ -48,7 +48,7 @@
       "id": "fav-1",
       "title": "Cafe Premium",
       "description": "Nuestro cafe de especialidad mas popular",
-      "imageUrl": "/api/placeholder/400/300",
+      "imageUrl": "",
       "category": "bebidas",
       "price": 12.99,
       "isActive": true,
@@ -58,7 +58,7 @@
     }
   ],
   "settings": {
-    "lastUpdated": "2025-09-15T00:00:08.021Z",
+    "lastUpdated": "2025-09-16T06:13:03.674Z",
     "version": "1.0.0"
   },
   "favoritoDelDia": [
@@ -72,44 +72,8 @@
       "activo": true
     }
   ],
-  "promociones": [
-    {
-      "dia": "lunes",
-      "titulo": "asdadad",
-      "descripcion": "asdadad",
-      "descuento": 0,
-      "horaTermino": "04:00",
-      "activo": true,
-      "id": "promociones_1757791148008"
-    },
-    {
-      "dia": "sabado",
-      "titulo": "asdada",
-      "descripcion": "asdad",
-      "descuento": 0,
-      "horaTermino": "04:00",
-      "activo": true,
-      "id": "promociones_1757791161838"
-    },
-    {
-      "dia": "sabado",
-      "titulo": "asdadad",
-      "descripcion": "adaddad",
-      "descuento": 9,
-      "horaTermino": "04:00",
-      "activo": true,
-      "id": "promociones_1757791180279"
-    }
-  ],
-  "recompensas": [
-    {
-      "nombre": "dsadad",
-      "descripcion": "asdada",
-      "puntosRequeridos": 200,
-      "id": "recompensas_1757791370741",
-      "activo": true
-    }
-  ],
+  "promociones": [],
+  "recompensas": [],
   "tarjetas": [
     {
       "nivel": "Bronce",

@@ -31,6 +31,7 @@ interface DashboardProps {
   oldLevel: string;
   newLevel: string;
   portalConfig: any;
+  businessId?: string; // Agregar businessId prop
   onMenuOpen?: () => void;
   handleLogout?: () => void;
   refreshClienteData?: () => void;
@@ -153,6 +154,7 @@ export const Dashboard = ({
   loadMenuCategories = () => {},
   cedula,
   portalConfig,
+  businessId, // Agregar businessId
   handleLogout: externalHandleLogout,
   onMenuOpen,
   refreshClienteData, // eslint-disable-line @typescript-eslint/no-unused-vars
@@ -264,13 +266,13 @@ export const Dashboard = ({
           </motion.div>
         </div>
         {/* Banners Section - Editable desde Admin */}
-        <BannersSection />
+        <BannersSection businessId={businessId} />
         {/* Promociones Section - Editable desde Admin */}
-        <PromocionesSection />
+        <PromocionesSection businessId={businessId} />
         {/* Favorito del día Section - Editable desde Admin */}
-        <FavoritoDelDiaSection />
+        <FavoritoDelDiaSection businessId={businessId} />
         {/* Recompensas - Editable desde Admin */}
-        <RecompensasSection />
+        <RecompensasSection businessId={businessId} />
       </div>
       {/* Modal de tarjeta de fidelidad */}
       <AnimatePresence>

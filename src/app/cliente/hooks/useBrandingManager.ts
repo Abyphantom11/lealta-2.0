@@ -36,17 +36,8 @@ export const useBrandingManager = () => {
 
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
-  // Imágenes del carrusel - EXTRAÍDO DEL ORIGINAL
-  const carouselImages = brandingConfig.carouselImages?.length > 0 
-    ? brandingConfig.carouselImages 
-    : [
-        'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=250&fit=crop',
-        'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&h=250&fit=crop',
-        'https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=250&fit=crop',
-        'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=400&h=250&fit=crop',
-        'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400&h=250&fit=crop',
-        'https://images.unsplash.com/photo-1565299507177-b0ac66763828?w=400&h=250&fit=crop'
-      ];
+  // Imágenes del carrusel - sin fallback, solo las configuradas por el admin
+  const carouselImages = brandingConfig.carouselImages || [];
 
   // Función auxiliar para manejar fallback de localStorage - EXTRAÍDA DEL ORIGINAL
   const handleLocalStorageFallback = () => {

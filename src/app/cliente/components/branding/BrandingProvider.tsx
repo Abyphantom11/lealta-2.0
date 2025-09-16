@@ -31,30 +31,14 @@ export const useBranding = () => {
 // Props del provider
 interface BrandingProviderProps {
   children: ReactNode;
+  businessId?: string; // Nuevo prop para business context
 }
 
 // Provider del contexto
-export const BrandingProvider = ({ children }: BrandingProviderProps) => {
+export const BrandingProvider = ({ children, businessId }: BrandingProviderProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [brandingConfig, setBrandingConfig] = useState<BrandingConfig>(() => {
-    // Intentar cargar desde localStorage primero para evitar el flash
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('portalBranding');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          return {
-            businessName: parsed.businessName || 'LEALTA',
-            primaryColor: parsed.primaryColor || '#2563EB',
-            secondaryColor: parsed.secondaryColor || '#7C3AED',
-            carouselImages: [] as string[] // Las imágenes se cargarán después desde la API
-          };
-        }
-      } catch (error) {
-        console.warn('Error al cargar branding inicial desde localStorage:', error);
-      }
-    }
-    // Fallback por defecto
+    // Valores por defecto limpios sin localStorage para evitar contaminación
     return {
       businessName: 'LEALTA',
       primaryColor: '#2563EB',
@@ -63,77 +47,154 @@ export const BrandingProvider = ({ children }: BrandingProviderProps) => {
     };
   });
 
-  // Carrusel con fallback
-  const carouselImages = useMemo(() => {
-    return brandingConfig.carouselImages?.length > 0 
-      ? brandingConfig.carouselImages 
-      : [
-          'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=250&fit=crop',
-          'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&h=250&fit=crop',
-          'https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=250&fit=crop',
-          'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=400&h=250&fit=crop',
-          'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400&h=250&fit=crop',
-          'https://images.unsplash.com/photo-1565299507177-b0ac66763828?w=400&h=250&fit=crop'
-        ];
-  }, [brandingConfig.carouselImages]);
+  // Función para limpiar localStorage contaminado
+  const cleanContaminatedStorage = useCallback(() => {
+    try {
+      // Limpiar claves de branding contaminadas
+      const keysToCheck = ['portalBranding', 'portalBranding_arepa', 'portalBranding_cafedani'];
+      keysToCheck.forEach(key => {
+        const data = localStorage.getItem(key);
+        if (data) {
+          try {
+            const parsed = JSON.parse(data);
+            // Si contiene datos de prueba como "Holi", limpiar
+            if (parsed.businessName === 'Holi' || parsed.businessName === 'holi') {
+              console.log(`🧹 Limpiando localStorage contaminado: ${key}`);
+              localStorage.removeItem(key);
+            }
+          } catch {
+            // Si no se puede parsear, eliminar
+            localStorage.removeItem(key);
+          }
+        }
+      });
 
-  // Función auxiliar para manejar fallback de localStorage
-  const handleLocalStorageFallback = useCallback(() => {
-    const savedBranding = localStorage.getItem('portalBranding');
-    if (savedBranding) {
-      try {
-        const parsed = JSON.parse(savedBranding);
-        setBrandingConfig(prev => ({
-          ...prev,
-          ...parsed
-        }));
-      } catch (parseError) {
-        console.warn('Error parsing localStorage branding, usando configuración por defecto:', parseError);
-      }
+      // Limpiar configuración de portal contaminada
+      const portalKeys = [
+        'portalConfig', 
+        'portalConfig_default', 
+        'portalConfig_arepa',
+        ...(businessId ? [`portalConfig_${businessId}`] : [])
+      ];
+      portalKeys.forEach(key => {
+        const data = localStorage.getItem(key);
+        if (data) {
+          try {
+            const parsed = JSON.parse(data);
+            // Verificar si hay promociones con datos de prueba "asdadad"
+            if (parsed.promociones && Array.isArray(parsed.promociones)) {
+              const hasContaminatedPromos = parsed.promociones.some((promo: any) => 
+                promo.titulo?.includes('asdadad') || promo.descripcion?.includes('asdadad')
+              );
+              if (hasContaminatedPromos) {
+                console.log(`🧹 Limpiando portal config contaminado: ${key}`);
+                localStorage.removeItem(key);
+              }
+            }
+            // Verificar si hay recompensas contaminadas con "fsfsfsf"
+            if (parsed.recompensas && Array.isArray(parsed.recompensas)) {
+              const hasContaminatedRewards = parsed.recompensas.some((reward: any) => 
+                reward.nombre?.includes('fsfsfsf') || reward.descripcion?.includes('fdsfsfsd')
+              );
+              if (hasContaminatedRewards) {
+                console.log(`🧹 Limpiando recompensas contaminadas: ${key}`);
+                localStorage.removeItem(key);
+              }
+            }
+          } catch {
+            // Si no se puede parsear, eliminar
+            localStorage.removeItem(key);
+          }
+        }
+      });
+    } catch (error) {
+      console.warn('Error limpiando localStorage:', error);
     }
-  }, []);
+  }, [businessId]);
+
+  // Carrusel sin imágenes fallback - solo usar las configuradas por el admin
+  const carouselImages = useMemo(() => {
+    return brandingConfig.carouselImages || [];
+  }, [brandingConfig.carouselImages]);
 
   // Función para cargar branding desde la API
   const loadBranding = useCallback(async () => {
+    // Función para validar color hexadecimal
+    const isValidHexColor = (color: string): boolean => {
+      return typeof color === 'string' && /^#[0-9A-Fa-f]{6}$/.test(color);
+    };
+
+    // Función para limpiar y validar datos de branding
+    const cleanBrandingData = (branding: any): BrandingConfig => {
+      return {
+        businessName: branding.businessName?.trim() || 'LEALTA',
+        primaryColor: isValidHexColor(branding.primaryColor) ? branding.primaryColor : '#2563EB',
+        secondaryColor: isValidHexColor(branding.secondaryColor) ? branding.secondaryColor : '#7C3AED',
+        carouselImages: Array.isArray(branding.carouselImages) ? branding.carouselImages : []
+      };
+    };
+
     try {
       const response = await fetch('/api/branding', {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         cache: 'no-cache'
       });
       
       if (response.ok) {
         const branding = await response.json();
-        console.log('Cliente: Branding cargado desde API:', branding.carouselImages?.length || 0, 'imágenes');
-        setBrandingConfig(branding);
+        console.log(`Cliente: Branding cargado desde API para ${businessId || 'default'}:`, branding.carouselImages?.length || 0, 'imágenes');
         
-        // Guardar versión ligera en localStorage como backup
-        try {
-          const lightConfig = {
-            ...branding,
-            carouselImages: branding.carouselImages?.length || 0 // Solo guardar la cantidad
-          };
-          localStorage.setItem('portalBranding', JSON.stringify(lightConfig));
-        } catch (storageError) {
-          console.warn('No se pudo guardar branding en localStorage del cliente:', storageError);
+        const cleanBranding = cleanBrandingData(branding);
+        setBrandingConfig(cleanBranding);
+        
+        // Solo guardar en localStorage si los datos no son por defecto
+        const isDefaultData = cleanBranding.businessName === 'LEALTA' && 
+                              cleanBranding.primaryColor === '#2563EB' && 
+                              cleanBranding.carouselImages.length === 0;
+        
+        if (!isDefaultData) {
+          try {
+            const storageKey = businessId ? `portalBranding_${businessId}` : 'portalBranding';
+            const lightConfig = {
+              ...cleanBranding,
+              carouselImages: cleanBranding.carouselImages?.length || 0
+            };
+            localStorage.setItem(storageKey, JSON.stringify(lightConfig));
+          } catch (storageError) {
+            console.warn('No se pudo guardar branding en localStorage:', storageError);
+          }
         }
       } else {
-        handleLocalStorageFallback();
+        console.log('API branding no disponible, usando valores por defecto');
+        setBrandingConfig({
+          businessName: 'LEALTA',
+          primaryColor: '#2563EB',
+          secondaryColor: '#7C3AED',
+          carouselImages: []
+        });
       }
     } catch (error) {
-      console.warn('API branding no disponible, usando localStorage como fallback:', error);
-      handleLocalStorageFallback();
+      console.warn('Error cargando branding, usando valores por defecto:', error);
+      setBrandingConfig({
+        businessName: 'LEALTA',
+        primaryColor: '#2563EB',
+        secondaryColor: '#7C3AED',
+        carouselImages: []
+      });
     }
-  }, [handleLocalStorageFallback]);
+  }, [businessId]);
 
   // Cargar branding al montar el componente
   useEffect(() => {
+    // Limpiar localStorage contaminado al inicio
+    cleanContaminatedStorage();
+    
+    // Cargar branding desde API
     loadBranding();
     
-    // Polling cada 1.5 segundos para detectar cambios
-    const interval = setInterval(loadBranding, 1500);
+    // Polling cada 30 segundos para detectar cambios (reducido de 1.5s para optimizar rendimiento)
+    const interval = setInterval(loadBranding, 30000);
     
     // Escuchar cambios de localStorage
     const handleStorageChange = (e: StorageEvent) => {
@@ -162,7 +223,7 @@ export const BrandingProvider = ({ children }: BrandingProviderProps) => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('brandingUpdated', handleBrandingUpdate as EventListener);
     };
-  }, [loadBranding]);
+  }, [loadBranding, cleanContaminatedStorage]);
 
   // Quitar loading cuando se carga el branding inicial
   useEffect(() => {

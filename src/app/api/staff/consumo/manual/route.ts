@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import fs from 'fs/promises';
 import { join } from 'path';
-import { validateBusinessAccess } from '../../../../../utils/business-validation';
 
 const PORTAL_CONFIG_PATH = join(process.cwd(), 'portal-config.json');
 
@@ -101,17 +100,24 @@ function validateProducts(productos: any[]) {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔍 API Manual Consumption - TEMPORARILY NO AUTH FOR TESTING');
+    // ✅ AUTENTICACIÓN RESTAURADA - Usar middleware unificado
+    const { requireAuth } = await import('../../../../../lib/auth/unified-middleware');
+    
+    const auth = await requireAuth(request, {
+      role: 'STAFF',
+      permission: 'consumos.create',
+      allowSuperAdmin: true
+    });
 
-    // TEMPORAL: Usar valores reales de la base de datos para pruebas
-    const userId = 'cmex9vqod0001ey0cvofcnanr'; // ID real del usuario staff@lealta.com
-    const userRole = 'STAFF';
-    const businessId = validateBusinessAccess(request); // Obtener del middleware
+    if (auth.error) {
+      return auth.error;
+    }
 
-    console.log('✅ Using hardcoded auth for testing:', {
-      userId,
-      userRole,
-      businessId,
+    const { user } = auth;
+    console.log('✅ Usuario autenticado:', {
+      userId: user.id,
+      userRole: user.role,
+      businessId: user.businessId,
     });
 
     const body = await request.json();
@@ -131,9 +137,12 @@ export async function POST(request: NextRequest) {
 
     const total = parseFloat(totalManual);
 
-    // Buscar cliente
-    const cliente = await prisma.cliente.findUnique({
-      where: { cedula: cedula.toString() },
+    // Buscar cliente (filtrado por business del usuario autenticado)
+    const cliente = await prisma.cliente.findFirst({
+      where: { 
+        cedula: cedula.toString(),
+        businessId: user.businessId // ✅ Filtrar por business del usuario
+      },
     });
 
     if (!cliente) {
@@ -166,9 +175,9 @@ export async function POST(request: NextRequest) {
 
     // Crear transacción para consistencia
     const result = await prisma.$transaction(async tx => {
-      // Obtener configuración por defecto
+      // Obtener configuración por defecto  
       const { businessId, locationId } = await getDefaultIds(
-        cliente.businessId,
+        user.businessId, // ✅ Usar business del usuario autenticado
         tx
       );
 
@@ -183,7 +192,7 @@ export async function POST(request: NextRequest) {
           })),
           total: total,
           puntos: puntosGanados,
-          empleadoId: userId, // ID del usuario que registra
+          empleadoId: user.id, // ID del usuario que registra
           registeredAt: new Date(),
           ocrText: ocrText || `MANUAL: Empleado POS: ${empleadoVenta}`,
           ticketImageUrl: ticketImageUrl,

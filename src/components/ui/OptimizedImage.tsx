@@ -28,7 +28,7 @@ export default function OptimizedImage({
   className = '',
   sizes,
   priority = false,
-  fallbackSrc = '/placeholder-image.png',
+  fallbackSrc = '',
   animate = false,
 }: OptimizedImageProps) {
   const [error, setError] = useState(false);

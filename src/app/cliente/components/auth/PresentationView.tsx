@@ -11,19 +11,23 @@ export const PresentationView = ({ setStep }: PresentationViewProps) => {
 
   // Solo usar imágenes del carrusel si el admin las ha configurado
   const carouselImages = brandingConfig.carouselImages || [];
+  
+  // Si no hay imágenes configuradas, usar números del 1 al 6 como fallback
+  const fallbackNumbers = carouselImages.length === 0 ? ['1', '2', '3', '4', '5', '6'] : [];
+  const displayItems = carouselImages.length > 0 ? carouselImages : fallbackNumbers;
 
-  // Efecto para el carrusel automático - solo si hay imágenes configuradas
+  // Efecto para el carrusel automático
   useEffect(() => {
-    if (carouselImages.length === 0) return;
+    if (displayItems.length === 0) return;
 
     const interval = setInterval(() => {
       setCurrentImageIndex((prevIndex) => 
-        (prevIndex + 1) % carouselImages.length
+        (prevIndex + 1) % displayItems.length
       );
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [carouselImages.length]);
+  }, [displayItems.length]);
 
   return (
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
@@ -53,14 +57,13 @@ export const PresentationView = ({ setStep }: PresentationViewProps) => {
           Sé usuario {brandingConfig.businessName} y descubre todo lo que tenemos para ti!
         </motion.h1>
         
-        {/* Carrusel de imágenes - solo si el admin configuró imágenes */}
-        {carouselImages.length > 0 && (
-          <motion.div
-            className="mb-12 w-full max-w-sm mx-auto"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-          >
+        {/* Carrusel de imágenes o números */}
+        <motion.div
+          className="mb-12 w-full max-w-sm mx-auto"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+        >
           <div className="relative h-[200px] overflow-hidden">
             <div className="flex items-center justify-center h-full relative z-0">
               {/* Contenedor de las imágenes con desplazamiento */}
@@ -74,7 +77,7 @@ export const PresentationView = ({ setStep }: PresentationViewProps) => {
                     marginLeft: '-60px' // Centrar el track
                   }}
                 >
-                  {carouselImages.map((imageUrl: string, index: number) => {
+                  {displayItems.map((item: string, index: number) => {
                     const isCurrent = index === currentImageIndex;
                     const isAdjacent = Math.abs(index - currentImageIndex) === 1;
                     
@@ -88,18 +91,29 @@ export const PresentationView = ({ setStep }: PresentationViewProps) => {
 
                     return (
                       <div
-                        key={`carousel-image-${imageUrl}-${index}`}
-                        className={`flex-shrink-0 rounded-lg overflow-hidden mx-2 transition-all duration-500 ${sizeClass}`}
+                        key={`carousel-item-${item}-${index}`}
+                        className={`flex-shrink-0 rounded-lg overflow-hidden mx-2 transition-all duration-500 ${sizeClass} flex items-center justify-center`}
+                        style={{ 
+                          backgroundColor: carouselImages.length === 0 ? '#374151' : 'transparent'
+                        }}
                       >
-                        <img
-                          src={imageUrl}
-                          alt={`Imagen ${index + 1}`}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            // Fallback en caso de error de imagen
-                            e.currentTarget.src = '/images/placeholder-food.jpg';
-                          }}
-                        />
+                        {carouselImages.length === 0 ? (
+                          // Mostrar número cuando no hay imágenes configuradas
+                          <span className="text-white text-lg font-bold">
+                            {item}
+                          </span>
+                        ) : (
+                          // Mostrar imagen cuando hay imágenes configuradas
+                          <img
+                            src={item}
+                            alt={`Imagen ${index + 1}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Si falla cargar la imagen, ocultar el elemento
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        )}
                       </div>
                     );
                   })}
@@ -109,9 +123,9 @@ export const PresentationView = ({ setStep }: PresentationViewProps) => {
             
             {/* Indicadores de puntos */}
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
-              {carouselImages.map((imageUrl, index) => (
+              {displayItems.map((item, index) => (
                 <div
-                  key={`indicator-${imageUrl}-${index}`}
+                  key={`indicator-${item}-${index}`}
                   className={`w-2 h-2 rounded-full transition-colors duration-300 ${
                     index === currentImageIndex ? 'bg-white' : 'bg-white/30'
                   }`}
@@ -120,7 +134,6 @@ export const PresentationView = ({ setStep }: PresentationViewProps) => {
             </div>
           </div>
         </motion.div>
-        )}
 
         {/* Botón "Acceder con Cédula" */}
         <div className="flex justify-center mt-8">

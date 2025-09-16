@@ -145,6 +145,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
             <RoleSwitch 
               currentRole={'STAFF'}
               currentPath={`/${businessId}/staff`}
+              businessId={businessId}
             />
           </div>
 

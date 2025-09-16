@@ -2,9 +2,19 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const configPath = path.join(process.cwd(), 'portal-config.json');
+    // Obtener businessId del query param
+    const url = new URL(request.url);
+    const businessId = url.searchParams.get('businessId') || 'default';
+    
+    // Usar archivo específico del negocio si existe
+    let configPath = path.join(process.cwd(), `portal-config-${businessId}.json`);
+    
+    // Fallback al archivo general si no existe el específico
+    if (!fs.existsSync(configPath)) {
+      configPath = path.join(process.cwd(), 'portal-config.json');
+    }
 
     if (!fs.existsSync(configPath)) {
       return NextResponse.json(

@@ -144,13 +144,15 @@ export default function StaffPage() {
   useEffect(() => {
     const currentPath = window.location.pathname;
     
-    // Si estamos en ruta legacy sin business context, redirigir
+    // Si estamos en ruta legacy sin business context, redirigir a login
     if (currentPath === '/staff' || (currentPath.startsWith('/staff/') && !currentPath.includes('/cafedani/') && !currentPath.includes('/arepa/'))) {
-      console.log('🚫 Staff: Ruta legacy detectada, redirigiendo automáticamente');
+      console.log('🚫 Staff: Ruta legacy detectada, redirigiendo a login');
       
-      // Para staff, hacer redirect inteligente
-      const redirectUrl = '/business-selection?blocked_route=' + encodeURIComponent(currentPath) + '&reason=legacy-staff-redirect';
-      window.location.href = redirectUrl;
+      // Redirigir a login con mensaje de error
+      const redirectUrl = new URL('/login', window.location.origin);
+      redirectUrl.searchParams.set('error', 'access-denied');
+      redirectUrl.searchParams.set('message', 'Staff requiere contexto de business válido');
+      window.location.href = redirectUrl.toString();
       return;
     }
   }, []);

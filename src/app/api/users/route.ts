@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { hash } from 'bcryptjs';
 import { z } from 'zod';
+import { requireAuth, canCreateRole } from '../../../lib/auth/unified-middleware';
 
 // Forzar renderizado dinámico para esta ruta que usa autenticación
 export const dynamic = 'force-dynamic';
@@ -19,49 +20,6 @@ const updateUserSchema = z.object({
   name: z.string().min(1, 'Nombre requerido').optional(),
   isActive: z.boolean().optional(),
 });
-
-// Helper para obtener usuario actual desde sesión
-async function getCurrentUser(request: NextRequest) {
-  try {
-    const sessionCookie = request.cookies.get('session')?.value;
-    if (!sessionCookie) return null;
-
-    const sessionData = JSON.parse(sessionCookie);
-    if (!sessionData.userId || !sessionData.sessionToken) return null;
-
-    const user = await prisma.user.findUnique({
-      where: {
-        id: sessionData.userId,
-        sessionToken: sessionData.sessionToken,
-        isActive: true,
-      },
-      include: {
-        business: {
-          select: { isActive: true },
-        },
-      },
-    });
-
-    if (!user?.business?.isActive) return null;
-    if (user.sessionExpires && user.sessionExpires < new Date()) return null;
-
-    return user;
-  } catch (error) {
-    console.error('Error getting current user:', error);
-    return null;
-  }
-}
-
-// Helper para verificar permisos de creación de roles
-function canCreateRole(creatorRole: string, targetRole: string): boolean {
-  const hierarchy: Record<string, string[]> = {
-    SUPERADMIN: ['ADMIN', 'STAFF'],
-    ADMIN: ['STAFF'],
-    STAFF: [],
-  };
-
-  return hierarchy[creatorRole]?.includes(targetRole) || false;
-}
 
 // Helper para verificar si puede gestionar un usuario
 async function canManageUser(
@@ -93,21 +51,17 @@ async function canManageUser(
 
 // GET /api/users - Listar usuarios del business
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request, {
+    role: 'ADMIN',
+    permission: 'users.read',
+    allowSuperAdmin: true
+  });
+
+  if (auth.error) return auth.error;
+  
+  const { user: currentUser } = auth;
+
   try {
-    const currentUser = await getCurrentUser(request);
-
-    if (!currentUser) {
-      return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
-    }
-
-    // Solo SUPERADMIN y ADMIN pueden listar usuarios
-    if (!['SUPERADMIN', 'ADMIN'].includes(currentUser.role)) {
-      return NextResponse.json(
-        { error: 'Permisos insuficientes' },
-        { status: 403 }
-      );
-    }
-
     const whereClause: Record<string, unknown> = {
       businessId: currentUser.businessId,
       isActive: true,
@@ -156,26 +110,22 @@ export async function GET(request: NextRequest) {
 
 // POST /api/users - Crear nuevo usuario
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request, {
+    role: 'ADMIN',
+    permission: 'users.create',
+    allowSuperAdmin: true
+  });
+
+  if (auth.error) return auth.error;
+  
+  const { user: currentUser } = auth;
+
   try {
-    const currentUser = await getCurrentUser(request);
-
-    if (!currentUser) {
-      return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
-    }
-
-    // Solo SUPERADMIN y ADMIN pueden crear usuarios
-    if (!['SUPERADMIN', 'ADMIN'].includes(currentUser.role)) {
-      return NextResponse.json(
-        { error: 'Permisos insuficientes' },
-        { status: 403 }
-      );
-    }
-
     const body = await request.json();
     const { email, password, name, role } = createUserSchema.parse(body);
 
     // Verificar jerarquía de roles
-    if (!canCreateRole(currentUser.role, role)) {
+    if (!canCreateRole(currentUser.role, role as any)) {
       return NextResponse.json(
         { error: `No puedes crear usuarios con rol ${role}` },
         { status: 403 }
@@ -257,13 +207,17 @@ export async function POST(request: NextRequest) {
 
 // PUT /api/users - Actualizar usuario (requiere ID en body)
 export async function PUT(request: NextRequest) {
+  const auth = await requireAuth(request, {
+    role: 'ADMIN',
+    permission: 'users.update',
+    allowSuperAdmin: true
+  });
+
+  if (auth.error) return auth.error;
+  
+  const { user: currentUser } = auth;
+
   try {
-    const currentUser = await getCurrentUser(request);
-
-    if (!currentUser) {
-      return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
-    }
-
     const body = await request.json();
     const { userId, ...updateData } = body;
 
@@ -322,13 +276,17 @@ export async function PUT(request: NextRequest) {
 
 // DELETE /api/users - Desactivar usuario (requiere ID en body)
 export async function DELETE(request: NextRequest) {
+  const auth = await requireAuth(request, {
+    role: 'ADMIN',
+    permission: 'users.delete',
+    allowSuperAdmin: true
+  });
+
+  if (auth.error) return auth.error;
+  
+  const { user: currentUser } = auth;
+
   try {
-    const currentUser = await getCurrentUser(request);
-
-    if (!currentUser) {
-      return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
-    }
-
     const body = await request.json();
     const { userId } = body;
 

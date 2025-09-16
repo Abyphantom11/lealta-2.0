@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { useAuth } from '../hooks/useAuth';
 
 // Types for Electron API
 declare global {
@@ -52,23 +53,36 @@ export function ElectronProvider({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const { isElectron } = useElectron();
+  const { user } = useAuth(); // Obtener usuario actual
+
+  // Función helper para obtener URLs con slug correcto
+  const getUrlWithSlug = useCallback((path: string): string => {
+    if (!user?.business) {
+      console.warn('No hay business disponible para redirección');
+      return '/login'; // Fallback a login si no hay business
+    }
+    
+    // Usar subdomain como slug principal (ajustar según tu estructura)
+    const slug = user.business.subdomain;
+    return `/${slug}${path}`;
+  }, [user]);
 
   useEffect(() => {
-    if (isElectron && window.electronAPI) {
+    if (isElectron && window.electronAPI && user) {
       // Listen for menu actions
       window.electronAPI.onMenuAction((event, action) => {
         switch (action) {
           case 'new-client':
-            window.location.href = '/admin'; // Redirigir a admin para gestionar clientes
+            window.location.href = getUrlWithSlug('/admin'); // ✅ Con slug correcto
             break;
           case 'capture-consumption':
-            window.location.href = '/staff';
+            window.location.href = getUrlWithSlug('/staff');
             break;
           case 'dashboard':
-            window.location.href = '/admin';
+            window.location.href = getUrlWithSlug('/admin'); // ✅ Con slug correcto
             break;
           case 'reports':
-            window.location.href = '/superadmin';
+            window.location.href = getUrlWithSlug('/superadmin');
             break;
           default:
             // Unknown menu action - silent fallback
@@ -80,7 +94,7 @@ export function ElectronProvider({
         window.electronAPI?.removeAllListeners('menu-action');
       };
     }
-  }, [isElectron]);
+  }, [isElectron, user, getUrlWithSlug]); // ✅ Dependencias correctas
 
   return <>{children}</>;
 }

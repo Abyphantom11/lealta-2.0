@@ -22,7 +22,12 @@ const signupSchema = z.object({
   contactEmail: z
     .string()
     .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Email de contacto inválido'),
-  contactPhone: z.string().optional(),
+  contactPhone: z
+    .string()
+    .regex(/^[0-9+\-() ]*$/, 'El teléfono solo puede contener números y símbolos +, -, (, )')
+    .min(8, 'Teléfono debe tener al menos 8 dígitos')
+    .max(15, 'Teléfono no puede tener más de 15 caracteres')
+    .optional(),
 
   // Datos del SuperAdmin
   adminName: z

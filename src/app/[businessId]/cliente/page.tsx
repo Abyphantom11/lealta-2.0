@@ -2,6 +2,8 @@
 
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { BrandingProvider } from '../../cliente/components/branding/BrandingProvider';
+import AuthHandler from '../../cliente/components/AuthHandler';
 
 /**
  * Página dinámica del portal cliente
@@ -26,7 +28,7 @@ export default function BusinessClientePage() {
           setIsValidBusiness(true);
         } else {
           console.log(`❌ Business validation failed for cliente: ${businessId}`);
-          window.location.href = `/login?error=invalid-business&businessId=${businessId}`;
+          window.location.href = `/login?error=invalid-business&message=El negocio no es válido o no existe`;
         }
       } catch (error) {
         console.error('Error validating business for cliente:', error);
@@ -56,53 +58,12 @@ export default function BusinessClientePage() {
     );
   }
 
-  // Business context válido
+  // Business context válido - usar el portal completo
   if (isValidBusiness) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100">
-        <div className="container mx-auto px-4 py-8">
-          <div className="bg-white rounded-xl shadow-xl p-8">
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-gray-800 mb-4">Portal Cliente</h1>
-              <p className="text-gray-600">Bienvenido al programa de fidelización</p>
-              <p className="text-sm text-purple-600 font-medium">{businessId}</p>
-            </div>
-
-            <div className="max-w-md mx-auto">
-              {/* Búsqueda de cliente */}
-              <div className="bg-gradient-to-r from-purple-500 to-indigo-600 p-6 rounded-xl text-white mb-6">
-                <h3 className="text-xl font-semibold mb-4">Buscar Mi Perfil</h3>
-                <input
-                  type="text"
-                  placeholder="Número de teléfono"
-                  className="w-full p-3 rounded-lg text-gray-800"
-                />
-                <button className="w-full bg-white text-purple-600 py-3 rounded-lg font-medium mt-3 hover:bg-gray-100">
-                  Buscar
-                </button>
-              </div>
-
-              {/* Info del negocio */}
-              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600">
-                  <strong>Portal Cliente:</strong> {businessId}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Consulta tus puntos y recompensas aquí
-                </p>
-              </div>
-            </div>
-
-            {/* TODO: Integrar con el componente de portal cliente existente */}
-            <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-blue-800 text-sm">
-                <strong>Próximamente:</strong> Portal cliente completo con puntos, 
-                tarjetas de fidelización y historial de compras.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <BrandingProvider businessId={businessId}>
+        <AuthHandler businessId={businessId} />
+      </BrandingProvider>
     );
   }
 

@@ -30,6 +30,7 @@
     "dist-all": "npm run build && npm run export && electron-builder -mwl",
     "pack": "npm run build && npm run export && electron-builder --dir",
     "extract-components": "ts-node -P tsconfig.scripts.json src/scripts/extract-components.ts",
+    "check-auth": "ts-node -P tsconfig.scripts.json src/scripts/check-auth-status.ts",
     "analyze": "ANALYZE=true npm run build",
     "analyze:server": "ANALYZE=true npm run build",
     "analyze:browser": "ANALYZE=true npm run build && npx webpack-bundle-analyzer .next/static/chunks/*.js",

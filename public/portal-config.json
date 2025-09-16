@@ -9,7 +9,7 @@
       "location": "Centro Comercial Plaza Norte",
       "startDate": "2024-06-01T18:00:00.000Z",
       "endDate": "2024-06-01T22:00:00.000Z",
-      "imageUrl": "/api/placeholder/600/300",
+      "imageUrl": "",
       "isActive": true,
       "maxAttendees": 200,
       "currentAttendees": 0,
@@ -24,7 +24,7 @@
       "description": "Canjea 500 puntos por un producto de tu eleccion",
       "pointsCost": 500,
       "category": "productos",
-      "imageUrl": "/api/placeholder/300/300",
+      "imageUrl": "",
       "isActive": true,
       "stock": 50,
       "availableFrom": "2024-01-01T00:00:00.000Z",
@@ -38,7 +38,7 @@
       "id": "fav-1",
       "title": "Cafe Premium",
       "description": "Nuestro cafe de especialidad mas popular",
-      "imageUrl": "/api/placeholder/400/300",
+      "imageUrl": "",
       "category": "bebidas",
       "price": 12.99,
       "isActive": true,
@@ -53,22 +53,7 @@
   },
   "favoritoDelDia": [],
   "promociones": [],
-  "recompensas": [
-    {
-      "nombre": "fsfsfsf",
-      "descripcion": "fdsfsfsd",
-      "puntosRequeridos": 100,
-      "id": "recompensas_1757701109768",
-      "activo": true
-    },
-    {
-      "nombre": "dfsfsdfsdf",
-      "descripcion": "dfsfsfsd",
-      "puntosRequeridos": 200,
-      "id": "recompensas_1757701121594",
-      "activo": true
-    }
-  ],
+  "recompensas": [],
   "tarjetas": [],
   "nombreEmpresa": "Rosita",
   "configuracionPuntos": {

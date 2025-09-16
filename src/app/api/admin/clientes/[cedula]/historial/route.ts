@@ -9,17 +9,24 @@ export async function GET(
   { params }: { params: { cedula: string } }
 ) {
   try {
-    console.log('🔍 API Historial Cliente - TEMPORARILY NO AUTH FOR TESTING');
+    // ✅ AUTENTICACIÓN RESTAURADA - Usar middleware unificado
+    const { requireAuth } = await import('../../../../../../lib/auth/unified-middleware');
+    
+    const auth = await requireAuth(request, {
+      role: 'ADMIN',
+      permission: 'clients.manage',
+      allowSuperAdmin: true
+    });
 
-    // TEMPORAL: Usar valores reales de la base de datos para pruebas
-    const userId = 'cmes3ga7g0002eygg8blcebct'; // ID real del superadmin
-    const userRole = 'SUPERADMIN';
-    const businessId = 'cmes3g9wd0000eyggpbqfl9r6'; // Business ID del superadmin
+    if (auth.error) {
+      return auth.error;
+    }
 
-    console.log('✅ Using hardcoded auth for testing:', {
-      userId,
-      userRole,
-      businessId,
+    const { user } = auth;
+    console.log('✅ Usuario autenticado:', {
+      userId: user.id,
+      userRole: user.role,
+      businessId: user.businessId,
       cedula: params.cedula,
     });
 
@@ -29,9 +36,12 @@ export async function GET(
       return NextResponse.json({ error: 'Cédula requerida' }, { status: 400 });
     }
 
-    // Buscar cliente
-    const cliente = await prisma.cliente.findUnique({
-      where: { cedula },
+    // Buscar cliente (filtrado por business del usuario autenticado)
+    const cliente = await prisma.cliente.findFirst({
+      where: { 
+        cedula,
+        businessId: user.businessId // ✅ Filtrar por business del usuario
+      },
       include: {
         tarjetaLealtad: true, // ✨ Agregar información de tarjeta de lealtad
         consumos: {

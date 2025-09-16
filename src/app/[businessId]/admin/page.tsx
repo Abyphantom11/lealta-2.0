@@ -29,14 +29,14 @@ export default function BusinessAdminPage() {
           setIsValidBusiness(true);
         } else {
           console.log(`❌ Business validation failed for: ${businessId}`);
-          // Redirect a business selection si no es válido
-          window.location.href = `/business-selection?error=invalid-business&businessId=${businessId}`;
+          // Redirect a login si no es válido
+          window.location.href = `/login?error=invalid-business&message=El negocio no es válido o no existe`;
         }
       } catch (error) {
         console.error('Error validating business:', error);
         setIsValidBusiness(false);
-        // Redirect a business selection en caso de error
-        window.location.href = '/business-selection?error=validation-error';
+        // Redirect a login en caso de error
+        window.location.href = '/login?error=validation-error&message=Error validando el negocio';
       } finally {
         setIsLoading(false);
       }
@@ -76,10 +76,10 @@ export default function BusinessAdminPage() {
           El negocio &quot;{businessId}&quot; no existe o no tienes acceso.
         </p>
         <button
-          onClick={() => (window.location.href = '/business-selection')}
+          onClick={() => (window.location.href = '/login?error=invalid-business&message=El negocio no existe o no tienes acceso')}
           className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
         >
-          Seleccionar Negocio
+          Volver al Login
         </button>
       </div>
     </div>

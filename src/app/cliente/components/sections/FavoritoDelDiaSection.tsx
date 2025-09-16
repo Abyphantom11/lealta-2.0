@@ -13,7 +13,11 @@ interface FavoritoDelDia {
   activo: boolean;
 }
 
-export default function FavoritoDelDiaSection() {
+interface FavoritoProps {
+  businessId?: string;
+}
+
+export default function FavoritoDelDiaSection({ businessId }: FavoritoProps) {
   const [favorito, setFavorito] = useState<FavoritoDelDia | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedFavorito, setSelectedFavorito] = useState<FavoritoDelDia | null>(null);
@@ -21,8 +25,10 @@ export default function FavoritoDelDiaSection() {
   useEffect(() => {
     const fetchFavorito = async () => {
       try {
+        // Usar businessId si está disponible, sino usar 'default'
+        const configBusinessId = businessId || 'default';
         const response = await fetch(
-          '/api/admin/portal-config?businessId=default'
+          `/api/admin/portal-config?businessId=${configBusinessId}`
         );
         if (response.ok) {
           const data = await response.json();
@@ -58,9 +64,10 @@ export default function FavoritoDelDiaSection() {
     fetchFavorito();
 
     // Polling para actualización en tiempo real cada 5 segundos
-    const interval = setInterval(fetchFavorito, 5000);
+    // Polling optimizado: cada 30 segundos para favorito del día
+    const interval = setInterval(fetchFavorito, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [businessId]);
 
   if (isLoading || !favorito || !favorito.imagenUrl) return null;
 

@@ -21,7 +21,11 @@ export const ClienteSchema = z.object({
   cedula: z.string().min(6, 'Cédula debe tener al menos 6 caracteres').max(20),
   nombre: z.string().min(1, 'Nombre requerido').max(100),
   correo: z.string().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Email inválido'),
-  telefono: z.string().min(8, 'Teléfono inválido').max(20),
+  telefono: z
+    .string()
+    .regex(/^[0-9+\-() ]*$/, 'El teléfono solo puede contener números y símbolos +, -, (, )')
+    .min(8, 'Teléfono debe tener al menos 8 dígitos')
+    .max(20, 'Teléfono no puede tener más de 20 caracteres'),
 });
 
 export const ConsumoSchema = z.object({

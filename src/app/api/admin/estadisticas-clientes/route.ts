@@ -4,6 +4,9 @@ import fs from 'fs';
 import path from 'path';
 import { requireBusinessContext } from '../../../../middleware/api-business-filter';
 
+// Forzar que esta ruta sea dinámica
+export const dynamic = 'force-dynamic';
+
 const prisma = new PrismaClient();
 
 interface NivelConfig {

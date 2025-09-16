@@ -10,11 +10,13 @@ import { useAuth } from '@/hooks/useAuth';
 interface RoleSwitchProps {
   readonly currentRole: 'SUPERADMIN' | 'ADMIN' | 'STAFF';
   readonly currentPath: string;
+  readonly businessId?: string; // Nuevo prop para el businessId
 }
 
 export default function RoleSwitch({
   currentRole,
   currentPath,
+  businessId,
 }: RoleSwitchProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
@@ -36,6 +38,7 @@ export default function RoleSwitch({
     userActualRole,
     currentRole,
     currentPath,
+    businessId,
     userFromAuth: user?.role
   });
 
@@ -64,21 +67,21 @@ export default function RoleSwitch({
       role: 'SUPERADMIN',
       label: 'Super Admin',
       icon: Shield,
-      path: '/superadmin',
+      path: businessId ? `/${businessId}/superadmin` : '/superadmin',
       description: 'Gestión completa del sistema',
     },
     {
       role: 'ADMIN',
       label: 'Admin',
       icon: UserCog,
-      path: '/admin',
+      path: businessId ? `/${businessId}/admin` : '/admin',
       description: 'Vista de administrador',
     },
     {
       role: 'STAFF',
       label: 'Staff',
       icon: Users,
-      path: '/staff',
+      path: businessId ? `/${businessId}/staff` : '/staff',
       description: 'Vista de personal',
     },
   ];
@@ -100,6 +103,14 @@ export default function RoleSwitch({
   console.log('🎭 Opciones de roles disponibles:', roleOptions.map(r => r.role));
 
   const getCurrentRoleOption = () => {
+    // Si hay businessId, verificar rutas con businessId
+    if (businessId) {
+      if (currentPath.includes(`/${businessId}/superadmin`)) return allRoleOptions[0];
+      if (currentPath.includes(`/${businessId}/admin`)) return allRoleOptions[1];
+      if (currentPath.includes(`/${businessId}/staff`)) return allRoleOptions[2];
+    }
+    
+    // Fallback para rutas sin businessId
     if (currentPath.includes('/superadmin')) return allRoleOptions[0];
     if (currentPath.includes('/admin')) return allRoleOptions[1];
     if (currentPath.includes('/staff')) return allRoleOptions[2];

@@ -25,7 +25,11 @@ import { IdCard } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useClientNotifications } from '@/services/clientNotificationService';
 
-export default function AuthHandler() {
+interface AuthHandlerProps {
+  businessId?: string;
+}
+
+export default function AuthHandler({ businessId }: AuthHandlerProps) {
   const { brandingConfig } = useBranding();
   const { notifyLevelUpManual } = useClientNotifications();
 
@@ -78,17 +82,12 @@ export default function AuthHandler() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isClient, setIsClient] = useState(false);
 
-  // Imágenes del carrusel (obtenidas desde branding config, con fallback a imágenes por defecto)
-  const carouselImages =
-    brandingConfig.carouselImages?.length > 0
-      ? brandingConfig.carouselImages
-      : [
-          'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=250&fit=crop',
-          'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&h=250&fit=crop',
-          'https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=250&fit=crop',
-          'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=400&h=250&fit=crop',
-          'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400&h=250&fit=crop',
-        ];
+  // Imágenes del carrusel - solo usar las configuradas por el admin, sin fallback
+  const carouselImages = brandingConfig.carouselImages || [];
+  
+  // Si no hay imágenes configuradas, usar números del 1 al 6 como fallback
+  const fallbackNumbers = carouselImages.length === 0 ? ['1', '2', '3', '4', '5', '6'] : [];
+  const displayItems = carouselImages.length > 0 ? carouselImages : fallbackNumbers;
 
   // useEffect para marcar cuando el componente está montado en el cliente
   useEffect(() => {
@@ -173,7 +172,9 @@ export default function AuthHandler() {
   const loadPortalConfig = useCallback(async () => {
     try {
       console.log('🔄 Cargando configuración del portal...');
-      const configResponse = await fetch('/api/portal/config');
+      // Usar businessId si está disponible, sino usar 'default'
+      const configBusinessId = businessId || 'default';
+      const configResponse = await fetch(`/api/portal/config?businessId=${configBusinessId}`);
       console.log('📡 Respuesta de configuración:', configResponse.status, configResponse.statusText);
 
       if (configResponse.ok) {
@@ -209,7 +210,7 @@ export default function AuthHandler() {
       setPortalConfig(getDefaultPortalConfig());
       setIsPortalConfigLoaded(true);
     }
-  }, []); // useCallback dependencies
+  }, [businessId]); // useCallback dependencies
 
   // Función para refrescar datos del cliente Y verificar notificaciones
   const refreshClienteData = useCallback(async () => {
@@ -265,7 +266,8 @@ export default function AuthHandler() {
   useEffect(() => {
     if (step === 'dashboard' && cedula) {
       // Refrescar cada 5 segundos para notificaciones casi instantáneas
-      const interval = setInterval(refreshClienteData, 5000);
+      // Polling optimizado: cada 15 segundos para refresco de portal config
+      const interval = setInterval(refreshClienteData, 15000);
       return () => clearInterval(interval);
     }
   }, [step, cedula, refreshClienteData]);
@@ -385,11 +387,11 @@ export default function AuthHandler() {
   useEffect(() => {
     const carouselInterval = setInterval(() => {
       setCurrentImageIndex(
-        prevIndex => (prevIndex + 1) % carouselImages.length
+        prevIndex => (prevIndex + 1) % displayItems.length
       );
     }, 6000); // Cambia cada 6 segundos para dar tiempo a la animación de 1.5s
     return () => clearInterval(carouselInterval);
-  }, [carouselImages.length]);
+  }, [displayItems.length]);
 
   // Efectos para bloquear scroll - EXTRAÍDOS DEL ORIGINAL
   useEffect(() => {
@@ -643,7 +645,8 @@ export default function AuthHandler() {
       fetchClienteActualizado();
 
       // Actualizar cada 15 segundos
-      const updateInterval = setInterval(fetchClienteActualizado, 15000);
+      // Polling optimizado: cada 30 segundos para datos del cliente
+      const updateInterval = setInterval(fetchClienteActualizado, 30000);
 
       return () => clearInterval(updateInterval);
     }
@@ -689,14 +692,14 @@ export default function AuthHandler() {
               >
                 Sé usuario {brandingConfig.businessName} y descubre todo lo que tenemos para ti!
               </motion.h1>
-              {/* Carrusel de imágenes */}
+              {/* Carrusel de imágenes o números */}
               <motion.div
                 className="mb-12 w-full max-w-sm mx-auto"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-              >
-                <div className="relative h-[200px] overflow-hidden">
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.4 }}
+                >
+                  <div className="relative h-[200px] overflow-hidden">
                   <div className="flex items-center justify-center h-full relative z-0">
                     {/* Contenedor de las imágenes con desplazamiento */}
                     <div className="relative w-64 h-32 flex items-center justify-center">
@@ -709,8 +712,8 @@ export default function AuthHandler() {
                           marginLeft: '-60px', // Centrar el track
                         }}
                       >
-                        {carouselImages.map(
-                          (imageUrl: string, index: number) => {
+                        {displayItems.map(
+                          (item: string, index: number) => {
                             const isCurrent = index === currentImageIndex;
                             const isAdjacent =
                               Math.abs(index - currentImageIndex) === 1;
@@ -721,8 +724,8 @@ export default function AuthHandler() {
 
                             return (
                               <div
-                                key={`carousel-img-${index}-${imageUrl.split('?')[0].split('/').pop()}`}
-                                className="flex-shrink-0 mx-4 transition-all duration-1500 ease-out"
+                                key={`carousel-item-${item}-${index}`}
+                                className="flex-shrink-0 mx-4 transition-all duration-1500 ease-out flex items-center justify-center"
                                 style={{
                                   transform: isCurrent
                                     ? 'scale(1)'
@@ -731,20 +734,38 @@ export default function AuthHandler() {
                                   zIndex: isCurrent ? 5 : 1,
                                 }}
                               >
-                                <img
-                                  src={imageUrl}
-                                  alt={`Imagen ${index + 1}`}
-                                  className={`object-cover rounded-lg ${
-                                    isCurrent ? 'w-32 h-32' : 'w-20 h-20'
-                                  }`}
-                                  style={
-                                    isCurrent
-                                      ? {
-                                          boxShadow: `0 8px 20px ${brandingConfig.primaryColor}33`,
-                                        }
-                                      : {}
-                                  }
-                                />
+                                {carouselImages.length === 0 ? (
+                                  // Mostrar número cuando no hay imágenes configuradas
+                                  <div 
+                                    className={`rounded-lg flex items-center justify-center ${
+                                      isCurrent ? 'w-32 h-32' : 'w-20 h-20'
+                                    }`}
+                                    style={{ 
+                                      backgroundColor: '#374151',
+                                      boxShadow: isCurrent ? `0 8px 20px ${brandingConfig.primaryColor}33` : undefined
+                                    }}
+                                  >
+                                    <span className="text-white text-2xl font-bold">
+                                      {item}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  // Mostrar imagen cuando hay imágenes configuradas
+                                  <img
+                                    src={item}
+                                    alt={`Imagen ${index + 1}`}
+                                    className={`object-cover rounded-lg ${
+                                      isCurrent ? 'w-32 h-32' : 'w-20 h-20'
+                                    }`}
+                                    style={
+                                      isCurrent
+                                        ? {
+                                            boxShadow: `0 8px 20px ${brandingConfig.primaryColor}33`,
+                                          }
+                                        : {}
+                                    }
+                                  />
+                                )}
                               </div>
                             );
                           }
@@ -755,9 +776,9 @@ export default function AuthHandler() {
 
                   {/* Indicadores de puntos */}
                   <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
-                    {carouselImages.map((imageUrl: string, index: number) => (
+                    {displayItems.map((item: string, index: number) => (
                       <div
-                        key={`carousel-dot-${index}-${imageUrl.split('?')[0].split('/').pop()}`}
+                        key={`carousel-dot-${index}-${item}`}
                         className={`w-2 h-2 rounded-full transition-all duration-700 ease-in-out ${
                           index === currentImageIndex
                             ? 'opacity-100 scale-125'
@@ -845,6 +866,7 @@ export default function AuthHandler() {
             showTarjeta={showTarjeta}
             setShowTarjeta={setShowTarjeta}
             portalConfig={portalConfig}
+            businessId={businessId}
             refreshClienteData={refreshClienteData}
           />
 

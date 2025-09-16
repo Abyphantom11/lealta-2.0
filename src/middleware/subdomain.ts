@@ -59,13 +59,17 @@ export function extractBusinessFromUrl(pathname: string): {
 }
 
 /**
- * Valida si un subdomain corresponde a un business activo
+ * Valida si un subdomain o slug corresponde a un business activo
  */
-export async function validateBusinessSubdomain(subdomain: string): Promise<BusinessContext['business'] | null> {
+export async function validateBusinessSubdomain(identifier: string): Promise<BusinessContext['business'] | null> {
   try {
-    const business = await prisma.business.findUnique({
+    // Buscar por subdomain O por slug
+    const business = await prisma.business.findFirst({
       where: { 
-        subdomain: subdomain,
+        OR: [
+          { subdomain: identifier },
+          { slug: identifier }
+        ],
         isActive: true 
       },
       select: {
@@ -79,7 +83,7 @@ export async function validateBusinessSubdomain(subdomain: string): Promise<Busi
     
     return business;
   } catch (error) {
-    console.error('Error validating business subdomain:', error);
+    console.error('Error validating business identifier:', error);
     return null;
   }
 }
@@ -96,7 +100,7 @@ export async function getBusinessContext(request: NextRequest): Promise<Business
     return null;
   }
   
-  // Validar que el business existe
+  // Validar que el business existe (buscar por subdomain o slug)
   const business = await validateBusinessSubdomain(urlData.subdomain);
   if (!business) {
     return null;

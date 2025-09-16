@@ -40,7 +40,7 @@ async function readPortalConfig() {
           title: '¡Bienvenido a Lealta!',
           description:
             'Descubre nuestras increibles ofertas y recompensas exclusivas',
-          imageUrl: '/api/placeholder/800/400',
+          imageUrl: '',
           linkUrl: '/promociones',
           isActive: true,
           order: 1,
@@ -63,7 +63,7 @@ async function readPortalConfig() {
           endDate: new Date(
             Date.now() + 7 * 24 * 60 * 60 * 1000 + 4 * 60 * 60 * 1000
           ).toISOString(),
-          imageUrl: '/api/placeholder/600/300',
+          imageUrl: '',
           isActive: true,
           maxAttendees: 200,
           currentAttendees: 0,
@@ -78,7 +78,7 @@ async function readPortalConfig() {
           description: 'Canjea 500 puntos por un producto de tu eleccion',
           pointsCost: 500,
           category: 'productos',
-          imageUrl: '/api/placeholder/300/300',
+          imageUrl: '',
           isActive: true,
           stock: 50,
           availableFrom: new Date().toISOString(),
@@ -95,7 +95,7 @@ async function readPortalConfig() {
           id: 'fav-1',
           title: 'Cafe Premium',
           description: 'Nuestro cafe de especialidad mas popular',
-          imageUrl: '/api/placeholder/400/300',
+          imageUrl: '',
           category: 'bebidas',
           price: 12.99,
           isActive: true,

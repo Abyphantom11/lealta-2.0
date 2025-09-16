@@ -15,14 +15,20 @@ interface Recompensa {
   stock?: number;
 }
 
-export default function RecompensasSection() {
+interface RecompensasProps {
+  businessId?: string;
+}
+
+export default function RecompensasSection({ businessId }: RecompensasProps) {
   const [recompensas, setRecompensas] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
     const fetchRecompensas = async () => {
       try {
-        const response = await fetch('/api/admin/portal-config?businessId=default');
+        // Usar businessId si está disponible, sino usar 'default'
+        const configBusinessId = businessId || 'default';
+        const response = await fetch(`/api/admin/portal-config?businessId=${configBusinessId}`);
         if (response.ok) {
           const data = await response.json();
           // Buscar en ambos campos: recompensas (español) y rewards (inglés)
@@ -39,9 +45,10 @@ export default function RecompensasSection() {
     fetchRecompensas();
     
     // Polling para actualización en tiempo real cada 5 segundos
-    const interval = setInterval(fetchRecompensas, 5000);
+    // Polling optimizado: cada 30 segundos para recompensas
+    const interval = setInterval(fetchRecompensas, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [businessId]);
   
   if (isLoading || recompensas.length === 0) return null;
   

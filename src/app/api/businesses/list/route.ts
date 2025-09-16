@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       businesses: businesses.map(business => ({
-        id: business.id,
+        slug: business.subdomain, // Usar subdomain como identificador público
         name: business.name,
         subdomain: business.subdomain,
         subscriptionPlan: business.subscriptionPlan,

@@ -69,6 +69,7 @@ async function findUser(email: string, request: NextRequest) {
             id: true,
             name: true,
             subdomain: true,
+            slug: true,
             subscriptionPlan: true,
             isActive: true,
           },
@@ -196,6 +197,8 @@ function createResponse(user: UserWithBusiness, sessionToken: string) {
       business: user.business,
     },
     role: user.role,
+    businessSlug: user.business.subdomain,
+    businessId: user.businessId,
   });
 
   // Set session cookie with business context

@@ -17,14 +17,20 @@ interface Promocion {
   horaTermino?: string;
 }
 
-export default function PromocionesSection() {
+interface PromocionesProps {
+  businessId?: string;
+}
+
+export default function PromocionesSection({ businessId }: PromocionesProps) {
   const [promociones, setPromociones] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchPromociones = useCallback(async () => {
     try {
+      // Usar businessId si está disponible, sino usar 'default'
+      const configBusinessId = businessId || 'default';
       const response = await fetch(
-        '/api/admin/portal-config?businessId=default'
+        `/api/admin/portal-config?businessId=${configBusinessId}`
       );
       if (response.ok) {
         const data = await response.json();
@@ -119,13 +125,14 @@ export default function PromocionesSection() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [businessId]);
 
   useEffect(() => {
     fetchPromociones();
 
     // Polling para actualización en tiempo real cada 5 segundos (igual que recompensas)
-    const interval = setInterval(fetchPromociones, 5000);
+    // Polling optimizado: cada 30 segundos para promociones
+    const interval = setInterval(fetchPromociones, 30000);
 
     return () => clearInterval(interval);
   }, [fetchPromociones]);

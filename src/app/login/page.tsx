@@ -2,10 +2,10 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { motion } from '../../components/motion';
-import { Mail, Lock, Eye, EyeOff, UserPlus, Sparkles, ArrowRight, AlertCircle, Shield } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, UserPlus, Sparkles, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { LealtaLogo } from '../../components/LealtaLogo';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import PWAInstallPrompt from '../../components/ui/PWAInstallPrompt';
 
 function LoginContent() {
@@ -16,99 +16,76 @@ function LoginContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [businessError, setBusinessError] = useState<{
-    type: string;
-    business?: string;
-    reason?: string;
-  } | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Auto-login: verificar si ya hay una sesión activa
+  useEffect(() => {
+    const checkExistingAuth = async () => {
+      try {
+        console.log('🔍 Login: Verificando sesión existente...');
+        const response = await fetch('/api/auth/me');
+        
+        if (response.ok) {
+          const userData = await response.json();
+          console.log('✅ Login: Sesión existente encontrada, redirigiendo...');
+          
+          // Determinar la ruta de redirección basada en el rol
+          const businessSlug = userData.user.business?.slug || userData.user.business?.subdomain;
+          
+          if (businessSlug) {
+            const roleRedirect: Record<string, string> = {
+              SUPERADMIN: `/${businessSlug}/superadmin`,
+              ADMIN: `/${businessSlug}/admin`,
+              STAFF: `/${businessSlug}/staff`,
+            };
+            
+            const redirectUrl = roleRedirect[userData.user.role] || `/${businessSlug}/admin`;
+            console.log(`🔄 Login: Redirigiendo a ${redirectUrl}`);
+            router.push(redirectUrl);
+            return;
+          }
+        }
+        
+        console.log('ℹ️ Login: No hay sesión activa, mostrando formulario');
+      } catch (error) {
+        console.log('ℹ️ Login: Error verificando sesión, mostrando formulario:', error);
+      } finally {
+        setIsCheckingAuth(false);
+      }
+    };
+
+    checkExistingAuth();
+  }, [router]);
 
   useEffect(() => {
-    // Verificar errores de business en los parámetros de URL
+    // Verificar errores en los parámetros de URL
     const urlError = searchParams.get('error');
-    const business = searchParams.get('business');
-    const reason = searchParams.get('reason');
+    const message = searchParams.get('message');
 
-    if (urlError) {
+    if (urlError && message) {
+      setError(message);
+    } else if (urlError) {
       switch (urlError) {
-        case 'business-not-found':
-          setBusinessError({
-            type: 'not-found',
-            business: searchParams.get('subdomain') || business || undefined
-          });
+        case 'invalid-business':
+          setError('El negocio solicitado no existe o no está disponible.');
           break;
         case 'access-denied':
-          setBusinessError({
-            type: 'access-denied',
-            business: business || undefined,
-            reason: reason || undefined
-          });
+          setError('No tienes permisos para acceder a este negocio.');
+          break;
+        case 'session-required':
+          setError('Debes iniciar sesión para continuar.');
           break;
         case 'business-error':
-          setBusinessError({
-            type: 'error'
-          });
+          setError('Error en la configuración del negocio. Contacta al administrador.');
           break;
+        default:
+          setError('Error de autenticación. Inicia sesión nuevamente.');
       }
     }
   }, [searchParams]);
-
-  const getBusinessErrorMessage = () => {
-    if (!businessError) return null;
-
-    switch (businessError.type) {
-      case 'not-found':
-        return (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center">
-              <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-              <div>
-                <h3 className="text-red-800 font-semibold">Business no encontrado</h3>
-                <p className="text-red-700 text-sm">
-                  El business "{businessError.business}" no existe o está inactivo.
-                </p>
-              </div>
-            </div>
-          </div>
-        );
-      case 'access-denied':
-        return (
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center">
-              <Shield className="h-5 w-5 text-orange-500 mr-2" />
-              <div>
-                <h3 className="text-orange-800 font-semibold">Acceso denegado</h3>
-                <p className="text-orange-700 text-sm">
-                  No tienes permisos para acceder al business "{businessError.business}".
-                </p>
-                {businessError.reason && (
-                  <p className="text-orange-600 text-xs mt-1">
-                    Razón: {businessError.reason}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      case 'error':
-        return (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center">
-              <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-              <div>
-                <h3 className="text-red-800 font-semibold">Error del sistema</h3>
-                <p className="text-red-700 text-sm">
-                  Ocurrió un error al validar el business. Intenta de nuevo.
-                </p>
-              </div>
-            </div>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,21 +107,21 @@ function LoginContent() {
 
       if (response.ok) {
         // Redirect based on role with business context
-        const businessId = data.businessId || data.user?.businessId;
+        const businessSlug = data.businessSlug || data.user?.business?.slug;
         
-        if (!businessId) {
-          console.error('No se pudo obtener businessId en login');
-          window.location.href = '/business-selection';
+        if (!businessSlug) {
+          console.error('No se pudo obtener businessSlug en login');
+          setError('Error: No se pudo determinar el negocio asociado. Contacta al administrador.');
           return;
         }
 
         const roleRedirect: Record<string, string> = {
-          SUPERADMIN: `/${businessId}/superadmin`,
-          ADMIN: `/${businessId}/admin`,
-          STAFF: `/${businessId}/staff`,
+          SUPERADMIN: `/${businessSlug}/superadmin`,
+          ADMIN: `/${businessSlug}/admin`,
+          STAFF: `/${businessSlug}/staff`,
         };
 
-        window.location.href = roleRedirect[data.role] || `/${businessId}/staff`;
+        window.location.href = roleRedirect[data.role] || `/${businessSlug}/staff`;
       } else {
         setError(data.error || 'Credenciales inválidas');
       }
@@ -155,6 +132,22 @@ function LoginContent() {
       setIsLoading(false);
     }
   };
+
+  // Mostrar loading mientras se verifica la sesión existente
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center"
+        >
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-400">Verificando sesión...</p>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black flex items-center justify-center p-4">
@@ -195,9 +188,6 @@ function LoginContent() {
           onSubmit={handleSubmit}
           className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-8 space-y-6 shadow-2xl"
         >
-          {/* Business Error Messages */}
-          {getBusinessErrorMessage()}
-
           {error && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}

@@ -36,11 +36,11 @@ export async function handleLegacyRedirect(request: NextRequest, pathname: strin
     }
 
     if (!sessionData.businessId) {
-      // Sin business en sesión, mostrar selector
-      const selectionUrl = new URL('/business-selection', request.url);
-      selectionUrl.searchParams.set('blocked_route', pathname);
-      selectionUrl.searchParams.set('reason', 'no-business-in-session');
-      return NextResponse.redirect(selectionUrl);
+      // Sin business en sesión, redirigir a login
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('error', 'no-business');
+      loginUrl.searchParams.set('message', 'No hay negocio asociado a la sesión');
+      return NextResponse.redirect(loginUrl);
     }
 
     // Obtener subdomain del business
@@ -52,32 +52,32 @@ export async function handleLegacyRedirect(request: NextRequest, pathname: strin
         isActive: true 
       },
       select: {
-        subdomain: true
+        slug: true
       }
     });
 
     if (!business) {
-      // Business no encontrado, mostrar selector
-      const selectionUrl = new URL('/business-selection', request.url);
-      selectionUrl.searchParams.set('blocked_route', pathname);
-      selectionUrl.searchParams.set('reason', 'business-not-found');
-      return NextResponse.redirect(selectionUrl);
+      // Business no encontrado, redirigir a login
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('error', 'business-not-found');
+      loginUrl.searchParams.set('message', 'El negocio no fue encontrado');
+      return NextResponse.redirect(loginUrl);
     }
 
-    // Redirigir a la ruta con business context
-    const newUrl = new URL(`/${business.subdomain}${pathname}`, request.url);
+    // Redirigir a la ruta con business context usando slug
+    const newUrl = new URL(`/${business.slug}${pathname}`, request.url);
     
-    console.log(`🔄 Legacy redirect: ${pathname} → /${business.subdomain}${pathname}`);
+    console.log(`🔄 Legacy redirect: ${pathname} → /${business.slug}${pathname}`);
     
     return NextResponse.redirect(newUrl);
 
   } catch (error) {
     console.error('Error in legacy redirect:', error);
     
-    // En caso de error, mostrar selector
-    const selectionUrl = new URL('/business-selection', request.url);
-    selectionUrl.searchParams.set('blocked_route', pathname);
-    selectionUrl.searchParams.set('reason', 'redirect-error');
-    return NextResponse.redirect(selectionUrl);
+    // En caso de error, redirigir a login
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('error', 'redirect-error');
+    loginUrl.searchParams.set('message', 'Error en la redirección');
+    return NextResponse.redirect(loginUrl);
   }
 }
