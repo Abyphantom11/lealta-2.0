@@ -387,6 +387,7 @@ export default function StaffPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-business-id': user?.businessId || '', // ✅ AGREGAR BUSINESS ID HEADER
         },
         body: JSON.stringify({
           cedula: registerData.cedula,
@@ -487,7 +488,12 @@ export default function StaffPage() {
     setIsSearchingCustomer(true);
     try {
       const response = await fetch(
-        `/api/clientes/search?q=${encodeURIComponent(searchTerm)}`
+        `/api/clientes/search?q=${encodeURIComponent(searchTerm)}`,
+        {
+          headers: {
+            'x-business-id': user?.businessId || '', // ✅ AGREGAR BUSINESS ID HEADER
+          },
+        }
       );
       if (response.ok) {
         const data = await response.json();
@@ -511,7 +517,7 @@ export default function StaffPage() {
     } finally {
       setIsSearchingCustomer(false);
     }
-  }, []);
+  }, [user?.businessId]); // ✅ AGREGAR DEPENDENCIA
 
   // Función para seleccionar cliente de los resultados
   const selectClientFromSearch = (client: any) => {
@@ -545,6 +551,7 @@ export default function StaffPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-business-id': user?.businessId || '', // ✅ AGREGAR BUSINESS ID HEADER
         },
         body: JSON.stringify({ cedula: cedulaValue }),
       });

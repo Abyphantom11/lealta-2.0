@@ -14,6 +14,7 @@ interface BrandingContextType {
   brandingConfig: BrandingConfig;
   carouselImages: string[];
   isLoading: boolean;
+  businessId?: string; // ✅ AGREGAR BUSINESS ID AL CONTEXTO
 }
 
 // Crear el contexto
@@ -235,8 +236,9 @@ export const BrandingProvider = ({ children, businessId }: BrandingProviderProps
   const value = useMemo(() => ({
     brandingConfig,
     carouselImages,
-    isLoading
-  }), [brandingConfig, carouselImages, isLoading]);
+    isLoading,
+    businessId // ✅ INCLUIR BUSINESS ID EN EL CONTEXTO
+  }), [brandingConfig, carouselImages, isLoading, businessId]);
 
   return (
     <BrandingContext.Provider value={value}>

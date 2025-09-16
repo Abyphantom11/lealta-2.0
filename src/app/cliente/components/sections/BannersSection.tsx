@@ -61,6 +61,12 @@ export default function BannersSection({ businessId }: BannersProps) {
       );
       if (response.ok) {
         const data = await response.json();
+        
+        // Declarar variables ANTES de usarlas
+        const ahora = new Date();
+        const horaActualMinutos = ahora.getHours() * 60 + ahora.getMinutes();
+        const diaParaMostrar = simulatedDay || diaActual;
+        const esModoSimulacion = Boolean(simulatedDay);
 
         // Obtener todos los banners activos de forma más eficiente
         const todosActivos =
@@ -72,14 +78,6 @@ export default function BannersSection({ businessId }: BannersProps) {
           setBanners([]);
           return;
         }
-
-        // Obtener el día y hora actual de forma más eficiente
-        const ahora = new Date();
-        const horaActualMinutos = ahora.getHours() * 60 + ahora.getMinutes();
-
-        // Usar el día simulado si está disponible
-        const diaParaMostrar = simulatedDay || diaActual;
-        const esModoSimulacion = Boolean(simulatedDay);
 
         // Filtrar banners del día actual/simulado
         const bannersDelDia = todosActivos.filter((b: any) => {

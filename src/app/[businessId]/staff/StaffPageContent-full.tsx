@@ -409,6 +409,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-business-id': businessId, // ✅ AGREGAR BUSINESS ID HEADER
         },
         body: JSON.stringify({
           cedula: registerData.cedula,

@@ -81,14 +81,21 @@ export default function AsignacionTarjetas({
 
     setLoading(true);
     try {
-      // Utilizamos encodeURIComponent para asegurar que la URL sea válida
-      const response = await fetch(
-        `/api/clientes/search?q=${encodeURIComponent(searchTerm)}`
-      );
+      // Usar el endpoint de admin que está protegido y funciona correctamente
+      const response = await fetch('/api/admin/clients/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          searchTerm: searchTerm
+        }),
+      });
+
       if (response.ok) {
         const data = await response.json();
-        if (Array.isArray(data)) {
-          setClients(data);
+        if (data.success && Array.isArray(data.clients)) {
+          setClients(data.clients);
         } else {
           console.error('Formato de respuesta inesperado:', data);
           setClients([]);

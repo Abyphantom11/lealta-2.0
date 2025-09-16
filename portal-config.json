@@ -1,11 +1,20 @@
 {
   "banners": [
     {
-      "id": "banner_sabado_1757791136863",
-      "dia": "sabado",
-      "titulo": "adadadasd",
-      "descripcion": "sdadada",
-      "imagenUrl": "/uploads/1757791136840-lhnvgd.jpg",
+      "id": "banner_lunes_1758045490970",
+      "dia": "lunes",
+      "titulo": "sdadasdasd",
+      "descripcion": "dadad",
+      "imagenUrl": "/uploads/cmflud5710000eyc8tkwqhi6n_1758045490966-c3obe8.jpg",
+      "horaPublicacion": "04:00",
+      "activo": true
+    },
+    {
+      "id": "banner_martes_1758045847225",
+      "dia": "martes",
+      "titulo": "fsdfsdf",
+      "descripcion": "dfsff",
+      "imagenUrl": "/uploads/cmflud5710000eyc8tkwqhi6n_1758045847221-4ffc4p.webp",
       "horaPublicacion": "04:00",
       "activo": true
     }
@@ -58,22 +67,54 @@
     }
   ],
   "settings": {
-    "lastUpdated": "2025-09-16T06:13:03.674Z",
+    "lastUpdated": "2025-09-16T18:48:09.496Z",
     "version": "1.0.0"
   },
   "favoritoDelDia": [
     {
-      "id": "favorito_sabado_1757791212756",
-      "dia": "sabado",
-      "nombre": "asdada",
-      "descripcion": "dadadad",
-      "imagenUrl": "/uploads/1757791212748-w4ks1.jpg",
+      "id": "favorito_martes_1758045892285",
+      "dia": "martes",
+      "nombre": "dfsfsf",
+      "descripcion": "dfsfsd",
+      "imagenUrl": "/uploads/cmflud5710000eyc8tkwqhi6n_1758045892278-9eelbs.jpg",
       "horaPublicacion": "09:00",
       "activo": true
     }
   ],
-  "promociones": [],
-  "recompensas": [],
+  "promociones": [
+    {
+      "dia": "martes",
+      "titulo": "dfsfsdf",
+      "descripcion": "dfsfsfd",
+      "descuento": 60,
+      "horaTermino": "04:00",
+      "activo": true,
+      "id": "promociones_1758045874081"
+    }
+  ],
+  "recompensas": [
+    {
+      "nombre": "dfsfsdf",
+      "descripcion": "dfsfsfsdf",
+      "puntosRequeridos": 1889,
+      "id": "recompensas_1758045905214",
+      "activo": true
+    },
+    {
+      "nombre": "sdfsfs",
+      "descripcion": "adada",
+      "puntosRequeridos": 1233,
+      "id": "recompensas_1758045914761",
+      "activo": true
+    },
+    {
+      "nombre": "erwr",
+      "descripcion": "effsfdfs",
+      "puntosRequeridos": 200,
+      "id": "recompensas_1758048192116",
+      "activo": true
+    }
+  ],
   "tarjetas": [
     {
       "nivel": "Bronce",
@@ -148,10 +189,10 @@
         "nivel": "#B9F2FF"
       },
       "condiciones": {
-        "puntosMinimos": 15000,
+        "puntosMinimos": 12000,
         "visitasMinimas": 20
       },
-      "beneficio": "15% de descuento en compras",
+      "beneficio": "15% ",
       "activo": true,
       "id": "tarjeta_Diamante_1757788673937"
     },
@@ -168,7 +209,7 @@
         "nivel": "#E5E4E2"
       },
       "condiciones": {
-        "puntosMinimos": 25000,
+        "puntosMinimos": 22000,
         "visitasMinimas": 30
       },
       "beneficio": "20% de descuento + servicio VIP personalizado",
@@ -184,5 +225,8 @@
       "maxPuntosPorDolar": 10,
       "maxBonusRegistro": 1000
     }
-  }
+  },
+  "lastModifiedBy": "cmflud5x30002eyc8ylpqlcnp",
+  "lastModifiedAt": "2025-09-16T18:48:09.496Z",
+  "lastModifiedRole": "superadmin"
 }

@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { validateBusinessAccess } from '../../../../utils/business-validation';
 
 const prisma = new PrismaClient();
 
 export async function POST(request: NextRequest) {
   try {
+    // Obtener business ID del middleware context
+    const businessId = validateBusinessAccess(request);
+    
     const { cedula } = await request.json();
 
     if (!cedula) {
@@ -14,10 +18,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Buscar cliente por cédula (sin restricción de business por ahora)
+    // Buscar cliente por cédula DENTRO del business específico
     const cliente = await prisma.cliente.findFirst({
       where: {
         cedula: cedula.toString(),
+        businessId, // ✅ FILTRAR POR BUSINESS ID
       },
       include: {
         tarjetaLealtad: true, // Incluir información de la tarjeta

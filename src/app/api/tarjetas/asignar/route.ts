@@ -14,10 +14,10 @@ const extendedPrisma = prisma as any;
 async function loadPortalConfig(): Promise<Record<string, number>> {
   const puntosRequeridosBase: Record<string, number> = {
     'Bronce': 0,
-    'Plata': 400,
-    'Oro': 480,
-    'Diamante': 15000,
-    'Platino': 25000
+    'Plata': 500,
+    'Oro': 1200,
+    'Diamante': 3000,
+    'Platino': 5000
   };
 
   try {
@@ -125,6 +125,13 @@ async function updateExistingCard(cliente: any, nivel: string, asignacionManual:
   // Enviar notificación solo para ascensos
   if (changeAnalysis.esAscenso && !(asignacionManual && changeAnalysis.esDegradacion)) {
     await enviarNotificacionClientes(TipoNotificacion.TARJETA_ASIGNADA);
+  }
+
+  // 🎯 NUEVO: Para asignaciones manuales, también enviar señal específica al cliente
+  if (asignacionManual && changeAnalysis.esAscenso) {
+    // Aquí podrías implementar un sistema de notificación específico para el cliente
+    // Por ejemplo, usar un sistema de eventos en tiempo real o WebSockets
+    console.log(`🔔 Ascenso manual completado: ${cliente.cedula} -> ${nivel}`);
   }
 
   return {

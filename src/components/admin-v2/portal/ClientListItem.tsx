@@ -35,9 +35,7 @@ export default function ClientListItem({
           <p className="text-sm opacity-75">{client.correo}</p>
         </div>
         <div className="text-right text-sm">
-          <p>Puntos: {client.puntos || 0}</p>
-          <p>Gastos: ${client.totalGastado || 0}</p>
-          <p>Visitas: {client.totalVisitas || 0}</p>
+          <p className="text-yellow-400 font-medium">Puntos: {client.puntos || 0}</p>
 
           {tieneTarjeta && client.tarjetaLealtad ? (
             <div className="mt-1">
@@ -53,13 +51,7 @@ export default function ClientListItem({
                   : 'Asignación automática'}
               </p>
             </div>
-          ) : (
-            <p
-              className={`font-medium ${cumpleCondiciones ? 'text-success-400' : 'text-yellow-400'}`}
-            >
-              Nivel sugerido: {nivelAutomatico}
-            </p>
-          )}
+          ) : null}
         </div>
       </div>
     </button>

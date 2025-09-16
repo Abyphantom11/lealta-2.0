@@ -218,20 +218,44 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
 
     // Función para verificar notificaciones en tiempo real (dentro del callback)
     const verificarNotificacionesEnTiempoReal = async (clienteAnterior: any, clienteNuevo: any) => {
-      if (!clienteNuevo?.tarjetaLealtad?.asignacionManual) return;
-
       try {
+        console.log('🔍 Verificando notificaciones en tiempo real...');
+        console.log('👤 Cliente anterior:', clienteAnterior?.tarjetaLealtad?.nivel);
+        console.log('👤 Cliente nuevo:', clienteNuevo?.tarjetaLealtad?.nivel);
+        
         // Detectar si hubo un cambio de nivel
         const nivelAnterior = clienteAnterior?.tarjetaLealtad?.nivel;
         const nivelNuevo = clienteNuevo?.tarjetaLealtad?.nivel;
 
         if (nivelAnterior && nivelNuevo && nivelAnterior !== nivelNuevo) {
-          // Hubo un cambio de nivel - crear notificación inmediatamente
-          console.log(`🎉 Ascenso detectado en tiempo real: ${nivelAnterior} → ${nivelNuevo}`);
-          notifyLevelUpManual(nivelAnterior, nivelNuevo, clienteNuevo.id);
+          console.log(`🎉 Cambio de nivel detectado: ${nivelAnterior} → ${nivelNuevo}`);
+          
+          // Verificar si ya se notificó este nivel
+          const lastNotifiedLevel = localStorage.getItem(`lastNotifiedLevel_${clienteNuevo.cedula}`);
+          console.log(`📝 Último nivel notificado: ${lastNotifiedLevel}`);
+          
+          if (lastNotifiedLevel !== nivelNuevo) {
+            // Determinar el tipo de notificación basado en la asignación
+            const esAsignacionManual = clienteNuevo?.tarjetaLealtad?.asignacionManual;
+            console.log(`⚙️ Es asignación manual: ${esAsignacionManual}`);
+            
+            if (esAsignacionManual) {
+              console.log(`📢 Notificación de ascenso manual: ${nivelAnterior} → ${nivelNuevo}`);
+              notifyLevelUpManual(nivelAnterior, nivelNuevo, clienteNuevo.id);
+            } else {
+              console.log(`🔄 Cambio de nivel automático detectado: ${nivelAnterior} → ${nivelNuevo}`);
+              // Para ascensos automáticos, también podemos usar la misma notificación
+              notifyLevelUpManual(nivelAnterior, nivelNuevo, clienteNuevo.id);
+            }
 
-          // Marcar como notificado
-          localStorage.setItem(`lastNotifiedLevel_${clienteNuevo.cedula}`, nivelNuevo);
+            // Marcar como notificado
+            localStorage.setItem(`lastNotifiedLevel_${clienteNuevo.cedula}`, nivelNuevo);
+            console.log(`✅ Marcado como notificado: ${nivelNuevo}`);
+          } else {
+            console.log(`✅ Nivel ${nivelNuevo} ya fue notificado previamente`);
+          }
+        } else {
+          console.log('ℹ️ No hay cambio de nivel');
         }
       } catch (error) {
         console.error('Error verificando notificaciones en tiempo real:', error);
@@ -252,10 +276,12 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
 
         // Verificar notificaciones ANTES de actualizar los datos
         const clienteAnterior = clienteData;
-        setClienteData(data.cliente);
-
+        
         // ✅ Verificar notificaciones de ascenso manual en tiempo real
         await verificarNotificacionesEnTiempoReal(clienteAnterior, data.cliente);
+        
+        // Actualizar datos después de verificar notificaciones
+        setClienteData(data.cliente);
       }
     } catch (error) {
       console.error('❌ Error refrescando datos del cliente:', error);
@@ -265,12 +291,16 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
   // Configurar polling para refrescar datos automáticamente (con notificaciones en tiempo real)
   useEffect(() => {
     if (step === 'dashboard' && cedula) {
+      // Polling más frecuente si hay asignaciones manuales recientes
+      const hasRecentManualAssignment = clienteData?.tarjetaLealtad?.asignacionManual;
+      const pollingInterval = hasRecentManualAssignment ? 3000 : 15000; // 3s para manuales, 15s normal
+      
       // Refrescar cada 5 segundos para notificaciones casi instantáneas
       // Polling optimizado: cada 15 segundos para refresco de portal config
-      const interval = setInterval(refreshClienteData, 15000);
+      const interval = setInterval(refreshClienteData, pollingInterval);
       return () => clearInterval(interval);
     }
-  }, [step, cedula, refreshClienteData]);
+  }, [step, cedula, refreshClienteData, clienteData?.tarjetaLealtad?.asignacionManual]);
 
   const setupEnvironment = async () => {
     // Configurar fallback para Opera si es necesario

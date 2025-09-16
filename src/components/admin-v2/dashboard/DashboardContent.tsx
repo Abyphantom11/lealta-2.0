@@ -970,14 +970,8 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
                                   Cédula: {client.cedula || 'No registrada'}
                                 </p>
                                 <div className="flex items-center gap-2 mt-1">
-                                  <span className="text-xs text-gray-400">
-                                    {client.puntos} pts • ${client.totalGastado} • {client.totalVisitas} visitas
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <span className="text-xs text-gray-300">Nivel actual:</span>
-                                  <span className={`text-xs px-2 py-1 rounded bg-gradient-to-r text-white ${getNivelColor(nivelAutomatico)}`}>
-                                    {nivelAutomatico}
+                                  <span className="text-xs text-yellow-400 font-medium">
+                                    {client.puntos} puntos
                                   </span>
                                 </div>
                               </div>
@@ -997,8 +991,6 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
                     <h4 className="font-medium text-white mb-3">Cliente Seleccionado</h4>
                     <div className="space-y-2">
                       <p className="text-sm text-gray-300"><span className="font-medium text-white">Nombre:</span> {selectedClient.nombre}</p>
-                      <p className="text-sm text-gray-300"><span className="font-medium text-white">Cédula:</span> <span className="text-blue-400">{selectedClient.cedula || 'No registrada'}</span></p>
-                      <p className="text-sm text-gray-300"><span className="font-medium text-white">Email:</span> {selectedClient.email}</p>
                       <p className="text-sm text-gray-300"><span className="font-medium text-white">Puntos disponibles:</span> <span className="text-yellow-400 font-medium">{selectedClient.puntos}</span></p>
                     </div>
                     

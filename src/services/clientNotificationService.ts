@@ -224,13 +224,16 @@ class ClientNotificationService {
 
   // Notificación específica para ascensos manuales
   notifyLevelUpManual(nivelAnterior: string, nivelNuevo: string, clienteId?: string) {
-    return this.addNotification({
+    console.log('🎉 notifyLevelUpManual llamado:', { nivelAnterior, nivelNuevo, clienteId });
+    const notification = this.addNotification({
       tipo: 'nivel',
       titulo: '🎉 ¡Felicidades! Ascendiste de Nivel',
       mensaje: `Has ascendido de ${nivelAnterior} a ${nivelNuevo}. ¡Disfruta de tus nuevos beneficios!`,
       leida: false,
       clienteId,
     });
+    console.log('🎉 Notificación de ascenso creada:', notification);
+    return notification;
   }
 
   notifyMenuUpdate(clienteId?: string) {

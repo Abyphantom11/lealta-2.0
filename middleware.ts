@@ -279,7 +279,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // 6. VALIDAR BUSINESS CONTEXT EN APIs QUE LO REQUIEREN
-  const criticalApiRoutes = ['/api/clients', '/api/consumos', '/api/business'];
+  const criticalApiRoutes = ['/api/clients', '/api/consumos', '/api/business', '/api/cliente']; // ✅ AGREGAR API CLIENTE
   const isCriticalApi = criticalApiRoutes.some(route => pathname.startsWith(route));
   
   if (isCriticalApi && !pathname.includes('/api/businesses/') && !extractBusinessFromUrl(pathname)) {

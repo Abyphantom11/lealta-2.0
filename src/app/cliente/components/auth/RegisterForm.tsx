@@ -14,7 +14,7 @@ export const RegisterForm = ({
   setFormData, 
   setClienteData 
 }: RegisterFormProps) => {
-  const { brandingConfig } = useBranding();
+  const { brandingConfig, businessId } = useBranding(); // ✅ OBTENER BUSINESS ID
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
@@ -37,7 +37,10 @@ export const RegisterForm = ({
     try {
       const response = await fetch('/api/cliente/registro', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-business-id': businessId || '' // ✅ AGREGAR BUSINESS ID HEADER
+        },
         body: JSON.stringify({
           cedula: cedula.trim(),
           nombre: formData.nombre.trim(),

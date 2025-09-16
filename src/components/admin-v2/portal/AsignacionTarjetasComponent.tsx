@@ -72,14 +72,24 @@ export default function AsignacionTarjetasComponent({
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/clientes/search?q=${encodeURIComponent(term)}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch('/api/admin/clients/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          searchTerm: term
+        }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setClients(data);
+        if (data.success && Array.isArray(data.clients)) {
+          setClients(data.clients);
+        } else {
+          console.error('Formato de respuesta inesperado:', data);
+          setClients([]);
+        }
       } else {
         console.error('Error en la respuesta:', response.status);
         setClients([]);
@@ -121,6 +131,7 @@ export default function AsignacionTarjetasComponent({
           clienteId: selectedClient.id, // ✅ CORREGIDO: Usar clienteId en lugar de customerId
           nivel: selectedLevel, // ✅ CORREGIDO: Usar nivel en lugar de level
           asignacionManual: true, // ✅ NUEVO: Marcar como asignación manual
+          fastUpdate: true, // ✅ NUEVO: Solicitar actualización rápida
         }),
       });
 
@@ -245,13 +256,9 @@ export default function AsignacionTarjetasComponent({
                             {client.email}
                           </p>
                           <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs text-gray-600">Nivel actual:</span>
-                            <span className={`text-xs px-2 py-1 rounded bg-gradient-to-r text-white ${getNivelColor(client.nivel || nivelAutomatico)}`}>
-                              {client.nivel || nivelAutomatico}
+                            <span className="text-xs text-yellow-600 font-medium">
+                              {client.puntos} puntos
                             </span>
-                            {!client.nivel && (
-                              <span className="text-xs text-gray-500">(automático)</span>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -271,10 +278,7 @@ export default function AsignacionTarjetasComponent({
                 <h4 className="font-medium text-gray-800 mb-3">Cliente Seleccionado</h4>
                 <div className="space-y-2">
                   <p className="text-sm"><span className="font-medium">Nombre:</span> {selectedClient.nombre}</p>
-                  <p className="text-sm"><span className="font-medium">Email:</span> {selectedClient.email}</p>
-                  {selectedClient.telefono && (
-                    <p className="text-sm"><span className="font-medium">Teléfono:</span> {selectedClient.telefono}</p>
-                  )}
+                  <p className="text-sm"><span className="font-medium">Puntos:</span> <span className="text-yellow-600 font-medium">{selectedClient.puntos}</span></p>
                   
                   {selectedClient.nivel && (
                     <div className="mt-3 pt-3 border-t border-gray-200">
