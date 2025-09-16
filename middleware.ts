@@ -12,6 +12,7 @@ import {
   isClientRoute,
   requiresAdminAuth
 } from './src/middleware/security';
+import { handleSessionSegregation } from './src/middleware/sessionSegregation';
 import { prisma } from './src/lib/prisma';
 
 // Rutas que requieren autenticación (después del chequeo de businessId)
@@ -364,6 +365,12 @@ async function handleBusinessRouting(request: NextRequest): Promise<NextResponse
       loginUrl.searchParams.set('message', 'No tienes permisos para acceder a este negocio.');
 
       return NextResponse.redirect(loginUrl);
+    }
+
+    // 🔒 FASE 1.3: SESSION SEGREGATION - Validar tipo de sesión correcto
+    const sessionValidation = await handleSessionSegregation(request, pathname, businessContext.businessId);
+    if (sessionValidation) {
+      return sessionValidation; // Puede ser redirect o error response
     }
 
     // Reescribir URL interna removiendo el subdomain
