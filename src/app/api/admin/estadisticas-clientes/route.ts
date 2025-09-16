@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
-import { requireBusinessContext } from '../../../../middleware/api-business-filter';
+import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
 
 // Forzar que esta ruta sea dinámica
 export const dynamic = 'force-dynamic';
@@ -22,17 +22,11 @@ interface EstadisticasDistribucion {
 
 // Obtener estadísticas de la distribución de niveles
 export async function GET(request: NextRequest) {
+  return withAuth(request, async (session) => {
   try {
-    // Obtener contexto de business del usuario autenticado
-    const context = await requireBusinessContext(request);
-    if (!context) {
-      return NextResponse.json(
-        { error: 'Acceso no autorizado' },
-        { status: 401 }
-      );
-    }
+    console.log(`📊 Estadisticas-clientes GET by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
 
-    const { businessId } = context;
+    const { businessId } = session;
 
     // Obtener clientes SOLO del business del usuario
     const clientes = await prisma.cliente.findMany({
@@ -147,4 +141,5 @@ export async function GET(request: NextRequest) {
   } finally {
     await prisma.$disconnect();
   }
+  }, AuthConfigs.READ_ONLY);
 }

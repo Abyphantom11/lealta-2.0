@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
+import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
 
 const PORTAL_CONFIG_PATH = path.join(process.cwd(), 'portal-config.json');
 
@@ -14,10 +15,12 @@ interface ConfiguracionPuntos {
 }
 
 /**
- * GET - Obtener configuración actual de puntos
+ * 🔒 GET - Obtener configuración actual de puntos (PROTEGIDO - WRITE)
  */
-export async function GET() {
-  try {
+export async function GET(request: NextRequest) {
+  return withAuth(request, async (session) => {
+    try {
+      console.log(`🎯 Points config GET by: ${session.role} (${session.userId})`);
     const configContent = await fs.readFile(PORTAL_CONFIG_PATH, 'utf-8');
     const config = JSON.parse(configContent);
     
@@ -36,20 +39,24 @@ export async function GET() {
     });
 
   } catch (error) {
-    console.error('Error leyendo configuración de puntos:', error);
+    console.error('❌ Error leyendo configuración de puntos:', error);
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
     );
   }
+  }, AuthConfigs.WRITE);
 }
 
 /**
- * POST - Actualizar configuración de puntos
+ * 🔒 POST - Actualizar configuración de puntos (PROTEGIDO - WRITE)
  */
 export async function POST(request: NextRequest) {
-  try {
-    const body: Partial<ConfiguracionPuntos> = await request.json();
+  return withAuth(request, async (session) => {
+    try {
+      console.log(`🔧 Points config UPDATE by: ${session.role} (${session.userId})`);
+      
+      const body: Partial<ConfiguracionPuntos> = await request.json();
 
     // Leer configuración actual
     const configContent = await fs.readFile(PORTAL_CONFIG_PATH, 'utf-8');
@@ -88,14 +95,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Configuración de puntos actualizada exitosamente',
-      data: nuevaConfiguracion
+      data: nuevaConfiguracion,
+      updatedBy: session.userId, // ✅ AUDITORÍA
+      businessId: session.businessId
     });
 
   } catch (error) {
-    console.error('Error actualizando configuración de puntos:', error);
+    console.error('❌ Error actualizando configuración de puntos:', error);
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
     );
   }
+  }, AuthConfigs.WRITE);
 }

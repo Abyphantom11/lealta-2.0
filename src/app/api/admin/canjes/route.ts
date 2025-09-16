@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { requireBusinessContext } from '../../../../middleware/api-business-filter';
+import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
 
 // Forzar que esta ruta sea dinámica
 export const dynamic = 'force-dynamic';
@@ -8,24 +8,16 @@ export const dynamic = 'force-dynamic';
 const prisma = new PrismaClient();
 
 export async function GET(request: NextRequest) {
+  return withAuth(request, async (session) => {
   try {
-    // Obtener contexto de business del usuario autenticado
-    const context = await requireBusinessContext(request);
-    if (!context) {
-      return NextResponse.json(
-        { error: 'Acceso no autorizado' },
-        { status: 401 }
-      );
-    }
-
-    const { businessId } = context;
+    console.log(`📋 Canjes GET by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
 
     // Obtener el historial real de canjes SOLO del business del usuario
     const canjes = await prisma.historialCanje.findMany({
       where: {
         // Filtrar por business a través de la relación cliente
         cliente: {
-          businessId: businessId, // ✅ FILTRO POR BUSINESS
+          businessId: session.businessId, // ✅ FILTRO POR BUSINESS (actualizado)
         },
       },
       orderBy: {
@@ -50,10 +42,11 @@ export async function GET(request: NextRequest) {
       success: true,
       canjes: canjesFormateados,
       total: canjesFormateados.length,
+      auditedBy: session.userId // ✅ AUDITORÍA
     });
 
   } catch (error) {
-    console.error('Error obteniendo historial de canjes:', error);
+    console.error('❌ Error obteniendo historial de canjes:', error);
     return NextResponse.json(
       { success: false, message: 'Error interno del servidor' },
       { status: 500 }
@@ -61,4 +54,5 @@ export async function GET(request: NextRequest) {
   } finally {
     await prisma.$disconnect();
   }
+  }, AuthConfigs.READ_ONLY);
 }

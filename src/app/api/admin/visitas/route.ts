@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { headers } from 'next/headers';
+import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
 
 const prisma = new PrismaClient();
 
@@ -16,7 +17,10 @@ interface VisitaData {
  * Captura cada carga de página y actualiza estadísticas
  */
 export async function POST(request: NextRequest) {
+  return withAuth(request, async (session) => {
   try {
+    console.log(`📊 Visitas POST by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
+    
     const body: VisitaData = await request.json();
     const headersList = headers();
     
@@ -75,16 +79,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       visitaId: nuevaVisita.id,
-      message: 'Visita registrada exitosamente'
+      message: 'Visita registrada exitosamente',
+      auditedBy: session.userId // ✅ AUDITORÍA
     });
 
   } catch (error) {
-    console.error('Error registrando visita:', error);
+    console.error('❌ Error registrando visita:', error);
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
     );
   }
+  }, AuthConfigs.WRITE);
 }
 
 /**
@@ -205,8 +211,11 @@ async function actualizarEstadisticaPeriodo(
 /**
  * GET - Obtener estadísticas de visitas
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  return withAuth(request, async (session) => {
   try {
+    console.log(`📊 Visitas GET by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
+    
     const ahora = new Date();
     const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
     
@@ -250,16 +259,18 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      data: result
+      data: result,
+      auditedBy: session.userId // ✅ AUDITORÍA
     });
 
   } catch (error) {
-    console.error('Error obteniendo estadísticas:', error);
+    console.error('❌ Error obteniendo estadísticas:', error);
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
     );
   }
+  }, AuthConfigs.READ_ONLY);
 }
 
 /**

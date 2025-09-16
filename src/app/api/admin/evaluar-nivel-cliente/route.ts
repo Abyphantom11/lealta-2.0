@@ -6,7 +6,7 @@ import {
   enviarNotificacionClientes,
   TipoNotificacion,
 } from '@/lib/notificaciones';
-import { requireBusinessContext } from '../../../../middleware/api-business-filter';
+import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
 
 const prisma = new PrismaClient();
 
@@ -154,17 +154,11 @@ function calculateLevelChange(nivelActual: string, nivelCorrespondiente: string)
 }
 
 export async function POST(request: NextRequest) {
+  return withAuth(request, async (session) => {
   try {
-    // Obtener contexto de business del usuario autenticado
-    const context = await requireBusinessContext(request);
-    if (!context) {
-      return NextResponse.json(
-        { error: 'Acceso no autorizado' },
-        { status: 401 }
-      );
-    }
+    console.log(`⚡ Evaluar-nivel POST by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
 
-    const { businessId } = context;
+    const { businessId } = session;
     const { cedula, clienteId } = await request.json();
 
     if (!cedula && !clienteId) {
@@ -243,26 +237,24 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error evaluando nivel de cliente:', error);
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Error interno del servidor',
+      evaluatedBy: session.userId // ✅ AUDITORÍA
+    }, { status: 500 });
   } finally {
     await prisma.$disconnect();
   }
+  }, AuthConfigs.WRITE);
 }
 
 // También manejar evaluación masiva
 export async function PUT(request: NextRequest) {
+  return withAuth(request, async (session) => {
   try {
-    // Obtener contexto de business del usuario autenticado
-    const context = await requireBusinessContext(request);
-    if (!context) {
-      return NextResponse.json(
-        { error: 'Acceso no autorizado' },
-        { status: 401 }
-      );
-    }
-
-    const { businessId } = context;
-
+    console.log(`⚡ Evaluar-nivel PUT by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
+    
+    const { businessId } = session;
+    
     // Evaluar todos los clientes
     const portalConfig = await getPortalConfig();
     if (!portalConfig?.tarjetas) {
@@ -336,4 +328,5 @@ export async function PUT(request: NextRequest) {
   } finally {
     await prisma.$disconnect();
   }
+  }, AuthConfigs.WRITE);
 }

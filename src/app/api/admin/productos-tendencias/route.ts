@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { requireBusinessContext } from '../../../../middleware/api-business-filter';
+import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
 
 // Forzar que esta ruta sea dinámica
 export const dynamic = 'force-dynamic';
@@ -21,22 +21,14 @@ interface ProductoVentas {
 }
 
 export async function GET(request: NextRequest) {
+  return withAuth(request, async (session) => {
   try {
-    // Obtener contexto de business del usuario autenticado
-    const context = await requireBusinessContext(request);
-    if (!context) {
-      return NextResponse.json(
-        { error: 'Acceso no autorizado' },
-        { status: 401 }
-      );
-    }
-
-    const { businessId } = context;
+    console.log(`📊 Productos-tendencias GET by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
     
     // Obtener TODOS los consumos del business del usuario
     const consumos = await prisma.consumo.findMany({
       where: {
-        businessId: businessId, // ✅ FILTRO POR BUSINESS
+        businessId: session.businessId, // ✅ FILTRO POR BUSINESS (actualizado)
       },
       orderBy: {
         registeredAt: 'asc'
@@ -161,4 +153,5 @@ export async function GET(request: NextRequest) {
   } finally {
     await prisma.$disconnect();
   }
+  }, AuthConfigs.READ_ONLY);
 }

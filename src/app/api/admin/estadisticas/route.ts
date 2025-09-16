@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
     const fechaInicioPrevio = new Date(fechaInicio.getTime() - (fechaActual.getTime() - fechaInicio.getTime()));
     const consumosPrevios = await prisma.consumo.findMany({
       where: {
-        businessId: businessId, // ✅ FILTRO POR BUSINESS
+        businessId: session.businessId, // ✅ FILTRO POR BUSINESS
         registeredAt: {
           gte: fechaInicioPrevio,
           lt: fechaInicio,
@@ -142,7 +142,7 @@ export async function GET(request: NextRequest) {
     try {
       topClientes = await prisma.cliente.findMany({
         where: {
-          businessId: businessId, // ✅ FILTRO POR BUSINESS
+          businessId: session.businessId, // ✅ FILTRO POR BUSINESS
           consumos: {
             some: {
               registeredAt: {
@@ -199,7 +199,7 @@ export async function GET(request: NextRequest) {
       // Obtener todos los clientes que compraron en el período
       const clientesDelPeriodo = await prisma.cliente.findMany({
         where: {
-          businessId: businessId, // ✅ FILTRO POR BUSINESS
+          businessId: session.businessId, // ✅ FILTRO POR BUSINESS
           consumos: {
             some: {
               registeredAt: {
@@ -240,13 +240,13 @@ export async function GET(request: NextRequest) {
     let businessGoals = null;
     try {
       businessGoals = await prisma.businessGoals.findUnique({
-        where: { businessId: businessId }
+        where: { businessId: session.businessId }
       });
       
       // Si no existen metas, crear las predeterminadas
       businessGoals ??= await prisma.businessGoals.create({
         data: {
-          businessId: businessId,
+          businessId: session.businessId,
           // Los valores por defecto ya están definidos en el schema
         }
       });
@@ -559,4 +559,5 @@ export async function GET(request: NextRequest) {
   } finally {
     await prisma.$disconnect();
   }
+  }, AuthConfigs.READ_ONLY);
 }

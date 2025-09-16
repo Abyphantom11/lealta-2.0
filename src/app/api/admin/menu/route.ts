@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { MenuCategoryUpdateData } from '../../../../types/api-routes';
-import { validateBusinessAccess } from '../../../../utils/business-validation';
+import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
@@ -10,17 +10,14 @@ const prisma = new PrismaClient();
 
 // GET - Obtener menú completo con categorías y productos
 export async function GET(request: NextRequest) {
+  return withAuth(request, async (session) => {
   try {
-    console.log('📋 GET /api/admin/menu - Obteniendo menú...');
+    console.log(`📋 Menu GET by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
     
-    // Obtener business ID del middleware context
-    const businessId = validateBusinessAccess(request);
-    console.log('🏢 BusinessId desde middleware:', businessId);
-
     console.log('🔍 Consultando categorías en la base de datos...');
     const categorias = await prisma.menuCategory.findMany({
       where: {
-        businessId,
+        businessId: session.businessId, // ✅ FILTRO POR BUSINESS (actualizado)
       },
       include: {
         productos: {
@@ -36,6 +33,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       menu: categorias,
+      auditedBy: session.userId // ✅ AUDITORÍA
     });
   } catch (error) {
     console.error('❌ Error obteniendo menú:', error);
@@ -45,12 +43,14 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+  }, AuthConfigs.READ_ONLY);
 }
 
 // POST - Crear nueva categoría
 export async function POST(request: NextRequest) {
+  return withAuth(request, async (session) => {
   try {
-    console.log('📝 POST /api/admin/menu - Iniciando creación de categoría...');
+    console.log(`📝 Menu POST by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
     
     const body = await request.json();
     console.log('📦 Datos recibidos:', body);
@@ -65,15 +65,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Obtener business ID del middleware context
-    const businessId = validateBusinessAccess(request);
-    console.log('🏢 BusinessId desde middleware:', businessId);
-
     console.log('✅ Validación inicial pasada, creando categoría...');
     
     const categoria = await prisma.menuCategory.create({
       data: {
-        businessId,
+        businessId: session.businessId, // ✅ FILTRO POR BUSINESS (actualizado)
         nombre,
         descripcion: descripcion || null,
         icono: icono || null,
@@ -88,6 +84,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       categoria,
+      createdBy: session.userId // ✅ AUDITORÍA
     });
   } catch (error) {
     console.error('❌ Error creando categoría:', error);
@@ -97,11 +94,15 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+  }, AuthConfigs.WRITE);
 }
 
 // PUT - Actualizar categoría
 export async function PUT(request: NextRequest) {
+  return withAuth(request, async (session) => {
   try {
+    console.log(`📝 Menu PUT by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
+    
     const body = await request.json();
     const { id, nombre, descripcion, icono, orden, activo, parentId } = body;
 
@@ -111,9 +112,6 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    // Obtener business ID del middleware context
-    const businessId = validateBusinessAccess(request);
 
     const updateData: MenuCategoryUpdateData = {};
     if (nombre !== undefined) updateData.nombre = nombre;
@@ -127,7 +125,7 @@ export async function PUT(request: NextRequest) {
     const categoria = await prisma.menuCategory.update({
       where: { 
         id,
-        businessId // Asegurar que solo se actualice si pertenece al business
+        businessId: session.businessId // ✅ FILTRO POR BUSINESS (actualizado)
       },
       data: updateData,
     });
@@ -135,19 +133,24 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({
       success: true,
       categoria,
+      updatedBy: session.userId // ✅ AUDITORÍA
     });
   } catch (error) {
-    console.error('Error actualizando categoría:', error);
+    console.error('❌ Error actualizando categoría:', error);
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
     );
   }
+  }, AuthConfigs.WRITE);
 }
 
 // DELETE - Eliminar categoría
 export async function DELETE(request: NextRequest) {
+  return withAuth(request, async (session) => {
   try {
+    console.log(`🗑️ Menu DELETE by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
+    
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -158,14 +161,11 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Obtener business ID del middleware context
-    const businessId = validateBusinessAccess(request);
-
     // Verificar que la categoría pertenece al business antes de eliminar
     const categoria = await prisma.menuCategory.findFirst({
       where: { 
         id,
-        businessId
+        businessId: session.businessId // ✅ FILTRO POR BUSINESS (actualizado)
       },
     });
 
@@ -185,7 +185,7 @@ export async function DELETE(request: NextRequest) {
     await prisma.menuCategory.deleteMany({
       where: { 
         parentId: id,
-        businessId
+        businessId: session.businessId // ✅ FILTRO POR BUSINESS (actualizado)
       },
     });
 
@@ -197,12 +197,14 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Categoría eliminada correctamente',
+      deletedBy: session.userId // ✅ AUDITORÍA
     });
   } catch (error) {
-    console.error('Error eliminando categoría:', error);
+    console.error('❌ Error eliminando categoría:', error);
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
     );
   }
+  }, AuthConfigs.ADMIN_ONLY);
 }

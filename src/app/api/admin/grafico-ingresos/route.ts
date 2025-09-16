@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { requireBusinessContext } from '../../../../middleware/api-business-filter';
+import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
 
 const prisma = new PrismaClient();
 
@@ -143,17 +143,9 @@ function generatePeriodos(
 }
 
 export async function GET(request: NextRequest) {
+  return withAuth(request, async (session) => {
   try {
-    // Obtener contexto de business del usuario autenticado
-    const context = await requireBusinessContext(request);
-    if (!context) {
-      return NextResponse.json(
-        { error: 'Acceso no autorizado' },
-        { status: 401 }
-      );
-    }
-
-    const { businessId } = context;
+    console.log(`📊 Grafico-ingresos GET by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
 
     const { searchParams } = new URL(request.url);
     const tipo = searchParams.get('tipo') || 'semana';
@@ -185,7 +177,7 @@ export async function GET(request: NextRequest) {
     // Obtener consumos en el rango SOLO del business del usuario
     const consumos = await prisma.consumo.findMany({
       where: {
-        businessId: businessId, // ✅ FILTRO POR BUSINESS
+        businessId: session.businessId, // ✅ FILTRO POR BUSINESS (actualizado)
         registeredAt: {
           gte: fechaInicio,
           lte: fechaFin,
@@ -257,10 +249,11 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error en API gráfico ingresos:', error);
+    console.error('❌ Error en API gráfico ingresos:', error);
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
     );
   }
+  }, AuthConfigs.READ_ONLY);
 }

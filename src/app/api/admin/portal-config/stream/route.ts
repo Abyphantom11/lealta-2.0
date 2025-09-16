@@ -4,10 +4,14 @@ import {
   removeConnection,
   getCurrentConfig,
 } from '../../../../../lib/sse-notifications';
+import { withAuth, AuthConfigs } from '../../../../../middleware/requireAuth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  return withAuth(request, async (session) => {
+    console.log(`📡 Portal-config-stream GET by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
+    
   const stream = new ReadableStream({
     start(controller) {
       // Agregar a conexiones activas
@@ -59,4 +63,5 @@ export async function GET(request: NextRequest) {
       'Access-Control-Allow-Headers': 'Cache-Control',
     },
   });
+  }, AuthConfigs.READ_ONLY);
 }

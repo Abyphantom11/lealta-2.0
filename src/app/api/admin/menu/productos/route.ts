@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { ProductCreateData } from '../../../../../types/api-routes';
-import { validateBusinessAccess } from '../../../../../utils/business-validation';
+import { withAuth, AuthConfigs } from '../../../../../middleware/requireAuth';
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
@@ -10,7 +10,10 @@ const prisma = new PrismaClient();
 
 // POST - Crear nuevo producto
 export async function POST(request: NextRequest) {
+  return withAuth(request, async (session) => {
   try {
+    console.log(`🍽️ Menu-productos POST by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
+    
     const body = await request.json();
     const {
       categoryId,
@@ -73,13 +76,17 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+  }, AuthConfigs.WRITE);
 }
 
 // GET - Obtener productos
 export async function GET(request: NextRequest) {
+  return withAuth(request, async (session) => {
   try {
+    console.log(`🍽️ Menu-productos GET by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
+    
     // Obtener business ID del middleware context
-    const businessId = validateBusinessAccess(request);
+    const businessId = session.businessId; // ✅ FILTRO POR BUSINESS (actualizado)
     console.log('🏢 BusinessId desde middleware:', businessId);
 
     const productos = await prisma.menuProduct.findMany({
@@ -106,17 +113,21 @@ export async function GET(request: NextRequest) {
       productos,
     });
   } catch (error) {
-    console.error('Error obteniendo productos:', error);
+    console.error('❌ Error obteniendo productos:', error);
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
     );
   }
+  }, AuthConfigs.READ_ONLY);
 }
 
 // PUT - Actualizar producto
 export async function PUT(request: NextRequest) {
+  return withAuth(request, async (session) => {
   try {
+    console.log(`🍽️ Menu-productos PUT by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
+    
     const body = await request.json();
     const {
       id,
@@ -173,17 +184,21 @@ export async function PUT(request: NextRequest) {
       producto,
     });
   } catch (error) {
-    console.error('Error actualizando producto:', error);
+    console.error('❌ Error actualizando producto:', error);
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
     );
   }
+  }, AuthConfigs.WRITE);
 }
 
 // DELETE - Eliminar producto (soft delete)
 export async function DELETE(request: NextRequest) {
+  return withAuth(request, async (session) => {
   try {
+    console.log(`🗑️ Menu-productos DELETE by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
+    
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -204,10 +219,11 @@ export async function DELETE(request: NextRequest) {
       message: 'Producto desactivado correctamente',
     });
   } catch (error) {
-    console.error('Error eliminando producto:', error);
+    console.error('❌ Error eliminando producto:', error);
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
     );
   }
+  }, AuthConfigs.ADMIN_ONLY);
 }
