@@ -1,28 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
 
 const prisma = new PrismaClient();
 
+// 🔒 POST - Asignar tarjetas bronce (PROTEGIDO - WRITE)
 export async function POST(request: NextRequest) {
-  try {
-    const { clienteIds } = await request.json();
+  return withAuth(request, async (session) => {
+    try {
+      console.log(`🎫 Asignar tarjetas bronce by: ${session.role} (${session.userId})`);
+      
+      const { clienteIds } = await request.json();
 
-    if (!Array.isArray(clienteIds) || clienteIds.length === 0) {
-      return NextResponse.json(
-        { success: false, message: 'Se requiere una lista de IDs de clientes' },
-        { status: 400 }
-      );
-    }
+      if (!Array.isArray(clienteIds) || clienteIds.length === 0) {
+        return NextResponse.json(
+          { success: false, message: 'Se requiere una lista de IDs de clientes' },
+          { status: 400 }
+        );
+      }
 
-    let asignadas = 0;
-    const errores: string[] = [];
+      let asignadas = 0;
+      const errores: string[] = [];
 
-    // Procesar cada cliente
-    for (const clienteId of clienteIds) {
-      try {
-        // Verificar que el cliente existe
-        const cliente = await prisma.cliente.findUnique({
-          where: { id: clienteId },
+      // Procesar cada cliente
+      for (const clienteId of clienteIds) {
+        try {
+          // 🔒 Verificar que el cliente existe y pertenece al business
+          const cliente = await prisma.cliente.findFirst({
+            where: { 
+              id: clienteId,
+              businessId: session.businessId // ✅ FILTRO DE BUSINESS SECURITY
+            },
           include: { tarjetaLealtad: true }
         });
 
@@ -63,10 +71,12 @@ export async function POST(request: NextRequest) {
       message: `Proceso completado. ${asignadas} tarjetas asignadas.`,
       asignadas,
       errores: errores.length > 0 ? errores : undefined,
+      assignedBy: session.userId, // ✅ AUDITORÍA
+      businessId: session.businessId
     });
 
   } catch (error) {
-    console.error('Error en asignación masiva de tarjetas:', error);
+    console.error('❌ Error en asignación masiva de tarjetas:', error);
     return NextResponse.json(
       { success: false, message: 'Error interno del servidor' },
       { status: 500 }
@@ -74,4 +84,5 @@ export async function POST(request: NextRequest) {
   } finally {
     await prisma.$disconnect();
   }
+  }, AuthConfigs.WRITE);
 }

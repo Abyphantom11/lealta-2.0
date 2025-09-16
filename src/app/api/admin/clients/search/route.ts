@@ -1,35 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { requireBusinessContext } from '../../../../../middleware/api-business-filter';
+import { withAuth, AuthConfigs } from '../../../../../middleware/requireAuth';
 
 const prisma = new PrismaClient();
 
+// 🔒 POST - Búsqueda de clientes (PROTEGIDO - READ_ONLY)
 export async function POST(request: NextRequest) {
-  try {
-    // Obtener contexto de business del usuario autenticado
-    const context = await requireBusinessContext(request);
-    if (!context) {
-      return NextResponse.json(
-        { error: 'Acceso no autorizado' },
-        { status: 401 }
-      );
-    }
+  return withAuth(request, async (session) => {
+    try {
+      console.log(`🔍 Client search by: ${session.role} (${session.userId})`);
+      
+      const { searchTerm } = await request.json();
 
-    const { businessId } = context;
-    const { searchTerm } = await request.json();
+      if (!searchTerm || searchTerm.length < 2) {
+        return NextResponse.json({
+          success: true,
+          clients: [],
+          message: 'Término de búsqueda muy corto'
+        });
+      }
 
-    if (!searchTerm || searchTerm.length < 2) {
-      return NextResponse.json({
-        success: true,
-        clients: [],
-        message: 'Término de búsqueda muy corto'
-      });
-    }
-
-    // Buscar clientes por nombre, correo o cédula SOLO del business del usuario
-    const clients = await prisma.cliente.findMany({
+      // 🔒 Buscar clientes por nombre, correo o cédula SOLO del business del usuario
+      const clients = await prisma.cliente.findMany({
       where: {
-        businessId: businessId, // ✅ FILTRO POR BUSINESS
+        businessId: session.businessId, // ✅ FILTRO POR BUSINESS SECURITY
         OR: [
           {
             nombre: {
@@ -79,10 +73,12 @@ export async function POST(request: NextRequest) {
       success: true,
       clients: clientsMapped,
       total: clientsMapped.length,
+      searchedBy: session.userId, // ✅ AUDITORÍA
+      businessId: session.businessId
     });
 
   } catch (error) {
-    console.error('Error buscando clientes:', error);
+    console.error('❌ Error buscando clientes:', error);
     return NextResponse.json(
       { success: false, message: 'Error interno del servidor', clients: [] },
       { status: 500 }
@@ -90,4 +86,5 @@ export async function POST(request: NextRequest) {
   } finally {
     await prisma.$disconnect();
   }
+  }, AuthConfigs.READ_ONLY);
 }

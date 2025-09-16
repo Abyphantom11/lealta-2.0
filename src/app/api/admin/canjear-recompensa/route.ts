@@ -1,33 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
 
 const prisma = new PrismaClient();
 
+// 🔒 POST - Canjear recompensa (PROTEGIDO - WRITE)
 export async function POST(request: NextRequest) {
-  try {
-    const { clienteId, recompensaId, recompensaNombre: nombreRecompensa, puntosDescontados } = await request.json();
+  return withAuth(request, async (session) => {
+    try {
+      console.log(`💎 Canje recompensa request by: ${session.role} (${session.userId})`);
+      
+      const { clienteId, recompensaId, recompensaNombre: nombreRecompensa, puntosDescontados } = await request.json();
 
-    // Validar datos requeridos
-    if (!clienteId || !recompensaId || !puntosDescontados) {
-      return NextResponse.json(
-        { success: false, message: 'Datos requeridos faltantes' },
-        { status: 400 }
-      );
-    }
+      // Validar datos requeridos
+      if (!clienteId || !recompensaId || !puntosDescontados) {
+        return NextResponse.json(
+          { success: false, message: 'Datos requeridos faltantes' },
+          { status: 400 }
+        );
+      }
 
-    // Obtener cliente actual
-    const cliente = await prisma.cliente.findUnique({
-      where: { id: clienteId },
-    });
+      // 🔒 Obtener cliente con filtro de business
+      const cliente = await prisma.cliente.findFirst({
+        where: { 
+          id: clienteId,
+          businessId: session.businessId // ✅ FILTRO DE BUSINESS SECURITY
+        },
+      });
 
-    if (!cliente) {
-      return NextResponse.json(
-        { success: false, message: 'Cliente no encontrado' },
-        { status: 404 }
-      );
-    }
+      if (!cliente) {
+        console.log(`❌ Cliente no encontrado o no pertenece al business: ${clienteId}`);
+        return NextResponse.json(
+          { success: false, message: 'Cliente no encontrado' },
+          { status: 404 }
+        );
+      }
 
-    // Verificar si el cliente tiene suficientes puntos
+      // Verificar si el cliente tiene suficientes puntos
     if (cliente.puntos < puntosDescontados) {
       return NextResponse.json(
         { 
@@ -94,11 +103,13 @@ export async function POST(request: NextRequest) {
         clienteId: resultado.clienteActualizado.id,
         puntosRestantes: resultado.clienteActualizado.puntos,
         canjeId: resultado.historialCanje.id,
+        processedBy: session.userId, // ✅ AUDITORÍA
+        businessId: session.businessId
       },
     });
 
   } catch (error) {
-    console.error('Error procesando canje:', error);
+    console.error('❌ Error procesando canje:', error);
     return NextResponse.json(
       { success: false, message: 'Error interno del servidor' },
       { status: 500 }
@@ -106,4 +117,5 @@ export async function POST(request: NextRequest) {
   } finally {
     await prisma.$disconnect();
   }
+  }, AuthConfigs.WRITE);
 }

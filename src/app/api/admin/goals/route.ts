@@ -1,54 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
 
 const prisma = new PrismaClient();
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-  try {
-    // TEMPORAL: Usar el mismo businessId que en estadísticas para consistencia
-    const businessId = 'cmes3g9wd0000eyggpbqfl9r6';
+// 🔒 GET - Obtener objetivos (PROTEGIDO - ADMIN_ONLY)
+export async function GET(request: NextRequest) {
+  return withAuth(request, async (session) => {
+    try {
+      console.log(`🎯 Goals GET by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
 
-    console.log('✅ Getting goals for business:', businessId);
+      // 🔒 Obtener las metas del negocio con filtro de seguridad
+      let goals = await prisma.businessGoals.findUnique({
+        where: { businessId: session.businessId } // ✅ SECURITY FILTER
+      });
 
-    // Obtener las metas del negocio
-    let goals = await prisma.businessGoals.findUnique({
-      where: { businessId: businessId }
-    });
+      console.log('📊 Goals encontradas en DB:', goals);
 
-    console.log('📊 Goals encontradas en DB:', goals);
-
-    // Si no existen metas, crear las predeterminadas
-    if (!goals) {
-      console.log('🆕 Creando metas por defecto...');
-      goals = await prisma.businessGoals.create({
-        data: {
-          businessId: businessId,
-          // Los valores por defecto ya están definidos en el schema
-        }
+      // Si no existen metas, crear las predeterminadas
+      if (!goals) {
+        console.log('🆕 Creando metas por defecto...');
+        goals = await prisma.businessGoals.create({
+          data: {
+            businessId: session.businessId, // ✅ SECURITY FILTER
+            // Los valores por defecto ya están definidos en el schema
+          }
       });
       console.log('✅ Metas creadas:', goals);
     }
 
-    return NextResponse.json({ goals });
+    return NextResponse.json({ 
+      goals,
+      accessedBy: session.userId, // ✅ AUDITORÍA
+      businessId: session.businessId 
+    });
   } catch (error) {
-    console.error('Error al obtener metas:', error);
+    console.error('❌ Error al obtener metas:', error);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   } finally {
     await prisma.$disconnect();
   }
+  }, AuthConfigs.ADMIN_ONLY);
 }
 
+// 🔒 PUT - Actualizar objetivos (PROTEGIDO - ADMIN_ONLY)
 export async function PUT(request: NextRequest) {
-  try {
-    // TEMPORAL: Usar el mismo businessId que en estadísticas para consistencia
-    const businessId = 'cmes3g9wd0000eyggpbqfl9r6';
+  return withAuth(request, async (session) => {
+    try {
+      console.log(`🔧 Goals UPDATE by: ${session.role} (${session.userId})`);
 
-    const body = await request.json();
+      const body = await request.json();
     
-    console.log('✅ Updating goals for business:', businessId, body);
+    console.log('✅ Updating goals for business:', session.businessId, body);
 
     // Validar los datos recibidos
     const {
@@ -70,7 +76,7 @@ export async function PUT(request: NextRequest) {
 
     // Actualizar o crear las metas
     const goals = await prisma.businessGoals.upsert({
-      where: { businessId: businessId },
+      where: { businessId: session.businessId }, // ✅ SECURITY FILTER
       update: {
         dailyRevenue: dailyRevenue || undefined,
         weeklyRevenue: weeklyRevenue || undefined,
@@ -88,7 +94,7 @@ export async function PUT(request: NextRequest) {
         targetActiveClients: targetActiveClients || undefined,
       },
       create: {
-        businessId: businessId,
+        businessId: session.businessId, // ✅ SECURITY FILTER
         dailyRevenue: dailyRevenue || 100,
         weeklyRevenue: weeklyRevenue || 700,
         monthlyRevenue: monthlyRevenue || 3000,
@@ -111,12 +117,15 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       goals,
-      message: 'Metas actualizadas correctamente' 
+      message: 'Metas actualizadas correctamente',
+      updatedBy: session.userId, // ✅ AUDITORÍA
+      businessId: session.businessId
     });
   } catch (error) {
-    console.error('Error al actualizar metas:', error);
+    console.error('❌ Error al actualizar metas:', error);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   } finally {
     await prisma.$disconnect();
   }
+  }, AuthConfigs.ADMIN_ONLY);
 }
