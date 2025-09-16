@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
+import { requireBusinessContext } from '../../../../middleware/api-business-filter';
 
 const prisma = new PrismaClient();
 
@@ -17,10 +18,24 @@ interface EstadisticasDistribucion {
 }
 
 // Obtener estadísticas de la distribución de niveles
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Obtener todos los clientes con sus tarjetas
+    // Obtener contexto de business del usuario autenticado
+    const context = await requireBusinessContext(request);
+    if (!context) {
+      return NextResponse.json(
+        { error: 'Acceso no autorizado' },
+        { status: 401 }
+      );
+    }
+
+    const { businessId } = context;
+
+    // Obtener clientes SOLO del business del usuario
     const clientes = await prisma.cliente.findMany({
+      where: {
+        businessId: businessId, // ✅ FILTRO POR BUSINESS
+      },
       include: {
         tarjetaLealtad: true,
         consumos: {
@@ -42,6 +57,14 @@ export async function GET() {
     }
 
     const tarjetaConfig = config.tarjetas[0];
+
+    // Validar que existe configuración de niveles
+    if (!tarjetaConfig.niveles || !Array.isArray(tarjetaConfig.niveles)) {
+      return NextResponse.json(
+        { error: 'No hay configuración de niveles en las tarjetas' },
+        { status: 400 }
+      );
+    }
 
     // Calcular estadísticas
     const estadisticas = {

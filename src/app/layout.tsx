@@ -7,16 +7,16 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Lealta - Premium Customer Experience',
+  title: 'lealta - Premium Customer Experience',
   description:
     'Sistema de captación y control de clientes para bares, restaurantes y discotecas',
   keywords: ['lealta', 'restaurant', 'bar', 'customer', 'loyalty'],
-  authors: [{ name: 'Lealta Team' }],
+  authors: [{ name: 'lealta Team' }],
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Lealta 2.0',
+    title: 'lealta 2.0',
     // startupImage: '/icons/icon-512x512.png',
   },
   icons: {

@@ -6,6 +6,7 @@ import {
   enviarNotificacionClientes,
   TipoNotificacion,
 } from '@/lib/notificaciones';
+import { requireBusinessContext } from '../../../../middleware/api-business-filter';
 
 const prisma = new PrismaClient();
 
@@ -154,6 +155,16 @@ function calculateLevelChange(nivelActual: string, nivelCorrespondiente: string)
 
 export async function POST(request: NextRequest) {
   try {
+    // Obtener contexto de business del usuario autenticado
+    const context = await requireBusinessContext(request);
+    if (!context) {
+      return NextResponse.json(
+        { error: 'Acceso no autorizado' },
+        { status: 401 }
+      );
+    }
+
+    const { businessId } = context;
     const { cedula, clienteId } = await request.json();
 
     if (!cedula && !clienteId) {
@@ -171,7 +182,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const whereClause = cedula ? { cedula } : { id: clienteId };
+    const whereClause = cedula 
+      ? { cedula, businessId } 
+      : { id: clienteId, businessId }; // ✅ FILTRO POR BUSINESS
+    
     const cliente = await prisma.cliente.findUnique({
       where: whereClause,
       include: { tarjetaLealtad: true, consumos: true },
@@ -236,8 +250,19 @@ export async function POST(request: NextRequest) {
 }
 
 // También manejar evaluación masiva
-export async function PUT() {
+export async function PUT(request: NextRequest) {
   try {
+    // Obtener contexto de business del usuario autenticado
+    const context = await requireBusinessContext(request);
+    if (!context) {
+      return NextResponse.json(
+        { error: 'Acceso no autorizado' },
+        { status: 401 }
+      );
+    }
+
+    const { businessId } = context;
+
     // Evaluar todos los clientes
     const portalConfig = await getPortalConfig();
     if (!portalConfig?.tarjetas) {
@@ -248,6 +273,9 @@ export async function PUT() {
     }
 
     const clientes = await prisma.cliente.findMany({
+      where: {
+        businessId: businessId, // ✅ FILTRO POR BUSINESS
+      },
       include: {
         tarjetaLealtad: true,
         consumos: true,

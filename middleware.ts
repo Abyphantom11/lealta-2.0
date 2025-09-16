@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  getBusinessContext,
+  extractBusinessFromUrl
+} from './src/middleware/subdomain';
+import { handleLegacyRedirect } from './src/middleware/legacy-redirect';
 
 // Rutas que requieren autenticación
 const PROTECTED_ROUTES = [
@@ -25,7 +30,44 @@ export async function middleware(request: NextRequest) {
     sessionCookieValue: request.cookies.get('session')?.value,
   });
 
-  // Permitir acceso a rutas públicas y estáticas
+  // 🚫 ESTRATEGIA HÍBRIDA PARA RUTAS LEGACY
+  const criticalRoutes = ['/superadmin']; // Bloqueo total para admin crítico
+  const userRoutes = ['/admin', '/staff', '/cliente']; // Redirección inteligente
+
+  // BLOQUEO COMPLETO para rutas críticas
+  const isCriticalRoute = criticalRoutes.some(route =>
+    pathname === route || pathname.startsWith(route + '/')
+  );
+
+  if (isCriticalRoute) {
+    console.log(`🚫 Ruta crítica bloqueada: ${pathname}`);
+
+    const redirectUrl = new URL('/business-selection', request.url);
+    redirectUrl.searchParams.set('blocked_route', pathname);
+    redirectUrl.searchParams.set('reason', 'critical-route-blocked');
+
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  // REDIRECCIÓN INTELIGENTE para rutas de usuario
+  const isUserRoute = userRoutes.some(route =>
+    pathname === route || pathname.startsWith(route + '/')
+  );
+
+  if (isUserRoute) {
+    const legacyRedirect = await handleLegacyRedirect(request, pathname);
+    if (legacyRedirect) {
+      return legacyRedirect;
+    }
+  }
+
+  // 1. MANEJO DE BUSINESS CONTEXT
+  const businessContext = await handleBusinessRouting(request);
+  if (businessContext) {
+    return businessContext; // Ya sea rewrite o redirect
+  }
+
+  // 2. PERMITIR RUTAS PÚBLICAS Y ESTÁTICAS
   if (
     PUBLIC_ROUTES.some(route => pathname.startsWith(route)) ||
     pathname.startsWith('/_next') ||
@@ -34,15 +76,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Verificar si la ruta está protegida
-  const isProtectedRoute = PROTECTED_ROUTES.some(route =>
-    pathname.startsWith(route)
-  );
-
-  // Manejo especial para rutas de API de admin
+  // 3. MANEJO ESPECIAL PARA APIs DE ADMIN
   if (pathname.startsWith('/api/admin/')) {
     return handleAdminApiRoute(request, pathname);
   }
+
+  // 4. VERIFICAR SI LA RUTA ESTÁ PROTEGIDA
+  const isProtectedRoute = PROTECTED_ROUTES.some(route =>
+    pathname.startsWith(route)
+  );
 
   if (!isProtectedRoute) {
     return NextResponse.next();
@@ -50,6 +92,176 @@ export async function middleware(request: NextRequest) {
 
   console.log('🔒 Ruta protegida, verificando autenticación...');
   return handleProtectedRoute(request, pathname);
+}
+
+/**
+ * Maneja el routing basado en business context
+ */
+async function handleBusinessRouting(request: NextRequest): Promise<NextResponse | null> {
+  const pathname = request.nextUrl.pathname;
+
+  // Verificar si es una ruta con business context
+  const urlData = extractBusinessFromUrl(pathname);
+  if (!urlData) {
+    return null; // No es una ruta de business
+  }
+
+  try {
+    // Obtener contexto completo del business
+    const businessContext = await getBusinessContext(request);
+
+    if (!businessContext) {
+      // Business no encontrado o inactivo
+      console.log(`❌ Business '${urlData.subdomain}' no encontrado o inactivo`);
+
+      const errorUrl = new URL('/login', request.url);
+      errorUrl.searchParams.set('error', 'business-not-found');
+      errorUrl.searchParams.set('subdomain', urlData.subdomain);
+
+      return NextResponse.redirect(errorUrl);
+    }
+
+    // 🔐 VALIDACIÓN DE SEGURIDAD: Verificar que el usuario tenga acceso al business
+    const hasBusinessAccess = await validateUserBusinessAccess(request, businessContext.businessId);
+
+    if (!hasBusinessAccess.allowed) {
+      console.log(`🚫 Acceso denegado a business '${urlData.subdomain}' para usuario:`, hasBusinessAccess.reason);
+
+      const errorUrl = new URL('/login', request.url);
+      errorUrl.searchParams.set('error', 'access-denied');
+      errorUrl.searchParams.set('business', urlData.subdomain);
+      errorUrl.searchParams.set('reason', hasBusinessAccess.reason);
+
+      return NextResponse.redirect(errorUrl);
+    }
+
+    // Reescribir URL interna removiendo el subdomain
+    const internalUrl = new URL(businessContext.remainingPath || '/', request.url);
+    const response = NextResponse.rewrite(internalUrl);
+
+    // Agregar headers de business context
+    response.headers.set('x-business-id', businessContext.businessId);
+    response.headers.set('x-business-subdomain', businessContext.subdomain);
+    response.headers.set('x-business-name', businessContext.business?.name || '');
+    response.headers.set('x-user-id', hasBusinessAccess.userId || '');
+    response.headers.set('x-user-role', hasBusinessAccess.userRole || '');
+
+    console.log('✅ Business context aplicado:', {
+      subdomain: businessContext.subdomain,
+      businessId: businessContext.businessId,
+      userId: hasBusinessAccess.userId,
+      userRole: hasBusinessAccess.userRole,
+      originalPath: pathname,
+      rewrittenPath: businessContext.remainingPath
+    });
+
+    return response;
+
+  } catch (error) {
+    console.error('❌ Error en business routing:', error);
+
+    const errorUrl = new URL('/login', request.url);
+    errorUrl.searchParams.set('error', 'business-error');
+
+    return NextResponse.redirect(errorUrl);
+  }
+}
+
+/**
+ * 🔐 Valida que el usuario actual tenga acceso al business solicitado
+ */
+async function validateUserBusinessAccess(
+  request: NextRequest,
+  businessId: string
+): Promise<{
+  allowed: boolean;
+  reason: string;
+  userId?: string;
+  userRole?: string;
+}> {
+  try {
+    // Obtener sesión del usuario
+    const sessionCookie = request.cookies.get('session')?.value;
+
+    if (!sessionCookie) {
+      return {
+        allowed: false,
+        reason: 'no-session'
+      };
+    }
+
+    let sessionData;
+    try {
+      sessionData = JSON.parse(sessionCookie);
+    } catch {
+      return {
+        allowed: false,
+        reason: 'invalid-session'
+      };
+    }
+
+    if (!sessionData.userId || !sessionData.businessId) {
+      return {
+        allowed: false,
+        reason: 'incomplete-session'
+      };
+    }
+
+    // 🚫 VALIDACIÓN CRÍTICA: El business de la sesión DEBE coincidir con el de la URL
+    if (sessionData.businessId !== businessId) {
+      return {
+        allowed: false,
+        reason: 'business-mismatch',
+        userId: sessionData.userId
+      };
+    }
+
+    // Validar que el usuario aún existe y tiene acceso
+    const { prisma } = await import('./src/lib/prisma');
+
+    const user = await prisma.user.findUnique({
+      where: {
+        id: sessionData.userId,
+        businessId: businessId, // Doble verificación
+        isActive: true
+      },
+      select: {
+        id: true,
+        businessId: true,
+        role: true,
+        isActive: true
+      }
+    });
+
+    if (!user) {
+      return {
+        allowed: false,
+        reason: 'user-not-found'
+      };
+    }
+
+    if (user.businessId !== businessId) {
+      return {
+        allowed: false,
+        reason: 'user-business-mismatch'
+      };
+    }
+
+    // ✅ Usuario validado y autorizado
+    return {
+      allowed: true,
+      reason: 'authorized',
+      userId: user.id,
+      userRole: user.role
+    };
+
+  } catch (error) {
+    console.error('Error validating user business access:', error);
+    return {
+      allowed: false,
+      reason: 'validation-error'
+    };
+  }
 }
 
 async function handleAdminApiRoute(request: NextRequest, pathname: string) {

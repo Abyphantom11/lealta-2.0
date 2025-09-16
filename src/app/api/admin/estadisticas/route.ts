@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { TopCliente, ProductosConsumo, ProductoConsumo, GoalsConfig, ProductVentasData, EmpleadoStats } from '../../../../types/api-routes';
+import { requireBusinessContext } from '../../../../middleware/api-business-filter';
 
 const prisma = new PrismaClient();
 
@@ -9,14 +10,18 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 API Estadísticas - TEMPORARILY NO AUTH FOR TESTING');
+    // Obtener contexto de business del usuario autenticado
+    const context = await requireBusinessContext(request);
+    if (!context) {
+      return NextResponse.json(
+        { error: 'Acceso no autorizado' },
+        { status: 401 }
+      );
+    }
 
-    // TEMPORAL: Usar valores reales de la base de datos para pruebas
-    const userId = 'cmes3ga7g0002eygg8blcebct'; // ID real del superadmin arepa@gmail.com
-    const userRole = 'SUPERADMIN';
-    const businessId = 'cmes3g9wd0000eyggpbqfl9r6'; // Business ID del superadmin
+    const { businessId, userId, userRole } = context;
 
-    console.log('✅ Using hardcoded auth for testing:', {
+    console.log('✅ API Estadísticas con filtro por business:', {
       userId,
       userRole,
       businessId,
@@ -76,6 +81,7 @@ export async function GET(request: NextRequest) {
     // Obtener consumos del período
     const consumos = await prisma.consumo.findMany({
       where: {
+        businessId: businessId, // ✅ FILTRO POR BUSINESS
         registeredAt: {
           gte: fechaInicio,
         },
@@ -128,6 +134,7 @@ export async function GET(request: NextRequest) {
     const fechaInicioPrevio = new Date(fechaInicio.getTime() - (fechaActual.getTime() - fechaInicio.getTime()));
     const consumosPrevios = await prisma.consumo.findMany({
       where: {
+        businessId: businessId, // ✅ FILTRO POR BUSINESS
         registeredAt: {
           gte: fechaInicioPrevio,
           lt: fechaInicio,
@@ -148,6 +155,7 @@ export async function GET(request: NextRequest) {
     try {
       topClientes = await prisma.cliente.findMany({
         where: {
+          businessId: businessId, // ✅ FILTRO POR BUSINESS
           consumos: {
             some: {
               registeredAt: {
@@ -204,6 +212,7 @@ export async function GET(request: NextRequest) {
       // Obtener todos los clientes que compraron en el período
       const clientesDelPeriodo = await prisma.cliente.findMany({
         where: {
+          businessId: businessId, // ✅ FILTRO POR BUSINESS
           consumos: {
             some: {
               registeredAt: {

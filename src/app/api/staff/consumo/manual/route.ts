@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import fs from 'fs/promises';
 import { join } from 'path';
+import { validateBusinessAccess } from '../../../../../utils/business-validation';
 
 const PORTAL_CONFIG_PATH = join(process.cwd(), 'portal-config.json');
 
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
     // TEMPORAL: Usar valores reales de la base de datos para pruebas
     const userId = 'cmex9vqod0001ey0cvofcnanr'; // ID real del usuario staff@lealta.com
     const userRole = 'STAFF';
-    const businessId = 'business_1'; // Business ID del usuario staff
+    const businessId = validateBusinessAccess(request); // Obtener del middleware
 
     console.log('✅ Using hardcoded auth for testing:', {
       userId,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { requireBusinessContext } from '../../../../middleware/api-business-filter';
 
 const prisma = new PrismaClient();
 
@@ -143,7 +144,16 @@ function generatePeriodos(
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 API Gráfico Ingresos - TEMPORARILY NO AUTH FOR TESTING');
+    // Obtener contexto de business del usuario autenticado
+    const context = await requireBusinessContext(request);
+    if (!context) {
+      return NextResponse.json(
+        { error: 'Acceso no autorizado' },
+        { status: 401 }
+      );
+    }
+
+    const { businessId } = context;
 
     const { searchParams } = new URL(request.url);
     const tipo = searchParams.get('tipo') || 'semana';
@@ -172,9 +182,10 @@ export async function GET(request: NextRequest) {
     );
     console.log(`📊 Periodos generados: ${periodos.length}`);
 
-    // Obtener consumos en el rango
+    // Obtener consumos en el rango SOLO del business del usuario
     const consumos = await prisma.consumo.findMany({
       where: {
+        businessId: businessId, // ✅ FILTRO POR BUSINESS
         registeredAt: {
           gte: fechaInicio,
           lte: fechaFin,

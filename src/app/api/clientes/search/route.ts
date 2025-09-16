@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { validateBusinessAccess } from '../../../../utils/business-validation';
 
 const prisma = new PrismaClient();
 
@@ -8,6 +9,9 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
+    // Obtener business ID del middleware context
+    const businessId = validateBusinessAccess(request);
+    
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
 
@@ -15,9 +19,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json([]);
     }
 
-    // Buscar clientes por nombre, correo, teléfono o cédula
+    // Buscar clientes por nombre, correo, teléfono o cédula dentro del business
     const clientes = await prisma.cliente.findMany({
       where: {
+        businessId, // Filtrar por business
         OR: [
           { nombre: { contains: query } },
           { correo: { contains: query } },

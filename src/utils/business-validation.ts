@@ -2,47 +2,66 @@
  * Utilidades para validación de business access
  * Centraliza la lógica de validación para evitar duplicación
  */
+import { NextRequest } from 'next/server';
 
 /**
- * Valida el acceso a un business ID
- * @param businessId - ID del business a validar
- * @returns El business ID validado
+ * Valida el acceso a un business ID usando el contexto del middleware
+ * @param request - Request object con headers del middleware
+ * @returns El business ID validado desde los headers
  * @throws Error si el acceso es denegado
  */
-export function validateBusinessAccess(businessId: string): string {
+export function validateBusinessAccess(request: NextRequest): string {
+  const businessId = request.headers.get('x-business-id');
+  
   if (!businessId) {
-    throw new Error('Business ID is required');
+    throw new Error('No business context found. Access denied.');
   }
   
-  // Solo permitir business_1 que es el que existe en la base de datos
-  const allowedBusinessIds = ['business_1'];
-  
-  // Normalizar IDs comunes a business_1
-  const normalizedId = businessId === 'default-business' || businessId === 'default' 
-    ? 'business_1' 
-    : businessId;
-  
-  if (!allowedBusinessIds.includes(normalizedId)) {
-    throw new Error(`Access denied to business: ${businessId}`);
+  // Validar formato del business ID
+  if (typeof businessId !== 'string' || businessId.length < 1) {
+    throw new Error('Invalid business ID format');
   }
   
-  return normalizedId;
+  return businessId;
 }
 
 /**
- * Obtiene el business ID por defecto
- * @returns Business ID por defecto (siempre business_1)
+ * Valida el acceso a un business ID específico contra el contexto actual
+ * @param request - Request object con headers del middleware
+ * @param expectedBusinessId - Business ID esperado para validar
+ * @returns El business ID validado
+ * @throws Error si no coincide con el contexto
  */
-export function getDefaultBusinessId(): string {
-  return 'business_1';
+export function validateSpecificBusinessAccess(request: NextRequest, expectedBusinessId: string): string {
+  const contextBusinessId = validateBusinessAccess(request);
+  
+  if (contextBusinessId !== expectedBusinessId) {
+    throw new Error(`Business context mismatch. Expected: ${expectedBusinessId}, Got: ${contextBusinessId}`);
+  }
+  
+  return contextBusinessId;
 }
 
 /**
- * Normaliza el business ID para compatibilidad
- * @param businessId - Business ID a normalizar
- * @returns Business ID normalizado (siempre business_1)
+ * Obtiene el business ID del contexto actual sin validación estricta
+ * @param request - Request object con headers del middleware
+ * @returns Business ID o null si no existe
  */
-export function normalizeBusinessId(businessId: string): string {
-  // Todos los IDs se normalizan a business_1
-  return 'business_1';
+export function getBusinessIdFromContext(request: NextRequest): string | null {
+  return request.headers.get('x-business-id');
+}
+
+/**
+ * Obtiene información completa del business desde los headers del middleware
+ * @param request - Request object con headers del middleware
+ * @returns Objeto con información del business
+ */
+export function getBusinessContext(request: NextRequest) {
+  return {
+    businessId: request.headers.get('x-business-id'),
+    subdomain: request.headers.get('x-business-subdomain'),
+    businessName: request.headers.get('x-business-name'),
+    userId: request.headers.get('x-user-id'),
+    userRole: request.headers.get('x-user-role'),
+  };
 }

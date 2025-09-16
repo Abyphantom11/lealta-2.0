@@ -1,12 +1,30 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { requireBusinessContext } from '../../../../middleware/api-business-filter';
 
 const prisma = new PrismaClient();
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Obtener el historial real de canjes desde la base de datos
+    // Obtener contexto de business del usuario autenticado
+    const context = await requireBusinessContext(request);
+    if (!context) {
+      return NextResponse.json(
+        { error: 'Acceso no autorizado' },
+        { status: 401 }
+      );
+    }
+
+    const { businessId } = context;
+
+    // Obtener el historial real de canjes SOLO del business del usuario
     const canjes = await prisma.historialCanje.findMany({
+      where: {
+        // Filtrar por business a través de la relación cliente
+        cliente: {
+          businessId: businessId, // ✅ FILTRO POR BUSINESS
+        },
+      },
       orderBy: {
         createdAt: 'desc'
       },

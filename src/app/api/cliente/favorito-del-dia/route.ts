@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { validateBusinessAccess } from '../../../../utils/business-validation';
 
 const prisma = new PrismaClient();
 
@@ -9,8 +10,7 @@ export const dynamic = 'force-dynamic';
 // GET - Obtener favorito del día del portal
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const businessId = searchParams.get('businessId') || 'business_1';
+    const businessId = validateBusinessAccess(request);
 
     const portalConfig = await prisma.portalConfig.findUnique({
       where: { businessId },

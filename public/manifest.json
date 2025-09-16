@@ -1,16 +1,16 @@
 {
-  "name": "Lealta 2.0 - Sistema de Lealtad",
-  "short_name": "Lealta 2.0",
-  "description": "Sistema de tarjetas de lealtad para tu negocio",
-  "start_url": "/cliente?source=pwa",
+  "name": "lealta 2.0 - Plataforma de Inteligencia de Negocios",
+  "short_name": "lealta 2.0",
+  "description": "Plataforma de inteligencia que convierte tu negocio en data-driven sin conocimientos técnicos",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#1a1a1a",
   "theme_color": "#3b82f6",
-  "orientation": "portrait",
+  "orientation": "any",
   "scope": "/",
   "lang": "es",
   "dir": "ltr",
-  "categories": ["business", "productivity", "utilities"],
+  "categories": ["business", "productivity", "utilities", "analytics"],
   "prefer_related_applications": false,
   "icons": [
     {
@@ -46,8 +46,32 @@
   ],
   "shortcuts": [
     {
-      "name": "Ver mi tarjeta",
-      "short_name": "Mi Tarjeta",
+      "name": "Dashboard Admin",
+      "short_name": "Dashboard",
+      "description": "Acceder al dashboard administrativo",
+      "url": "/admin?shortcut=dashboard",
+      "icons": [
+        {
+          "src": "/icons/icon-192.svg",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Portal Staff",
+      "short_name": "Staff",
+      "description": "Acceso rápido para empleados",
+      "url": "/staff?shortcut=staff",
+      "icons": [
+        {
+          "src": "/icons/icon-192.svg",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Mi Tarjeta",
+      "short_name": "Cliente",
       "description": "Ver el estado de mi tarjeta de lealtad",
       "url": "/cliente?shortcut=tarjeta",
       "icons": [

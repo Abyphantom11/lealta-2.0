@@ -121,10 +121,32 @@ interface CreateUserData {
   role: 'ADMIN' | 'STAFF';
 }
 
+interface SuperAdminDashboardProps {
+  businessId?: string; // Prop opcional para contexto de business
+}
+
 // ========================================
 // 🏗️ SECCIÓN: COMPONENTE PRINCIPAL Y ESTADOS (126-195)
 // ========================================
-export default function SuperAdminPage() {
+export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps = {}) {
+  // 🚫 BLOQUEO DE BUSINESS CONTEXT - SECURITY ENFORCEMENT
+  useEffect(() => {
+    const currentPath = window.location.pathname;
+    
+    // Si estamos en ruta legacy sin business context, redirigir
+    if (currentPath === '/superadmin' || currentPath.startsWith('/superadmin/')) {
+      console.log('🚫 SuperAdmin: Ruta legacy detectada, redirigiendo a business-selection');
+      
+      const redirectUrl = new URL('/business-selection', window.location.origin);
+      redirectUrl.searchParams.set('blocked_route', currentPath);
+      redirectUrl.searchParams.set('reason', 'legacy-superadmin-blocked');
+      redirectUrl.searchParams.set('message', 'SuperAdmin requiere contexto de business');
+      
+      window.location.href = redirectUrl.toString();
+      return;
+    }
+  }, []);
+
   const { user, loading, logout, isAuthenticated } =
     useRequireAuth('SUPERADMIN');
   const [activeTab, setActiveTab] = useState<

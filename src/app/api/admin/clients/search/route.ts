@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { requireBusinessContext } from '../../../../../middleware/api-business-filter';
 
 const prisma = new PrismaClient();
 
 export async function POST(request: NextRequest) {
   try {
+    // Obtener contexto de business del usuario autenticado
+    const context = await requireBusinessContext(request);
+    if (!context) {
+      return NextResponse.json(
+        { error: 'Acceso no autorizado' },
+        { status: 401 }
+      );
+    }
+
+    const { businessId } = context;
     const { searchTerm } = await request.json();
 
     if (!searchTerm || searchTerm.length < 2) {
@@ -15,9 +26,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Buscar clientes por nombre, correo o cédula
+    // Buscar clientes por nombre, correo o cédula SOLO del business del usuario
     const clients = await prisma.cliente.findMany({
       where: {
+        businessId: businessId, // ✅ FILTRO POR BUSINESS
         OR: [
           {
             nombre: {

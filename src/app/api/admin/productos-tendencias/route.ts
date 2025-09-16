@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { requireBusinessContext } from '../../../../middleware/api-business-filter';
 
 const prisma = new PrismaClient();
 
@@ -16,17 +17,23 @@ interface ProductoVentas {
   }[];
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const businessId = 'cmes3g9wd0000eyggpbqfl9r6'; // ID del negocio
+    // Obtener contexto de business del usuario autenticado
+    const context = await requireBusinessContext(request);
+    if (!context) {
+      return NextResponse.json(
+        { error: 'Acceso no autorizado' },
+        { status: 401 }
+      );
+    }
+
+    const { businessId } = context;
     
-    // Obtener TODOS los consumos para la demo (sin filtro de fecha)
+    // Obtener TODOS los consumos del business del usuario
     const consumos = await prisma.consumo.findMany({
       where: {
-        OR: [
-          { businessId: businessId },
-          { businessId: null } // Incluir también datos de prueba sin businessId
-        ]
+        businessId: businessId, // ✅ FILTRO POR BUSINESS
       },
       orderBy: {
         registeredAt: 'asc'

@@ -7,7 +7,7 @@ describe('Validation Schemas', () => {
         name: 'Mi Restaurante',
         slug: 'mi-restaurante',
         subdomain: 'mi-rest',
-        subscriptionPlan: 'BASIC' as const,
+        subscriptionPlan: 'BASIC',
         isActive: true,
       };
 

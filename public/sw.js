@@ -1,5 +1,5 @@
 // Service Worker optimizado para PWA en Chrome
-const CACHE_NAME = 'lealta-2-0-v1.0.2';
+const CACHE_NAME = 'lealta-2-0-v1.0.3';
 const urlsToCache = [
   '/',
   '/cliente',

@@ -388,31 +388,50 @@ model HistorialCanje {
   @@index([createdAt])
 }
 
-// Tabla para usuarios de trial (sistema de pruebas)
-model TrialUser {
-  id                String    @id @default(cuid())
-  email             String    @unique
-  company           String
-  name              String
-  phone             String?
-  trialToken        String    @unique
-  createdAt         DateTime  @default(now())
-  activatedAt       DateTime?
-  expiresAt         DateTime
-  isActive          Boolean   @default(true)
-  hasUpgraded       Boolean   @default(false)
-  lastLoginAt       DateTime?
-  notificationsSent Int       @default(0)
-  
-  // Metadata adicional
-  businessType      String?   // "restaurant", "retail", "services"
-  expectedLocations Int?      // Cuántas sucursales planea tener
-  currentSolution   String?   // Qué usa actualmente
-  referralSource    String?   // Cómo se enteró de Lealta
-  
-  // Índices para consultas rápidas
+// Tabla para verificaciones de email
+model EmailVerification {
+  id           String   @id @default(cuid())
+  email        String
+  code         String
+  type         String   @default("email-verification") // "email-verification", "password-reset", "welcome"
+  businessId   String?  // Para verificaciones relacionadas con empresas
+  businessName String?  // Nombre de la empresa
+  verified     Boolean  @default(false)
+  attempts     Int      @default(0)
+  maxAttempts  Int      @default(3)
+  expiresAt    DateTime
+  verifiedAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Metadatos adicionales
+  metadata     Json?    // Información adicional como IP, User-Agent, etc.
+
+  @@unique([email, code, type])
   @@index([email])
-  @@index([trialToken])
+  @@index([code])
   @@index([expiresAt])
-  @@index([isActive])
+}
+
+// Tabla para logs de emails enviados
+model EmailLog {
+  id           String   @id @default(cuid())
+  to           String
+  from         String
+  subject      String
+  type         String   // Tipo de email enviado
+  resendId     String?  // ID de Resend para tracking
+  status       String   @default("pending") // "pending", "sent", "delivered", "failed"
+  errorMessage String?
+  businessId   String?
+  sentAt       DateTime @default(now())
+  deliveredAt  DateTime?
+
+  // Metadatos
+  metadata     Json?
+
+  @@index([to])
+  @@index([type])
+  @@index([status])
+  @@index([sentAt])
 }

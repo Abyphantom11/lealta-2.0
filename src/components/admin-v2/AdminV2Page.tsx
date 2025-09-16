@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigationItem } from '../../types/api-routes';
 import { useRequireAuth } from '../../hooks/useAuth';
 import RoleSwitch from '../../components/RoleSwitch';
@@ -19,6 +19,29 @@ import ClientesContent from './clientes/ClientesContent';
 import MenuContent from './menu/MenuContent';
 import PortalContent from './portal/PortalContent';
 import ConfiguracionContent from './configuracion/ConfiguracionContent';
+
+// Helper functions para business context
+const getCurrentBusinessFromUrl = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  const pathSegments = window.location.pathname.split('/').filter(Boolean);
+  // Si la URL es /[businessId]/admin, el businessId está en la primera posición
+  if (pathSegments.length >= 2 && pathSegments[1] === 'admin') {
+    return pathSegments[0];
+  }
+  return null;
+};
+
+const validateBusinessAccess = async (businessId: string) => {
+  try {
+    const response = await fetch(`/api/businesses/${businessId}/validate`);
+    if (!response.ok) {
+      throw new Error('Business validation failed');
+    }
+  } catch (error) {
+    console.error('Error validating business access:', error);
+    window.location.href = '/business-selection?error=invalid-business';
+  }
+};
 
 // Tipos de sección admin
 type AdminSection =
@@ -40,6 +63,11 @@ type NivelTarjeta =
   | 'warning'
   | 'error';
 
+// Props para AdminV2Page
+interface AdminV2PageProps {
+  businessId?: string; // Opcional para compatibilidad con rutas legacy
+}
+
 /**
  * Obtener clase de color de borde para notificaciones
  */
@@ -59,8 +87,36 @@ const getBorderColorClass = (type: NivelTarjeta): string => {
 /**
  * Componente principal Admin V2 - Versión modular
  * Orquesta todos los componentes modulares extraídos del admin original
+ * 
+ * 🚀 TODO POST-LANZAMIENTO:
+ * - Implementar routing completo con business context: /{businessId}/admin
+ * - Actualizar middleware para extraer businessId dinámicamente  
+ * - Activar verificación de email en signup/page.tsx línea 46
+ * - Migrar de SQLite a PostgreSQL para producción
  */
-export default function AdminV2Page() {
+export default function AdminV2Page({ businessId }: AdminV2PageProps = {}) {
+  // � BUSINESS CONTEXT - Usar businessId de props o detectar desde URL
+  const currentBusinessId = businessId || getCurrentBusinessFromUrl();
+  
+  // 🚫 VALIDACIÓN DE BUSINESS CONTEXT
+  useEffect(() => {
+    const currentPath = window.location.pathname;
+    
+    // Si no tenemos businessId y estamos en ruta legacy, redirigir
+    if (!currentBusinessId && (currentPath === '/admin' || (currentPath.startsWith('/admin/') && !currentPath.includes('/business')))) {
+      console.log('🚫 Admin: Sin business context, redirigiendo a business selection');
+      
+      const redirectUrl = '/business-selection?blocked_route=' + encodeURIComponent(currentPath) + '&reason=no-business-context';
+      window.location.href = redirectUrl;
+      return;
+    }
+    
+    // Si tenemos businessId, validar que existe
+    if (currentBusinessId) {
+      validateBusinessAccess(currentBusinessId);
+    }
+  }, [currentBusinessId]);
+
   const { user, loading, logout, isAuthenticated } = useRequireAuth('ADMIN');
   const [activeSection, setActiveSection] = useState<AdminSection>('dashboard');
 

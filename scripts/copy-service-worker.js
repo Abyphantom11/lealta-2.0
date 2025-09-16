@@ -1,24 +1,32 @@
 const fs = require('fs');
 const path = require('path');
 
-// Rutas de origen y destino
-const serviceWorkerSrc = path.join(__dirname, '..', 'src', 'workers', 'service-worker.js');
-const serviceWorkerDest = path.join(__dirname, '..', 'public', 'sw.js');
+// Copiar service worker al directorio público
+const sourceFile = path.join(__dirname, '..', 'public', 'sw.js');
+const targetFile = path.join(__dirname, '..', 'public', 'sw.js');
 
-// Función para copiar el archivo
-function copyServiceWorker() {
-  try {
-    // Leer el archivo de origen
-    const data = fs.readFileSync(serviceWorkerSrc, 'utf8');
-    
-    // Escribir en el destino
-    fs.writeFileSync(serviceWorkerDest, data);
-    
-    console.log('✅ Service Worker copiado exitosamente a public/sw.js');
-  } catch (err) {
-    console.error('❌ Error al copiar el Service Worker:', err);
-  }
+if (fs.existsSync(sourceFile)) {
+  console.log('✅ Service Worker ya existe en public/sw.js');
+} else {
+  // Crear service worker básico si no existe
+  const basicSW = `
+// Basic service worker for PWA
+const CACHE_NAME = 'lealta-v1';
+
+self.addEventListener('install', event => {
+  console.log('Service Worker: Install');
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', event => {
+  console.log('Service Worker: Activate');
+});
+
+self.addEventListener('fetch', event => {
+  // Basic fetch handling
+});
+`;
+
+  fs.writeFileSync(sourceFile, basicSW);
+  console.log('✅ Service Worker básico creado en public/sw.js');
 }
-
-// Ejecutar la copia
-copyServiceWorker();

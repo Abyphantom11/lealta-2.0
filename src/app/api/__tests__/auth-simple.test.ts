@@ -15,7 +15,7 @@ describe('Auth API Routes - Simple Tests', () => {
   });
 
   it('should validate password requirements', () => {
-    const isValidPassword = (password: string) => password.length >= 6;
+    const isValidPassword = (password) => password.length >= 6;
     expect(isValidPassword('password123')).toBe(true);
     expect(isValidPassword('123')).toBe(false);
   });

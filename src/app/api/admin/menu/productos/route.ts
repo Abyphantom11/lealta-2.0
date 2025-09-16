@@ -78,26 +78,9 @@ export async function POST(request: NextRequest) {
 // GET - Obtener productos
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const businessId = searchParams.get('businessId');
-
-    if (!businessId) {
-      return NextResponse.json(
-        { error: 'businessId es requerido' },
-        { status: 400 }
-      );
-    }
-
-    // Validar acceso al business
-    try {
-      validateBusinessAccess(businessId);
-    } catch (error) {
-      console.error('Error validando acceso al business:', error);
-      return NextResponse.json(
-        { error: 'Acceso denegado al business' },
-        { status: 403 }
-      );
-    }
+    // Obtener business ID del middleware context
+    const businessId = validateBusinessAccess(request);
+    console.log('🏢 BusinessId desde middleware:', businessId);
 
     const productos = await prisma.menuProduct.findMany({
       where: {

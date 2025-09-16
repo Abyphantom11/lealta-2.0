@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { hash } from 'bcryptjs';
 import { z } from 'zod';
+// import { sendEmail } from '@/lib/emailService'; // 🚫 TEMPORALMENTE DESACTIVADO - REACTIVAR POST-LANZAMIENTO
 
 // Forzar renderizado dinámico para esta ruta que usa headers
 export const dynamic = 'force-dynamic';
@@ -33,12 +34,30 @@ const signupSchema = z.object({
   adminPassword: z
     .string()
     .min(6, 'Contraseña debe tener al menos 6 caracteres'),
+
+  // Verificación de email (opcional para el flujo completo)
+  emailVerified: z.boolean().optional(),
+  verificationId: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const validatedData = signupSchema.parse(body);
+
+    // Verificar email si se requiere verificación
+    if (validatedData.emailVerified && validatedData.verificationId) {
+      const verification = await prisma.emailVerification.findUnique({
+        where: { id: validatedData.verificationId },
+      });
+
+      if (!verification || !verification.verified || verification.email !== validatedData.adminEmail) {
+        return NextResponse.json(
+          { error: 'Email no verificado. Por favor verifica tu email primero.' },
+          { status: 400 }
+        );
+      }
+    }
 
     // Verificar si el subdominio ya existe
     const existingBusiness = await prisma.business.findUnique({
@@ -100,8 +119,44 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      // Crear metas por defecto para la empresa
+      await tx.businessGoals.create({
+        data: {
+          businessId: business.id,
+          // Los valores por defecto ya están definidos en el schema
+        },
+      });
+
       return { business, superAdmin };
     });
+
+    // 🚫 TEMPORALMENTE DESACTIVADO - Email de bienvenida
+    // try {
+    //   await sendEmail({
+    //     to: validatedData.adminEmail,
+    //     type: 'welcome',
+    //     data: {
+    //       businessName: validatedData.businessName,
+    //       adminName: validatedData.adminName,
+    //       loginUrl: `${process.env.NEXT_PUBLIC_APP_URL}/login`,
+    //     },
+    //   });
+
+    //   // Registrar el envío del email
+    //   await prisma.emailLog.create({
+    //     data: {
+    //       to: validatedData.adminEmail,
+    //       from: 'hello@lealta.app',
+    //       subject: '🎉 ¡Bienvenido a Lealta!',
+    //       type: 'welcome',
+    //       status: 'sent',
+    //       businessId: result.business.id,
+    //     },
+    //   });
+    // } catch (emailError) {
+    //   console.error('❌ Error enviando email de bienvenida:', emailError);
+    //   // No fallamos el registro por error de email
+    // }
 
     return NextResponse.json({
       success: true,

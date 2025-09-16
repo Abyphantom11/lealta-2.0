@@ -53,8 +53,8 @@
     "prisma": "^6.15.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-is": "^19.1.1",
     "recharts": "^3.1.2",
-    "resend": "^6.0.3",
     "sharp": "^0.34.3",
     "tesseract.js": "latest",
     "uuid": "^13.0.0",
@@ -67,6 +67,7 @@
     "@babel/traverse": "^7.28.3",
     "@babel/types": "^7.28.2",
     "@next/bundle-analyzer": "^15.5.2",
+    "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
     "@types/babel__generator": "^7.27.0",
@@ -96,7 +97,7 @@
   },
   "build": {
     "appId": "com.lealta.mvp",
-    "productName": "Lealta MVP",
+    "productName": "lealta MVP",
     "directories": {
       "output": "dist"
     },
@@ -112,7 +113,7 @@
     },
     "win": {
       "target": "nsis",
-      "publisherName": "Lealta Systems"
+      "publisherName": "lealta Systems"
     },
     "linux": {
       "target": "AppImage",

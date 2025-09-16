@@ -13,28 +13,9 @@ export async function GET(request: NextRequest) {
   try {
     console.log('📋 GET /api/admin/menu - Obteniendo menú...');
     
-    const { searchParams } = new URL(request.url);
-    const businessId = searchParams.get('businessId');
-    console.log('🏢 BusinessId recibido:', businessId);
-
-    if (!businessId) {
-      console.log('❌ BusinessId no proporcionado');
-      return NextResponse.json(
-        { error: 'BusinessId es requerido' },
-        { status: 400 }
-      );
-    }
-
-    // Validar acceso al business
-    try {
-      validateBusinessAccess(businessId);
-    } catch (error) {
-      console.error('❌ Error validando acceso al business para GET:', businessId, error);
-      return NextResponse.json(
-        { error: 'Acceso denegado' },
-        { status: 403 }
-      );
-    }
+    // Obtener business ID del middleware context
+    const businessId = validateBusinessAccess(request);
+    console.log('🏢 BusinessId desde middleware:', businessId);
 
     console.log('🔍 Consultando categorías en la base de datos...');
     const categorias = await prisma.menuCategory.findMany({
@@ -74,26 +55,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log('📦 Datos recibidos:', body);
     
-    const { businessId, nombre, descripcion, icono, orden, parentId } = body;
+    const { nombre, descripcion, icono, orden, parentId } = body;
 
-    if (!businessId || !nombre) {
-      console.log('❌ Faltan datos requeridos:', { businessId, nombre });
+    if (!nombre) {
+      console.log('❌ Falta nombre requerido:', { nombre });
       return NextResponse.json(
-        { error: 'BusinessId y nombre son requeridos' },
+        { error: 'Nombre es requerido' },
         { status: 400 }
       );
     }
 
-    // Validar acceso al business
-    try {
-      validateBusinessAccess(businessId);
-    } catch (error) {
-      console.error('❌ Error validando acceso al business para POST:', businessId, error);
-      return NextResponse.json(
-        { error: 'Acceso denegado' },
-        { status: 403 }
-      );
-    }
+    // Obtener business ID del middleware context
+    const businessId = validateBusinessAccess(request);
+    console.log('🏢 BusinessId desde middleware:', businessId);
 
     console.log('✅ Validación inicial pasada, creando categoría...');
     
@@ -138,6 +112,9 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // Obtener business ID del middleware context
+    const businessId = validateBusinessAccess(request);
+
     const updateData: MenuCategoryUpdateData = {};
     if (nombre !== undefined) updateData.nombre = nombre;
     if (descripcion !== undefined) updateData.descripcion = descripcion;
@@ -146,8 +123,12 @@ export async function PUT(request: NextRequest) {
     if (activo !== undefined) updateData.activo = activo;
     if (parentId !== undefined) updateData.parentId = parentId;
 
+    // Verificar que la categoría pertenece al business antes de actualizar
     const categoria = await prisma.menuCategory.update({
-      where: { id },
+      where: { 
+        id,
+        businessId // Asegurar que solo se actualice si pertenece al business
+      },
       data: updateData,
     });
 
@@ -177,14 +158,35 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    // Obtener business ID del middleware context
+    const businessId = validateBusinessAccess(request);
+
+    // Verificar que la categoría pertenece al business antes de eliminar
+    const categoria = await prisma.menuCategory.findFirst({
+      where: { 
+        id,
+        businessId
+      },
+    });
+
+    if (!categoria) {
+      return NextResponse.json(
+        { error: 'Categoría no encontrada o acceso denegado' },
+        { status: 404 }
+      );
+    }
+
     // Primero eliminar todos los productos asociados a esta categoría
     await prisma.menuProduct.deleteMany({
       where: { categoryId: id },
     });
 
-    // Luego eliminar las subcategorías
+    // Luego eliminar las subcategorías (que también pertenecen al mismo business)
     await prisma.menuCategory.deleteMany({
-      where: { parentId: id },
+      where: { 
+        parentId: id,
+        businessId
+      },
     });
 
     // Finalmente eliminar la categoría principal

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Configurar Business Routing</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 10px; }
+        .success { background: #28a745; color: white; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .error { background: #dc3545; color: white; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .info { background: #17a2b8; color: white; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        pre { background: #f8f9fa; padding: 15px; border-radius: 5px; overflow: auto; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Configuración Business Routing - Lealta 2.0</h1>
+    
+    <div class="info">
+        <strong>Estado:</strong> Configurando routing dinámico para lanzamiento mañana
+    </div>
+    
+    <h2>1. Configurar Base de Datos</h2>
+    <button class="button" onclick="setupDatabase()">Configurar Business Routing</button>
+    <div id="dbResult"></div>
+    
+    <h2>2. URLs Disponibles</h2>
+    <div class="info">
+        <strong>Después de la configuración, estas URLs estarán disponibles:</strong><br>
+        • <a href="/demo/admin" target="_blank">/demo/admin</a> - Panel de Administración<br>
+        • <a href="/demo/staff" target="_blank">/demo/staff</a> - Panel de Staff<br>
+        • <a href="/demo/cliente" target="_blank">/demo/cliente</a> - Portal Cliente<br><br>
+        
+        <strong>URLs Legacy (redirigen automáticamente):</strong><br>
+        • <a href="/admin" target="_blank">/admin</a> → /demo/admin<br>
+        • <a href="/staff" target="_blank">/staff</a> → /demo/staff<br>
+    </div>
+    
+    <h2>3. Pruebas</h2>
+    <button class="button" onclick="testRouting()">Probar Rutas</button>
+    <div id="testResult"></div>
+    
+    <h2>4. Información del Sistema</h2>
+    <pre id="systemInfo">
+🎯 Business Routing Implementation Status
+=========================================
+
+✅ Rutas dinámicas creadas:
+   - src/app/[businessId]/admin/page.tsx
+   - src/app/[businessId]/staff/page.tsx  
+   - src/app/[businessId]/cliente/page.tsx
+
+✅ API de validación:
+   - /api/businesses/[businessId]/validate
+
+✅ Redirects automáticos:
+   - /admin → /demo/admin
+   - /staff → /demo/staff
+
+🔧 Middleware preparado para:
+   - Validación de business context
+   - Headers de contexto (x-business-id)
+   - Seguridad por business
+
+📊 Base de datos:
+   - Campo subdomain en tabla Business
+   - Validación de business activo
+   - Separación de datos por negocio
+    </pre>
+
+    <script>
+        async function setupDatabase() {
+            const resultDiv = document.getElementById('dbResult');
+            resultDiv.innerHTML = '<div class="info">Configurando base de datos...</div>';
+            
+            try {
+                const response = await fetch('/api/setup/business-routing', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <strong>✅ Configuración exitosa!</strong><br>
+                            ${data.message}<br><br>
+                            <strong>Negocios configurados:</strong><br>
+                            ${data.businesses.map(b => `• ${b.subdomain} → ${b.name} (${b.id})`).join('<br>')}
+                            <br><br>
+                            <strong>Rutas disponibles:</strong><br>
+                            ${data.routes.join('<br>')}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Error: ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error de red: ${error.message}</div>`;
+            }
+        }
+        
+        async function testRouting() {
+            const resultDiv = document.getElementById('testResult');
+            resultDiv.innerHTML = '<div class="info">Probando rutas...</div>';
+            
+            const tests = [
+                { name: 'Validar business demo', url: '/api/businesses/demo/validate' },
+                { name: 'Validar business_1', url: '/api/businesses/business_1/validate' }
+            ];
+            
+            let results = '<div class="success"><strong>Resultados de pruebas:</strong></div>';
+            
+            for (const test of tests) {
+                try {
+                    const response = await fetch(test.url);
+                    const status = response.ok ? '✅' : '❌';
+                    results += `<div>${status} ${test.name}: ${response.status}</div>`;
+                } catch (error) {
+                    results += `<div>❌ ${test.name}: Error ${error.message}</div>`;
+                }
+            }
+            
+            resultDiv.innerHTML = results;
+        }
+    </script>
+</body>
+</html>
