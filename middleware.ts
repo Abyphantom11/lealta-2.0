@@ -3,6 +3,15 @@ import {
   getBusinessContext,
   extractBusinessFromUrl
 } from './src/middleware/subdomain';
+import { 
+  validateUserSession, 
+  hasPermission, 
+  hasBusinessAccess,
+  extractBusinessSlugFromPath,
+  getRequiredPermissions,
+  isClientRoute,
+  requiresAdminAuth
+} from './src/middleware/security';
 import { prisma } from './src/lib/prisma';
 
 // Rutas que requieren autenticación (después del chequeo de businessId)
@@ -18,6 +27,165 @@ const PROTECTED_ROUTES = [
 
 // Rutas públicas (login, signup, etc.)
 const PUBLIC_ROUTES = ['/login', '/signup'];
+
+/**
+ * 🔥 FUNCIÓN CRÍTICA: Maneja redirecciones de rutas legacy con autenticación y contexto
+ */
+async function handleLegacyRouteRedirect(request: NextRequest, pathname: string): Promise<NextResponse> {
+  console.log(`🚨 SECURITY: Blocking legacy route: ${pathname}`);
+  
+  // Obtener cookie de sesión
+  const sessionCookie = request.cookies.get('session');
+  if (sessionCookie) {
+    console.log(`Sesión encontrada, validando...`);
+    
+    // Validar sesión usando nueva función de seguridad
+    const sessionData = await validateUserSession(sessionCookie.value);
+    if (sessionData?.businessSlug) {
+      const redirectUrl = new URL(`/${sessionData.businessSlug}${pathname}`, request.url);
+      console.log(`✅ Redirigiendo a ruta con contexto: ${redirectUrl.pathname}`);
+      return NextResponse.redirect(redirectUrl);
+    } else {
+      console.log(`❌ Sesión inválida o sin business`);
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('error', 'business-required');
+      loginUrl.searchParams.set('message', 'Su sesión no tiene un negocio asociado válido');
+      loginUrl.searchParams.set('attempted', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+  } else {
+    console.log(`❌ No hay sesión activa`);
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('error', 'auth-required');
+    loginUrl.searchParams.set('message', 'Debe iniciar sesión para acceder a esta área');
+    loginUrl.searchParams.set('attempted', pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+}
+
+/**
+ * 🔥 FUNCIÓN CRÍTICA: Protege rutas admin con validación completa
+ */
+async function handleAdminRouteProtection(request: NextRequest, pathname: string): Promise<NextResponse> {
+  console.log(`🔒 SECURITY: Protecting admin route: ${pathname}`);
+  
+  const sessionCookie = request.cookies.get('session');
+  if (!sessionCookie) {
+    console.log(`❌ Admin route access denied: No session`);
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('error', 'admin-auth-required');
+    loginUrl.searchParams.set('message', 'Se requiere autenticación de administrador');
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // Validar sesión y permisos
+  const sessionData = await validateUserSession(sessionCookie.value);
+  if (!sessionData) {
+    console.log(`❌ Admin route access denied: Invalid session`);
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('error', 'session-expired');
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // Verificar permisos de admin (usando los permisos ya en la sesión)
+  const requiredPermissions = getRequiredPermissions(pathname);
+  const hasAccess = hasPermission(sessionData, requiredPermissions[0] || 'admin');
+  
+  if (!hasAccess) {
+    console.log(`❌ Admin route access denied: Insufficient permissions`);
+    return new NextResponse(
+      JSON.stringify({ 
+        error: 'Insufficient permissions', 
+        message: 'No tiene permisos para acceder a esta área' 
+      }),
+      { 
+        status: 403, 
+        headers: { 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+
+  console.log(`✅ Admin route access granted: ${pathname}`);
+  return NextResponse.next();
+}
+
+/**
+ * 🔥 FUNCIÓN CRÍTICA: Protege APIs de admin con autenticación robusta
+ */
+async function handleAdminApiProtection(request: NextRequest, pathname: string): Promise<NextResponse> {
+  console.log(`🔒 SECURITY: Protecting admin API: ${pathname}`);
+  
+  const sessionCookie = request.cookies.get('session');
+  if (!sessionCookie) {
+    return new NextResponse(
+      JSON.stringify({ 
+        error: 'Authentication required', 
+        message: 'Esta API requiere autenticación de administrador' 
+      }),
+      { 
+        status: 401, 
+        headers: { 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+
+  const sessionData = await validateUserSession(sessionCookie.value);
+  if (!sessionData) {
+    return new NextResponse(
+      JSON.stringify({ 
+        error: 'Invalid session', 
+        message: 'Sesión inválida o expirada' 
+      }),
+      { 
+        status: 401, 
+        headers: { 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+
+  // Verificar permisos específicos para la API
+  const requiredPermissions = getRequiredPermissions(pathname);
+  const hasAccess = hasPermission(sessionData, requiredPermissions[0] || 'admin');
+  
+  if (!hasAccess) {
+    return new NextResponse(
+      JSON.stringify({ 
+        error: 'Insufficient permissions', 
+        message: 'No tiene permisos para usar esta API' 
+      }),
+      { 
+        status: 403, 
+        headers: { 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+
+  return NextResponse.next();
+}
+
+/**
+ * 🔥 FUNCIÓN CRÍTICA: Maneja acceso de clientes con validación de contexto
+ */
+async function handleClientRouteAccess(request: NextRequest, pathname: string): Promise<NextResponse> {
+  // Para rutas de cliente, permitir acceso pero validar business context
+  const businessSlug = extractBusinessSlugFromPath(pathname);
+  if (!businessSlug) {
+    console.log(`❌ Client route missing business context: ${pathname}`);
+    return new NextResponse(
+      JSON.stringify({ 
+        error: 'Business context required', 
+        message: 'Esta ruta requiere contexto de negocio específico' 
+      }),
+      { 
+        status: 400, 
+        headers: { 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+
+  console.log(`✅ Client route access granted: ${pathname}`);
+  return NextResponse.next();
+}
 
 /**
  * Obtiene el businessId del usuario desde la base de datos
@@ -67,102 +235,54 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Log básico para debug
-  console.log(`MIDDLEWARE: ${pathname}`);
+  console.log(`🔒 MIDDLEWARE HARDENED: ${pathname}`);
 
-  // BLOQUEAR RUTAS ESPECÍFICAS Y REDIRIGIR CON CONTEXTO REAL
-  if (pathname === '/admin' || pathname === '/staff' || pathname === '/superadmin' || pathname === '/cliente') {
-    console.log(`Bloqueando ruta: ${pathname}`);
-    
-    // Obtener cookie de sesión
-    const sessionCookie = request.cookies.get('session');
-    if (sessionCookie) {
-      console.log(`Sesion encontrada, obteniendo business...`);
-      
-      // Obtener el business slug del usuario desde la DB
-      const businessSlug = await getUserBusinessSlug(sessionCookie.value);
-      
-      if (businessSlug) {
-        const redirectUrl = new URL(`/${businessSlug}${pathname}`, request.url);
-        console.log(`Redirigiendo a: ${redirectUrl.pathname}`);
-        return NextResponse.redirect(redirectUrl);
-      } else {
-        console.log(`No se pudo obtener business, redirigiendo a login`);
-        // Redirigir a login con información sobre la ruta intentada
-        const loginUrl = new URL('/login', request.url);
-        loginUrl.searchParams.set('error', 'business-required');
-        loginUrl.searchParams.set('message', 'Su sesión no tiene un negocio asociado válido');
-        loginUrl.searchParams.set('attempted', pathname);
-        return NextResponse.redirect(loginUrl);
-      }
-    } else {
-      console.log(`No hay sesion activa`);
-      // Sin sesión, redirigir a login
-      const loginUrl = new URL('/login', request.url);
-      loginUrl.searchParams.set('error', 'auth-required');
-      loginUrl.searchParams.set('message', 'Debe iniciar sesión para acceder a esta área');
-      loginUrl.searchParams.set('attempted', pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-  }
-
-  // 🚨 BLOQUEAR RUTAS ESPECÍFICAS Y REDIRIGIR
-  if (pathname === '/admin') {
-    console.log('🚫 Blocking /admin, redirecting to /arepa/admin');
-    return NextResponse.redirect(new URL('/arepa/admin', request.url));
-  }
-
-  if (pathname === '/staff') {
-    console.log('🚫 Blocking /staff, redirecting to /arepa/staff');
-    return NextResponse.redirect(new URL('/arepa/staff', request.url));
-  }
-
-  if (pathname === '/superadmin') {
-    console.log('� Blocking /superadmin, redirecting to /arepa/superadmin');
-    return NextResponse.redirect(new URL('/arepa/superadmin', request.url));
-  }
-
-  if (pathname === '/cliente') {
-    console.log('🚫 Blocking /cliente, redirecting to /arepa/cliente');
-    return NextResponse.redirect(new URL('/arepa/cliente', request.url));
-  }
-
-  // 🚨 CAPTURAR PETICIONES A BUSINESS-SELECTION
-  if (pathname.includes('business-selection')) {
-    console.log('🚨 INTERCEPTED business-selection request:', {
-      pathname,
-      searchParams: request.nextUrl.searchParams.toString(),
-      referer: request.headers.get('referer'),
-      userAgent: request.headers.get('user-agent'),
-    });
-    
-    // Redirigir a login en lugar de devolver 404
-    const redirectUrl = new URL('/login', request.url);
-    redirectUrl.searchParams.set('error', 'legacy-redirect-blocked');
-    redirectUrl.searchParams.set('message', 'La página de selección de business fue eliminada por seguridad. Inicia sesión directamente.');
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  // 1. MANEJO DE BUSINESS CONTEXT
-  const businessContext = await handleBusinessRouting(request);
-  if (businessContext) {
-    return businessContext; // Ya sea rewrite o redirect
-  }
-
-  // 2. PERMITIR RUTAS PÚBLICAS Y ESTÁTICAS
+  // 1. PERMITIR RUTAS PÚBLICAS INMEDIATAMENTE
   if (
     PUBLIC_ROUTES.some(route => pathname.startsWith(route)) ||
     pathname.startsWith('/_next') ||
-    pathname.startsWith('/favicon')
+    pathname.startsWith('/favicon') ||
+    pathname.startsWith('/api/health')
   ) {
     return NextResponse.next();
   }
 
-  // 3. BLOQUEAR APIs CRÍTICAS SIN BUSINESS CONTEXT
+  // 2. 🚨 BLOQUEAR RUTAS LEGACY Y REDIRIGIR CON CONTEXTO
+  if (pathname === '/admin' || pathname === '/staff' || pathname === '/superadmin' || pathname === '/cliente') {
+    return await handleLegacyRouteRedirect(request, pathname);
+  }
+
+  // 3. 🚨 CAPTURAR PETICIONES A BUSINESS-SELECTION (VULNERABILIDAD CRÍTICA)
+  if (pathname.includes('business-selection')) {
+    console.log('🚨 SECURITY: INTERCEPTED business-selection request:', {
+      pathname,
+      searchParams: request.nextUrl.searchParams.toString(),
+      referer: request.headers.get('referer'),
+      ip: request.ip || 'unknown',
+    });
+    
+    const redirectUrl = new URL('/login', request.url);
+    redirectUrl.searchParams.set('error', 'legacy-redirect-blocked');
+    redirectUrl.searchParams.set('message', 'La página de selección de business fue eliminada por seguridad.');
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  // 4. 🔥 PROTECCIÓN CRÍTICA: RUTAS ADMIN CON BUSINESS CONTEXT
+  if (requiresAdminAuth(pathname)) {
+    return await handleAdminRouteProtection(request, pathname);
+  }
+
+  // 5. 🔥 PROTECCIÓN DE APIs CRÍTICAS DE ADMIN
+  if (pathname.startsWith('/api/admin/') || pathname.startsWith('/api/staff/')) {
+    return await handleAdminApiProtection(request, pathname);
+  }
+
+  // 6. VALIDAR BUSINESS CONTEXT EN APIs QUE LO REQUIEREN
   const criticalApiRoutes = ['/api/clients', '/api/consumos', '/api/business'];
   const isCriticalApi = criticalApiRoutes.some(route => pathname.startsWith(route));
   
   if (isCriticalApi && !pathname.includes('/api/businesses/') && !extractBusinessFromUrl(pathname)) {
-    console.log(`API CRITICA BLOQUEADA sin business context: ${pathname}`);
+    console.log(`❌ API CRÍTICA BLOQUEADA sin business context: ${pathname}`);
     return new NextResponse(
       JSON.stringify({ 
         error: 'Business context required', 
@@ -175,22 +295,26 @@ export async function middleware(request: NextRequest) {
     );
   }
 
-  // 4. MANEJO ESPECIAL PARA APIs DE ADMIN
-  if (pathname.startsWith('/api/admin/')) {
-    return handleAdminApiRoute(request, pathname);
+  // 7. MANEJO DE BUSINESS CONTEXT ROUTING
+  const businessContext = await handleBusinessRouting(request);
+  if (businessContext) {
+    return businessContext;
   }
 
-  // 5. VERIFICAR SI LA RUTA ESTÁ PROTEGIDA
-  const isProtectedRoute = PROTECTED_ROUTES.some(route =>
-    pathname.startsWith(route)
-  );
-
-  if (!isProtectedRoute) {
-    return NextResponse.next();
+  // 8. RUTAS DE CLIENTE (PÚBLICAS PERO CON BUSINESS CONTEXT)
+  if (isClientRoute(pathname)) {
+    return await handleClientRouteAccess(request, pathname);
   }
 
-  console.log('🔒 Ruta protegida, verificando autenticación...');
-  return handleProtectedRoute(request, pathname);
+  // 9. VERIFICAR SI LA RUTA ESTÁ PROTEGIDA (FALLBACK)
+  const isProtectedRoute = PROTECTED_ROUTES.some(route => pathname.startsWith(route));
+  if (isProtectedRoute) {
+    console.log('🔒 Ruta protegida, verificando autenticación...');
+    return handleProtectedRoute(request, pathname);
+  }
+
+  // 10. CONTINUAR CON RUTAS NO PROTEGIDAS
+  return NextResponse.next();
 }
 
 /**
