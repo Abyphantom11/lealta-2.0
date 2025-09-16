@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { PortalConfig } from '../../../../types/api-routes';
+import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
 
 // Configurar como ruta dinámica para permitir el uso de request.url
 export const dynamic = 'force-dynamic';
@@ -137,90 +138,105 @@ async function writePortalConfig(config: PortalConfig): Promise<PortalConfig> {
   return config;
 }
 
-// GET - Obtener configuración del portal
-export async function GET() {
-  try {
-    // Leer directamente del archivo para garantizar datos frescos
-    const portalConfig = await readPortalConfig();
+// 🔒 GET - Obtener configuración del portal (PROTEGIDO)
+export async function GET(request: NextRequest) {
+  return withAuth(request, async (session) => {
+    try {
+      console.log(`🔍 Portal config access by: ${session.role} (${session.userId})`);
+      
+      // Leer directamente del archivo para garantizar datos frescos
+      const portalConfig = await readPortalConfig();
 
-    return NextResponse.json(
-      {
-        success: true,
-        config: portalConfig,
-        timestamp: new Date().toISOString(), // Agregar timestamp de respuesta para debugging
-      },
-      {
-        headers: {
-          'Cache-Control':
-            'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-          Pragma: 'no-cache',
-          Expires: '-1',
-          'Surrogate-Control': 'no-store',
-          Vary: '*', // Para evitar caching basado en cualquier criterio
+      return NextResponse.json(
+        {
+          success: true,
+          config: portalConfig,
+          timestamp: new Date().toISOString(),
+          accessedBy: session.userId // Para auditoría
         },
-      }
-    );
-  } catch (error) {
-    console.error('Error obteniendo configuración del portal:', error);
-    return NextResponse.json(
-      { error: 'Error interno del servidor' },
-      { status: 500 }
-    );
-  }
+        {
+          headers: {
+            'Cache-Control':
+              'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+            Pragma: 'no-cache',
+            Expires: '-1',
+            'Surrogate-Control': 'no-store',
+            Vary: '*',
+          },
+        }
+      );
+    } catch (error) {
+      console.error('❌ Error obteniendo configuración del portal:', error);
+      return NextResponse.json(
+        { error: 'Error interno del servidor' },
+        { status: 500 }
+      );
+    }
+  }, AuthConfigs.READ_ONLY);
 }
 
-// PUT - Actualizar configuración del portal
+// 🔒 PUT - Actualizar configuración del portal (PROTEGIDO - ADMIN ONLY)
 export async function PUT(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const {
-      banners,
-      promotions,
-      promociones,
-      events,
-      rewards,
-      recompensas,
-      favorites,
-      favoritoDelDia,
-      tarjetas,
-      nombreEmpresa,
-      settings,
-    } = body;
+  return withAuth(request, async (session) => {
+    try {
+      console.log(`🔧 Portal config update by: ${session.role} (${session.userId})`);
+      
+      const body = await request.json();
+      const {
+        banners,
+        promotions,
+        promociones,
+        events,
+        rewards,
+        recompensas,
+        favorites,
+        favoritoDelDia,
+        tarjetas,
+        nombreEmpresa,
+        settings,
+      } = body;
 
-    // Leer configuración actual
-    const currentConfig = await readPortalConfig();
+      // Leer configuración actual
+      const currentConfig = await readPortalConfig();
 
-    // Actualizar con los nuevos datos
-    const updatedConfig = {
-      ...currentConfig,
-      ...(banners && { banners }),
-      ...(promotions && { promotions }),
-      ...(promociones && { promociones }),
-      ...(events && { events }),
-      ...(rewards && { rewards }),
-      ...(recompensas && { recompensas }),
-      ...(favorites && { favorites }),
-      ...(favoritoDelDia && { favoritoDelDia }),
-      ...(tarjetas && { tarjetas }),
-      ...(nombreEmpresa !== undefined && { nombreEmpresa }),
-      ...(settings && { settings: { ...currentConfig.settings, ...settings } }),
-    };
+      // Actualizar con los nuevos datos
+      const updatedConfig = {
+        ...currentConfig,
+        ...(banners && { banners }),
+        ...(promotions && { promotions }),
+        ...(promociones && { promociones }),
+        ...(events && { events }),
+        ...(rewards && { rewards }),
+        ...(recompensas && { recompensas }),
+        ...(favorites && { favorites }),
+        ...(favoritoDelDia && { favoritoDelDia }),
+        ...(tarjetas && { tarjetas }),
+        ...(nombreEmpresa !== undefined && { nombreEmpresa }),
+        ...(settings && { settings: { ...currentConfig.settings, ...settings } }),
+        // Agregar metadata de auditoría
+        lastModifiedBy: session.userId,
+        lastModifiedAt: new Date().toISOString(),
+        lastModifiedRole: session.role
+      };
 
-    // Guardar configuración actualizada
-    const savedConfig = await writePortalConfig(updatedConfig);
+      // Guardar configuración actualizada
+      const savedConfig = await writePortalConfig(updatedConfig);
 
-    // Notificar cambios a clientes conectados via SSE
-    await notifyConfigChange();
+      // Notificar cambios a clientes conectados via SSE
+      await notifyConfigChange();
 
-    return NextResponse.json({
-      success: true,
-      config: savedConfig,
-    });
-  } catch (error) {
-    console.error('Error actualizando configuración del portal:', error);
-    return NextResponse.json(
-      { error: 'Error interno del servidor' },
-      { status: 500 }
-    );
-  }
+      console.log(`✅ Portal config updated successfully by ${session.role}`);
+      return NextResponse.json({
+        success: true,
+        config: savedConfig,
+        updatedBy: session.userId
+      });
+    } catch (error) {
+      console.error('❌ Error actualizando configuración del portal:', error);
+      return NextResponse.json(
+        { error: 'Error interno del servidor' },
+        { status: 500 }
+      );
+    }
+  }, AuthConfigs.ADMIN_ONLY);
 }

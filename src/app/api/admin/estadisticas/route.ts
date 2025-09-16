@@ -1,33 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { TopCliente, ProductosConsumo, ProductoConsumo, GoalsConfig, ProductVentasData, EmpleadoStats } from '../../../../types/api-routes';
-import { requireBusinessContext } from '../../../../middleware/api-business-filter';
+import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
 
 const prisma = new PrismaClient();
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
 
+// 🔒 GET - Estadísticas administrativas (PROTEGIDO)
 export async function GET(request: NextRequest) {
-  try {
-    // Obtener contexto de business del usuario autenticado
-    const context = await requireBusinessContext(request);
-    if (!context) {
-      return NextResponse.json(
-        { error: 'Acceso no autorizado' },
-        { status: 401 }
-      );
-    }
-
-    const { businessId, userId, userRole } = context;
-
-    console.log('✅ API Estadísticas con filtro por business:', {
-      userId,
-      userRole,
-      businessId,
-    });
-
-    const { searchParams } = new URL(request.url);
+  return withAuth(request, async (session) => {
+    try {
+      console.log(`📊 Estadísticas request by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
+      
+      const { searchParams } = new URL(request.url);
     const periodo = searchParams.get('periodo') || 'today'; // today, week, month, all
 
     let fechaInicio: Date;
@@ -81,7 +68,7 @@ export async function GET(request: NextRequest) {
     // Obtener consumos del período
     const consumos = await prisma.consumo.findMany({
       where: {
-        businessId: businessId, // ✅ FILTRO POR BUSINESS
+        businessId: session.businessId, // ✅ FILTRO POR BUSINESS
         registeredAt: {
           gte: fechaInicio,
         },

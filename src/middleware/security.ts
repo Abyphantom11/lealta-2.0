@@ -1,5 +1,4 @@
 // Sistema de validación de seguridad para middleware
-import { NextRequest } from 'next/server';
 import { prisma } from '../lib/prisma';
 
 export interface AdminSession {
@@ -57,7 +56,7 @@ export async function validateUserSession(sessionCookie: string): Promise<AdminS
     let permissions: string[] = [];
 
     switch (user.role) {
-      case 'SUPER_ADMIN':
+      case 'SUPERADMIN':
         role = 'superadmin';
         permissions = ['*']; // Todos los permisos
         break;
