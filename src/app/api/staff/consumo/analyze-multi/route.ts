@@ -49,7 +49,7 @@ interface BatchAnalysisResult {
 function validateMultiFormData(formData: FormData) {
   const schema = z.object({
     cedula: z.string().min(1, 'Cédula es requerida'),
-    businessId: z.string().optional(),
+    businessId: z.string().min(1, 'BusinessId es requerido'),
     empleadoId: z.string().optional(),
     maxImages: z.number().min(1).max(10).optional().default(5),
   });
@@ -263,7 +263,7 @@ export async function POST(request: NextRequest) {
     const entries = Array.from(formData.entries());
     
     for (const [key, value] of entries) {
-      if (key.startsWith('image') && value instanceof File) {
+      if ((key === 'images' || key.startsWith('image')) && value instanceof File) {
         imageFiles.push(value);
       }
     }
@@ -302,9 +302,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Buscar cliente por cédula
+    // Buscar cliente por cédula usando clave compuesta
     const cliente = await prisma.cliente.findUnique({
-      where: { cedula: validatedData.cedula },
+      where: { 
+        businessId_cedula: {
+          businessId: validatedData.businessId,
+          cedula: validatedData.cedula
+        }
+      },
       include: {
         business: true
       }

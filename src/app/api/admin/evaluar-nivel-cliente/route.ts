@@ -125,6 +125,7 @@ async function createNewCard(cliente: any, nivelCorrespondiente: string) {
   return await prisma.tarjetaLealtad.create({
     data: {
       clienteId: cliente.id,
+      businessId: cliente.businessId,
       nivel: nivelCorrespondiente,
       activa: true,
       fechaAsignacion: new Date(),
@@ -177,13 +178,13 @@ export async function POST(request: NextRequest) {
     }
 
     const whereClause = cedula 
-      ? { cedula, businessId } 
-      : { id: clienteId, businessId }; // ✅ FILTRO POR BUSINESS
+      ? { businessId_cedula: { businessId, cedula } }
+      : { id: clienteId }; // ✅ USAR COMPOUND KEY CORRECTO
     
     const cliente = await prisma.cliente.findUnique({
-      where: whereClause,
+      where: whereClause as any,
       include: { tarjetaLealtad: true, consumos: true },
-    });
+    }) as any;
 
     if (!cliente) {
       return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 });
@@ -193,16 +194,28 @@ export async function POST(request: NextRequest) {
     const nivelActual = cliente.tarjetaLealtad?.nivel || 'Bronce';
     const esAsignacionManual = cliente.tarjetaLealtad?.asignacionManual || false;
 
-    if (esAsignacionManual && nivelActual !== nivelCorrespondiente) {
-      console.log(`🚫 Tarjeta asignada manualmente (${nivelActual}), saltando evaluación automática`);
+    // ✅ CAMBIO: Permitir ascensos automáticos incluso en tarjetas manuales
+    // Solo bloquear degradaciones automáticas en tarjetas manuales
+    const jerarquia = ['Bronce', 'Plata', 'Oro', 'Diamante', 'Platino'];
+    const indexActual = jerarquia.indexOf(nivelActual);
+    const indexCorrespondiente = jerarquia.indexOf(nivelCorrespondiente);
+    const esAscenso = indexCorrespondiente > indexActual;
+    const esDegradacion = indexCorrespondiente < indexActual;
+
+    if (esAsignacionManual && esDegradacion) {
+      console.log(`🚫 Tarjeta asignada manualmente (${nivelActual}), bloqueando solo degradación automática`);
       return NextResponse.json({
-        message: 'Tarjeta asignada manualmente, no se modifica automáticamente',
+        message: 'Tarjeta asignada manualmente, no se permite degradación automática',
         nivelActual,
         nivelCorrespondiente,
         actualizado: false,
-        razon: 'asignacion_manual_preservada',
-        info: `La tarjeta ${nivelActual} fue asignada manualmente. Para cambiarla, use asignación manual.`
+        razon: 'asignacion_manual_preservada_degradacion',
+        info: `La tarjeta ${nivelActual} fue asignada manualmente. Solo se permiten ascensos automáticos.`
       });
+    }
+
+    if (esAsignacionManual && esAscenso) {
+      console.log(`🆙 Tarjeta asignada manualmente (${nivelActual}), pero permitiendo ascenso automático a ${nivelCorrespondiente}`);
     }
 
     if (nivelActual === nivelCorrespondiente) {
@@ -298,6 +311,7 @@ export async function PUT(request: NextRequest) {
           await prisma.tarjetaLealtad.create({
             data: {
               clienteId: cliente.id,
+              businessId: cliente.businessId,
               nivel: nivelCorrespondiente,
               activa: true,
               fechaAsignacion: new Date(),

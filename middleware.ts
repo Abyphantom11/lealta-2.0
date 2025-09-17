@@ -27,7 +27,7 @@ const PROTECTED_ROUTES = [
   // Nota: /superadmin, /admin, /staff ya no están aquí porque se manejan en el bloqueo de rutas peligrosas
 ];
 
-// Rutas públicas (login, signup, landing page, etc.)
+// Rutas públicas (login, signup, etc.)
 const PUBLIC_ROUTES = ['/', '/login', '/signup'];
 
 /**
@@ -241,7 +241,6 @@ export async function middleware(request: NextRequest) {
 
   // 0. ACCESO PÚBLICO: /[businessId]/cliente y /api/cliente (y subrutas)
   if (/^\/[a-zA-Z0-9_-]+\/cliente(\/|$)/.test(pathname) || pathname.startsWith('/api/cliente')) {
-    console.log(`✅ ACCESO PÚBLICO: Ruta de cliente detectada: ${pathname}`);
     return await publicClientAccess(request);
   }
 
@@ -309,15 +308,14 @@ export async function middleware(request: NextRequest) {
     );
   }
 
-  // 7. MANEJO DE BUSINESS CONTEXT ROUTING (EXCLUIR RUTAS DE CLIENTE)
+  // 7. MANEJO DE BUSINESS CONTEXT ROUTING
   const businessContext = await handleBusinessRouting(request);
   if (businessContext) {
     return businessContext;
   }
 
-  // 8. RUTAS DE CLIENTE (PÚBLICAS PERO CON BUSINESS CONTEXT) - YA SE MANEJARON EN EL PASO 0
+  // 8. RUTAS DE CLIENTE (PÚBLICAS PERO CON BUSINESS CONTEXT)
   if (isClientRoute(pathname)) {
-    console.log(`✅ Ruta de cliente ya manejada en paso 0: ${pathname}`);
     return await handleClientRouteAccess(request, pathname);
   }
 
@@ -342,12 +340,6 @@ async function handleBusinessRouting(request: NextRequest): Promise<NextResponse
   const urlData = extractBusinessFromUrl(pathname);
   if (!urlData) {
     return null; // No es una ruta de business
-  }
-
-  // 🔥 EXCLUIR RUTAS DE CLIENTE DEL BUSINESS ROUTING CON AUTENTICACIÓN
-  if (urlData.remainingPath.startsWith('/cliente')) {
-    console.log(`✅ Ruta de cliente excluida del business routing: ${pathname}`);
-    return null; // Las rutas de cliente se manejan en el paso 0
   }
 
   try {

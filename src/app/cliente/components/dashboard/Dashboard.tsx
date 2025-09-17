@@ -70,10 +70,6 @@ const LoyaltyLevelDisplay = ({
     );
   }
 
-  const tarjetasDisponibles = filtrarTarjetasUnicas(
-    portalConfig.tarjetas
-  );
-
   // 🎯 USAR FUNCIÓN UNIFICADA PARA CALCULAR PROGRESO CORRECTO
   let progress = 0;
   let siguienteNivel = 'Platino'; // Por defecto

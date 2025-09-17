@@ -566,7 +566,7 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
   }, [step, loadMenuCategories]);
 
   // Helper functions para reducir complejidad cognitiva
-  const updateClienteDataOnly = async (cedula: string) => {
+  const updateClienteDataOnly = useCallback(async (cedula: string) => {
     const clienteResponse = await fetch('/api/cliente/verificar', {
       method: 'POST',
       headers: { 
@@ -585,7 +585,7 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
         setClienteData(clienteActualizado.cliente);
       }
     }
-  };
+  }, [businessId]);
 
   const evaluateClientLevel = async (cedula: string) => {
     const evaluacionResponse = await fetch('/api/admin/evaluar-nivel-cliente', {
@@ -640,19 +640,15 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
     if (step === 'dashboard' && clienteData?.id) {
       const fetchClienteActualizado = async () => {
         try {
-          const esAsignacionManual = clienteData?.tarjetaLealtad?.asignacionManual || false;
-
-          if (esAsignacionManual) {
-            console.log('🚫 Saltando evaluación automática: Tarjeta asignada manualmente');
-            await updateClienteDataOnly(clienteData.cedula);
-            return;
-          }
-
-          console.log('🤖 Ejecutando evaluación automática: Tarjeta NO es manual');
+          // ✅ CAMBIO: Permitir evaluación automática para ascensos, incluso en tarjetas manuales
+          console.log('🤖 Ejecutando evaluación automática (permitiendo ascensos automáticos)');
           const evaluacionData = await evaluateClientLevel(clienteData.cedula);
           
           if (evaluacionData) {
-            handleLevelUpdateInEffect(evaluacionData);
+            // Solo mostrar animación si es un ascenso automático (no degradación)
+            if (evaluacionData.actualizado && evaluacionData.esSubida) {
+              handleLevelUpdateInEffect(evaluacionData);
+            }
           }
 
           const response = await fetch('/api/cliente/verificar', {

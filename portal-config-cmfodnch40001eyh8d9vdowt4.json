@@ -1,0 +1,93 @@
+{
+  "banners": [
+    {
+      "id": "banner-demo-1",
+      "title": "¡Demo de LEALTA!",
+      "description": "Explora todas las funcionalidades de nuestro sistema de fidelización",
+      "imageUrl": "",
+      "buttonText": "Explorar",
+      "buttonLink": "#",
+      "isActive": true,
+      "backgroundColor": "#3B82F6",
+      "textColor": "#FFFFFF",
+      "order": 1,
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "promotions": [
+    {
+      "id": "promo-demo-1",
+      "title": "Promoción Demo",
+      "description": "Esta es una promoción de demostración para mostrar las capacidades del sistema",
+      "imageUrl": "",
+      "validFrom": "2024-01-01T00:00:00.000Z",
+      "validTo": "2024-12-31T23:59:59.000Z",
+      "isActive": true,
+      "order": 1,
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "events": [
+    {
+      "id": "event-demo-1",
+      "title": "Evento Demo",
+      "description": "Un evento de demostración para mostrar la funcionalidad",
+      "location": "Ubicación Demo",
+      "startDate": "2024-12-20T18:00:00.000Z",
+      "endDate": "2024-12-20T22:00:00.000Z",
+      "imageUrl": "",
+      "isActive": true,
+      "maxAttendees": 100,
+      "currentAttendees": 0,
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "rewards": [
+    {
+      "id": "reward-demo-1",
+      "title": "Recompensa Demo",
+      "description": "Canjea puntos por esta recompensa de demostración",
+      "pointsCost": 500,
+      "category": "demo",
+      "imageUrl": "",
+      "isActive": true,
+      "stock": 50,
+      "availableFrom": "2024-01-01T00:00:00.000Z",
+      "availableTo": "2024-12-31T23:59:59.000Z",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "favorites": [
+    {
+      "id": "fav-demo-1",
+      "title": "Producto Demo",
+      "description": "Un producto de demostración para mostrar la funcionalidad",
+      "imageUrl": "",
+      "category": "demo",
+      "price": 10.00,
+      "isActive": true,
+      "order": 1,
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "settings": {
+    "businessName": "LEALTA Demo",
+    "businessDescription": "Sistema de demostración de LEALTA",
+    "primaryColor": "#3B82F6",
+    "secondaryColor": "#10B981",
+    "accentColor": "#F59E0B",
+    "showBanners": true,
+    "showPromotions": true,
+    "showEvents": true,
+    "showRewards": true,
+    "showFavorites": true,
+    "currency": "USD",
+    "loyaltyPointsName": "Puntos Demo",
+    "welcomeMessage": "¡Bienvenido al Demo de LEALTA!"
+  }
+}
