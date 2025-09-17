@@ -239,8 +239,8 @@ export async function middleware(request: NextRequest) {
   // Log básico para debug
   console.log(`🔒 MIDDLEWARE HARDENED: ${pathname}`);
 
-  // 0. INTERCEPTAR RUTAS DE CLIENTE PÚBLICAS Y VALIDAR BUSINESS
-  if (/^\/[a-zA-Z0-9_-]+\/cliente(\/|$)/.test(pathname)) {
+  // 0. ACCESO PÚBLICO: /[businessId]/cliente y /api/cliente (y subrutas)
+  if (/^\/[a-zA-Z0-9_-]+\/cliente(\/|$)/.test(pathname) || pathname.startsWith('/api/cliente')) {
     return await publicClientAccess(request);
   }
 
@@ -249,7 +249,13 @@ export async function middleware(request: NextRequest) {
     PUBLIC_ROUTES.some(route => pathname.startsWith(route)) ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
-    pathname.startsWith('/api/health')
+    pathname.startsWith('/manifest') ||
+    pathname.startsWith('/sw.js') ||
+    pathname.startsWith('/icons') ||
+    pathname.startsWith('/images') ||
+    pathname.startsWith('/uploads') ||
+    pathname.startsWith('/api/health') ||
+    pathname.startsWith('/api/auth')
   ) {
     return NextResponse.next();
   }
@@ -668,10 +674,14 @@ export const config = {
     /*
      * Match all request paths except for the ones starting with:
      * - api/auth (auth routes should be public)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
+     * - _next/ (Next.js internals including HMR, static files, webpack, etc.)
      * - favicon.ico (favicon file)
+     * - manifest.json (PWA manifest)
+     * - sw.js (service worker)
+     * - icons/ (icon assets)
+     * - images/ (image assets)
+     * - uploads/ (uploaded files)
      */
-    '/((?!api/auth|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api/auth|_next|favicon.ico|manifest.json|sw.js|icons|images|uploads).*)',
   ],
 };
