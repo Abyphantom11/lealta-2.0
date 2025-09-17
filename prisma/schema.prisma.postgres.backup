@@ -83,8 +83,8 @@ model Location {
 
 model Cliente {
   id           String    @id @default(cuid())
-  businessId   String // FK a Business - OBLIGATORIO para aislamiento
-  cedula       String // Cédula única por business, no global
+  businessId   String? // FK a Business - temporalmente opcional
+  cedula       String    @unique // Cédula única global temporalmente
   nombre       String
   correo       String
   telefono     String
@@ -99,20 +99,20 @@ model Cliente {
   registeredAt DateTime  @default(now())
 
   // Relaciones
-  business       Business        @relation("BusinessClientes", fields: [businessId], references: [id], onDelete: Cascade)
+  business       Business?       @relation("BusinessClientes", fields: [businessId], references: [id], onDelete: Cascade)
   consumos       Consumo[]
   visits         VisitLog[]
   tarjetaLealtad TarjetaLealtad?
   visitas        Visita[]        @relation("ClienteVisitas")
   canjes         HistorialCanje[]
 
-  // ✅ AISLAMIENTO: Cédula única por business, no global
-  @@unique([businessId, cedula])
+  // Temporalmente removemos la restricción compuesta
+  // @@unique([businessId, cedula])
 }
 
 model Consumo {
   id             String    @id @default(cuid())
-  businessId     String // FK a Business - OBLIGATORIO para aislamiento
+  businessId     String? // FK a Business - temporalmente opcional
   clienteId      String
   locationId     String
   productos      Json // items parseados por OCR
@@ -127,10 +127,10 @@ model Consumo {
   ocrText        String? // texto crudo del OCR
 
   // Relaciones
-  business Business @relation("BusinessConsumos", fields: [businessId], references: [id], onDelete: Cascade)
-  cliente  Cliente  @relation(fields: [clienteId], references: [id])
-  location Location @relation(fields: [locationId], references: [id])
-  empleado User     @relation("EmpleadoConsumos", fields: [empleadoId], references: [id])
+  business Business? @relation("BusinessConsumos", fields: [businessId], references: [id], onDelete: Cascade)
+  cliente  Cliente   @relation(fields: [clienteId], references: [id])
+  location Location  @relation(fields: [locationId], references: [id])
+  empleado User      @relation("EmpleadoConsumos", fields: [empleadoId], references: [id])
 }
 
 model VisitLog {
@@ -233,7 +233,7 @@ model MenuProduct {
 model TarjetaLealtad {
   id               String   @id @default(cuid())
   clienteId        String   @unique // Un cliente solo puede tener una tarjeta
-  businessId       String // FK a Business - OBLIGATORIO para aislamiento
+  businessId       String? // FK a Business
   nivel            String // "Bronce", "Plata", "Oro", "Diamante", "Platino"
   fechaAsignacion  DateTime @default(now())
   asignacionManual Boolean  @default(false) // true si fue asignada manualmente por admin
@@ -340,7 +340,7 @@ model Visita {
   updatedAt    DateTime @updatedAt
 
   // Relaciones
-  cliente Cliente? @relation("ClienteVisitas", fields: [clienteId], references: [id], onDelete: SetNull)
+  cliente Cliente? @relation("ClienteVisitas", fields: [clienteId], references: [cedula], onDelete: SetNull)
 
   // Índices para consultas rápidas
   @@index([timestamp])

@@ -55,11 +55,6 @@ const LoyaltyLevelDisplay = ({
   portalConfig: any;
 }) => {
   // OBTENER NIVELES DINÁMICAMENTE desde portalConfig
-  console.log('🔍 LoyaltyLevelDisplay - portalConfig recibido:', portalConfig);
-  console.log(
-    '🔍 LoyaltyLevelDisplay - tarjetas en config:',
-    portalConfig?.tarjetas?.length || 0
-  );
 
   // Verificar que hay tarjetas configuradas
   if (!(portalConfig?.tarjetas?.length)) {
@@ -75,13 +70,8 @@ const LoyaltyLevelDisplay = ({
     );
   }
 
-  console.log(
-    '✅ LoyaltyLevelDisplay - tarjetas encontradas:',
+  const tarjetasDisponibles = filtrarTarjetasUnicas(
     portalConfig.tarjetas
-  );
-  console.log(
-    '📊 LoyaltyLevelDisplay - tarjetas disponibles:',
-    portalConfig.tarjetas.length
   );
 
   // 🎯 USAR FUNCIÓN UNIFICADA PARA CALCULAR PROGRESO CORRECTO
@@ -102,8 +92,6 @@ const LoyaltyLevelDisplay = ({
     progress = resultado.progreso;
     siguienteNivel = resultado.siguienteNivel;
     mensaje = resultado.mensaje;
-
-    console.log('✅ Progreso calculado:', resultado);
 
   } catch (error) {
     console.error('Error calculando progreso:', error);

@@ -6,10 +6,36 @@ const prisma = new PrismaClient();
 
 export async function POST(request: NextRequest) {
   try {
-    // Obtener business ID del middleware context
-    const businessId = validateBusinessAccess(request);
+    // Primero obtener el cuerpo de la petición
+    const body = await request.json();
+    const { cedula, businessId: bodyBusinessId } = body;
     
-    const { cedula } = await request.json();
+    // Obtener business ID del middleware context o desde el cuerpo/headers de la petición
+    let businessId: string;
+    
+    try {
+      // Intentar obtener business ID desde el middleware (rutas autenticadas)
+      businessId = validateBusinessAccess(request);
+    } catch {
+      // Si no hay context del middleware, intentar obtener desde headers
+      const headerBusinessId = request.headers.get('x-business-id');
+      if (headerBusinessId) {
+        businessId = headerBusinessId;
+      } else if (bodyBusinessId) {
+        // Como último recurso, usar el businessId del cuerpo de la petición
+        businessId = bodyBusinessId;
+      } else {
+        console.error('❌ No business ID found in request:', {
+          headers: Object.fromEntries(request.headers.entries()),
+          url: request.url,
+          body
+        });
+        return NextResponse.json(
+          { error: 'Business ID required for client verification' },
+          { status: 400 }
+        );
+      }
+    }
 
     if (!cedula) {
       return NextResponse.json(
@@ -31,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     if (cliente) {
       // Cliente existe
-      return NextResponse.json({
+      const clienteResponse = {
         existe: true,
         cliente: {
           id: cliente.id,
@@ -45,7 +71,7 @@ export async function POST(request: NextRequest) {
                 activa: cliente.tarjetaLealtad.activa,
                 fechaAsignacion: cliente.tarjetaLealtad.fechaAsignacion,
                 puntos: cliente.puntos, // Los puntos canjeables del cliente
-                puntosProgreso: cliente.tarjetaLealtad.puntosProgreso, // ✅ NUEVO: Puntos de progreso de tarjeta
+                puntosProgreso: cliente.tarjetaLealtad.puntosProgreso || cliente.puntos, // ✅ FALLBACK: Usar puntos del cliente si puntosProgreso es null
                 asignacionManual: cliente.tarjetaLealtad.asignacionManual || false, // ✅ AGREGAR CAMPO MANUAL
               }
             : {
@@ -57,7 +83,9 @@ export async function POST(request: NextRequest) {
                 asignacionManual: false, // ✅ AGREGAR CAMPO MANUAL
               },
         },
-      });
+      };
+      
+      return NextResponse.json(clienteResponse);
     } else {
       // Cliente no existe
       return NextResponse.json({

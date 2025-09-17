@@ -171,16 +171,12 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
 
   const loadPortalConfig = useCallback(async () => {
     try {
-      console.log('🔄 Cargando configuración del portal...');
       // Usar businessId si está disponible, sino usar 'default'
       const configBusinessId = businessId || 'default';
       const configResponse = await fetch(`/api/portal/config?businessId=${configBusinessId}`);
-      console.log('📡 Respuesta de configuración:', configResponse.status, configResponse.statusText);
 
       if (configResponse.ok) {
         const config = await configResponse.json();
-        console.log('📦 Configuración recibida:', config);
-        console.log('🏷️ Tarjetas en config:', config.tarjetas?.length || 0);
 
         // Usar la configuración si existe, independientemente de si tiene tarjetas
         if (config) {
@@ -219,43 +215,28 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
     // Función para verificar notificaciones en tiempo real (dentro del callback)
     const verificarNotificacionesEnTiempoReal = async (clienteAnterior: any, clienteNuevo: any) => {
       try {
-        console.log('🔍 Verificando notificaciones en tiempo real...');
-        console.log('👤 Cliente anterior:', clienteAnterior?.tarjetaLealtad?.nivel);
-        console.log('👤 Cliente nuevo:', clienteNuevo?.tarjetaLealtad?.nivel);
-        
         // Detectar si hubo un cambio de nivel
         const nivelAnterior = clienteAnterior?.tarjetaLealtad?.nivel;
         const nivelNuevo = clienteNuevo?.tarjetaLealtad?.nivel;
 
         if (nivelAnterior && nivelNuevo && nivelAnterior !== nivelNuevo) {
-          console.log(`🎉 Cambio de nivel detectado: ${nivelAnterior} → ${nivelNuevo}`);
-          
           // Verificar si ya se notificó este nivel
           const lastNotifiedLevel = localStorage.getItem(`lastNotifiedLevel_${clienteNuevo.cedula}`);
-          console.log(`📝 Último nivel notificado: ${lastNotifiedLevel}`);
           
           if (lastNotifiedLevel !== nivelNuevo) {
             // Determinar el tipo de notificación basado en la asignación
             const esAsignacionManual = clienteNuevo?.tarjetaLealtad?.asignacionManual;
-            console.log(`⚙️ Es asignación manual: ${esAsignacionManual}`);
             
             if (esAsignacionManual) {
-              console.log(`📢 Notificación de ascenso manual: ${nivelAnterior} → ${nivelNuevo}`);
               notifyLevelUpManual(nivelAnterior, nivelNuevo, clienteNuevo.id);
             } else {
-              console.log(`🔄 Cambio de nivel automático detectado: ${nivelAnterior} → ${nivelNuevo}`);
               // Para ascensos automáticos, también podemos usar la misma notificación
               notifyLevelUpManual(nivelAnterior, nivelNuevo, clienteNuevo.id);
             }
 
             // Marcar como notificado
             localStorage.setItem(`lastNotifiedLevel_${clienteNuevo.cedula}`, nivelNuevo);
-            console.log(`✅ Marcado como notificado: ${nivelNuevo}`);
-          } else {
-            console.log(`✅ Nivel ${nivelNuevo} ya fue notificado previamente`);
           }
-        } else {
-          console.log('ℹ️ No hay cambio de nivel');
         }
       } catch (error) {
         console.error('Error verificando notificaciones en tiempo real:', error);
@@ -266,8 +247,14 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
       logger.log('🔄 Refrescando datos del cliente...');
       const response = await fetch('/api/cliente/verificar', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cedula }),
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(businessId && { 'x-business-id': businessId })
+        },
+        body: JSON.stringify({ 
+          cedula,
+          businessId: businessId // Incluir businessId como fallback
+        }),
       });
 
       const data = await response.json();
@@ -345,8 +332,14 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
             // Sesión válida, verificar que el cliente aún existe
             const response = await fetch('/api/cliente/verificar', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ cedula: savedCedula }),
+              headers: { 
+                'Content-Type': 'application/json',
+                ...(businessId && { 'x-business-id': businessId })
+              },
+              body: JSON.stringify({ 
+                cedula: savedCedula,
+                businessId: businessId // Incluir businessId como fallback
+              }),
             });
 
             const data = await response.json();
@@ -533,8 +526,14 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
           // Verificar cliente en la base de datos
           const response = await fetch('/api/cliente/verificar', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cedula: sessionData.cedula }),
+            headers: { 
+              'Content-Type': 'application/json',
+              ...(businessId && { 'x-business-id': businessId })
+            },
+            body: JSON.stringify({ 
+              cedula: sessionData.cedula,
+              businessId: businessId
+            }),
           });
 
           const data = await response.json();
@@ -557,7 +556,7 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
     };
 
     checkSession();
-  }, []); // Hook de inicialización de sesión
+  }, [businessId]); // Hook de inicialización de sesión
 
   // Hook para cargar datos cuando se entra al dashboard
   useEffect(() => {
@@ -570,8 +569,14 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
   const updateClienteDataOnly = async (cedula: string) => {
     const clienteResponse = await fetch('/api/cliente/verificar', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cedula }),
+      headers: { 
+        'Content-Type': 'application/json',
+        ...(businessId && { 'x-business-id': businessId })
+      },
+      body: JSON.stringify({ 
+        cedula,
+        businessId: businessId
+      }),
     });
 
     if (clienteResponse.ok) {
@@ -652,8 +657,14 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
 
           const response = await fetch('/api/cliente/verificar', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cedula: clienteData.cedula }),
+            headers: { 
+              'Content-Type': 'application/json',
+              ...(businessId && { 'x-business-id': businessId })
+            },
+            body: JSON.stringify({ 
+              cedula: clienteData.cedula,
+              businessId: businessId
+            }),
           });
 
           if (response.ok) {
@@ -680,7 +691,7 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
 
       return () => clearInterval(updateInterval);
     }
-  }, [step, clienteData?.id, clienteData?.cedula, clienteData?.tarjetaLealtad?.asignacionManual, handleLevelUpdateInEffect]);
+  }, [step, clienteData?.id, clienteData?.cedula, clienteData?.tarjetaLealtad?.asignacionManual, handleLevelUpdateInEffect, businessId, updateClienteDataOnly]);
 
   // Mostrar loading inicial mientras se carga el branding
   if (isInitialLoading) {
@@ -857,6 +868,7 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
           cedula={cedula}
           setCedula={setCedula}
           setClienteData={setClienteData}
+          businessId={businessId}
         />
       )}
 
@@ -867,6 +879,7 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
           formData={formData}
           setFormData={setFormData}
           setClienteData={setClienteData}
+          businessId={businessId}
         />
       )}
 

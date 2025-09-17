@@ -14,6 +14,7 @@ import {
 } from './src/middleware/security';
 import { handleSessionSegregation } from './src/middleware/sessionSegregation';
 import { prisma } from './src/lib/prisma';
+import { publicClientAccess } from './src/middleware/publicClientAccess';
 
 // Rutas que requieren autenticación (después del chequeo de businessId)
 const PROTECTED_ROUTES = [
@@ -237,6 +238,11 @@ export async function middleware(request: NextRequest) {
 
   // Log básico para debug
   console.log(`🔒 MIDDLEWARE HARDENED: ${pathname}`);
+
+  // 0. INTERCEPTAR RUTAS DE CLIENTE PÚBLICAS Y VALIDAR BUSINESS
+  if (/^\/[a-zA-Z0-9_-]+\/cliente(\/|$)/.test(pathname)) {
+    return await publicClientAccess(request);
+  }
 
   // 1. PERMITIR RUTAS PÚBLICAS INMEDIATAMENTE
   if (

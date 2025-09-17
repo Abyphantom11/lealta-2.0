@@ -11,7 +11,8 @@ import AuthHandler from '../../cliente/components/AuthHandler';
  */
 export default function BusinessClientePage() {
   const params = useParams();
-  const businessId = params.businessId as string;
+  const businessSlug = params.businessId as string; // Slug de la URL
+  const [businessData, setBusinessData] = useState<any>(null); // Datos completos del business
   const [isValidBusiness, setIsValidBusiness] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -19,15 +20,16 @@ export default function BusinessClientePage() {
     // Validar que el businessId existe y es válido
     const validateBusiness = async () => {
       try {
-        console.log(`🔍 Validating business for cliente: ${businessId}`);
+        console.log(`🔍 Validating business for cliente: ${businessSlug}`);
         
-        const response = await fetch(`/api/businesses/${businessId}/validate`);
+        const response = await fetch(`/api/businesses/${businessSlug}/validate`);
         if (response.ok) {
-          const businessData = await response.json();
-          console.log(`✅ Business validated for cliente:`, businessData);
+          const businessInfo = await response.json();
+          console.log(`✅ Business validated for cliente:`, businessInfo);
+          setBusinessData(businessInfo); // Guardar datos completos incluido el ID real
           setIsValidBusiness(true);
         } else {
-          console.log(`❌ Business validation failed for cliente: ${businessId}`);
+          console.log(`❌ Business validation failed for cliente: ${businessSlug}`);
           window.location.href = `/login?error=invalid-business&message=El negocio no es válido o no existe`;
         }
       } catch (error) {
@@ -39,12 +41,12 @@ export default function BusinessClientePage() {
       }
     };
 
-    if (businessId) {
+    if (businessSlug) {
       validateBusiness();
     } else {
       setIsLoading(false);
     }
-  }, [businessId]);
+  }, [businessSlug]);
 
   // Loading state
   if (isLoading) {
@@ -52,17 +54,17 @@ export default function BusinessClientePage() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando portal cliente {businessId}...</p>
+          <p className="text-gray-600">Cargando portal cliente {businessSlug}...</p>
         </div>
       </div>
     );
   }
 
   // Business context válido - usar el portal completo
-  if (isValidBusiness) {
+  if (isValidBusiness && businessData) {
     return (
-      <BrandingProvider businessId={businessId}>
-        <AuthHandler businessId={businessId} />
+      <BrandingProvider businessId={businessData.id}>
+        <AuthHandler businessId={businessData.id} />
       </BrandingProvider>
     );
   }
@@ -73,7 +75,7 @@ export default function BusinessClientePage() {
       <div className="text-center p-8">
         <h1 className="text-2xl font-bold text-red-600 mb-4">Negocio No Encontrado</h1>
         <p className="text-gray-600 mb-6">
-          El negocio &quot;{businessId}&quot; no existe.
+          El negocio &quot;{businessSlug}&quot; no existe.
         </p>
         <button
           onClick={() => (window.location.href = '/login')}

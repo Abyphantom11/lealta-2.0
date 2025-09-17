@@ -9,8 +9,27 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    // Obtener business ID del middleware context
-    const businessId = validateBusinessAccess(request);
+    // Intentar obtener business ID desde headers o usar método alternativo
+    let businessId: string | null = null;
+    
+    try {
+      businessId = validateBusinessAccess(request);
+    } catch (authError) {
+      // Si no está en el context del middleware, intentar obtener desde headers directos
+      console.log('⚠️ No middleware context, using direct headers:', authError instanceof Error ? authError.message : 'Unknown error');
+      businessId = request.headers.get('x-business-id');
+      
+      if (!businessId) {
+        console.error('❌ No business ID found in request:', {
+          headers: Object.fromEntries(request.headers.entries()),
+          url: request.url
+        });
+        return NextResponse.json(
+          { error: 'Business ID required for search' },
+          { status: 400 }
+        );
+      }
+    }
     
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
@@ -18,6 +37,8 @@ export async function GET(request: NextRequest) {
     if (!query || query.length < 2) {
       return NextResponse.json([]);
     }
+
+    console.log('🔍 Searching clients:', { businessId, query });
 
     // Buscar clientes por nombre, correo, teléfono o cédula dentro del business
     const clientes = await prisma.cliente.findMany({

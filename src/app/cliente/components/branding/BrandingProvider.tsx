@@ -60,7 +60,6 @@ export const BrandingProvider = ({ children, businessId }: BrandingProviderProps
             const parsed = JSON.parse(data);
             // Si contiene datos de prueba como "Holi", limpiar
             if (parsed.businessName === 'Holi' || parsed.businessName === 'holi') {
-              console.log(`🧹 Limpiando localStorage contaminado: ${key}`);
               localStorage.removeItem(key);
             }
           } catch {
@@ -88,7 +87,6 @@ export const BrandingProvider = ({ children, businessId }: BrandingProviderProps
                 promo.titulo?.includes('asdadad') || promo.descripcion?.includes('asdadad')
               );
               if (hasContaminatedPromos) {
-                console.log(`🧹 Limpiando portal config contaminado: ${key}`);
                 localStorage.removeItem(key);
               }
             }
@@ -98,7 +96,6 @@ export const BrandingProvider = ({ children, businessId }: BrandingProviderProps
                 reward.nombre?.includes('fsfsfsf') || reward.descripcion?.includes('fdsfsfsd')
               );
               if (hasContaminatedRewards) {
-                console.log(`🧹 Limpiando recompensas contaminadas: ${key}`);
                 localStorage.removeItem(key);
               }
             }
@@ -144,7 +141,6 @@ export const BrandingProvider = ({ children, businessId }: BrandingProviderProps
       
       if (response.ok) {
         const branding = await response.json();
-        console.log(`Cliente: Branding cargado desde API para ${businessId || 'default'}:`, branding.carouselImages?.length || 0, 'imágenes');
         
         const cleanBranding = cleanBrandingData(branding);
         setBrandingConfig(cleanBranding);
@@ -167,7 +163,6 @@ export const BrandingProvider = ({ children, businessId }: BrandingProviderProps
           }
         }
       } else {
-        console.log('API branding no disponible, usando valores por defecto');
         setBrandingConfig({
           businessName: 'LEALTA',
           primaryColor: '#2563EB',
@@ -205,8 +200,7 @@ export const BrandingProvider = ({ children, businessId }: BrandingProviderProps
     };
     
     // Escuchar eventos personalizados del admin
-    const handleBrandingUpdate = (e: CustomEvent) => {
-      console.log('Evento de actualización de branding recibido:', e.detail);
+    const handleBrandingUpdate = () => {
       loadBranding();
     };
     

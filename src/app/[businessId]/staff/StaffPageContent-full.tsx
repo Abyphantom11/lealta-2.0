@@ -508,51 +508,85 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
     }
 
     setIsSearchingCustomer(true);
+    console.log('🔍 Searching clients with term:', searchTerm, 'businessId:', businessId);
+    
     try {
-      const response = await fetch(
-        `/api/clientes/search?q=${encodeURIComponent(searchTerm)}`
-      );
+      // ✅ USAR EL MISMO ENDPOINT QUE EL ADMIN (ya tiene middleware de auth correcto)
+      const response = await fetch('/api/admin/clients/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          searchTerm: searchTerm
+        }),
+      });
+      
+      console.log('📡 Search response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
-        if (Array.isArray(data)) {
-          setSearchResults(data);
-          setShowSearchResults(data.length > 0);
+        console.log('📋 Search results:', data);
+        
+        if (data.success && Array.isArray(data.clients)) {
+          setSearchResults(data.clients);
+          setShowSearchResults(data.clients.length > 0);
+          
+          if (data.clients.length > 0) {
+            console.log('✅ Found clients:', data.clients.map((c: any) => `${c.nombre} (${c.cedula})`));
+          } else {
+            console.log('ℹ️ No clients found for search term:', searchTerm);
+          }
         } else {
-          console.error('Formato de respuesta inesperado:', data);
+          console.error('❌ Unexpected response format:', data);
           setSearchResults([]);
           setShowSearchResults(false);
         }
       } else {
-        console.error('Error en la respuesta:', response.status);
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Search request failed:', response.status, errorData);
         setSearchResults([]);
         setShowSearchResults(false);
+        
+        if (response.status === 401) {
+          showNotification('error', 'Sesión expirada. Por favor, vuelve a iniciar sesión.');
+        } else if (response.status === 403) {
+          showNotification('error', 'No tienes permisos para buscar clientes.');
+        } else {
+          showNotification('error', 'Error en la búsqueda de clientes');
+        }
       }
     } catch (error) {
-      console.error('Error buscando clientes:', error);
+      console.error('❌ Network error searching clients:', error);
       setSearchResults([]);
       setShowSearchResults(false);
+      showNotification('error', 'Error de conexión al buscar clientes');
     } finally {
       setIsSearchingCustomer(false);
     }
-  }, []);
+  }, [businessId, showNotification]); // ✅ AGREGAR DEPENDENCIAS
 
   // Función para seleccionar cliente de los resultados
   const selectClientFromSearch = (client: any) => {
+    console.log('👤 Selecting client from search:', client);
+    
     setCedula(client.cedula);
     setCustomerInfo({
-      id: client.cedula,
+      id: client.id || client.cedula,
       cedula: client.cedula,
       nombre: client.nombre,
-      email: client.email,
+      email: client.email || client.correo, // Admin endpoint usa 'email', pero también mapear 'correo'
       telefono: client.telefono,
       puntos: client.puntos || 0,
-      nivel: client.tarjetaFidelizacion?.nivel || 'Sin tarjeta',
+      nivel: client.tarjetaFidelizacion?.nivel || client.tarjetaLealtad?.nivel || 'Sin tarjeta',
       ultimaVisita: null,
-      totalGastado: 0,
-      frecuencia: `${client.visitas || 0} visitas registradas`,
+      totalGastado: client.totalGastado || 0,
+      frecuencia: `${client.visitas || client.totalVisitas || 0} visitas registradas`,
     });
     setShowSearchResults(false);
     setSearchResults([]);
+    
+    showNotification('success', `Cliente ${client.nombre} seleccionado correctamente`);
   };
 
   const searchCustomer = async (cedulaValue: string) => {

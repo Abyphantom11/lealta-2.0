@@ -12,9 +12,11 @@ export const RegisterForm = ({
   cedula, 
   formData, 
   setFormData, 
-  setClienteData 
+  setClienteData,
+  businessId: propBusinessId
 }: RegisterFormProps) => {
-  const { brandingConfig, businessId } = useBranding(); // ✅ OBTENER BUSINESS ID
+  const { brandingConfig, businessId: contextBusinessId } = useBranding();
+  const businessId = propBusinessId || contextBusinessId; // Usar prop si existe, sino el contexto
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
@@ -39,13 +41,14 @@ export const RegisterForm = ({
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'x-business-id': businessId || '' // ✅ AGREGAR BUSINESS ID HEADER
+          ...(businessId && { 'x-business-id': businessId })
         },
         body: JSON.stringify({
           cedula: cedula.trim(),
           nombre: formData.nombre.trim(),
           telefono: formData.telefono.trim(),
-          correo: formData.email.trim()
+          correo: formData.email.trim(),
+          businessId: businessId // Incluir businessId como fallback
         })
       });
       const data = await response.json();

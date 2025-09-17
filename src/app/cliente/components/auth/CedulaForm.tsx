@@ -11,7 +11,8 @@ export const CedulaForm = ({
   setStep, 
   cedula, 
   setCedula, 
-  setClienteData 
+  setClienteData,
+  businessId 
 }: CedulaFormProps) => {
   const { brandingConfig } = useBranding();
   const [isLoading, setIsLoading] = useState(false);
@@ -29,8 +30,14 @@ export const CedulaForm = ({
       // Verificar si el cliente existe
       const response = await fetch('/api/cliente/verificar', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cedula: cedula.trim() })
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(businessId && { 'x-business-id': businessId })
+        },
+        body: JSON.stringify({ 
+          cedula: cedula.trim(),
+          businessId: businessId // Incluir businessId en el cuerpo como fallback
+        })
       });
       const data = await response.json();
       if (response.ok && data.existe) {

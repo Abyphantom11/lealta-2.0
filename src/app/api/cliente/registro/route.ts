@@ -8,34 +8,30 @@ const PORTAL_CONFIG_PATH = path.join(process.cwd(), 'portal-config.json');
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔍 DEBUG: Iniciando registro de cliente');
-    console.log('🔍 Headers recibidos:', Object.fromEntries(request.headers.entries()));
-    
-    const { cedula, nombre, telefono, correo } = await request.json();
-    console.log('🔍 Datos recibidos:', { cedula, nombre, telefono, correo });
+    const { cedula, nombre, telefono, correo, businessId: bodyBusinessId } = await request.json();
 
     if (!cedula || !nombre || !telefono || !correo) {
-      console.log('❌ Campos faltantes:', { cedula: !!cedula, nombre: !!nombre, telefono: !!telefono, correo: !!correo });
       return NextResponse.json(
         { error: 'Todos los campos son requeridos' },
         { status: 400 }
       );
     }
 
-    // 🏢 OBTENER BUSINESS ID DEL CONTEXTO
+    // 🏢 OBTENER BUSINESS ID DEL CONTEXTO - MEJORADO
     let businessId = request.headers.get('x-business-id');
-    console.log('🔍 BusinessId del header:', businessId);
+    
+    // Si no está en el header, usar el del cuerpo de la petición
+    if (!businessId && bodyBusinessId) {
+      businessId = bodyBusinessId;
+    }
     
     // 🚨 FALLBACK: Si el businessId del header es un slug, extraer de la sesión
     if (!businessId || businessId.length < 10) { // Los IDs reales son más largos
-      console.log('🔄 Fallback: Extrayendo businessId de la sesión...');
-      
       const sessionCookie = request.cookies.get('session');
       if (sessionCookie) {
         try {
           const sessionData = JSON.parse(decodeURIComponent(sessionCookie.value));
           businessId = sessionData.businessId;
-          console.log('🔍 BusinessId extraído de sesión:', businessId);
         } catch (error) {
           console.error('❌ Error parseando sesión:', error);
         }
@@ -43,16 +39,15 @@ export async function POST(request: NextRequest) {
     }
     
     if (!businessId) {
-      console.error('❌ No se encontró businessId en headers ni sesión');
+      console.error('❌ No se encontró businessId en headers, cuerpo ni sesión');
       return NextResponse.json(
         { error: 'Contexto de negocio requerido' },
         { status: 400 }
       );
     }
 
-    console.log(`🏢 Registrando cliente para business: ${businessId}`);
-
-    // Verificar si el cliente ya existe (por cédula Y business)
+        
+    // 2. Verificar si ya existe un cliente con esa cédula en este business
     const clienteExistente = await prisma.cliente.findFirst({
       where: {
         cedula: cedula.toString(),
@@ -104,7 +99,7 @@ export async function POST(request: NextRequest) {
           businessId: businessId, // ✅ ASIGNAR BUSINESS ID A LA TARJETA
         },
       });
-      console.log(`✅ Tarjeta Bronce asignada automáticamente al cliente ${nuevoCliente.nombre} (Business: ${businessId})`);
+      
     } catch (tarjetaError) {
       console.warn('⚠️ Error asignando tarjeta Bronce automática:', tarjetaError);
       // No fallar el registro si hay error con la tarjeta

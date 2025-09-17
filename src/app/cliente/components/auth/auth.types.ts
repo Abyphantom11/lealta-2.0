@@ -31,6 +31,7 @@ export interface CedulaFormProps {
   cedula: string;
   setCedula: (cedula: string) => void;
   setClienteData: (data: any) => void;
+  businessId?: string;
 }
 
 export interface RegisterFormProps {
@@ -43,4 +44,5 @@ export interface RegisterFormProps {
   };
   setFormData: (data: any) => void;
   setClienteData: (data: any) => void;
+  businessId?: string;
 }
