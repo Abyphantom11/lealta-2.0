@@ -1,7 +1,7 @@
 {
-  "name": "lealta 2.0 - Plataforma de Inteligencia de Negocios",
-  "short_name": "lealta 2.0",
-  "description": "Plataforma de inteligencia que convierte tu negocio en data-driven sin conocimientos técnicos",
+  "name": "Lealta",
+  "short_name": "Lealta",
+  "description": "Sistema de fidelización inteligente para tu negocio",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1a1a1a",

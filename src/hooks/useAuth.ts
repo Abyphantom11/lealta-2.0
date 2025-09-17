@@ -36,6 +36,12 @@ export function useAuth(requiredRole?: UserRole) {
     const checkAuth = async () => {
       console.log('🔐 useAuth: Iniciando verificación de autenticación');
       
+      // 🔥 VERIFICAR SI ESTAMOS EN UNA RUTA DE CLIENTE PÚBLICA
+      const isClientPublicRoute = typeof window !== 'undefined' && 
+        /^\/[a-zA-Z0-9_-]+\/cliente(\/|$)/.test(window.location.pathname);
+        
+      console.log('🔐 useAuth: Ruta cliente pública?', isClientPublicRoute);
+      
       try {
         const response = await fetch('/api/auth/me');
       
@@ -75,6 +81,18 @@ export function useAuth(requiredRole?: UserRole) {
           // ✅ Usar helper centralizado para redirecciones
           if (!validateBusinessForRedirect(userData.user.business)) {
             console.error('❌ useAuth: Business inválido para redirección');
+            
+            // 🔥 NO REDIRIGIR SI ESTAMOS EN RUTA DE CLIENTE PÚBLICA
+            if (isClientPublicRoute) {
+              console.log('ℹ️ useAuth: Business inválido en ruta cliente pública - no redireccionar');
+              setAuthState({
+                user: null,
+                loading: false,
+                error: null,
+              });
+              return;
+            }
+            
             router.push('/login');
             return;
           }
@@ -94,12 +112,36 @@ export function useAuth(requiredRole?: UserRole) {
           error: null,
         });
       } else {
-        console.log('❌ useAuth: No autenticado - redirigiendo a login');
-        // No autenticado, redirigir a login
+        console.log('❌ useAuth: No autenticado');
+        
+        // 🔥 NO REDIRIGIR SI ESTAMOS EN RUTA DE CLIENTE PÚBLICA
+        if (isClientPublicRoute) {
+          console.log('ℹ️ useAuth: Ruta cliente pública - no redireccionar');
+          setAuthState({
+            user: null,
+            loading: false,
+            error: null,
+          });
+          return;
+        }
+        
+        console.log('🔄 useAuth: Redirigiendo a login');
         router.push('/login');
       }
     } catch (error) {
       console.error('💥 useAuth: Error durante verificación:', error);
+      
+      // 🔥 NO REDIRIGIR SI ESTAMOS EN RUTA DE CLIENTE PÚBLICA
+      if (isClientPublicRoute) {
+        console.log('ℹ️ useAuth: Error en ruta cliente pública - no redireccionar');
+        setAuthState({
+          user: null,
+          loading: false,
+          error: null,
+        });
+        return;
+      }
+      
       setAuthState({
         user: null,
         loading: false,

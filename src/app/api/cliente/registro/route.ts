@@ -17,36 +17,62 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 🏢 OBTENER BUSINESS ID DEL CONTEXTO - MEJORADO
-    let businessId = request.headers.get('x-business-id');
+    // 🔥 CRÍTICO: Obtener businessId con múltiples métodos para business isolation
+    let businessId = null;
     
-    // Si no está en el header, usar el del cuerpo de la petición
-    if (!businessId && bodyBusinessId) {
+    console.log('🏢 Cliente Registro: Determinando business context...');
+    
+    // Método 1: Del cuerpo de la petición (más confiable para rutas públicas)
+    if (bodyBusinessId) {
       businessId = bodyBusinessId;
+      console.log(`✅ BusinessId from request body: ${businessId}`);
     }
     
-    // 🚨 FALLBACK: Si el businessId del header es un slug, extraer de la sesión
-    if (!businessId || businessId.length < 10) { // Los IDs reales son más largos
-      const sessionCookie = request.cookies.get('session');
-      if (sessionCookie) {
-        try {
-          const sessionData = JSON.parse(decodeURIComponent(sessionCookie.value));
-          businessId = sessionData.businessId;
-        } catch (error) {
-          console.error('❌ Error parseando sesión:', error);
+    // Método 2: Del header (para compatibilidad con rutas internas)
+    if (!businessId) {
+      businessId = request.headers.get('x-business-id');
+      if (businessId) {
+        console.log(`✅ BusinessId from header: ${businessId}`);
+      }
+    }
+    
+    // Método 3: Del referer (extraer de la URL de origen)
+    if (!businessId) {
+      const referer = request.headers.get('referer');
+      if (referer) {
+        const refererUrl = new URL(referer);
+        const pathSegments = refererUrl.pathname.split('/').filter(Boolean);
+        if (pathSegments.length > 1 && pathSegments[1] === 'cliente') {
+          const potentialBusinessSlug = pathSegments[0];
+          
+          // Validar que es un business válido consultando la DB
+          const business = await prisma.business.findFirst({
+            where: {
+              OR: [
+                { slug: potentialBusinessSlug },
+                { subdomain: potentialBusinessSlug },
+                { id: potentialBusinessSlug }
+              ],
+              isActive: true
+            }
+          });
+          
+          if (business) {
+            businessId = business.id;
+            console.log(`✅ BusinessId from referer: ${potentialBusinessSlug} → ${businessId}`);
+          }
         }
       }
     }
     
     if (!businessId) {
-      console.error('❌ No se encontró businessId en headers, cuerpo ni sesión');
+      console.error('❌ No se pudo determinar el business context para el registro');
       return NextResponse.json(
-        { error: 'Contexto de negocio requerido' },
+        { error: 'No se pudo determinar el contexto del negocio' },
         { status: 400 }
       );
     }
 
-        
     // 2. Verificar si ya existe un cliente con esa cédula en este business
     const clienteExistente = await prisma.cliente.findFirst({
       where: {
@@ -68,12 +94,12 @@ export async function POST(request: NextRequest) {
       const configContent = await fs.readFile(PORTAL_CONFIG_PATH, 'utf-8');
       const config = JSON.parse(configContent);
       bonusPorRegistro = config.configuracionPuntos?.bonusPorRegistro || 100;
+      console.log(`💰 Bonus por registro configurado: ${bonusPorRegistro}`);
     } catch (error) {
       console.warn('⚠️ No se pudo cargar configuración de puntos, usando valor por defecto:', error);
     }
 
-    // Por ahora trabajamos sin business relationship - necesitamos actualizar el esquema
-    // Vamos a intentar crear el cliente sin businessId primero
+    // Crear el cliente nuevo
     const nuevoCliente = await prisma.cliente.create({
       data: {
         businessId: businessId, // ✅ ASIGNAR BUSINESS ID
@@ -99,11 +125,13 @@ export async function POST(request: NextRequest) {
           businessId: businessId, // ✅ ASIGNAR BUSINESS ID A LA TARJETA
         },
       });
-      
+      console.log(`🏆 Tarjeta Bronce asignada automáticamente al cliente ${nuevoCliente.cedula}`);
     } catch (tarjetaError) {
       console.warn('⚠️ Error asignando tarjeta Bronce automática:', tarjetaError);
       // No fallar el registro si hay error con la tarjeta
     }
+
+    console.log(`✅ Cliente registrado exitosamente: ${nuevoCliente.nombre} (${nuevoCliente.cedula}) en business ${businessId}`);
 
     return NextResponse.json({
       success: true,

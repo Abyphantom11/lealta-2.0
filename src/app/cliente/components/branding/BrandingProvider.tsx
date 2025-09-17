@@ -133,7 +133,9 @@ export const BrandingProvider = ({ children, businessId }: BrandingProviderProps
     };
 
     try {
-      const response = await fetch('/api/branding', {
+      console.log(`🎨 Cliente - Loading branding for businessId: ${businessId || 'default'}`);
+      const url = businessId ? `/api/branding?businessId=${businessId}` : '/api/branding';
+      const response = await fetch(url, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         cache: 'no-cache'
@@ -181,7 +183,7 @@ export const BrandingProvider = ({ children, businessId }: BrandingProviderProps
     }
   }, [businessId]);
 
-  // Cargar branding al montar el componente
+  // Cargar branding al montar el componente Y cuando cambia businessId
   useEffect(() => {
     // Limpiar localStorage contaminado al inicio
     cleanContaminatedStorage();
@@ -218,7 +220,7 @@ export const BrandingProvider = ({ children, businessId }: BrandingProviderProps
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('brandingUpdated', handleBrandingUpdate as EventListener);
     };
-  }, [loadBranding, cleanContaminatedStorage]);
+  }, [loadBranding, cleanContaminatedStorage, businessId]); // ✅ AGREGAR businessId a las dependencias
 
   // Quitar loading cuando se carga el branding inicial
   useEffect(() => {

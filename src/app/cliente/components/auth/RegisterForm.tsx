@@ -37,6 +37,8 @@ export const RegisterForm = ({
     setIsLoading(true);
     setError('');
     try {
+      console.log('🔄 Registrando cliente con businessId:', businessId);
+      
       const response = await fetch('/api/cliente/registro', {
         method: 'POST',
         headers: { 
@@ -48,9 +50,10 @@ export const RegisterForm = ({
           nombre: formData.nombre.trim(),
           telefono: formData.telefono.trim(),
           correo: formData.email.trim(),
-          businessId: businessId // Incluir businessId como fallback
+          businessId: businessId // 🔥 CRÍTICO: Enviar businessId en el body también
         })
       });
+      
       const data = await response.json();
       if (response.ok) {
         setClienteData(data.cliente);

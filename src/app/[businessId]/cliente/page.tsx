@@ -20,20 +20,20 @@ export default function BusinessClientePage() {
     // Validar que el businessId existe y es válido
     const validateBusiness = async () => {
       try {
-        console.log(`🔍 Validating business for cliente: ${businessSlug}`);
+        console.log(`🔍 Cliente - Validating business for: ${businessSlug}`);
         
         const response = await fetch(`/api/businesses/${businessSlug}/validate`);
         if (response.ok) {
           const businessInfo = await response.json();
-          console.log(`✅ Business validated for cliente:`, businessInfo);
+          console.log(`✅ Cliente - Business validated:`, businessInfo);
           setBusinessData(businessInfo); // Guardar datos completos incluido el ID real
           setIsValidBusiness(true);
         } else {
-          console.log(`❌ Business validation failed for cliente: ${businessSlug}`);
+          console.log(`❌ Cliente - Business validation failed: ${businessSlug}`);
           window.location.href = `/login?error=invalid-business&message=El negocio no es válido o no existe`;
         }
       } catch (error) {
-        console.error('Error validating business for cliente:', error);
+        console.error('❌ Cliente - Error validating business:', error);
         setIsValidBusiness(false);
         window.location.href = '/login?error=validation-error';
       } finally {
@@ -62,6 +62,7 @@ export default function BusinessClientePage() {
 
   // Business context válido - usar el portal completo
   if (isValidBusiness && businessData) {
+    console.log('✅ Rendering client with business data:', businessData);
     return (
       <BrandingProvider businessId={businessData.id}>
         <AuthHandler businessId={businessData.id} />

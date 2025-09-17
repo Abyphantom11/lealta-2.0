@@ -53,7 +53,20 @@ export function ElectronProvider({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const { isElectron } = useElectron();
-  const { user } = useAuth(); // Obtener usuario actual
+  const authData = useAuth(); // Siempre llamar useAuth para evitar problemas con hooks
+  
+  // 🔥 VERIFICAR SI ESTAMOS EN UNA RUTA DE CLIENTE PÚBLICO
+  const [isClientRoute, setIsClientRoute] = useState(false);
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const checkPath = /^\/[a-zA-Z0-9_-]+\/cliente(\/|$)/.test(window.location.pathname);
+      setIsClientRoute(checkPath);
+    }
+  }, []);
+  
+  // Solo usar los datos de auth si NO estamos en una ruta de cliente público
+  const user = isClientRoute ? null : authData?.user;
 
   // Función helper para obtener URLs con slug correcto
   const getUrlWithSlug = useCallback((path: string): string => {
