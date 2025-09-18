@@ -38,6 +38,7 @@ lerna-debug.log*
 # Local env files (keep .env.example for reference)
 .env
 .env*.local
+.env.postgres
 !.env.example
 
 # Vercel

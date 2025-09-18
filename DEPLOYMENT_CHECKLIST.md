@@ -15,7 +15,7 @@
 npx vercel --prod
 
 # 2. Variables de entorno necesarias:
-DATABASE_URL=postgresql://neondb_owner:npg_U01XgvNznHhO@ep-dark-glitter-adgpeao8-pooler.c-2.us-east-1.aws.neon.tech/neondb
+DATABASE_URL=postgresql://[usuario]:[password]@[host]/[database]
 NEXTAUTH_SECRET=[generar-secreto-seguro]
 NEXTAUTH_URL=https://tu-dominio-vercel.app
 ```
@@ -35,8 +35,8 @@ npm run build
 
 ## 📋 PRODUCTION ENVIRONMENT VARS
 ```env
-# Database (YA CONFIGURADO)
-DATABASE_URL=postgresql://neondb_owner:npg_U01XgvNznHhO@ep-dark-glitter-adgpeao8-pooler.c-2.us-east-1.aws.neon.tech/neondb
+# Database (CONFIGURAR CON TUS CREDENCIALES)
+DATABASE_URL=postgresql://[usuario]:[password]@[host]/[database]
 
 # Auth (CONFIGURAR)
 NEXTAUTH_SECRET=super-secret-key-32-characters-min
