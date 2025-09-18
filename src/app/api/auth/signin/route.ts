@@ -21,10 +21,12 @@ const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 días en ms
 // Función para extraer businessId del request
 async function getBusinessFromRequest(request: NextRequest) {
   const host = request.headers.get('host') || '';
+  console.log('🔍 getBusinessFromRequest - Host:', host);
 
   // Extraer subdomain o usar un business por defecto para desarrollo
-  if (host.includes('localhost') || host.includes('127.0.0.1')) {
-    // Para desarrollo local, usar el primer business o crear uno de demo
+  if (host.includes('localhost') || host.includes('127.0.0.1') || host.includes('trycloudflare.com')) {
+    console.log('🔍 getBusinessFromRequest - Modo desarrollo/túnel detectado');
+    // Para desarrollo local y túnel, usar el primer business o crear uno de demo
     const business =
       (await prisma.business.findFirst()) ??
       (await prisma.business.create({
@@ -38,15 +40,18 @@ async function getBusinessFromRequest(request: NextRequest) {
         },
       }));
 
+    console.log('🔍 getBusinessFromRequest - Business encontrado:', business?.name);
     return business;
   }
 
   // Para producción, extraer del subdomain
   const subdomain = host.split('.')[0];
+  console.log('🔍 getBusinessFromRequest - Buscando subdomain:', subdomain);
   const business = await prisma.business.findUnique({
     where: { subdomain },
   });
 
+  console.log('🔍 getBusinessFromRequest - Business por subdomain:', business?.name);
   return business;
 }
 
@@ -54,7 +59,9 @@ async function getBusinessFromRequest(request: NextRequest) {
 async function findUser(email: string, request: NextRequest) {
   const host = request.headers.get('host') || '';
   const isLocalDevelopment =
-    host.includes('localhost') || host.includes('127.0.0.1');
+    host.includes('localhost') || 
+    host.includes('127.0.0.1') ||
+    host.includes('trycloudflare.com');
 
   if (isLocalDevelopment) {
     // En desarrollo local, buscar usuario por email sin restricción de business
@@ -132,7 +139,9 @@ function validateUser(user: UserWithBusiness | null, request: NextRequest): asse
 
   const host = request.headers.get('host') || '';
   const isLocalDevelopment =
-    host.includes('localhost') || host.includes('127.0.0.1');
+    host.includes('localhost') || 
+    host.includes('127.0.0.1') ||
+    host.includes('trycloudflare.com');
 
   if (!isLocalDevelopment && !user.business.isActive) {
     throw new Error('Business inactivo');

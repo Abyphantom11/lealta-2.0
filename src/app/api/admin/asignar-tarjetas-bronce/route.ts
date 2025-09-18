@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
             activa: true,
             asignacionManual: true, // Es una asignación manual masiva
             fechaAsignacion: new Date(),
-            businessId: null, // Por ahora sin business relationship
+            businessId: session.businessId, // Usar el businessId de la sesión
           },
         });
 

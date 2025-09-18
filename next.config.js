@@ -40,7 +40,7 @@ const nextConfig = {
     // optimizeCss: true,
   },
   
-  // Allow cross-origin requests from the local network
+  // Allow cross-origin requests from the local network and Cloudflare tunnel
   allowedDevOrigins: [
     '192.168.1.5:3001',
     '192.168.1.5:3000',
@@ -54,6 +54,8 @@ const nextConfig = {
     '192.168.1.*:3001',
     '192.168.1.*:3000',
     '192.168.1.*',
+    'came-carried-dive-drum.trycloudflare.com',
+    '*.trycloudflare.com',
   ],
   
   // Headers for security and performance

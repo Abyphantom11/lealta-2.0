@@ -144,7 +144,12 @@ export async function POST(request: NextRequest) {
 
     // Buscar cliente por cédula
     const cliente = await prisma.cliente.findUnique({
-      where: { cedula: validatedData.cedula },
+      where: { 
+        businessId_cedula: {
+          businessId: validatedData.businessId || '',
+          cedula: validatedData.cedula
+        }
+      },
       include: {
         business: true
       }

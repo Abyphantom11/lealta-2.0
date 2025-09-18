@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
     // Crear nueva visita
     const nuevaVisita = await prisma.visita.create({
       data: {
+        businessId: session.businessId,
         clienteId: body.clienteId || null,
         sessionId: body.sessionId,
         path: body.path,

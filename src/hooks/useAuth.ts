@@ -36,11 +36,24 @@ export function useAuth(requiredRole?: UserRole) {
     const checkAuth = async () => {
       console.log('🔐 useAuth: Iniciando verificación de autenticación');
       
-      // 🔥 VERIFICAR SI ESTAMOS EN UNA RUTA DE CLIENTE PÚBLICA
-      const isClientPublicRoute = typeof window !== 'undefined' && 
-        /^\/[a-zA-Z0-9_-]+\/cliente(\/|$)/.test(window.location.pathname);
+      // 🔥 VERIFICAR SI ESTAMOS EN UNA RUTA PÚBLICA
+      const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+      const isClientPublicRoute = /^\/[a-zA-Z0-9_-]+\/cliente(\/|$)/.test(currentPath);
+      const isGeneralPublicRoute = ['/', '/login', '/signup', '/register', '/demo', '/pricing', '/about', '/terms', '/privacy', '/contact', '/help', '/support', '/docs'].includes(currentPath);
+      const isPublicRoute = isClientPublicRoute || isGeneralPublicRoute;
         
-      console.log('🔐 useAuth: Ruta cliente pública?', isClientPublicRoute);
+      console.log('🔐 useAuth: Ruta pública?', isPublicRoute, 'Path:', currentPath);
+      
+      // Si estamos en una ruta pública y no se requiere un rol específico, no hacer verificación
+      if (isPublicRoute && !requiredRole) {
+        console.log('ℹ️ useAuth: Ruta pública sin rol requerido - saltando verificación');
+        setAuthState({
+          user: null,
+          loading: false,
+          error: null,
+        });
+        return;
+      }
       
       try {
         const response = await fetch('/api/auth/me');
@@ -82,9 +95,9 @@ export function useAuth(requiredRole?: UserRole) {
           if (!validateBusinessForRedirect(userData.user.business)) {
             console.error('❌ useAuth: Business inválido para redirección');
             
-            // 🔥 NO REDIRIGIR SI ESTAMOS EN RUTA DE CLIENTE PÚBLICA
-            if (isClientPublicRoute) {
-              console.log('ℹ️ useAuth: Business inválido en ruta cliente pública - no redireccionar');
+            // 🔥 NO REDIRIGIR SI ESTAMOS EN RUTA PÚBLICA
+            if (isPublicRoute) {
+              console.log('ℹ️ useAuth: Business inválido en ruta pública - no redireccionar');
               setAuthState({
                 user: null,
                 loading: false,
@@ -114,9 +127,9 @@ export function useAuth(requiredRole?: UserRole) {
       } else {
         console.log('❌ useAuth: No autenticado');
         
-        // 🔥 NO REDIRIGIR SI ESTAMOS EN RUTA DE CLIENTE PÚBLICA
-        if (isClientPublicRoute) {
-          console.log('ℹ️ useAuth: Ruta cliente pública - no redireccionar');
+        // 🔥 NO REDIRIGIR SI ESTAMOS EN RUTA PÚBLICA
+        if (isPublicRoute) {
+          console.log('ℹ️ useAuth: Ruta pública - no redireccionar');
           setAuthState({
             user: null,
             loading: false,
@@ -131,9 +144,9 @@ export function useAuth(requiredRole?: UserRole) {
     } catch (error) {
       console.error('💥 useAuth: Error durante verificación:', error);
       
-      // 🔥 NO REDIRIGIR SI ESTAMOS EN RUTA DE CLIENTE PÚBLICA
-      if (isClientPublicRoute) {
-        console.log('ℹ️ useAuth: Error en ruta cliente pública - no redireccionar');
+      // 🔥 NO REDIRIGIR SI ESTAMOS EN RUTA PÚBLICA
+      if (isPublicRoute) {
+        console.log('ℹ️ useAuth: Error en ruta pública - no redireccionar');
         setAuthState({
           user: null,
           loading: false,

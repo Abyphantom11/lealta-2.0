@@ -55,10 +55,10 @@
   "promociones": [],
   "recompensas": [],
   "tarjetas": [],
-  "nombreEmpresa": "Rosita",
+  "nombreEmpresa": "LEALTA",
   "configuracionPuntos": {
-    "puntosPorDolar": 4,
-    "bonusPorRegistro": 400,
+    "puntosPorDolar": 1,
+    "bonusPorRegistro": 100,
     "limites": {
       "maxPuntosPorDolar": 10,
       "maxBonusRegistro": 1000

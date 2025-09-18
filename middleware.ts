@@ -28,7 +28,29 @@ const PROTECTED_ROUTES = [
 ];
 
 // Rutas públicas (login, signup, etc.)
-const PUBLIC_ROUTES = ['/', '/login', '/signup'];
+const PUBLIC_ROUTES = [
+  '/', 
+  '/login', 
+  '/signup',
+  '/registro',
+  '/register',
+  '/demo',
+  '/pricing',
+  '/about',
+  '/terms',
+  '/privacy',
+  '/contact',
+  '/help',
+  '/support',
+  '/docs',
+  '/api/health',
+  '/api/auth',
+  '/api/public',
+  '/api/businesses',
+  '/api/portal/config',
+  '/api/debug',
+  '/api/branding'
+];
 
 /**
  * 🔥 FUNCIÓN CRÍTICA: Maneja redirecciones de rutas legacy con autenticación y contexto
@@ -41,25 +63,29 @@ async function handleLegacyRouteRedirect(request: NextRequest, pathname: string)
   if (sessionCookie) {
     console.log(`Sesión encontrada, validando...`);
     
-    // Validar sesión usando nueva función de seguridad
-    const sessionData = await validateUserSession(sessionCookie.value);
-    if (sessionData?.businessSlug) {
-      const redirectUrl = new URL(`/${sessionData.businessSlug}${pathname}`, request.url);
-      console.log(`✅ Redirigiendo a ruta con contexto: ${redirectUrl.pathname}`);
-      return NextResponse.redirect(redirectUrl);
-    } else {
-      console.log(`❌ Sesión inválida o sin business`);
+    try {
+      // Validar sesión usando nueva función de seguridad
+      const sessionData = await validateUserSession(sessionCookie.value);
+      if (sessionData?.businessSlug) {
+        const redirectUrl = new URL(`/${sessionData.businessSlug}${pathname}`, request.url);
+        console.log(`✅ Redirigiendo a ruta con contexto: ${redirectUrl.pathname}`);
+        return NextResponse.redirect(redirectUrl);
+      } else {
+        console.log(`❌ Sesión inválida o sin business válido`);
+        // Simplemente redirigir a login sin business requerido
+        const loginUrl = new URL('/login', request.url);
+        loginUrl.searchParams.set('attempted', pathname);
+        return NextResponse.redirect(loginUrl);
+      }
+    } catch (error) {
+      console.log(`❌ Error validando sesión:`, error);
       const loginUrl = new URL('/login', request.url);
-      loginUrl.searchParams.set('error', 'business-required');
-      loginUrl.searchParams.set('message', 'Su sesión no tiene un negocio asociado válido');
       loginUrl.searchParams.set('attempted', pathname);
       return NextResponse.redirect(loginUrl);
     }
   } else {
     console.log(`❌ No hay sesión activa`);
     const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('error', 'auth-required');
-    loginUrl.searchParams.set('message', 'Debe iniciar sesión para acceder a esta área');
     loginUrl.searchParams.set('attempted', pathname);
     return NextResponse.redirect(loginUrl);
   }
@@ -244,9 +270,14 @@ export async function middleware(request: NextRequest) {
     return await publicClientAccess(request);
   }
 
-  // 1. PERMITIR RUTAS PÚBLICAS INMEDIATAMENTE
+  // 1. PERMITIR RUTAS PÚBLICAS INMEDIATAMENTE - SIN REDIRECCIONES
   if (
-    PUBLIC_ROUTES.some(route => pathname.startsWith(route)) ||
+    PUBLIC_ROUTES.some(route => {
+      if (route === '/') {
+        return pathname === '/';
+      }
+      return pathname.startsWith(route);
+    }) ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
     pathname.startsWith('/manifest') ||
@@ -255,13 +286,16 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/images') ||
     pathname.startsWith('/uploads') ||
     pathname.startsWith('/api/health') ||
-    pathname.startsWith('/api/auth')
+    pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/api/public')
   ) {
+    console.log(`✅ RUTA PÚBLICA PERMITIDA: ${pathname}`);
     return NextResponse.next();
   }
 
-  // 2. 🚨 BLOQUEAR RUTAS LEGACY Y REDIRIGIR CON CONTEXTO
+  // 2. 🚨 BLOQUEAR RUTAS LEGACY Y REDIRIGIR CON CONTEXTO (SOLO PARA RUTAS LEGACY ESPECÍFICAS)
   if (pathname === '/admin' || pathname === '/staff' || pathname === '/superadmin' || pathname === '/cliente') {
+    console.log(`🚨 RUTA LEGACY INTERCEPTADA: ${pathname}`);
     return await handleLegacyRouteRedirect(request, pathname);
   }
 
@@ -308,30 +342,34 @@ export async function middleware(request: NextRequest) {
     );
   }
 
-  // 7. MANEJO DE BUSINESS CONTEXT ROUTING
-  const businessContext = await handleBusinessRouting(request);
-  if (businessContext) {
-    return businessContext;
+  // 7. MANEJO DE BUSINESS CONTEXT ROUTING (SOLO PARA RUTAS QUE LO NECESITEN)
+  // Solo procesar business routing si la URL tiene patrón específico de business
+  if (/^\/[a-zA-Z0-9_-]+\/(admin|staff|cliente|superadmin)/.test(pathname)) {
+    const businessContext = await handleBusinessRouting(request);
+    if (businessContext) {
+      return businessContext;
+    }
   }
 
-  // 8. RUTAS DE CLIENTE (PÚBLICAS PERO CON BUSINESS CONTEXT)
+  // 8. RUTAS DE CLIENTE (PÚBLICAS PERO CON BUSINESS CONTEXT) - SOLO SI TIENEN PATRÓN ESPECÍFICO
   if (isClientRoute(pathname)) {
     return await handleClientRouteAccess(request, pathname);
   }
 
-  // 9. VERIFICAR SI LA RUTA ESTÁ PROTEGIDA (FALLBACK)
+  // 9. VERIFICAR SI LA RUTA ESTÁ PROTEGIDA (FALLBACK) - SOLO PARA RUTAS EXPLÍCITAMENTE PROTEGIDAS
   const isProtectedRoute = PROTECTED_ROUTES.some(route => pathname.startsWith(route));
   if (isProtectedRoute) {
-    console.log('🔒 Ruta protegida, verificando autenticación...');
+    console.log('🔒 Ruta protegida detectada, verificando autenticación...');
     return handleProtectedRoute(request, pathname);
   }
 
-  // 10. CONTINUAR CON RUTAS NO PROTEGIDAS
+  // 10. PERMITIR TODAS LAS DEMÁS RUTAS POR DEFECTO (CAMBIO IMPORTANTE)
+  console.log(`✅ RUTA PERMITIDA POR DEFECTO: ${pathname}`);
   return NextResponse.next();
 }
 
 /**
- * Maneja el routing basado en business context
+ * Maneja el routing basado en business context (SOLO para rutas que realmente lo necesitan)
  */
 async function handleBusinessRouting(request: NextRequest): Promise<NextResponse | null> {
   const pathname = request.nextUrl.pathname;
@@ -339,8 +377,11 @@ async function handleBusinessRouting(request: NextRequest): Promise<NextResponse
   // Verificar si es una ruta con business context
   const urlData = extractBusinessFromUrl(pathname);
   if (!urlData) {
-    return null; // No es una ruta de business
+    // No es una ruta de business - PERMITIR que continue
+    return null;
   }
+
+  console.log(`🔗 PROCESANDO BUSINESS CONTEXT: ${pathname}`);
 
   try {
     // Obtener contexto completo del business

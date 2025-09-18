@@ -244,7 +244,12 @@ export async function POST(request: NextRequest) {
     }
 
     const cliente = await prisma.cliente.findUnique({
-      where: { cedula: validatedData.cedula }
+      where: { 
+        businessId_cedula: {
+          businessId: validatedData.businessId || '',
+          cedula: validatedData.cedula
+        }
+      }
     });
 
     if (!cliente) {

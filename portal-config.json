@@ -1,199 +1,27 @@
 {
-  "banners": [
-    {
-      "id": "banner_miercoles_1758148587725",
-      "dia": "miercoles",
-      "titulo": "dfsdfsdf",
-      "descripcion": "sdfsdf",
-      "imagenUrl": "/uploads/cmfodnc4w0000eyh8cpiwi7i3_1758148587649-53apu.jpg",
-      "horaPublicacion": "04:00",
-      "activo": true
-    }
-  ],
+  "banners": [],
   "promotions": [],
-  "events": [
-    {
-      "id": "event-1",
-      "title": "Gran Apertura",
-      "description": "Celebra con nosotros la gran apertura de nuestra nueva tienda",
-      "location": "Centro Comercial Plaza Norte",
-      "startDate": "2024-06-01T18:00:00.000Z",
-      "endDate": "2024-06-01T22:00:00.000Z",
-      "imageUrl": "",
-      "isActive": true,
-      "maxAttendees": 200,
-      "currentAttendees": 0,
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z"
-    }
-  ],
-  "rewards": [
-    {
-      "id": "reward-1",
-      "title": "Producto Gratis",
-      "description": "Canjea 500 puntos por un producto de tu eleccion",
-      "pointsCost": 500,
-      "category": "productos",
-      "imageUrl": "",
-      "isActive": true,
-      "stock": 50,
-      "availableFrom": "2024-01-01T00:00:00.000Z",
-      "availableTo": "2024-12-31T23:59:59.000Z",
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z"
-    }
-  ],
-  "favorites": [
-    {
-      "id": "fav-1",
-      "title": "Cafe Premium",
-      "description": "Nuestro cafe de especialidad mas popular",
-      "imageUrl": "",
-      "category": "bebidas",
-      "price": 12.99,
-      "isActive": true,
-      "order": 1,
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z"
-    }
-  ],
+  "events": [],
+  "rewards": [],
+  "favorites": [],
   "settings": {
-    "lastUpdated": "2025-09-17T22:37:04.933Z",
+    "lastUpdated": "2025-09-18T08:50:59.967Z",
     "version": "1.0.0"
   },
-  "favoritoDelDia": [
-    {
-      "id": "favorito_miercoles_1758148614065",
-      "dia": "miercoles",
-      "nombre": "sdfsdfs",
-      "descripcion": "dfsfds",
-      "imagenUrl": "/uploads/cmfodnc4w0000eyh8cpiwi7i3_1758148613990-65gay7.jpg",
-      "horaPublicacion": "09:00",
-      "activo": true
-    }
-  ],
-  "promociones": [
-    {
-      "dia": "miercoles",
-      "titulo": "sdfsdf",
-      "descripcion": "sdfsdf",
-      "descuento": 100,
-      "horaTermino": "04:00",
-      "activo": true,
-      "id": "promociones_1758148598666"
-    }
-  ],
-  "recompensas": [
-    {
-      "nombre": "sdfsf",
-      "descripcion": "sdfsf",
-      "puntosRequeridos": 1213,
-      "id": "recompensas_1758148623488",
-      "activo": true
-    }
-  ],
-  "tarjetas": [
-    {
-      "id": "tarjeta-bronce",
-      "nivel": "Bronce",
-      "nombrePersonalizado": "Tarjeta Bronce",
-      "textoCalidad": "Cliente Premium",
-      "colores": {
-        "gradiente": ["#CD7F32", "#8B4513"],
-        "texto": "#FFFFFF",
-        "nivel": "#CD7F32"
-      },
-      "condiciones": {
-        "puntosMinimos": 0,
-        "gastosMinimos": 0,
-        "visitasMinimas": 0
-      },
-      "beneficio": "Acceso a promociones exclusivas",
-      "activo": true
-    },
-    {
-      "id": "tarjeta-plata",
-      "nivel": "Plata",
-      "nombrePersonalizado": "Tarjeta Plata",
-      "textoCalidad": "Cliente VIP",
-      "colores": {
-        "gradiente": ["#C0C0C0", "#808080"],
-        "texto": "#FFFFFF",
-        "nivel": "#C0C0C0"
-      },
-      "condiciones": {
-        "puntosMinimos": 400,
-        "gastosMinimos": 500,
-        "visitasMinimas": 5
-      },
-      "beneficio": "5% de descuento en compras",
-      "activo": true
-    },
-    {
-      "id": "tarjeta-oro",
-      "nivel": "Oro",
-      "nombrePersonalizado": "Tarjeta Oro",
-      "textoCalidad": "Cliente Premium",
-      "colores": {
-        "gradiente": ["#FFD700", "#FFA500"],
-        "texto": "#000000",
-        "nivel": "#FFD700"
-      },
-      "condiciones": {
-        "puntosMinimos": 480,
-        "gastosMinimos": 1500,
-        "visitasMinimas": 10
-      },
-      "beneficio": "10% de descuento en compras",
-      "activo": true
-    },
-    {
-      "id": "tarjeta-diamante",
-      "nivel": "Diamante",
-      "nombrePersonalizado": "Tarjeta Diamante",
-      "textoCalidad": "Cliente VIP",
-      "colores": {
-        "gradiente": ["#B9F2FF", "#0891B2"],
-        "texto": "#FFFFFF",
-        "nivel": "#B9F2FF"
-      },
-      "condiciones": {
-        "puntosMinimos": 15000,
-        "gastosMinimos": 3000,
-        "visitasMinimas": 20
-      },
-      "beneficio": "15% de descuento en compras",
-      "activo": true
-    },
-    {
-      "id": "tarjeta-platino",
-      "nivel": "Platino",
-      "nombrePersonalizado": "Tarjeta Platino",
-      "textoCalidad": "Cliente Elite",
-      "colores": {
-        "gradiente": ["#E5E7EB", "#9CA3AF"],
-        "texto": "#FFFFFF",
-        "nivel": "#E5E7EB"
-      },
-      "condiciones": {
-        "puntosMinimos": 25000,
-        "gastosMinimos": 5000,
-        "visitasMinimas": 30
-      },
-      "beneficio": "20% de descuento en compras",
-      "activo": true
-    }
-  ],
-  "nombreEmpresa": "Rosita",
+  "favoritoDelDia": [],
+  "promociones": [],
+  "recompensas": [],
+  "tarjetas": [],
+  "nombreEmpresa": "LEALTA",
   "configuracionPuntos": {
-    "puntosPorDolar": 4,
-    "bonusPorRegistro": 400,
+    "puntosPorDolar": 1,
+    "bonusPorRegistro": 100,
     "limites": {
       "maxPuntosPorDolar": 10,
       "maxBonusRegistro": 1000
     }
   },
-  "lastModifiedBy": "cmfodnch50002eyh89vkf7n3r",
-  "lastModifiedAt": "2025-09-17T22:37:04.933Z",
+  "lastModifiedBy": "cmfp5vaei0002eyes0xxqpg2c",
+  "lastModifiedAt": "2025-09-18T08:50:59.967Z",
   "lastModifiedRole": "superadmin"
 }

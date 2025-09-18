@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useAuth } from '../hooks/useAuth';
 
 // Types for Electron API
 declare global {
@@ -53,20 +52,40 @@ export function ElectronProvider({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const { isElectron } = useElectron();
-  const authData = useAuth(); // Siempre llamar useAuth para evitar problemas con hooks
   
-  // 🔥 VERIFICAR SI ESTAMOS EN UNA RUTA DE CLIENTE PÚBLICO
-  const [isClientRoute, setIsClientRoute] = useState(false);
+  // 🔥 VERIFICAR SI ESTAMOS EN UNA RUTA PÚBLICA ANTES DE USAR AUTH
+  const [isPublicRoute, setIsPublicRoute] = useState(true); // Por defecto público para evitar flash
+  const [authData, setAuthData] = useState<any>(null);
   
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const checkPath = /^\/[a-zA-Z0-9_-]+\/cliente(\/|$)/.test(window.location.pathname);
-      setIsClientRoute(checkPath);
+      const currentPath = window.location.pathname;
+      const isClientPublicRoute = /^\/[a-zA-Z0-9_-]+\/cliente(\/|$)/.test(currentPath);
+      const isGeneralPublicRoute = ['/', '/login', '/signup', '/register', '/demo', '/pricing', '/about', '/terms', '/privacy', '/contact', '/help', '/support', '/docs'].includes(currentPath);
+      const isPublic = isClientPublicRoute || isGeneralPublicRoute;
+      setIsPublicRoute(isPublic);
+      
+      // Solo hacer verificación de auth si NO es ruta pública
+      if (!isPublic) {
+        // Llamar a auth manualmente para rutas protegidas
+        const checkAuth = async () => {
+          try {
+            const response = await fetch('/api/auth/me');
+            if (response.ok) {
+              const userData = await response.json();
+              setAuthData(userData);
+            }
+          } catch (error) {
+            console.log('Auth check failed in ElectronProvider:', error);
+          }
+        };
+        checkAuth();
+      }
     }
   }, []);
   
-  // Solo usar los datos de auth si NO estamos en una ruta de cliente público
-  const user = isClientRoute ? null : authData?.user;
+  // Solo usar los datos de auth si NO estamos en una ruta pública
+  const user = isPublicRoute ? null : authData?.user;
 
   // Función helper para obtener URLs con slug correcto
   const getUrlWithSlug = useCallback((path: string): string => {

@@ -41,7 +41,7 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
     recompensas: [],
     tarjetas: [],
     favoritoDelDia: [],
-    nombreEmpresa: 'Rosita',
+    nombreEmpresa: 'LEALTA',
     nivelesConfig: {
       Bronce: {
         colores: { gradiente: ['#CD7F32', '#8B4513'] },
@@ -100,7 +100,7 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
         // Asegurar que siempre tenemos nivelesConfig y nombreEmpresa
         setConfig({
           ...loadedConfig,
-          nombreEmpresa: loadedConfig.nombreEmpresa || 'Rosita',
+          nombreEmpresa: loadedConfig.nombreEmpresa || 'LEALTA',
           nivelesConfig: loadedConfig.nivelesConfig || {
             Bronce: {
               colores: { gradiente: ['#CD7F32', '#8B4513'] },
