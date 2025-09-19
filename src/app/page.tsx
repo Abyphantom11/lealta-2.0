@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { 
   ArrowRight, 
@@ -9,7 +8,6 @@ import {
   Building2, 
   CheckCircle, 
   Globe, 
-  MonitorCheck, 
   Rocket, 
   Sparkles, 
   Star, 
@@ -18,7 +16,6 @@ import {
   Zap 
 } from 'lucide-react';
 import { motion } from '../components/motion';
-import { PlatformAware } from '../components/ElectronProvider';
 import { DesktopTitleBar } from '../components/DesktopUI';
 
 // ========================================
@@ -128,30 +125,15 @@ export default function HomePage() {
             className="text-center mb-16"
           >
             {/* Platform Badge */}
-            <PlatformAware
-              desktop={
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.2 }}
-                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-full text-blue-400 text-sm font-medium mb-8"
-                >
-                  <MonitorCheck className="w-4 h-4 mr-2" />
-                  Aplicación Enterprise Desktop
-                </motion.div>
-              }
-              web={
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.2 }}
-                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-600/20 to-teal-600/20 border border-emerald-500/30 rounded-full text-emerald-400 text-sm font-medium mb-8"
-                >
-                  <Globe className="w-4 h-4 mr-2" />
-                  Plataforma Web Enterprise
-                </motion.div>
-              }
-            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-600/20 to-teal-600/20 border border-emerald-500/30 rounded-full text-emerald-400 text-sm font-medium mb-8"
+            >
+              <Globe className="w-4 h-4 mr-2" />
+              Plataforma Web Enterprise
+            </motion.div>
 
             {/* Main Headline */}
             <motion.h1

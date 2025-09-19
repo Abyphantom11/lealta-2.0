@@ -7,7 +7,7 @@ import { useEffect } from 'react';
  */
 export default function RedirectInterceptor() {
   useEffect(() => {
-    console.log('🛡️ RedirectInterceptor activado');
+    // console.log('🛡️ RedirectInterceptor activado');
     
     // Interceptar fetch calls para monitorear APIs
     const originalFetch = window.fetch;

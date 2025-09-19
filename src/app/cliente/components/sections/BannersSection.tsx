@@ -1,9 +1,9 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Bell, X } from 'lucide-react';
 import { browserNotifications } from '@/services/browserNotifications';
-import { logger } from '@/utils/logger';
+import { useAutoRefreshPortalConfig } from '@/hooks/useAutoRefreshPortalConfig';
 
 interface Banner {
   id: string;
@@ -17,278 +17,82 @@ interface Banner {
 }
 
 interface BannersProps {
-  businessId?: string;
+  readonly businessId?: string;
 }
 
 export default function BannersSection({ businessId }: BannersProps) {
-  const [banners, setBanners] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showNotificationPrompt, setShowNotificationPrompt] = useState(true);
-  const [selectedBanner, setSelectedBanner] = useState<Banner | null>(null);
-
-  // Obtener día actual como estado para permitir actualizarlo en cambios de día
-  const [diaActual, setDiaActual] = useState(() => {
-    const diasSemana = [
-      'domingo',
-      'lunes',
-      'martes',
-      'miercoles',
-      'jueves',
-      'viernes',
-      'sabado',
-    ];
-    return diasSemana[new Date().getDay()];
+  // 🔄 Auto-refresh hook para sincronización admin → cliente
+  const { getBanners, isLoading } = useAutoRefreshPortalConfig({
+    businessId,
+    refreshInterval: 10000, // 10 segundos para banners
+    enabled: true
   });
 
-  // Agregar estado para detectar simulación de día
-  const [simulatedDay, setSimulatedDay] = useState<string | null>(null);
-
-  // Definimos fetchBanners ANTES de usarlo en useEffect
-  const fetchBanners = useCallback(async () => {
-    try {
-      // Usar businessId si está disponible, sino usar 'default'
-      const configBusinessId = businessId || 'default';
-      const response = await fetch(
-        `/api/admin/portal-config?businessId=${configBusinessId}&t=` + new Date().getTime(),
-        {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            Pragma: 'no-cache',
-            Expires: '0',
-          },
-        }
-      );
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Declarar variables ANTES de usarlas
-        const ahora = new Date();
-        const horaActualMinutos = ahora.getHours() * 60 + ahora.getMinutes();
-        const diaParaMostrar = simulatedDay || diaActual;
-        const esModoSimulacion = Boolean(simulatedDay);
-
-        // Obtener todos los banners activos de forma más eficiente
-        const todosActivos =
-          data.config?.banners?.filter(
-            (b: any) => b.activo && b.imagenUrl && b.imagenUrl.trim() !== ''
-          ) || [];
-
-        if (todosActivos.length === 0) {
-          setBanners([]);
-          return;
-        }
-
-        // Filtrar banners del día actual/simulado
-        const bannersDelDia = todosActivos.filter((b: any) => {
-          // Verificar día
-          if (b.dia !== diaParaMostrar) {
-            return false;
-          }
-
-          // En modo simulación no verificamos la activación
-          if (esModoSimulacion) {
-            return true;
-          }
-
-          // Verificar hora si está configurada (solo en modo normal)
-          if (b.horaPublicacion) {
-            const [horas, minutos] = b.horaPublicacion.split(':').map(Number);
-            const horaPublicacion = horas * 60 + minutos;
-            const cumpleHora = horaActualMinutos >= horaPublicacion;
-            return cumpleHora;
-          }
-
-          return true;
-        });
-
-        // Actualizar banners inmediatamente
-        const bannersToShow = bannersDelDia.length > 0 ? bannersDelDia : [];
-
-        setBanners(bannersToShow);
-      }
-    } catch (error) {
-      console.error('Error loading banners:', error);
-      setBanners([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [diaActual, simulatedDay, businessId]);
-
-  // Verificar si hay un día simulado configurado desde el administrador
-  useEffect(() => {
-    const checkSimulationMode = () => {
-      const currentSimDay =
-        typeof window !== 'undefined' ? (window as any).portalPreviewDay : null;
-      if (currentSimDay !== simulatedDay) {
-        console.log(
-          '🔄 BannersSection: Cambio en simulación detectado -',
-          currentSimDay || 'modo normal'
-        );
-        setSimulatedDay(currentSimDay);
-        // Forzar recarga inmediata de banners con el nuevo día simulado
-        fetchBanners();
-      }
-    };
-
-    // Verificar inicialmente
-    checkSimulationMode();
-
-    // Verificar cambios en la simulación cada segundo
-    const simulationInterval = setInterval(checkSimulationMode, 1000);
-
-    // Listener para escuchar cambios en el día simulado
-    const handleSimulationChange = () => {
-      console.log(
-        '🔄 BannersSection: Evento de cambio en simulación detectado'
-      );
-      checkSimulationMode();
-    };
-
-    if (typeof window !== 'undefined') {
-      window.addEventListener(
-        'portalPreviewDayChanged',
-        handleSimulationChange
-      );
+  // Obtener banners con filtros aplicados
+  const banners = useMemo(() => {
+    const allBanners = getBanners();
+    
+    if (!allBanners || allBanners.length === 0) {
+      return [];
     }
 
-    return () => {
-      clearInterval(simulationInterval);
-      if (typeof window !== 'undefined') {
-        window.removeEventListener(
-          'portalPreviewDayChanged',
-          handleSimulationChange
-        );
-      }
-    };
-  }, [simulatedDay, fetchBanners]);
-
-  // Actualizar el día cuando cambia la fecha (solo en modo normal)
-  useEffect(() => {
-    // Solo monitorear cambios de día natural si no estamos en modo simulación
-    if (simulatedDay) return;
-
-    const checkDayChange = () => {
-      const diasSemana = [
-        'domingo',
-        'lunes',
-        'martes',
-        'miercoles',
-        'jueves',
-        'viernes',
-        'sabado',
-      ];
-      const nuevoDia = diasSemana[new Date().getDay()];
-      if (nuevoDia !== diaActual) {
-        setDiaActual(nuevoDia);
-        // Forzar recarga de banners cuando cambia el día
-        fetchBanners();
-      }
-    };
-
-    // Verificar cambio de día cada minuto
-    const intervaloDia = setInterval(checkDayChange, 60000);
-    return () => clearInterval(intervaloDia);
-  }, [diaActual, fetchBanners, simulatedDay]);
-
-  useEffect(() => {
-    console.log(
-      '🔌 BannersSection: Iniciando SSE para actualizaciones en tiempo real'
+    // Filtrar solo banners activos con imagen
+    const activeBanners = allBanners.filter(
+      (banner: Banner) => banner.activo && banner.imagenUrl && banner.imagenUrl.trim() !== ''
     );
 
-    // Verificar estado inicial de permisos de notificación
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      const currentPermission = Notification.permission;
-      // Solo logeamos el estado sin almacenarlo
-      logger.log(`🔔 Permisos de notificación: ${currentPermission}`);
-      setShowNotificationPrompt(currentPermission === 'default');
-      console.log('🔔 Estado inicial de notificaciones:', currentPermission);
-    }
+    return activeBanners;
+  }, [getBanners]);
 
-
-
-    // Carga inicial
-    fetchBanners();
-
-    // Polling simple cada 5 segundos
-    // Polling optimizado: cada 30 segundos para banners
-    const interval = setInterval(fetchBanners, 30000);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, [fetchBanners]);
+  // Estados para UI
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(true);
+  const [selectedBanner, setSelectedBanner] = useState<Banner | null>(null);
 
   // Función para habilitar notificaciones del navegador
   const enableNotifications = async () => {
     try {
       const granted = await browserNotifications.requestPermission();
-      logger.log(`✅ Notificaciones ${granted ? 'habilitadas' : 'denegadas'}`);
-      setShowNotificationPrompt(false);
-
       if (granted) {
-        console.log('✅ Notificaciones habilitadas correctamente');
-      } else {
-        console.log('❌ El usuario denegó los permisos de notificación');
+        setShowNotificationPrompt(false);
       }
     } catch (error) {
-      console.error('❌ Error al habilitar notificaciones:', error);
+      console.error('Error al habilitar notificaciones:', error);
     }
   };
 
+  // Función para descartar el prompt de notificaciones
   const dismissNotificationPrompt = () => {
     setShowNotificationPrompt(false);
   };
 
-
-
-  // VERSIÓN MÁS AGRESIVA: Si no hay banners válidos o está cargando, no renderizar NADA
-  if (isLoading || !banners || banners.length === 0) {
-    console.log(
-      '🚫 BannersSection: No hay banners para mostrar, devolviendo null'
+  if (isLoading) {
+    return (
+      <div className="animate-pulse">
+        <div className="bg-dark-800 rounded-xl h-48 w-full"></div>
+      </div>
     );
-    return null;
   }
-
-  // Solo mostrar si hay al menos un banner válido con URL de imagen
-  if (
-    !banners.some(banner => banner.imagenUrl && banner.imagenUrl.trim() !== '')
-  ) {
-    console.log('🚫 BannersSection: No hay banners con imágenes válidas');
-    return null;
-  }
-
-  console.log(
-    '✅ BannersSection: Renderizando sección con banners:',
-    banners.length
-  );
 
   return (
-    <div className="mx-4 mb-6">
-      {/* Mostrar el título del banner como un encabezado separado */}
-      {banners.length > 0 && banners[0].titulo && (
-        <h3 className="text-lg font-semibold text-white mb-4">
-          {banners[0].titulo}
-        </h3>
-      )}
-      <div className="space-y-3">
-        {/* Prompt para habilitar notificaciones */}
-        {showNotificationPrompt && (
+    <div className="space-y-4">
+      <div className="space-y-4">
+        {/* Prompt de notificaciones - Solo mostrar si no hay banners y el usuario no ha descartado */}
+        {showNotificationPrompt && banners.length === 0 && (
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-4 border border-blue-500/30"
+            exit={{ opacity: 0, y: -20 }}
+            className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl p-4"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <Bell className="h-5 w-5 text-white" />
                 <div>
                   <h4 className="font-semibold text-white">
-                    ¡Recibe Notificaciones!
+                    ¡No te pierdas nuestras ofertas!
                   </h4>
-                  <p className="text-sm text-white/80">
-                    Te avisaremos cuando haya nuevas ofertas
+                  <p className="text-white/80 text-sm">
+                    Activa las notificaciones para recibir banners y promociones en tiempo real
                   </p>
                 </div>
               </div>
@@ -310,11 +114,9 @@ export default function BannersSection({ businessId }: BannersProps) {
           </motion.div>
         )}
 
-
-
         {/* Banners normales - Solo mostrar si hay al menos uno con URL válida */}
         {banners
-          .filter(banner => banner.imagenUrl && banner.imagenUrl.trim() !== '')
+          .filter((banner: Banner) => banner.imagenUrl && banner.imagenUrl.trim() !== '')
           .slice(0, 1)
           .map((banner: Banner, index: number) => (
             <motion.div

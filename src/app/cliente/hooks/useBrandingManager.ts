@@ -69,7 +69,7 @@ export const useBrandingManager = () => {
       
       if (response.ok) {
         const branding = await response.json();
-        console.log('Cliente: Branding cargado desde API:', branding.carouselImages?.length || 0, 'imágenes');
+        // Branding cargado exitosamente desde API
         setBrandingConfig(branding);
         // Guardar versión ligera en localStorage como backup
         try {
@@ -119,8 +119,8 @@ export const useBrandingManager = () => {
       }
     };
     // Escuchar eventos personalizados del admin
-    const handleBrandingUpdate = (e: CustomEvent) => {
-      console.log('Evento de actualización de branding recibido:', e.detail);
+    const handleBrandingUpdate = () => {
+      // Evento de actualización de branding recibido
       loadBranding();
     };
     window.addEventListener('storage', handleStorageChange);

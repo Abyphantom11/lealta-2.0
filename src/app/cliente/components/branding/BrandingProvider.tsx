@@ -37,13 +37,13 @@ interface BrandingProviderProps {
 
 // Provider del contexto
 export const BrandingProvider = ({ children, businessId }: BrandingProviderProps) => {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // 🔥 CAMBIAR A FALSE para no bloquear
   const [brandingConfig, setBrandingConfig] = useState<BrandingConfig>(() => {
-    // Valores por defecto limpios sin localStorage para evitar contaminación
+    // 🔥 USAR valores por defecto inmediatamente para evitar delay visual
     return {
-      businessName: 'LEALTA',
-      primaryColor: '#2563EB',
-      secondaryColor: '#7C3AED',
+      businessName: 'Mi Empresa',
+      primaryColor: '#3B82F6',
+      secondaryColor: '#1E40AF',
       carouselImages: [] as string[]
     };
   });
@@ -115,8 +115,43 @@ export const BrandingProvider = ({ children, businessId }: BrandingProviderProps
     return brandingConfig.carouselImages || [];
   }, [brandingConfig.carouselImages]);
 
+  // 🔥 FUNCIÓN PARA CARGA INMEDIATA DESDE LOCALSTORAGE
+  const loadFromLocalStorage = useCallback(() => {
+    try {
+      const storageKey = businessId ? `portalBranding_${businessId}` : 'portalBranding';
+      const storedBranding = localStorage.getItem(storageKey);
+      
+      if (storedBranding) {
+        const parsed = JSON.parse(storedBranding);
+        const cleanBranding = {
+          businessName: parsed.businessName?.trim() || 'Mi Empresa',
+          primaryColor: parsed.primaryColor || '#3B82F6',
+          secondaryColor: parsed.secondaryColor || '#1E40AF',
+          carouselImages: Array.isArray(parsed.carouselImages) ? parsed.carouselImages : []
+        };
+        setBrandingConfig(cleanBranding);
+        // console.log('🚀 Cliente - Branding cargado instantáneamente desde localStorage:', cleanBranding);
+        return true;
+      }
+    } catch (error) {
+      console.warn('⚠️ Cliente - Error leyendo localStorage:', error);
+    }
+    return false;
+  }, [businessId]);
+
   // Función para cargar branding desde la API
   const loadBranding = useCallback(async () => {
+    // NO limpiar localStorage automáticamente - causa pérdida de datos
+    // Solo limpiar si hay algún indicador específico de que los datos están obsoletos
+    
+    // console.log('🧹 Cliente - Manteniendo localStorage cache para consistencia');
+    // console.log('🔥 CRITICAL DEBUG - BusinessId in loadBranding:', {
+    //   businessId,
+    //   type: typeof businessId,
+    //   exists: !!businessId,
+    //   value: businessId
+    // });
+
     // Función para validar color hexadecimal
     const isValidHexColor = (color: string): boolean => {
       return typeof color === 'string' && /^#[0-9A-Fa-f]{6}$/.test(color);
@@ -125,71 +160,77 @@ export const BrandingProvider = ({ children, businessId }: BrandingProviderProps
     // Función para limpiar y validar datos de branding
     const cleanBrandingData = (branding: any): BrandingConfig => {
       return {
-        businessName: branding.businessName?.trim() || 'LEALTA',
-        primaryColor: isValidHexColor(branding.primaryColor) ? branding.primaryColor : '#2563EB',
-        secondaryColor: isValidHexColor(branding.secondaryColor) ? branding.secondaryColor : '#7C3AED',
+        businessName: branding.businessName?.trim() || 'Mi Empresa',
+        primaryColor: isValidHexColor(branding.primaryColor) ? branding.primaryColor : '#3B82F6',
+        secondaryColor: isValidHexColor(branding.secondaryColor) ? branding.secondaryColor : '#1E40AF',
         carouselImages: Array.isArray(branding.carouselImages) ? branding.carouselImages : []
       };
     };
 
     try {
-      console.log(`🎨 Cliente - Loading branding for businessId: ${businessId || 'default'}`);
+      // console.log(`🎨 Cliente - Loading branding for businessId: ${businessId || 'default'}`);
+      // console.log('🎨 Cliente - BusinessId type:', typeof businessId, 'Value:', businessId);
+      
       const url = businessId ? `/api/branding?businessId=${businessId}` : '/api/branding';
+      // console.log('🎨 Cliente - Making request to:', url);
+      
       const response = await fetch(url, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        cache: 'no-cache'
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        },
+        cache: 'no-store' // Forzar no cache
       });
+      
+      // console.log('🎨 Cliente - Response status:', response.status);
       
       if (response.ok) {
         const branding = await response.json();
+        // console.log('🎨 Cliente - Branding data received:', branding);
         
         const cleanBranding = cleanBrandingData(branding);
+        // console.log('🎨 Cliente - Clean branding data:', cleanBranding);
         setBrandingConfig(cleanBranding);
         
-        // Solo guardar en localStorage si los datos no son por defecto
-        const isDefaultData = cleanBranding.businessName === 'LEALTA' && 
-                              cleanBranding.primaryColor === '#2563EB' && 
-                              cleanBranding.carouselImages.length === 0;
+        // Solo guardar en localStorage si los datos son válidos
+        const hasValidData = cleanBranding.businessName || 
+                           cleanBranding.primaryColor || 
+                           cleanBranding.carouselImages.length > 0;
         
-        if (!isDefaultData) {
+        if (hasValidData) {
           try {
             const storageKey = businessId ? `portalBranding_${businessId}` : 'portalBranding';
-            const lightConfig = {
-              ...cleanBranding,
-              carouselImages: cleanBranding.carouselImages?.length || 0
-            };
-            localStorage.setItem(storageKey, JSON.stringify(lightConfig));
+            // 🔥 GUARDAR IMÁGENES COMPLETAS, no solo el count
+            localStorage.setItem(storageKey, JSON.stringify(cleanBranding));
           } catch (storageError) {
             console.warn('No se pudo guardar branding en localStorage:', storageError);
           }
         }
       } else {
-        setBrandingConfig({
-          businessName: 'LEALTA',
-          primaryColor: '#2563EB',
-          secondaryColor: '#7C3AED',
-          carouselImages: []
-        });
+        // Si la respuesta no es OK, mantener estado de carga hasta obtener datos válidos
+        console.warn('🔥 Response not OK, manteniendo loading state');
       }
     } catch (error) {
-      console.warn('Error cargando branding, usando valores por defecto:', error);
-      setBrandingConfig({
-        businessName: 'LEALTA',
-        primaryColor: '#2563EB',
-        secondaryColor: '#7C3AED',
-        carouselImages: []
-      });
+      console.warn('Error cargando branding, manteniendo loading state:', error);
     }
   }, [businessId]);
 
   // Cargar branding al montar el componente Y cuando cambia businessId
   useEffect(() => {
+    // 🔥 PRIMERA PRIORIDAD: Cargar inmediatamente desde localStorage
+    const hasLocalData = loadFromLocalStorage();
+    
     // Limpiar localStorage contaminado al inicio
     cleanContaminatedStorage();
     
-    // Cargar branding desde API
-    loadBranding();
+    // Cargar branding desde API solo si no hay datos locales o de forma asíncrona
+    if (!hasLocalData) {
+      loadBranding();
+    } else {
+      // Si hay datos locales, aún cargar desde API pero sin bloquear
+      setTimeout(() => loadBranding(), 100);
+    }
     
     // Polling cada 30 segundos para detectar cambios (reducido de 1.5s para optimizar rendimiento)
     const interval = setInterval(loadBranding, 30000);
@@ -209,10 +250,10 @@ export const BrandingProvider = ({ children, businessId }: BrandingProviderProps
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('brandingUpdated', handleBrandingUpdate as EventListener);
     
-    // Timeout de seguridad: quitar loading después de 3 segundos máximo
+    // Timeout de seguridad: quitar loading después de 500ms máximo (reducido de 3s)
     const safetyTimeout = setTimeout(() => {
       setIsLoading(false);
-    }, 3000);
+    }, 500);
     
     return () => {
       clearInterval(interval);
@@ -220,14 +261,13 @@ export const BrandingProvider = ({ children, businessId }: BrandingProviderProps
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('brandingUpdated', handleBrandingUpdate as EventListener);
     };
-  }, [loadBranding, cleanContaminatedStorage, businessId]); // ✅ AGREGAR businessId a las dependencias
+  }, [loadBranding, cleanContaminatedStorage, loadFromLocalStorage, businessId]); // ✅ AGREGAR businessId a las dependencias
 
-  // Quitar loading cuando se carga el branding inicial
+  // Quitar loading cuando se carga el branding inicial - OPTIMIZADO
   useEffect(() => {
-    if (brandingConfig.businessName) {
-      setIsLoading(false);
-    }
-  }, [brandingConfig.businessName]);
+    // Siempre quitar loading después de la carga inicial (ya tenemos valores por defecto)
+    setIsLoading(false);
+  }, []); // Solo ejecutar una vez
 
   const value = useMemo(() => ({
     brandingConfig,

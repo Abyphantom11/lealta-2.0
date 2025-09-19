@@ -37,8 +37,16 @@ model Business {
   locations      Location[]     @relation("BusinessLocations")
   consumos       Consumo[]      @relation("BusinessConsumos")
   goals          BusinessGoals? @relation("BusinessGoals")
+  visitas        Visita[]       @relation("BusinessVisitas")
   // portalConfig PortalConfig? @relation("BusinessPortalConfig") // Removido temporalmente
   menuCategories MenuCategory[] @relation("BusinessMenuCategories")
+
+  // Nuevas relaciones para Portal Config
+  portalBanners        PortalBanner[]         @relation("BusinessPortalBanners")
+  portalPromociones    PortalPromocion[]      @relation("BusinessPortalPromociones")
+  portalRecompensas    PortalRecompensa[]     @relation("BusinessPortalRecompensas")
+  portalFavoritos      PortalFavoritoDelDia[] @relation("BusinessPortalFavoritos")
+  portalTarjetasConfig PortalTarjetasConfig?  @relation("BusinessPortalTarjetasConfig")
 }
 
 model User {
@@ -82,28 +90,28 @@ model Location {
 }
 
 model Cliente {
-  id           String    @id @default(cuid())
-  businessId   String // FK a Business - OBLIGATORIO para aislamiento
-  cedula       String // Cédula única por business, no global
-  nombre       String
-  correo       String
-  telefono     String
-  puntos       Int       @default(0)     // Puntos disponibles para canje
-  puntosAcumulados Int   @default(0)     // Puntos totales acumulados (para nivel de tarjeta)
-  totalVisitas Int       @default(0)
-  totalGastado Float     @default(0)
-  defaultCount Int       @default(0)
-  riskLevel    String    @default("LOW") // LOW, MEDIUM, HIGH
-  lastLogin    DateTime?
-  portalViews  Int       @default(0)
-  registeredAt DateTime  @default(now())
+  id               String    @id @default(cuid())
+  businessId       String // FK a Business - OBLIGATORIO para aislamiento
+  cedula           String // Cédula única por business, no global
+  nombre           String
+  correo           String
+  telefono         String
+  puntos           Int       @default(0) // Puntos disponibles para canje
+  puntosAcumulados Int       @default(0) // Puntos totales acumulados (para nivel de tarjeta)
+  totalVisitas     Int       @default(0)
+  totalGastado     Float     @default(0)
+  defaultCount     Int       @default(0)
+  riskLevel        String    @default("LOW") // LOW, MEDIUM, HIGH
+  lastLogin        DateTime?
+  portalViews      Int       @default(0)
+  registeredAt     DateTime  @default(now())
 
   // Relaciones
-  business       Business        @relation("BusinessClientes", fields: [businessId], references: [id], onDelete: Cascade)
+  business       Business         @relation("BusinessClientes", fields: [businessId], references: [id], onDelete: Cascade)
   consumos       Consumo[]
   visits         VisitLog[]
   tarjetaLealtad TarjetaLealtad?
-  visitas        Visita[]        @relation("ClienteVisitas")
+  visitas        Visita[]         @relation("ClienteVisitas")
   canjes         HistorialCanje[]
 
   // ✅ AISLAMIENTO: Cédula única por business, no global
@@ -240,7 +248,7 @@ model TarjetaLealtad {
   activa           Boolean  @default(true)
 
   // ✅ NUEVO: Puntos de progreso independientes para la tarjeta
-  puntosProgreso   Int      @default(0) // Puntos específicos para el progreso de la tarjeta
+  puntosProgreso Int @default(0) // Puntos específicos para el progreso de la tarjeta
 
   // Historial de niveles
   historicoNiveles Json? // Array con historial de cambios de nivel
@@ -330,6 +338,7 @@ model Visita {
   id           String   @id @default(cuid())
   clienteId    String? // Puede ser NULL para visitas anónimas
   sessionId    String // ID único de sesión
+  businessId   String // ID del negocio para business isolation
   timestamp    DateTime @default(now())
   userAgent    String?
   ip           String?
@@ -340,13 +349,15 @@ model Visita {
   updatedAt    DateTime @updatedAt
 
   // Relaciones
-  cliente Cliente? @relation("ClienteVisitas", fields: [clienteId], references: [id], onDelete: SetNull)
+  cliente  Cliente? @relation("ClienteVisitas", fields: [clienteId], references: [id], onDelete: SetNull)
+  business Business @relation("BusinessVisitas", fields: [businessId], references: [id], onDelete: Cascade)
 
   // Índices para consultas rápidas
   @@index([timestamp])
   @@index([clienteId])
   @@index([sessionId])
   @@index([path])
+  @@index([businessId])
 }
 
 // Tabla para estadísticas agregadas (cache)
@@ -366,17 +377,17 @@ model EstadisticaVisita {
 
 // Tabla para el historial de canjes de recompensas
 model HistorialCanje {
-  id                 String   @id @default(cuid())
-  businessId         String? // FK a Business
-  clienteId          String // FK a Cliente
-  clienteNombre      String // Nombre del cliente al momento del canje
-  clienteCedula      String // Cédula del cliente
-  recompensaId       String // ID de la recompensa canjeada
-  recompensaNombre   String // Nombre de la recompensa al momento del canje
-  puntosDescontados  Int // Puntos que se descontaron
-  empleadoId         String? // ID del empleado que procesó el canje
-  metadata           Json? // Información adicional del canje
-  createdAt          DateTime @default(now())
+  id                String   @id @default(cuid())
+  businessId        String? // FK a Business
+  clienteId         String // FK a Cliente
+  clienteNombre     String // Nombre del cliente al momento del canje
+  clienteCedula     String // Cédula del cliente
+  recompensaId      String // ID de la recompensa canjeada
+  recompensaNombre  String // Nombre de la recompensa al momento del canje
+  puntosDescontados Int // Puntos que se descontaron
+  empleadoId        String? // ID del empleado que procesó el canje
+  metadata          Json? // Información adicional del canje
+  createdAt         DateTime @default(now())
 
   // Relaciones
   cliente  Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
@@ -390,22 +401,22 @@ model HistorialCanje {
 
 // Tabla para verificaciones de email
 model EmailVerification {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   email        String
   code         String
-  type         String   @default("email-verification") // "email-verification", "password-reset", "welcome"
-  businessId   String?  // Para verificaciones relacionadas con empresas
-  businessName String?  // Nombre de la empresa
-  verified     Boolean  @default(false)
-  attempts     Int      @default(0)
-  maxAttempts  Int      @default(3)
+  type         String    @default("email-verification") // "email-verification", "password-reset", "welcome"
+  businessId   String? // Para verificaciones relacionadas con empresas
+  businessName String? // Nombre de la empresa
+  verified     Boolean   @default(false)
+  attempts     Int       @default(0)
+  maxAttempts  Int       @default(3)
   expiresAt    DateTime
   verifiedAt   DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   // Metadatos adicionales
-  metadata     Json?    // Información adicional como IP, User-Agent, etc.
+  metadata Json? // Información adicional como IP, User-Agent, etc.
 
   @@unique([email, code, type])
   @@index([email])
@@ -415,23 +426,143 @@ model EmailVerification {
 
 // Tabla para logs de emails enviados
 model EmailLog {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   to           String
   from         String
   subject      String
-  type         String   // Tipo de email enviado
-  resendId     String?  // ID de Resend para tracking
-  status       String   @default("pending") // "pending", "sent", "delivered", "failed"
+  type         String // Tipo de email enviado
+  resendId     String? // ID de Resend para tracking
+  status       String    @default("pending") // "pending", "sent", "delivered", "failed"
   errorMessage String?
   businessId   String?
-  sentAt       DateTime @default(now())
+  sentAt       DateTime  @default(now())
   deliveredAt  DateTime?
 
   // Metadatos
-  metadata     Json?
+  metadata Json?
 
   @@index([to])
   @@index([type])
   @@index([status])
   @@index([sentAt])
+}
+
+// =================================
+// PORTAL CONFIG TABLES (NUEVAS)
+// =================================
+
+// Banners del portal
+model PortalBanner {
+  id          String   @id @default(cuid())
+  businessId  String // FK a Business
+  title       String
+  description String?
+  imageUrl    String?
+  linkUrl     String?
+  dia         String? // Día de la semana: "lunes", "martes", etc.
+  active      Boolean  @default(true)
+  orden       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relación con Business
+  business Business @relation("BusinessPortalBanners", fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([active])
+  @@index([orden])
+}
+
+// Promociones del portal
+model PortalPromocion {
+  id          String    @id @default(cuid())
+  businessId  String // FK a Business
+  title       String
+  description String?
+  imageUrl    String?
+  discount    String? // "20%", "$5000", etc.
+  validUntil  DateTime?
+  dia         String? // Día de la semana: "lunes", "martes", etc.
+  active      Boolean   @default(true)
+  orden       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relación con Business
+  business Business @relation("BusinessPortalPromociones", fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([active])
+  @@index([validUntil])
+  @@index([orden])
+}
+
+// Recompensas del portal
+model PortalRecompensa {
+  id          String   @id @default(cuid())
+  businessId  String // FK a Business
+  title       String
+  description String?
+  imageUrl    String?
+  pointsCost  Int // Puntos requeridos para canjear
+  category    String? // "food", "discount", "gift", etc.
+  active      Boolean  @default(true)
+  orden       Int      @default(0)
+  stock       Int? // Stock disponible (opcional)
+  unlimited   Boolean  @default(false) // Si es ilimitado
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relación con Business
+  business Business @relation("BusinessPortalRecompensas", fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([active])
+  @@index([pointsCost])
+  @@index([category])
+  @@index([orden])
+}
+
+// Favorito del día
+model PortalFavoritoDelDia {
+  id            String   @id @default(cuid())
+  businessId    String // FK a Business
+  productName   String
+  description   String?
+  imageUrl      String?
+  originalPrice String? // Precio original
+  specialPrice  String? // Precio especial
+  specialOffer  String? // Descripción de la oferta
+  dia           String? // Día de la semana: "lunes", "martes", etc.
+  active        Boolean  @default(true)
+  date          DateTime @default(now()) // Fecha del favorito
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relación con Business
+  business Business @relation("BusinessPortalFavoritos", fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([active])
+  @@index([date])
+}
+
+// Configuración de tarjetas del portal
+model PortalTarjetasConfig {
+  id             String   @id @default(cuid())
+  businessId     String   @unique // FK a Business (uno por business)
+  showLevels     Boolean  @default(true)
+  showProgress   Boolean  @default(true)
+  showBenefits   Boolean  @default(true)
+  showPointsInfo Boolean  @default(true)
+  levelsConfig   Json? // Configuración de niveles personalizados
+  pointsConfig   Json? // Configuración del sistema de puntos
+  visualConfig   Json? // Configuración visual (colores, estilos)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relación con Business
+  business Business @relation("BusinessPortalTarjetasConfig", fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
 }

@@ -34,15 +34,15 @@ export default function RoleSwitch({
   const userActualRole = user?.role || currentRole;
 
   // Debug inicial - eliminar después
-  console.log('🔍 RoleSwitch Debug:', {
-    userActualRole,
-    currentRole,
-    currentPath,
-    businessId,
-    userFromAuth: user?.role
-  });
+  // console.log('🔍 RoleSwitch Debug:', {
+  //   userActualRole,
+  //   currentRole,
+  //   currentPath,
+  //   businessId,
+  //   userFromAuth: user?.role
+  // });
 
-  console.log('🔧 RoleSwitch está renderizando... Rol actual:', userActualRole);
+  // console.log('🔧 RoleSwitch está renderizando... Rol actual:', userActualRole);
 
   // Cerrar dropdown cuando se hace clic fuera
   useEffect(() => {
@@ -100,7 +100,7 @@ export default function RoleSwitch({
   const roleOptions = getAvailableRoles();
 
   // Debug después de declarar roleOptions - eliminar después
-  console.log('🎭 Opciones de roles disponibles:', roleOptions.map(r => r.role));
+  // console.log('🎭 Opciones de roles disponibles:', roleOptions.map(r => r.role));
 
   const getCurrentRoleOption = () => {
     // Si hay businessId, verificar rutas con businessId
@@ -126,11 +126,11 @@ export default function RoleSwitch({
   const currentOption = getCurrentRoleOption();
 
   // Debug completo después de todas las declaraciones
-  console.log('🎭 Component rendering with:', {
-    roleOptions: roleOptions.map(r => r.role),
-    currentOption: currentOption?.role,
-    hasUser: !!user
-  });
+  // console.log('🎭 Component rendering with:', {
+  //   roleOptions: roleOptions.map(r => r.role),
+  //   currentOption: currentOption?.role,
+  //   hasUser: !!user
+  // });
 
   // Fallback si no hay currentOption
   if (!currentOption) {
@@ -159,16 +159,16 @@ export default function RoleSwitch({
   };
 
   const handleRoleSwitch = (path: string) => {
-    console.log('🚀 handleRoleSwitch called with path:', path);
-    console.log('🔍 Router object:', router);
-    console.log('🌐 Current window location:', window.location.href);
+    // console.log('🚀 handleRoleSwitch called with path:', path);
+    // console.log('🔍 Router object:', router);
+    // console.log('🌐 Current window location:', window.location.href);
 
     try {
       router.push(path);
-      console.log('✅ router.push executed successfully');
+      // console.log('✅ router.push executed successfully');
     } catch (error) {
       console.error('❌ Error en router.push:', error);
-      console.log('🔄 Fallback: using window.location');
+      // console.log('🔄 Fallback: using window.location');
       window.location.href = path;
     }
 
@@ -176,7 +176,7 @@ export default function RoleSwitch({
   };
 
   const handleLogout = () => {
-    console.log('🚪 handleLogout called');
+    // console.log('🚪 handleLogout called');
     logout();
     setIsOpen(false);
   };
@@ -230,7 +230,7 @@ export default function RoleSwitch({
               <button
                 key={option.role}
                 onClick={() => {
-                  console.log('🎯 Click en opción:', option.role, 'path:', option.path);
+                  // console.log('🎯 Click en opción:', option.role, 'path:', option.path);
                   handleRoleSwitch(option.path);
                 }}
                 type="button"
@@ -258,7 +258,7 @@ export default function RoleSwitch({
                 <div className="border-t border-gray-700 my-2"></div>
                 <button
                   onClick={() => {
-                    console.log('🚪 Click en logout');
+                    // console.log('🚪 Click en logout');
                     handleLogout();
                   }}
                   type="button"

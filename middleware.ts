@@ -28,7 +28,17 @@ const PROTECTED_ROUTES = [
 ];
 
 // Rutas públicas (login, signup, etc.)
-const PUBLIC_ROUTES = ['/', '/login', '/signup'];
+const PUBLIC_ROUTES = [
+  '/',
+  '/login', 
+  '/signup',
+  '/api/auth/signin',
+  '/api/auth/signup', 
+  '/api/businesses',
+  '/api/portal/config',
+  '/api/branding',  // ✅ AGREGADO para acceso público
+  '/api/debug',
+];
 
 /**
  * 🔥 FUNCIÓN CRÍTICA: Maneja redirecciones de rutas legacy con autenticación y contexto
@@ -239,8 +249,14 @@ export async function middleware(request: NextRequest) {
   // Log básico para debug
   console.log(`🔒 MIDDLEWARE HARDENED: ${pathname}`);
 
-  // 0. ACCESO PÚBLICO: /[businessId]/cliente y /api/cliente (y subrutas)
-  if (/^\/[a-zA-Z0-9_-]+\/cliente(\/|$)/.test(pathname) || pathname.startsWith('/api/cliente')) {
+  // 0. ACCESO PÚBLICO TOTAL: /api/cliente (sin restricciones de business context en middleware)
+  if (pathname.startsWith('/api/cliente')) {
+    console.log(`🌐 API CLIENTE PÚBLICA: Permitiendo acceso directo a ${pathname}`);
+    return NextResponse.next();
+  }
+
+  // 0.1. ACCESO PÚBLICO: /[businessId]/cliente con validación de business
+  if (/^\/[a-zA-Z0-9_-]+\/cliente(\/|$)/.test(pathname)) {
     return await publicClientAccess(request);
   }
 
@@ -290,8 +306,8 @@ export async function middleware(request: NextRequest) {
     return await handleAdminApiProtection(request, pathname);
   }
 
-  // 6. VALIDAR BUSINESS CONTEXT EN APIs QUE LO REQUIEREN
-  const criticalApiRoutes = ['/api/clients', '/api/consumos', '/api/business', '/api/cliente']; // ✅ AGREGAR API CLIENTE
+  // 6. VALIDAR BUSINESS CONTEXT EN APIs QUE LO REQUIEREN (EXCLUYENDO /api/cliente que es público)
+  const criticalApiRoutes = ['/api/clients', '/api/consumos', '/api/business']; // ✅ QUITADO /api/cliente
   const isCriticalApi = criticalApiRoutes.some(route => pathname.startsWith(route));
   
   if (isCriticalApi && !pathname.includes('/api/businesses/') && !extractBusinessFromUrl(pathname)) {

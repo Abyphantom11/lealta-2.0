@@ -6,6 +6,7 @@ import { Mail, Lock, Eye, EyeOff, UserPlus, Sparkles, ArrowRight } from 'lucide-
 import Link from 'next/link';
 import { LealtaLogo } from '../../components/LealtaLogo';
 import { useSearchParams, useRouter } from 'next/navigation';
+import PWAInstallPrompt from '../../components/ui/PWAInstallPrompt';
 
 function LoginContent() {
   const [formData, setFormData] = useState({
@@ -283,6 +284,9 @@ function LoginContent() {
           </Link>
         </motion.div>
       </motion.div>
+      
+      {/* PWA Install Prompt */}
+      <PWAInstallPrompt variant="auto" showOnLogin={true} position="bottom" />
     </div>
   );
 }

@@ -1,0 +1,104 @@
+{
+  "banners": [
+    {
+      "id": "banner-1",
+      "title": "¡Bienvenido a Café Central!",
+      "description": "Descubre nuestras increíbles ofertas y recompensas exclusivas",
+      "imageUrl": "",
+      "linkUrl": "/promociones",
+      "isActive": true,
+      "order": 1,
+      "createdAt": "2025-09-19T05:16:32.000Z",
+      "updatedAt": "2025-09-19T05:16:32.000Z"
+    }
+  ],
+  "promotions": [],
+  "promociones": [],
+  "events": [
+    {
+      "id": "event-1",
+      "title": "Gran Apertura",
+      "description": "Celebra con nosotros la gran apertura de Café Central",
+      "location": "Nuestra ubicación principal",
+      "startDate": "2025-09-26T05:16:32.000Z",
+      "endDate": "2025-09-26T09:16:32.000Z",
+      "imageUrl": "",
+      "isActive": true,
+      "maxAttendees": 200,
+      "currentAttendees": 0,
+      "createdAt": "2025-09-19T05:16:32.000Z",
+      "updatedAt": "2025-09-19T05:16:32.000Z"
+    }
+  ],
+  "rewards": [
+    {
+      "id": "reward-1",
+      "title": "Producto Gratis",
+      "description": "Canjea 500 puntos por un producto de tu elección",
+      "pointsCost": 500,
+      "category": "productos",
+      "imageUrl": "",
+      "isActive": true,
+      "stock": 50,
+      "availableFrom": "2025-09-19T05:16:32.000Z",
+      "availableTo": "2026-09-19T05:16:32.000Z",
+      "createdAt": "2025-09-19T05:16:32.000Z",
+      "updatedAt": "2025-09-19T05:16:32.000Z"
+    }
+  ],
+  "recompensas": [],
+  "favorites": [
+    {
+      "id": "fav-1",
+      "title": "Especialidad del Día",
+      "description": "El producto favorito de Café Central",
+      "imageUrl": "",
+      "category": "destacados",
+      "price": 12.99,
+      "isActive": true,
+      "order": 1,
+      "createdAt": "2025-09-19T05:16:32.000Z",
+      "updatedAt": "2025-09-19T05:16:32.000Z"
+    }
+  ],
+  "favoritoDelDia": [],
+  "tarjetas": [
+    {
+      "id": "tarjeta-default",
+      "nombre": "Tarjeta Café Central",
+      "descripcion": "Sistema de lealtad personalizado",
+      "activa": true,
+      "condicional": "OR",
+      "niveles": [
+        {
+          "nombre": "Bronce",
+          "puntosRequeridos": 0,
+          "visitasRequeridas": 0,
+          "beneficio": "Cliente Inicial",
+          "colores": ["#CD7F32", "#B8860B"]
+        },
+        {
+          "nombre": "Plata",
+          "puntosRequeridos": 500,
+          "visitasRequeridas": 10,
+          "beneficio": "Cliente Frecuente",
+          "colores": ["#C0C0C0", "#E8E8E8"]
+        },
+        {
+          "nombre": "Oro",
+          "puntosRequeridos": 1500,
+          "visitasRequeridas": 25,
+          "beneficio": "Cliente VIP",
+          "colores": ["#FFD700", "#FFA500"]
+        }
+      ]
+    }
+  ],
+  "nombreEmpresa": "Café Central",
+  "settings": {
+    "lastUpdated": "2025-09-19T05:16:32.000Z",
+    "version": "1.0.0",
+    "createdBy": "system",
+    "businessId": "cafe-central"
+  }
+}

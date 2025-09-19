@@ -1,7 +1,8 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Star, X } from 'lucide-react';
+import { useAutoRefreshPortalConfig } from '@/hooks/useAutoRefreshPortalConfig';
 
 interface FavoritoDelDia {
   id: string;
@@ -18,58 +19,33 @@ interface FavoritoProps {
 }
 
 export default function FavoritoDelDiaSection({ businessId }: FavoritoProps) {
-  const [favorito, setFavorito] = useState<FavoritoDelDia | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // 🔄 Auto-refresh hook para sincronización admin → cliente  
+  const { getFavoritoDelDia, isLoading } = useAutoRefreshPortalConfig({
+    businessId,
+    refreshInterval: 12000, // 12 segundos para favorito del día
+    enabled: true
+  });
+
+  // Obtener día actual
+  const diaActual = useMemo(() => {
+    const diasSemana = [
+      'domingo', 'lunes', 'martes', 'miercoles', 
+      'jueves', 'viernes', 'sabado'
+    ];
+    return diasSemana[new Date().getDay()];
+  }, []);
+
+  // Obtener favorito del día actual
+  const favorito = useMemo(() => {
+    const favoritoData = getFavoritoDelDia(diaActual);
+    // console.log('⭐ Favorito del día encontrado:', favoritoData);
+    return favoritoData;
+  }, [getFavoritoDelDia, diaActual]);
+
   const [selectedFavorito, setSelectedFavorito] = useState<FavoritoDelDia | null>(null);
 
-  useEffect(() => {
-    const fetchFavorito = async () => {
-      try {
-        // Usar businessId si está disponible, sino usar 'default'
-        const configBusinessId = businessId || 'default';
-        const response = await fetch(
-          `/api/admin/portal-config?businessId=${configBusinessId}`
-        );
-        if (response.ok) {
-          const data = await response.json();
-          const favoritosData = data.config?.favoritoDelDia || [];
-
-          // Obtener día actual
-          const diasSemana = [
-            'domingo',
-            'lunes',
-            'martes',
-            'miercoles',
-            'jueves',
-            'viernes',
-            'sabado',
-          ];
-          const ahora = new Date();
-          const diaActual = diasSemana[ahora.getDay()];
-
-          // Filtrar favorito activo para el día actual
-          const favoritoActual = favoritosData.find(
-            (f: FavoritoDelDia) => f.activo && f.dia === diaActual
-          );
-
-          setFavorito(favoritoActual || null);
-        }
-      } catch (error) {
-        console.error('Error loading favorito del día:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchFavorito();
-
-    // Polling para actualización en tiempo real cada 5 segundos
-    // Polling optimizado: cada 30 segundos para favorito del día
-    const interval = setInterval(fetchFavorito, 30000);
-    return () => clearInterval(interval);
-  }, [businessId]);
-
-  if (isLoading || !favorito || !favorito.imagenUrl) return null;
+  // Si no hay favorito del día, no renderizar nada
+  if (isLoading || !favorito?.imagenUrl) return null;
 
   return (
     <div className="mx-4 mb-6">

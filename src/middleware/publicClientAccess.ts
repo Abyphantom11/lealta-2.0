@@ -5,7 +5,7 @@ import { prisma } from '../lib/prisma';
  * Middleware para permitir acceso público a /[businessId]/cliente
  * Valida que el businessId existe y está activo
  * Si no existe, muestra error amigable
- * No requiere sesión/cookie
+ * No requiere sesión/cookie - COMPLETAMENTE PÚBLICO
  */
 export async function publicClientAccess(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -62,6 +62,11 @@ export async function publicClientAccess(request: NextRequest) {
   }
 
   console.log(`✅ Business "${businessId}" encontrado. Permitiendo acceso público a ${pathname}`);
-  // Permitir acceso público
-  return NextResponse.next();
+  
+  // Crear response con header de business-id para que las APIs funcionen
+  const response = NextResponse.next();
+  response.headers.set('x-business-id', business.id);
+  
+  console.log(`🏢 Business ID header set: ${business.id}`);
+  return response;
 }

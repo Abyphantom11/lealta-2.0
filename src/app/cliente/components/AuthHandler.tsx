@@ -173,7 +173,7 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
     try {
       // Usar businessId si está disponible, sino usar 'default'
       const configBusinessId = businessId || 'default';
-      const configResponse = await fetch(`/api/portal/config?businessId=${configBusinessId}`);
+      const configResponse = await fetch(`/api/portal/config-v2?businessId=${configBusinessId}`);
 
       if (configResponse.ok) {
         const config = await configResponse.json();
@@ -349,14 +349,14 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
                 '🎉 Sesión restaurada exitosamente para:',
                 savedCedula
               );
-              console.log(
-                '🐛 AuthHandler - Datos del cliente restaurado:',
-                data.cliente
-              );
-              console.log(
-                '🐛 AuthHandler - TarjetaLealtad:',
-                data.cliente?.tarjetaLealtad
-              );
+              // console.log(
+              //   '🐛 AuthHandler - Datos del cliente restaurado:',
+              //   data.cliente
+              // );
+              // console.log(
+              //   '🐛 AuthHandler - TarjetaLealtad:',
+              //   data.cliente?.tarjetaLealtad
+              // );
               setClienteData(data.cliente);
               setCedula(savedCedula);
               setStep('dashboard');
@@ -588,10 +588,10 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
   }, [businessId]);
 
   const evaluateClientLevel = async (cedula: string) => {
-    const evaluacionResponse = await fetch('/api/admin/evaluar-nivel-cliente', {
+    const evaluacionResponse = await fetch('/api/cliente/evaluar-nivel', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cedula }),
+      body: JSON.stringify({ cedula, businessId }),
     });
 
     if (evaluacionResponse.ok) {
@@ -619,7 +619,7 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
   const handleLevelUpdateInEffect = useCallback((evaluacionData: any) => {
     if (evaluacionData.actualizado && evaluacionData.mostrarAnimacion) {
       if (process.env.NODE_ENV === 'development') {
-        console.log(`🆙 Cliente subió de ${evaluacionData.nivelAnterior} a ${evaluacionData.nivelNuevo}!`);
+        // console.log(`🆙 Cliente subió de ${evaluacionData.nivelAnterior} a ${evaluacionData.nivelNuevo}!`);
       }
 
       setOldLevel(evaluacionData.nivelAnterior);
@@ -629,7 +629,7 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
       localStorage.setItem(`lastLevel_${clienteData?.cedula}`, evaluacionData.nivelNuevo);
     } else if (evaluacionData.actualizado && evaluacionData.esBajada) {
       if (process.env.NODE_ENV === 'development') {
-        console.log(`📉 Cliente bajó de ${evaluacionData.nivelAnterior} a ${evaluacionData.nivelNuevo} (sin animación)`);
+        // console.log(`📉 Cliente bajó de ${evaluacionData.nivelAnterior} a ${evaluacionData.nivelNuevo} (sin animación)`);
       }
       localStorage.setItem(`lastLevel_${clienteData?.cedula}`, evaluacionData.nivelNuevo);
     }
@@ -641,7 +641,7 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
       const fetchClienteActualizado = async () => {
         try {
           // ✅ CAMBIO: Permitir evaluación automática para ascensos, incluso en tarjetas manuales
-          console.log('🤖 Ejecutando evaluación automática (permitiendo ascensos automáticos)');
+          // console.log('🤖 Ejecutando evaluación automática (permitiendo ascensos automáticos)');
           const evaluacionData = await evaluateClientLevel(clienteData.cedula);
           
           if (evaluacionData) {
@@ -666,8 +666,8 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
           if (response.ok) {
             const data = await response.json();
             if (data.existe) {
-              console.log('🐛 AuthHandler - Actualización periódica:', data.cliente);
-              console.log('🐛 AuthHandler - TarjetaLealtad actualizada:', data.cliente?.tarjetaLealtad);
+              // console.log('🐛 AuthHandler - Actualización periódica:', data.cliente);
+              // console.log('🐛 AuthHandler - TarjetaLealtad actualizada:', data.cliente?.tarjetaLealtad);
 
               setClienteData(data.cliente);
               checkStoredLevelChange(data.cliente);
@@ -847,7 +847,7 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
                   }}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 1 }}
+                  transition={{ duration: 0.6, delay: 0.3 }}
                 >
                   <IdCard className="w-5 h-5" />
                   <span>Acceder con Cédula</span>

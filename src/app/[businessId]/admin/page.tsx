@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import AdminV2Page from '../../../components/admin-v2/AdminV2Page';
+import PWAInstallPrompt from '../../../components/ui/PWAInstallPrompt';
 
 /**
  * Página dinámica del panel de administración
@@ -64,7 +65,12 @@ export default function BusinessAdminPage() {
 
   // Business context válido
   if (isValidBusiness) {
-    return <AdminV2Page businessId={businessId} />;
+    return (
+      <>
+        <AdminV2Page businessId={businessId} />
+        <PWAInstallPrompt variant="auto" position="bottom" />
+      </>
+    );
   }
 
   // Fallback - no debería llegar aquí por la validación anterior

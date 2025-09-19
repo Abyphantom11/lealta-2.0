@@ -1,7 +1,8 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Gift } from 'lucide-react';
+import { useAutoRefreshPortalConfig } from '@/hooks/useAutoRefreshPortalConfig';
 
 interface Recompensa {
   id: string;
@@ -20,36 +21,31 @@ interface RecompensasProps {
 }
 
 export default function RecompensasSection({ businessId }: RecompensasProps) {
-  const [recompensas, setRecompensas] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  useEffect(() => {
-    const fetchRecompensas = async () => {
-      try {
-        // Usar businessId si está disponible, sino usar 'default'
-        const configBusinessId = businessId || 'default';
-        const response = await fetch(`/api/admin/portal-config?businessId=${configBusinessId}`);
-        if (response.ok) {
-          const data = await response.json();
-          // Buscar en ambos campos: recompensas (español) y rewards (inglés)
-          const recompensasData = data.config?.recompensas || data.config?.rewards || [];
-          setRecompensas(recompensasData.filter((r: any) => r.activo || r.isActive) || []);
-        }
-      } catch (error) {
-        console.error('Error loading recompensas:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  // 🔄 Auto-refresh hook para sincronización admin → cliente
+  const { getRecompensas, isLoading } = useAutoRefreshPortalConfig({
+    businessId,
+    refreshInterval: 20000, // 20 segundos para recompensas
+    enabled: true
+  });
+
+  // Obtener recompensas activas ordenadas por puntos
+  const recompensas = useMemo(() => {
+    const allRecompensas = getRecompensas();
     
-    fetchRecompensas();
-    
-    // Polling para actualización en tiempo real cada 5 segundos
-    // Polling optimizado: cada 30 segundos para recompensas
-    const interval = setInterval(fetchRecompensas, 30000);
-    return () => clearInterval(interval);
-  }, [businessId]);
-  
+    if (!allRecompensas || allRecompensas.length === 0) {
+      return [];
+    }
+
+    // Ordenar por puntos requeridos (menor a mayor)
+    const sorted = [...allRecompensas].sort((a, b) => 
+      (a.puntosRequeridos || 0) - (b.puntosRequeridos || 0)
+    );
+
+    // console.log('🎁 Recompensas activas encontradas:', sorted.length);
+    return sorted;
+  }, [getRecompensas]);
+
+  // Si no hay recompensas, no renderizar nada
   if (isLoading || recompensas.length === 0) return null;
   
   return (

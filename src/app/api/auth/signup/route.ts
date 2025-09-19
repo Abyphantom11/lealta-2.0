@@ -135,6 +135,16 @@ export async function POST(request: NextRequest) {
       return { business, superAdmin };
     });
 
+    // ✅ NUEVO: Crear portal-config personalizado inmediatamente después del signup
+    try {
+      const { createDefaultPortalConfig } = await import('../../../../lib/portal-config-utils');
+      await createDefaultPortalConfig(result.business.id, result.business.name);
+      console.log(`🎨 Portal config created for new business: ${result.business.name} (${result.business.id})`);
+    } catch (portalConfigError) {
+      console.warn('⚠️ Could not create initial portal config:', portalConfigError);
+      // No fallar el signup por esto - se creará lazy cuando se acceda por primera vez
+    }
+
     // 🚫 TEMPORALMENTE DESACTIVADO - Email de bienvenida
     // try {
     //   await sendEmail({

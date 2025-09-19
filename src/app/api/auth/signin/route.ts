@@ -54,7 +54,9 @@ async function getBusinessFromRequest(request: NextRequest) {
 async function findUser(email: string, request: NextRequest) {
   const host = request.headers.get('host') || '';
   const isLocalDevelopment =
-    host.includes('localhost') || host.includes('127.0.0.1');
+    host.includes('localhost') || 
+    host.includes('127.0.0.1') ||
+    host.includes('trycloudflare.com'); // 👈 AGREGADO
 
   if (isLocalDevelopment) {
     // En desarrollo local, buscar usuario por email sin restricción de business
@@ -132,7 +134,9 @@ function validateUser(user: UserWithBusiness | null, request: NextRequest): asse
 
   const host = request.headers.get('host') || '';
   const isLocalDevelopment =
-    host.includes('localhost') || host.includes('127.0.0.1');
+    host.includes('localhost') || 
+    host.includes('127.0.0.1') ||
+    host.includes('trycloudflare.com'); // 👈 AGREGADO
 
   if (!isLocalDevelopment && !user.business.isActive) {
     throw new Error('Business inactivo');

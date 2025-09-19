@@ -22,6 +22,17 @@ const BrandingManager: React.FC<BrandingManagerProps> = ({
   showNotification,
 }) => {
   
+  // 🔥 DEBUG: Verificar datos recibidos
+  // 🔥 DEBUG: Verificar datos recibidos
+  // Solo mantener logs críticos de error
+  // console.log('🎨 BrandingManager - Datos recibidos:', {
+  //   brandingConfig,
+  //   hasCarouselImages: !!brandingConfig.carouselImages,
+  //   carouselImagesLength: brandingConfig.carouselImages?.length,
+  //   businessName: brandingConfig.businessName,
+  //   primaryColor: brandingConfig.primaryColor
+  // });
+  
   /**
    * Manejo de subida de imágenes del carrusel
    * Extraído de: src/app/admin/page.tsx (líneas 2750-2800)
@@ -107,7 +118,7 @@ const BrandingManager: React.FC<BrandingManagerProps> = ({
         detail: brandingConfig,
       }));
 
-      console.log('Evento brandingUpdated disparado con carrusel:', brandingConfig.carouselImages?.length || 0, 'imágenes');
+      // console.log('Evento brandingUpdated disparado con carrusel:', brandingConfig.carouselImages?.length || 0, 'imágenes');
 
       // También usar storage event para otras pestañas
       localStorage.setItem('brandingTrigger', Date.now().toString());
@@ -159,7 +170,7 @@ const BrandingManager: React.FC<BrandingManagerProps> = ({
   };
 
   return (
-    <div>
+    <div className="max-h-[80vh] overflow-y-auto">
       <div className="flex items-center mb-6">
         <Building className="w-6 h-6 mr-2 text-primary-500" />
         <h4 className="text-lg font-semibold text-white">
@@ -197,7 +208,7 @@ const BrandingManager: React.FC<BrandingManagerProps> = ({
           <div className="space-y-4">
             {/* Grid de imágenes actuales */}
             <div className="grid grid-cols-2 gap-3">
-              {brandingConfig.carouselImages?.map(
+              {Array.isArray(brandingConfig.carouselImages) && brandingConfig.carouselImages.map(
                 (imageUrl: string, index: number) => (
                   <div
                     key={`carousel-${index}-${imageUrl.substring(0, 20)}`}

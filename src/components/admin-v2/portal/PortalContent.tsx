@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Eye, Smartphone, Gift, TrendingUp } from 'lucide-react';
+import { Eye, Smartphone, Gift, TrendingUp, Building, CreditCard } from 'lucide-react';
 import PortalContentManager from './PortalContentManager';
 import { GeneralConfig } from './types';
 import {
@@ -28,7 +28,7 @@ type NivelTarjeta = 'success' | 'error' | 'warning' | 'info';
 // Portal Content Component - Gestión completa del portal del cliente
 const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
   const [activeTab, setActiveTab] = useState<
-    'preview' | 'banners' | 'promociones' | 'recompensas' | 'favorito'
+    'preview' | 'branding' | 'banners' | 'promociones' | 'recompensas' | 'favorito' | 'tarjetas'
   >('preview');
   const [previewMode, setPreviewMode] = useState<ModoVistaPrevia>('portal'); // Estado para cambiar entre Portal, Login y Tarjetas
   const [brandingConfig, setBrandingConfig] = useState<BrandingConfig>(
@@ -90,8 +90,18 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
 
   const fetchConfig = async () => {
     try {
+      // 🔥 CRÍTICO: Usar el mismo businessId que en handleSave
+      const storedBusinessId = localStorage.getItem('currentBusinessId');
+      const finalBusinessId = storedBusinessId || 'cmfqhepmq0000ey4slyms4knv';
+      
+      // console.log('🔍 Portal fetchConfig - BusinessId debug:', {
+      //   storedBusinessId,
+      //   finalBusinessId,
+      //   url: `/api/admin/portal-config?businessId=${finalBusinessId}`
+      // });
+      
       const response = await fetch(
-        '/api/admin/portal-config?businessId=default'
+        `/api/admin/portal-config?businessId=${finalBusinessId}`
       );
       if (response.ok) {
         const data = await response.json();
@@ -190,7 +200,17 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
 
   const handleSave = useCallback(async () => {
     try {
-      console.log('💾 Admin - Guardando config:', config);
+      // 🔥 CRÍTICO: Usar el mismo businessId que en fetchConfig
+      const storedBusinessId = localStorage.getItem('currentBusinessId');
+      const finalBusinessId = storedBusinessId || 'cmfqhepmq0000ey4slyms4knv';
+      
+      // console.log('💾 Portal handleSave - BusinessId debug:', {
+      //   storedBusinessId,
+      //   finalBusinessId,
+      //   configKeys: Object.keys(config)
+      // });
+      
+      // console.log('💾 Admin - Guardando config:', config);
       const response = await fetch('/api/admin/portal-config', {
         method: 'PUT',
         headers: {
@@ -198,7 +218,7 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
         },
         body: JSON.stringify({
           ...config,
-          businessId: 'default',
+          businessId: finalBusinessId,
         }),
       });
 
@@ -206,8 +226,8 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
         throw new Error('Error al guardar configuración');
       }
 
-      const result = await response.json();
-      console.log('✅ Admin - Config guardada exitosamente:', result);
+      // const result = await response.json();
+      // console.log('✅ Admin - Config guardada exitosamente:', result);
     } catch (error) {
       console.error('❌ Admin - Error saving portal config:', error);
     }
@@ -240,16 +260,58 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
     setBrandingConfig(newConfig);
 
     try {
+      // 🔥 TEMPORAL: Obtener businessId de localStorage o usar default
+      const storedBusinessId = localStorage.getItem('currentBusinessId');
+      const finalBusinessId = storedBusinessId || 'cmfqhepmq0000ey4slyms4knv'; // Usar ID real en lugar de slug
+      
+      // console.log('🔍 Admin: BusinessId debug:', {
+      //   storedBusinessId,
+      //   finalBusinessId,
+      //   localStorageKeys: Object.keys(localStorage),
+      //   localStorageCurrentBusiness: localStorage.getItem('currentBusinessId'),
+      //   localStorageBusinessList: localStorage.getItem('businessList')
+      // });
+      
+      // Agregar businessId a la configuración que enviamos
+      const configWithBusinessId = {
+        ...newConfig,
+        businessId: finalBusinessId
+      };
+
+      // console.log('🔄 Admin: Enviando branding a API:', {
+      //   field,
+      //   value,
+      //   businessId: finalBusinessId,
+      //   newConfig: configWithBusinessId,
+      //   configSize: JSON.stringify(configWithBusinessId).length,
+      //   businessIdInObject: configWithBusinessId.businessId,
+      //   stringifiedBody: JSON.stringify(configWithBusinessId),
+      //   firstCharsOfBody: JSON.stringify(configWithBusinessId).substring(0, 300)
+      // });
+
       // Guardar en la API (funcionará entre diferentes dominios/puertos)
+      const requestBody = JSON.stringify(configWithBusinessId);
+      // console.log('📤 Admin: Enviando POST con body:', {
+      //   bodyPreview: requestBody.substring(0, 500),
+      //   bodySize: requestBody.length,
+      //   containsBusinessId: requestBody.includes('businessId'),
+      //   businessIdValue: configWithBusinessId.businessId
+      // });
+      
       const response = await fetch('/api/branding', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-business-id': finalBusinessId
         },
-        body: JSON.stringify(newConfig),
+        body: requestBody,
       });
 
+      // console.log('📡 Admin: Response status:', response.status);
+
       if (response.ok) {
+        // const responseData = await response.json();
+        // console.log('✅ Admin: Branding guardado exitosamente:', responseData);
         // Crear una versión reducida para localStorage (sin imágenes base64)
         const lightConfig = {
           ...newConfig,
@@ -275,10 +337,15 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
           );
         }
       } else {
-        console.error('Admin: Error guardando branding en API');
+        const errorData = await response.text();
+        console.error('❌ Admin: Error guardando branding en API:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
       }
     } catch (error) {
-      console.error('Admin: Error conectando con API:', error);
+      console.error('❌ Admin: Error conectando con API:', error);
       // En caso de error de API, guardar solo datos básicos en localStorage
       try {
         const basicConfig = {
@@ -305,9 +372,16 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
   useEffect(() => {
     const loadBranding = async () => {
       try {
-        const response = await fetch('/api/branding');
+        // 🔥 OBTENER BUSINESS ID PARA LA REQUEST
+        const storedBusinessId = localStorage.getItem('currentBusinessId');
+        const finalBusinessId = storedBusinessId || 'cmfqhepmq0000ey4slyms4knv';
+        
+        // console.log('🔄 Admin: Cargando branding con businessId:', finalBusinessId);
+        
+        const response = await fetch(`/api/branding?businessId=${finalBusinessId}`);
         if (response.ok) {
           const branding = await response.json();
+          // console.log('✅ Admin: Branding cargado desde API:', branding);
           setBrandingConfig(branding);
           // Guardar versión ligera en localStorage
           try {
@@ -387,10 +461,12 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
       <div className="flex space-x-1 bg-dark-800 rounded-lg p-1">
         {[
           { id: 'preview', label: 'Vista Previa', icon: Eye },
+          { id: 'branding', label: 'Branding', icon: Building },
           { id: 'banners', label: 'Banner Diario', icon: Smartphone },
           { id: 'promociones', label: 'Promociones', icon: Gift },
           { id: 'favorito', label: 'Favorito del Día', icon: TrendingUp },
           { id: 'recompensas', label: 'Recompensas', icon: Gift },
+          { id: 'tarjetas', label: 'Tarjetas', icon: CreditCard },
         ].map(tab => {
           const Icon = tab.icon;
           return (

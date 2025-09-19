@@ -149,6 +149,7 @@ export const Dashboard = ({
   // 📊 Tracking de visitas automático
   useVisitTracking({
     clienteId: cedula,
+    businessId: businessId,
     enabled: true,
     path: '/cliente'
   });

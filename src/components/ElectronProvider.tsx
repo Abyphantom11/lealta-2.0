@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useAuth } from '../hooks/useAuth';
 
 // Types for Electron API
 declare global {
@@ -53,49 +52,38 @@ export function ElectronProvider({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const { isElectron } = useElectron();
-  const authData = useAuth(); // Siempre llamar useAuth para evitar problemas con hooks
   
-  // 🔥 VERIFICAR SI ESTAMOS EN UNA RUTA DE CLIENTE PÚBLICO
-  const [isClientRoute, setIsClientRoute] = useState(false);
+  // 🔥 DESHABILITAR useAuth COMPLETAMENTE EN ElectronProvider
+  // useAuth se ejecutará solo en páginas que realmente lo necesiten
+  // No en layout global que afecta todas las rutas
   
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const checkPath = /^\/[a-zA-Z0-9_-]+\/cliente(\/|$)/.test(window.location.pathname);
-      setIsClientRoute(checkPath);
-    }
-  }, []);
-  
-  // Solo usar los datos de auth si NO estamos en una ruta de cliente público
-  const user = isClientRoute ? null : authData?.user;
+  // � Por ahora, sin autenticación global en ElectronProvider
+  const user = null;
 
-  // Función helper para obtener URLs con slug correcto
+  // Función helper para obtener URLs (simplificada sin auth)
   const getUrlWithSlug = useCallback((path: string): string => {
-    if (!user?.business) {
-      console.warn('No hay business disponible para redirección');
-      return '/login'; // Fallback a login si no hay business
-    }
-    
-    // Usar subdomain como slug principal (ajustar según tu estructura)
-    const slug = user.business.subdomain;
-    return `/${slug}${path}`;
-  }, [user]);
+    // Para ElectronProvider simplificado, usar rutas genéricas
+    // La autenticación será manejada por cada página individualmente
+    console.warn('ElectronProvider: Sin business disponible, usando ruta genérica para:', path);
+    return '/login'; // Fallback a login
+  }, []);
 
   useEffect(() => {
-    if (isElectron && window.electronAPI && user) {
-      // Listen for menu actions
+    if (isElectron && window.electronAPI) {
+      // Listen for menu actions - simplificado sin auth
       window.electronAPI.onMenuAction((event, action) => {
         switch (action) {
           case 'new-client':
-            window.location.href = getUrlWithSlug('/admin'); // ✅ Con slug correcto
+            window.location.href = '/login'; // Redirect genérico
             break;
           case 'capture-consumption':
-            window.location.href = getUrlWithSlug('/staff');
+            window.location.href = '/login';
             break;
           case 'dashboard':
-            window.location.href = getUrlWithSlug('/admin'); // ✅ Con slug correcto
+            window.location.href = '/login'; 
             break;
           case 'reports':
-            window.location.href = getUrlWithSlug('/superadmin');
+            window.location.href = '/login';
             break;
           default:
             // Unknown menu action - silent fallback

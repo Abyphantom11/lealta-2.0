@@ -1,8 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Smartphone, Eye, Gift } from 'lucide-react';
-import notificationService from '@/lib/notificationService';
 
 // Importar componentes ya creados
 import BannersManager from './BannersManager';
@@ -177,6 +176,33 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
   handleBrandingChange,
   showNotification,
 }) => {
+  
+  // 🆕 Función para sincronizar banners con carouselImages del branding
+  const syncBannersToCarousel = useCallback(async (banners: Banner[]) => {
+    try {
+      // Extraer URLs de imágenes de banners activos
+      const carouselImages = banners
+        .filter(banner => banner.activo && banner.imagenUrl)
+        .sort((a, b) => (a.id || '').localeCompare(b.id || '')) // Orden consistente
+        .map(banner => banner.imagenUrl!)
+        .filter(url => url.trim() !== '');
+
+      // Actualizar carouselImages en el branding
+      await handleBrandingChange('carouselImages', carouselImages);
+      
+    } catch (error) {
+      console.error('Error sincronizando banners con carrusel:', error);
+      showNotification('Error sincronizando carrusel', 'error');
+    }
+  }, [handleBrandingChange, showNotification]);
+
+  // 🆕 Sincronización automática cuando cambien los banners (DESACTIVADA TEMPORALMENTE)
+  // useEffect(() => {
+  //   if (config.banners && config.banners.length > 0) {
+  //     // console.log('🔄 Detectado cambio en banners, sincronizando con carrusel...');
+  //     syncBannersToCarousel(config.banners);
+  //   }
+  // }, [config.banners, syncBannersToCarousel]); // Se ejecuta cuando cambien los banners
   // Función para renderizar contenido de vista previa
   const renderPreviewContent = () => {
     if (previewMode === 'login') {
@@ -268,13 +294,6 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
   // Función para sincronización manual
   const handleSyncToClient = async () => {
     try {
-      console.log(
-        '🔄 Admin - Sincronizando configuración completa con el cliente'
-      );
-      console.log('📊 Promociones a sincronizar:', config.promociones);
-      console.log('📊 Banners a sincronizar:', config.banners);
-      console.log('📊 Favoritos a sincronizar:', config.favoritoDelDia);
-
       const response = await fetch('/api/admin/portal-config', {
         method: 'PUT',
         headers: {
@@ -313,13 +332,14 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
     }
   };
 
-  const addItem = (type: ConfigurableItemType, item: ConfigurableItem) => {
+  const addItem = async (type: ConfigurableItemType, item: ConfigurableItem) => {
     const newItem = {
       ...item,
       id: item.id || `${type}_${Date.now()}`,
       activo: true,
     };
 
+    // 🆕 Actualizar estado local primero para UI responsiva
     setConfig((prev: GeneralConfig): GeneralConfig => {
       // Caso especial para favoritoDelDia
       if (type === 'favoritoDelDia') {
@@ -347,18 +367,35 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
         }
       }
 
-      return {
+      const newConfig = {
         ...prev,
         [type]: [...(prev[type] || []), newItem],
       };
+
+      // 🆕 Sincronizar banners con carrusel automáticamente
+      if (type === 'banners') {
+        syncBannersToCarousel(newConfig.banners || []);
+      }
+
+      return newConfig;
     });
+
+    // 🆕 Guardar inmediatamente en PostgreSQL
+    try {
+      await handleSyncToClient();
+      showNotification(`✅ ${type} agregado y sincronizado con el cliente`, 'success');
+    } catch (error) {
+      console.error('Error sincronizando con cliente:', error);
+      showNotification(`❌ Error sincronizando ${type}`, 'error');
+    }
   };
 
-  const updateItem = (
+  const updateItem = async (
     type: ConfigurableItemType,
     itemId: string,
     updates: Partial<ConfigurableItem>
   ) => {
+    // 🆕 Actualizar estado local primero para UI responsiva
     setConfig((prev: GeneralConfig): GeneralConfig => {
       if (type === 'favoritoDelDia') {
         const currentFavoritos = Array.isArray(prev.favoritoDelDia)
@@ -375,16 +412,32 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
         };
       }
 
-      return {
+      const newConfig = {
         ...prev,
         [type]: (prev[type] || []).map((item: { id?: string }) =>
           item.id === itemId ? { ...item, ...updates } : item
         ),
       };
+
+      // 🆕 Sincronizar banners con carrusel automáticamente  
+      if (type === 'banners') {
+        syncBannersToCarousel(newConfig.banners || []);
+      }
+
+      return newConfig;
     });
+
+    // 🆕 Guardar inmediatamente en PostgreSQL
+    try {
+      await handleSyncToClient();
+      showNotification(`✅ ${type} actualizado y sincronizado con el cliente`, 'success');
+    } catch (error) {
+      console.error('Error sincronizando con cliente:', error);
+      showNotification(`❌ Error sincronizando ${type}`, 'error');
+    }
   };
 
-  const deleteItem = (type: ConfigurableItemType, itemId: string) => {
+  const deleteItem = async (type: ConfigurableItemType, itemId: string) => {
     // Usar notificationService para confirmar la eliminación
     const itemTypeNames: Record<ConfigurableItemType, string> = {
       banners: 'banner',
@@ -396,7 +449,7 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
 
     const itemName = itemTypeNames[type] || 'elemento';
 
-    // Primero eliminamos directamente
+    // 🆕 Actualizar estado local primero para UI responsiva
     setConfig((prev: GeneralConfig): GeneralConfig => {
       if (type === 'favoritoDelDia') {
         const currentFavoritos = Array.isArray(prev.favoritoDelDia)
@@ -412,23 +465,33 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
         };
       }
 
-      return {
+      const newConfig = {
         ...prev,
         [type]: (prev[type] || []).filter(
           (item: { id?: string }) => item.id !== itemId
         ),
       };
+
+      // 🆕 Sincronizar banners con carrusel automáticamente
+      if (type === 'banners') {
+        syncBannersToCarousel(newConfig.banners || []);
+      }
+
+      return newConfig;
     });
 
-    // Luego mostramos la notificación de confirmación
-    notificationService.success({
-      title: 'Elemento eliminado',
-      message: `El ${itemName} ha sido eliminado correctamente.`,
-      duration: 4000,
-    });
+    // 🆕 Guardar inmediatamente en PostgreSQL
+    try {
+      await handleSyncToClient();
+      showNotification(`✅ ${itemName} eliminado y sincronizado con el cliente`, 'success');
+    } catch (error) {
+      console.error('Error sincronizando con cliente:', error);
+      showNotification(`❌ Error sincronizando ${itemName}`, 'error');
+    }
   };
 
-  const toggleActive = (type: ConfigurableItemType, itemId: string) => {
+  const toggleActive = async (type: ConfigurableItemType, itemId: string) => {
+    // 🆕 Actualizar estado local primero para UI responsiva
     setConfig((prev: GeneralConfig): GeneralConfig => {
       if (type === 'favoritoDelDia') {
         const currentFavoritos = Array.isArray(prev.favoritoDelDia)
@@ -443,20 +506,34 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
         };
       }
 
-      return {
+      const newConfig = {
         ...prev,
         [type]: (prev[type] || []).map(
           (item: { id?: string; activo?: boolean }) =>
             item.id === itemId ? { ...item, activo: !item.activo } : item
         ),
       };
+
+      // 🆕 Sincronizar banners con carrusel automáticamente
+      if (type === 'banners') {
+        syncBannersToCarousel(newConfig.banners || []);
+      }
+
+      return newConfig;
     });
+
+    // 🆕 Guardar inmediatamente en PostgreSQL
+    try {
+      await handleSyncToClient();
+      showNotification(`✅ ${type} actualizado y sincronizado con el cliente`, 'success');
+    } catch (error) {
+      console.error('Error sincronizando con cliente:', error);
+      showNotification(`❌ Error sincronizando ${type}`, 'error');
+    }
   };
 
   // Función auxiliar para cambiar el día simulado y reducir complejidad
   const handleDaySimulation = (diaSimulado: string, setPreviewMode: any) => {
-    console.log('🔄 Cambiando día simulado a:', diaSimulado);
-
     try {
       // Primero limpiamos cualquier valor anterior y notificamos el cambio
       delete (window as any).portalPreviewDay;
@@ -479,8 +556,6 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
         } catch (innerError) {
           console.warn('Error disparando eventos adicionales:', innerError);
         }
-
-        console.log('✅ Eventos de simulación enviados correctamente');
 
         // Forzar re-render del administrador
         setPreviewMode('portal-refresh');
@@ -911,17 +986,8 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
 
         {activeTab === 'preview' && previewMode === 'tarjetas' && (
           <div className="space-y-6">
-            {/* Orden EXACTO del admin original: AsignacionTarjetas primero */}
+            {/* Solo Asignación Manual de Tarjetas en vista previa */}
             <AsignacionTarjetas
-              showNotification={(message: string, type: any) =>
-                showNotification(message, type)
-              }
-            />
-
-            {/* Gestión de tarjetas separada - como en admin original */}
-            <TarjetaEditor
-              config={config}
-              setConfig={(newConfig) => setConfig(newConfig)}
               showNotification={(message: string, type: any) =>
                 showNotification(message, type)
               }
@@ -980,19 +1046,21 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
         )}
 
         {activeTab === 'banners' && (
-          <BannersManager
-            banners={config.banners || []}
-            onAdd={(banner: Banner) => addItem('banners', banner)}
-            onUpdate={(id: string, updates: Partial<Banner>) =>
-              updateItem('banners', id, updates)
-            }
-            onDelete={(id: string) => deleteItem('banners', id)}
-            onToggle={(id: string) => toggleActive('banners', id)}
-          />
+          <div className="max-h-[80vh] overflow-y-auto">
+            <BannersManager
+              banners={config.banners || []}
+              onAdd={(banner: Banner) => addItem('banners', banner)}
+              onUpdate={(id: string, updates: Partial<Banner>) =>
+                updateItem('banners', id, updates)
+              }
+              onDelete={(id: string) => deleteItem('banners', id)}
+              onToggle={(id: string) => toggleActive('banners', id)}
+            />
+          </div>
         )}
 
         {activeTab === 'promociones' && (
-          <div>
+          <div className="max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-white">Promociones</h2>
               <button
@@ -1028,60 +1096,84 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
         )}
 
         {activeTab === 'favorito' && (
-          <FavoritoDelDiaManager
-            favoritos={getFavoritosList(config.favoritoDelDia)}
-            onUpdate={(favorito: FavoritoDelDia) => {
-              const currentFavoritos = Array.isArray(config.favoritoDelDia)
-                ? config.favoritoDelDia
-                : [];
+          <div className="max-h-[80vh] overflow-y-auto">
+            <FavoritoDelDiaManager
+              favoritos={getFavoritosList(config.favoritoDelDia)}
+              onUpdate={(favorito: FavoritoDelDia) => {
+                const currentFavoritos = Array.isArray(config.favoritoDelDia)
+                  ? config.favoritoDelDia
+                  : [];
 
-              const existingFavorito = currentFavoritos.find(
-                (f: FavoritoDelDia) => f.dia === favorito.dia
-              );
+                const existingFavorito = currentFavoritos.find(
+                  (f: FavoritoDelDia) => f.dia === favorito.dia
+                );
 
-              if (existingFavorito) {
-                const existingId = getFavoritoProperty(
-                  existingFavorito,
-                  'id'
-                ) as string;
-                updateItem('favoritoDelDia', existingId, favorito);
-              } else {
-                addItem('favoritoDelDia', favorito);
-              }
-              showNotification(
-                'Favorito del día actualizado correctamente',
-                'success'
-              );
-            }}
-            onDelete={(favoritoId: string) => {
-              deleteItem('favoritoDelDia', favoritoId);
-              showNotification(
-                'Favorito del día eliminado correctamente',
-                'success'
-              );
-            }}
-            onToggle={(favoritoId: string) => {
-              toggleActive('favoritoDelDia', favoritoId);
-              showNotification(
-                'Estado del favorito del día actualizado',
-                'success'
-              );
-            }}
-          />
+                if (existingFavorito) {
+                  const existingId = getFavoritoProperty(
+                    existingFavorito,
+                    'id'
+                  ) as string;
+                  updateItem('favoritoDelDia', existingId, favorito);
+                } else {
+                  addItem('favoritoDelDia', favorito);
+                }
+                showNotification(
+                  'Favorito del día actualizado correctamente',
+                  'success'
+                );
+              }}
+              onDelete={(favoritoId: string) => {
+                deleteItem('favoritoDelDia', favoritoId);
+                showNotification(
+                  'Favorito del día eliminado correctamente',
+                  'success'
+                );
+              }}
+              onToggle={(favoritoId: string) => {
+                toggleActive('favoritoDelDia', favoritoId);
+                showNotification(
+                  'Estado del favorito del día actualizado',
+                  'success'
+                );
+              }}
+            />
+          </div>
+        )}
+
+        {activeTab === 'branding' && (
+          <div className="xl:col-span-2">
+            <BrandingManager
+              brandingConfig={brandingConfig}
+              handleBrandingChange={handleBrandingChange}
+              showNotification={showNotification}
+            />
+          </div>
         )}
 
         {activeTab === 'recompensas' && (
-          <RecompensasManager
-            recompensas={getRecompensasList(config.recompensas)}
-            onAdd={(recompensa: Recompensa) =>
-              addItem('recompensas', recompensa)
-            }
-            onUpdate={(id: string, updates: Partial<Recompensa>) =>
-              updateItem('recompensas', id, updates)
-            }
-            onDelete={(id: string) => deleteItem('recompensas', id)}
-            onToggle={(id: string) => toggleActive('recompensas', id)}
-          />
+          <div className="max-h-[80vh] overflow-y-auto">
+            <RecompensasManager
+              recompensas={getRecompensasList(config.recompensas)}
+              onAdd={(recompensa: Recompensa) =>
+                addItem('recompensas', recompensa)
+              }
+              onUpdate={(id: string, updates: Partial<Recompensa>) =>
+                updateItem('recompensas', id, updates)
+              }
+              onDelete={(id: string) => deleteItem('recompensas', id)}
+              onToggle={(id: string) => toggleActive('recompensas', id)}
+            />
+          </div>
+        )}
+
+        {activeTab === 'tarjetas' && (
+          <div className="max-h-[80vh] overflow-y-auto">
+            <TarjetaEditor
+              config={config}
+              setConfig={(newConfig: GeneralConfig) => setConfig(newConfig)}
+              showNotification={showNotification}
+            />
+          </div>
         )}
       </div>
     </div>

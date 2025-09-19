@@ -1,0 +1,112 @@
+{
+  "banners": [
+    {
+      "id": "banner_jueves_1758261196689",
+      "dia": "jueves",
+      "titulo": "sdfsf",
+      "descripcion": "sdfsf",
+      "imagenUrl": "/uploads/cmfqeb87m0000ey180zvazvh7_1758261196600-o916vr.jpg",
+      "horaPublicacion": "04:00",
+      "activo": true
+    },
+    {
+      "id": "banner_viernes_1758261215385",
+      "dia": "viernes",
+      "titulo": "kdgdgd",
+      "descripcion": "dfgdgd",
+      "imagenUrl": "/uploads/cmfqeb87m0000ey180zvazvh7_1758261215283-rqtijc.jpg",
+      "horaPublicacion": "04:00",
+      "activo": true
+    }
+  ],
+  "promotions": [],
+  "promociones": [
+    {
+      "dia": "viernes",
+      "titulo": "dfgdgd",
+      "descripcion": "dfgdg5",
+      "descuento": 50,
+      "horaTermino": "04:00",
+      "activo": true,
+      "id": "promociones_1758261226885"
+    }
+  ],
+  "events": [
+    {
+      "id": "event-1",
+      "title": "Gran Apertura",
+      "description": "Celebra con nosotros la gran apertura de mondongo",
+      "location": "Nuestra ubicación principal",
+      "startDate": "2025-09-26T05:25:06.260Z",
+      "endDate": "2025-09-26T09:25:06.260Z",
+      "imageUrl": "",
+      "isActive": true,
+      "maxAttendees": 200,
+      "currentAttendees": 0,
+      "createdAt": "2025-09-19T05:25:06.260Z",
+      "updatedAt": "2025-09-19T05:25:06.260Z"
+    }
+  ],
+  "rewards": [
+    {
+      "id": "reward-1",
+      "title": "Producto Gratis",
+      "description": "Canjea 500 puntos por un producto de tu elección",
+      "pointsCost": 500,
+      "category": "productos",
+      "imageUrl": "",
+      "isActive": true,
+      "stock": 50,
+      "availableFrom": "2025-09-19T05:25:06.260Z",
+      "availableTo": "2026-09-19T05:25:06.260Z",
+      "createdAt": "2025-09-19T05:25:06.260Z",
+      "updatedAt": "2025-09-19T05:25:06.260Z"
+    }
+  ],
+  "recompensas": [
+    {
+      "nombre": "dfgdg",
+      "descripcion": "fdgdg",
+      "puntosRequeridos": 60,
+      "id": "recompensas_1758261256210",
+      "activo": true
+    }
+  ],
+  "favorites": [
+    {
+      "id": "fav-1",
+      "title": "Especialidad del Día",
+      "description": "El producto favorito de mondongo",
+      "imageUrl": "",
+      "category": "destacados",
+      "price": 12.99,
+      "isActive": true,
+      "order": 1,
+      "createdAt": "2025-09-19T05:25:06.260Z",
+      "updatedAt": "2025-09-19T05:25:06.260Z"
+    }
+  ],
+  "favoritoDelDia": [
+    {
+      "id": "favorito_viernes_1758261244577",
+      "dia": "viernes",
+      "nombre": "rttryr",
+      "descripcion": "rtyryry",
+      "imagenUrl": "/uploads/cmfqeb87m0000ey180zvazvh7_1758261244469-uyvvgg.jpg",
+      "horaPublicacion": "09:00",
+      "activo": true
+    }
+  ],
+  "tarjetas": [],
+  "nombreEmpresa": "Rosita",
+  "settings": {
+    "lastUpdated": "2025-09-19T05:54:17.738Z",
+    "version": "1.0.0",
+    "createdBy": "system",
+    "businessId": "cmfqeb87m0000ey180zvazvh7"
+  },
+  "lastModifiedBy": "cmfqeb9au0002ey18amw7y12s",
+  "lastModifiedAt": "2025-09-19T05:54:17.738Z",
+  "lastModifiedRole": "superadmin",
+  "businessId": "cmfqeb87m0000ey180zvazvh7"
+}

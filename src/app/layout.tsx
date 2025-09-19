@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
-import { ElectronProvider } from '../components/ElectronProvider';
 import NotificationContainer from '@/components/ui/NotificationContainer';
 import RedirectInterceptor from '../components/RedirectInterceptor';
 import './globals.css';
@@ -50,13 +49,11 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body className={inter.className}>
-        <ElectronProvider>
-          <RedirectInterceptor />
-          <div className="min-h-screen bg-gradient-to-br from-slate-950 via-gray-950 to-black">
-            {children}
-            <NotificationContainer />
-          </div>
-        </ElectronProvider>
+        <RedirectInterceptor />
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-gray-950 to-black">
+          {children}
+          <NotificationContainer />
+        </div>
       </body>
     </html>
   );
