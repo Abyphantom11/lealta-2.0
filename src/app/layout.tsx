@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     'Sistema de captación y control de clientes para bares, restaurantes y discotecas',
   keywords: ['lealta', 'restaurant', 'bar', 'customer', 'loyalty'],
   authors: [{ name: 'lealta Team' }],
-  manifest: '/manifest.json',
+  // manifest: '/manifest.json', // Removido - se configurará dinámicamente
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -47,6 +47,12 @@ export default function RootLayout({
         <meta name="theme-color" content="#0f172a" />
         <meta name="msapplication-navbutton-color" content="#0f172a" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="Lealta" />
+        <meta name="application-name" content="Lealta" />
+        <meta name="msapplication-starturl" content="/" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
       </head>
       <body className={inter.className}>
         <RedirectInterceptor />

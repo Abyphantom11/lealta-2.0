@@ -12,7 +12,8 @@ import {
 } from 'lucide-react';
 import { clientSession } from '@/utils/mobileStorage';
 import { logger } from '@/utils/logger';
-import { initializePWA, showPWANotificationIfAvailable } from '@/services/pwaService';
+import { initializePWA, showPWANotificationIfAvailable, forcePWACheck, verifyPWAConfigurationForBusiness } from '@/services/pwaService';
+import { useClientNotifications } from '@/services/clientNotificationService';
 import { calcularProgresoUnificado } from '@/lib/loyalty-progress';
 import { useVisitTracking } from '@/hooks/useVisitTracking';
 import BannersSection from '../sections/BannersSection';
@@ -76,13 +77,32 @@ const LoyaltyLevelDisplay = ({
   let mensaje = 'Cargando...';
 
   try {
+    // ✅ OBTENER CONFIGURACIÓN REAL DEL ADMIN
+    const puntosRequeridosConfig: { [key: string]: number } = {
+      'Bronce': 0,
+      'Plata': 400,
+      'Oro': 480,
+      'Diamante': 15000,
+      'Platino': 25000
+    };
+
+    // ✅ ACTUALIZAR con configuración del admin si existe
+    if (portalConfig?.tarjetas && Array.isArray(portalConfig.tarjetas)) {
+      portalConfig.tarjetas.forEach((tarjetaConfig: any) => {
+        if (tarjetaConfig.condiciones?.puntosMinimos !== undefined && tarjetaConfig.nivel) {
+          puntosRequeridosConfig[tarjetaConfig.nivel as keyof typeof puntosRequeridosConfig] = tarjetaConfig.condiciones.puntosMinimos;
+        }
+      });
+    }
+
     // 🔧 USAR LA FUNCIÓN UNIFICADA QUE RESPETA ASIGNACIÓN MANUAL
     const puntosProgreso = clienteData.tarjetaLealtad?.puntosProgreso || clienteData.puntos || 0;
     const resultado = calcularProgresoUnificado(
       puntosProgreso, // ✅ USAR PUNTOS DE PROGRESO
       clienteData.totalVisitas || 0,
       clienteData.tarjetaLealtad?.nivel || 'Bronce',
-      clienteData.tarjetaLealtad?.asignacionManual || false
+      clienteData.tarjetaLealtad?.asignacionManual || false,
+      puntosRequeridosConfig // ✅ PASAR CONFIGURACIÓN REAL
     );
 
     progress = resultado.progreso;
@@ -146,6 +166,9 @@ export const Dashboard = ({
   // Estado para el drawer de perfil
   const [isProfileDrawerOpen, setIsProfileDrawerOpen] = React.useState(false);
 
+  // Hook para notificaciones
+  const { notifyPWAInstall } = useClientNotifications();
+
   // 📊 Tracking de visitas automático
   useVisitTracking({
     clienteId: cedula,
@@ -154,17 +177,43 @@ export const Dashboard = ({
     path: '/cliente'
   });
 
-  // Inicializar PWA cuando se carga el Dashboard (solo registrar service worker, no mostrar prompt)
+  // Inicializar PWA cuando se carga el Dashboard
   useEffect(() => {
-    initializePWA();
+    const initPWA = async () => {
+      try {
+        await initializePWA();
+        console.log('✅ PWA service inicializado en Dashboard');
+        
+        // Verificar configuración específica del business después de 3 segundos
+        if (businessId) {
+          setTimeout(async () => {
+            const isConfigured = await verifyPWAConfigurationForBusiness(businessId);
+            if (isConfigured) {
+              console.log('✅ PWA configurado correctamente para business:', businessId);
+            } else {
+              console.warn('⚠️ PWA no está configurado correctamente para business:', businessId);
+            }
+          }, 3000);
+        }
+      } catch (error) {
+        console.error('❌ Error al inicializar PWA:', error);
+      }
+    };
 
-    // Mostrar notificación PWA después de 10 segundos para que el usuario se familiarice primero
-    const timer = setTimeout(() => {
-      showPWANotificationIfAvailable();
-    }, 10000); // 10 segundos
+    initPWA();
+
+    // Mostrar notificación PWA después de 5 segundos (más tiempo para que se configure)
+    const timer = setTimeout(async () => {
+      console.log('⏰ 5 segundos transcurridos, verificando disponibilidad PWA...');
+      try {
+        await showPWANotificationIfAvailable();
+      } catch (error) {
+        console.error('❌ Error al mostrar notificación PWA:', error);
+      }
+    }, 5000); // De vuelta a 5 segundos para dar tiempo al listener
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [businessId]);
 
   const handleLogout = async () => {
     try {
@@ -204,6 +253,35 @@ export const Dashboard = ({
           </div>
         </div>
       </div>
+      
+      {/* Debug PWA Button - Solo en desarrollo */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="fixed top-20 right-4 z-40">
+          <button
+            onClick={async () => {
+              console.log('🔧 Ejecutando diagnóstico PWA completo...');
+              try {
+                await forcePWACheck();
+                await notifyPWAInstall();
+                console.log('✅ Diagnóstico completado');
+              } catch (error) {
+                console.error('❌ Error en diagnóstico PWA:', error);
+              }
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs mb-2"
+          >
+            🔧 Test PWA
+          </button>
+          
+          {/* Debug Info simplificado */}
+          <div className="bg-black/80 text-white p-2 rounded text-xs max-w-xs">
+            <div>📱 Mobile: {/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? 'Sí' : 'No'}</div>
+            <div>🔒 HTTPS: {window.location.protocol === 'https:' ? 'Sí' : 'No'}</div>
+            <div>📲 Standalone: {window.matchMedia && window.matchMedia('(display-mode: standalone)').matches ? 'Sí' : 'No'}</div>
+          </div>
+        </div>
+      )}
+      
       {/* Contenido principal con padding superior */}
       <div className="pt-16">
         {/* Balance Card */}

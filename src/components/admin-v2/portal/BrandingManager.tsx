@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Building, Save, Eye } from 'lucide-react';
+import { Building, Save } from 'lucide-react';
 import { SharedBrandingConfig, isValidImageFile, convertToBase64 } from './shared-branding-types';
 
 /**
@@ -129,43 +129,6 @@ const BrandingManager: React.FC<BrandingManagerProps> = ({
     } catch (error) {
       console.error('Error actualizando portal:', error);
       showNotification('❌ Error al actualizar el portal', 'error');
-    }
-  };
-
-  /**
-   * Función para abrir portal con configuración guardada
-   * Extraído de: src/app/admin/page.tsx (líneas 3680-3700)
-   */
-  const handleOpenPortal = () => {
-    try {
-      // Guardar versión ligera antes de abrir
-      const lightConfig = {
-        ...brandingConfig,
-        carouselImages: brandingConfig.carouselImages?.length || 0,
-      };
-
-      try {
-        localStorage.setItem('portalBranding', JSON.stringify(lightConfig));
-      } catch (storageError) {
-        console.warn('localStorage lleno, usando datos básicos para portal:', storageError);
-        const basicConfig = {
-          businessName: brandingConfig.businessName,
-          primaryColor: brandingConfig.primaryColor,
-          carouselImages: [],
-        };
-        try {
-          localStorage.removeItem('portalBranding');
-          localStorage.setItem('portalBranding', JSON.stringify(basicConfig));
-        } catch (finalError) {
-          console.error('No se pudo preparar datos para el portal:', finalError);
-        }
-      }
-
-      // Abrir portal del cliente en nueva pestaña
-      window.open('/cliente', '_blank');
-    } catch (error) {
-      console.error('Error abriendo portal:', error);
-      showNotification('Error al abrir el portal', 'error');
     }
   };
 
@@ -329,21 +292,13 @@ const BrandingManager: React.FC<BrandingManagerProps> = ({
         </div>
 
         {/* Botones de Actualizar */}
-        <div className="pt-4 border-t border-dark-700 space-y-3">
+        <div className="pt-4 border-t border-dark-700">
           <button
             onClick={handleUpdatePortal}
             className="w-full bg-primary-600 hover:bg-primary-700 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
           >
             <Save className="w-4 h-4" />
             <span>Actualizar Portal Cliente</span>
-          </button>
-
-          <button
-            onClick={handleOpenPortal}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
-          >
-            <Eye className="w-4 h-4" />
-            <span>Ver Portal Cliente Real</span>
           </button>
         </div>
       </div>

@@ -33,34 +33,43 @@ function evaluarNivelCliente(cliente: any, tarjetasConfig: any[]) {
   const puntosProgreso = cliente.tarjetaLealtad?.puntosProgreso || cliente.puntosAcumulados || cliente.puntos || 0;
   const visitas = cliente.totalVisitas || 0;
 
-  console.log(`🤖 Evaluación automática usando:`);
-  console.log(`   • puntosProgreso: ${puntosProgreso} (desde tarjeta)`);
-  console.log(`   • puntos canjeables: ${cliente.puntos || 0} (se mantienen separados)`);
-  console.log(`   • visitas: ${visitas}`);
-
-  // Usar las tarjetas activas de la nueva estructura
-  const tarjetasActivas = tarjetasConfig.filter(t => t.activo);
-  if (!tarjetasActivas.length) {
-    console.warn('No hay tarjetas activas configuradas');
+  // Buscar la configuración de tarjetas activa
+  const tarjetaActiva = tarjetasConfig.find(t => t.activa !== false);
+  if (!tarjetaActiva?.niveles) {
+    console.warn('No hay configuración de tarjetas válida');
     return 'Bronce';
   }
 
-  // Ordenar tarjetas por requisitos de puntos (de mayor a menor) para evaluar desde el más alto
-  const tarjetasOrdenadas = tarjetasActivas
+  // Obtener niveles de la tarjeta y ordenarlos por puntos requeridos (de mayor a menor)
+  const nivelesOrdenados = tarjetaActiva.niveles
     .slice() // crear copia para no mutar el original
-    .sort((a, b) => (b.condiciones?.puntosMinimos || 0) - (a.condiciones?.puntosMinimos || 0));
+    .sort((a: any, b: any) => (b.puntosRequeridos || 0) - (a.puntosRequeridos || 0));
 
-  // Encontrar el nivel MÁS ALTO que cumple los requisitos (lógica OR)
-  for (const tarjeta of tarjetasOrdenadas) {
-    const cumplePuntos = puntosProgreso >= (tarjeta.condiciones?.puntosMinimos || 0);
-    const cumpleVisitas = visitas >= (tarjeta.condiciones?.visitasMinimas || 0);
+  // Encontrar el nivel MÁS ALTO que cumple los requisitos
+  for (const nivel of nivelesOrdenados) {
+    const puntosRequeridos = nivel.puntosRequeridos || 0;
+    const visitasRequeridas = nivel.visitasRequeridas || 0;
+    
+    const cumplePuntos = puntosProgreso >= puntosRequeridos;
+    const cumpleVisitas = visitas >= visitasRequeridas;
 
-    if (cumplePuntos && cumpleVisitas) {
-      return tarjeta.nivel;
+    // Usar lógica OR como está configurado
+    const condicional = tarjetaActiva.condicional || 'AND';
+    let califica = false;
+    
+    if (condicional === 'OR') {
+      califica = cumplePuntos || cumpleVisitas;
+    } else {
+      califica = cumplePuntos && cumpleVisitas;
+    }
+
+    if (califica) {
+      return nivel.nombre;
     }
   }
 
   // Si no cumple con ninguno, devolver el nivel más bajo (Bronce)
+  console.log(`ℹ️ Cliente no califica para niveles superiores, mantiene: Bronce`);
   return 'Bronce';
 }
 
@@ -175,16 +184,28 @@ export async function evaluateAndUpdateLevel(clienteId: string, businessId: stri
       // Actualizar tarjeta existente
       const tarjetaAnterior = cliente.tarjetaLealtad;
       
+      // 🎯 MANTENER puntosProgreso correctos - no sobrescribir con puntos canjeables
+      const nuevoPuntosProgreso = Math.max(
+        tarjetaAnterior.puntosProgreso || 0, // Mantener progreso actual
+        cliente.puntos || 0 // O usar puntos si es mayor
+      );
+      
       const tarjetaActualizada = await prisma.tarjetaLealtad.update({
         where: { id: cliente.tarjetaLealtad.id },
         data: { 
           nivel: nivelCorrespondiente,
-          puntosProgreso: cliente.puntos // Actualizar puntosProgreso con los puntos actuales
+          puntosProgreso: nuevoPuntosProgreso,
+          asignacionManual: false, // ✅ Marcar como ascenso automático
+          fechaAsignacion: new Date() // ✅ Actualizar fecha
         }
       });
       
+      console.log(`🎉 ASCENSO AUTOMÁTICO: ${nivelActual} → ${nivelCorrespondiente} (puntos: ${nuevoPuntosProgreso})`);
+      
       return {
         message: `Tarjeta actualizada de ${nivelActual} a ${nivelCorrespondiente}`,
+        nivelAnterior: nivelActual,
+        nivelNuevo: nivelCorrespondiente,
         tarjetaAnterior,
         tarjetaNueva: tarjetaActualizada,
         actualizado: true,

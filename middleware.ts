@@ -16,6 +16,47 @@ import { handleSessionSegregation } from './src/middleware/sessionSegregation';
 import { prisma } from './src/lib/prisma';
 import { publicClientAccess } from './src/middleware/publicClientAccess';
 
+// 🚀 CACHE SIMPLE PARA OPTIMIZACIÓN DE RENDIMIENTO
+const CACHE_TTL = 30000; // 30 segundos
+const BUSINESS_CACHE_TTL = 60000; // 60 segundos para business (más estable)
+
+interface CacheEntry {
+  data: any;
+  timestamp: number;
+}
+
+const validationCache = new Map<string, CacheEntry>();
+const businessCache = new Map<string, CacheEntry>();
+
+function getCachedValidation(key: string): any | null {
+  const entry = validationCache.get(key);
+  if (entry && (Date.now() - entry.timestamp) < CACHE_TTL) {
+    return entry.data;
+  }
+  validationCache.delete(key);
+  return null;
+}
+
+function setCachedValidation(key: string, data: any): void {
+  validationCache.set(key, { data, timestamp: Date.now() });
+}
+
+function getCachedBusiness(businessId: string): any | null {
+  const entry = businessCache.get(businessId);
+  if (entry && (Date.now() - entry.timestamp) < BUSINESS_CACHE_TTL) {
+    return entry.data;
+  }
+  businessCache.delete(businessId);
+  return null;
+}
+
+function setCachedBusiness(businessId: string, data: any): void {
+  businessCache.set(businessId, { data, timestamp: Date.now() });
+}
+
+// Exportar funciones de cache para uso en otros módulos
+export { getCachedBusiness, setCachedBusiness };
+
 // Rutas que requieren autenticación (después del chequeo de businessId)
 const PROTECTED_ROUTES = [
   '/dashboard',

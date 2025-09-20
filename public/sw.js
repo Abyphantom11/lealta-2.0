@@ -1,26 +1,34 @@
-// Service Worker optimizado para PWA en Chrome
-const CACHE_NAME = 'lealta-2-0-v1.0.3';
+// Service Worker optimizado para PWA móvil
+const CACHE_NAME = 'lealta-2-0-v1.0.4';
 const urlsToCache = [
   '/',
-  '/cliente',
-  '/manifest.json',
-  '/icons/icon-base.svg',
-  '/icons/icon-192.svg',
-  '/icons/icon-512.svg'
+  '/offline.html'
 ];
 
 // Instalación del service worker
 self.addEventListener('install', (event) => {
   console.log('🔧 Service Worker instalándose');
+  
+  // Forzar activación inmediata
+  self.skipWaiting();
+  
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('🚀 Cache abierto');
-        return cache.addAll(urlsToCache);
+        // No fallar si algún recurso no se puede cachear
+        return Promise.allSettled(
+          urlsToCache.map(url => 
+            cache.add(url).catch(err => 
+              console.warn(`No se pudo cachear ${url}:`, err)
+            )
+          )
+        );
+      })
+      .then(() => {
+        console.log('✅ Service Worker instalado correctamente');
       })
   );
-  // Forzar activación inmediata
-  self.skipWaiting();
 });
 
 // Activación del service worker
@@ -45,19 +53,21 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Interceptar requests con estrategia de "Network first, fallback to cache"
+// Interceptar requests con estrategia optimizada para móviles
 self.addEventListener('fetch', (event) => {
-  // Skip caching for API routes to evitar problemas
+  // Skip caching para API routes
   if (event.request.url.includes('/api/')) {
-    event.respondWith(fetch(event.request).catch(() => {
-      return new Response(JSON.stringify({ error: 'Sin conexión', offline: true }), {
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }));
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return new Response(JSON.stringify({ error: 'Sin conexión', offline: true }), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      })
+    );
     return;
   }
 
-  // Skip caching for contenido dinámico
+  // Solo GET requests
   if (event.request.method !== 'GET') {
     event.respondWith(fetch(event.request));
     return;
@@ -82,14 +92,31 @@ self.addEventListener('fetch', (event) => {
               if (cachedResponse) {
                 return cachedResponse;
               }
-              // Si no hay cache, muestra página offline
-              return caches.match('/offline.html')
-                .then(offlineResponse => {
-                  return offlineResponse || new Response(
-                    'Sin conexión. Por favor intenta más tarde.',
-                    { headers: { 'Content-Type': 'text/html' } }
-                  );
-                });
+              // Página offline básica
+              return new Response(`<!DOCTYPE html>
+<html>
+<head>
+  <title>Sin conexión - Lealta</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #1a1a1a; color: white; }
+    .container { max-width: 400px; margin: 0 auto; }
+    .icon { font-size: 64px; margin-bottom: 20px; }
+    h1 { color: #3b82f6; }
+    button { background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 5px; margin-top: 20px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">📱</div>
+    <h1>Sin conexión</h1>
+    <p>No hay conexión a internet. Revisa tu conexión e intenta nuevamente.</p>
+    <button onclick="window.location.reload()">Reintentar</button>
+  </div>
+</body>
+</html>`, {
+                headers: { 'Content-Type': 'text/html' }
+              });
             });
         })
     );
@@ -101,11 +128,9 @@ self.addEventListener('fetch', (event) => {
     caches.match(event.request)
       .then(cachedResponse => {
         if (cachedResponse) {
-          // Devuelve desde caché si existe
           return cachedResponse;
         }
         
-        // Si no existe en caché, busca en red
         return fetch(event.request)
           .then(response => {
             // Cache respuesta para uso futuro
@@ -117,33 +142,36 @@ self.addEventListener('fetch', (event) => {
           })
           .catch(error => {
             console.error('Error en fetch:', error);
-            // Manejo según tipo de asset
-            if (event.request.url.match(/\.(jpg|jpeg|png|gif|svg)$/)) {
-              return new Response('', { 
-                headers: { 'Content-Type': 'image/svg+xml' }
-              });
-            }
             return new Response('Error de conexión');
           });
       })
   );
 });
 
-// Evento de sincronización en background
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-consumos') {
-    console.log('🔄 Sincronizando consumos pendientes');
-    event.waitUntil(syncPendingConsumptions());
+// Mensaje desde la aplicación principal
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+  
+  // Manejar actualización de manifest dinámico
+  if (event.data && event.data.type === 'MANIFEST_UPDATED') {
+    const businessSlug = event.data.businessSlug;
+    console.log('🔧 SW: Manifest actualizado para business:', businessSlug);
+    
+    // Notificar a todos los clientes sobre el cambio de manifest
+    self.clients.matchAll().then(clients => {
+      clients.forEach(client => {
+        client.postMessage({
+          type: 'MANIFEST_READY',
+          businessSlug: businessSlug,
+          manifestUrl: businessSlug 
+            ? `/api/manifest?business=${encodeURIComponent(businessSlug)}`
+            : '/api/manifest'
+        });
+      });
+    });
   }
 });
 
-// Función para sincronizar consumos pendientes
-async function syncPendingConsumptions() {
-  try {
-    // Aquí iría la lógica para recuperar consumos pendientes
-    // del IndexedDB y enviarlos al servidor
-    console.log('✅ Sincronización completada');
-  } catch (error) {
-    console.error('❌ Error al sincronizar:', error);
-  }
-}
+console.log('🚀 Service Worker cargado - versión', CACHE_NAME);

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback } from 'react';
+import React from 'react';
 import { Smartphone, Eye, Gift } from 'lucide-react';
 
 // Importar componentes ya creados
@@ -177,32 +177,6 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
   showNotification,
 }) => {
   
-  // 🆕 Función para sincronizar banners con carouselImages del branding
-  const syncBannersToCarousel = useCallback(async (banners: Banner[]) => {
-    try {
-      // Extraer URLs de imágenes de banners activos
-      const carouselImages = banners
-        .filter(banner => banner.activo && banner.imagenUrl)
-        .sort((a, b) => (a.id || '').localeCompare(b.id || '')) // Orden consistente
-        .map(banner => banner.imagenUrl!)
-        .filter(url => url.trim() !== '');
-
-      // Actualizar carouselImages en el branding
-      await handleBrandingChange('carouselImages', carouselImages);
-      
-    } catch (error) {
-      console.error('Error sincronizando banners con carrusel:', error);
-      showNotification('Error sincronizando carrusel', 'error');
-    }
-  }, [handleBrandingChange, showNotification]);
-
-  // 🆕 Sincronización automática cuando cambien los banners (DESACTIVADA TEMPORALMENTE)
-  // useEffect(() => {
-  //   if (config.banners && config.banners.length > 0) {
-  //     // console.log('🔄 Detectado cambio en banners, sincronizando con carrusel...');
-  //     syncBannersToCarousel(config.banners);
-  //   }
-  // }, [config.banners, syncBannersToCarousel]); // Se ejecuta cuando cambien los banners
   // Función para renderizar contenido de vista previa
   const renderPreviewContent = () => {
     if (previewMode === 'login') {
@@ -372,11 +346,6 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
         [type]: [...(prev[type] || []), newItem],
       };
 
-      // 🆕 Sincronizar banners con carrusel automáticamente
-      if (type === 'banners') {
-        syncBannersToCarousel(newConfig.banners || []);
-      }
-
       return newConfig;
     });
 
@@ -418,11 +387,6 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
           item.id === itemId ? { ...item, ...updates } : item
         ),
       };
-
-      // 🆕 Sincronizar banners con carrusel automáticamente  
-      if (type === 'banners') {
-        syncBannersToCarousel(newConfig.banners || []);
-      }
 
       return newConfig;
     });
@@ -472,11 +436,6 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
         ),
       };
 
-      // 🆕 Sincronizar banners con carrusel automáticamente
-      if (type === 'banners') {
-        syncBannersToCarousel(newConfig.banners || []);
-      }
-
       return newConfig;
     });
 
@@ -513,11 +472,6 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
             item.id === itemId ? { ...item, activo: !item.activo } : item
         ),
       };
-
-      // 🆕 Sincronizar banners con carrusel automáticamente
-      if (type === 'banners') {
-        syncBannersToCarousel(newConfig.banners || []);
-      }
 
       return newConfig;
     });
@@ -977,11 +931,36 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
       {/* Panel de Edición */}
       <div className="premium-card">
         {activeTab === 'preview' && previewMode === 'login' && (
-          <BrandingManager
-            brandingConfig={brandingConfig}
-            handleBrandingChange={handleBrandingChange}
-            showNotification={showNotification}
-          />
+          <div className="text-center py-8">
+            <Eye className="w-12 h-12 mx-auto mb-4 text-primary-500" />
+            <h4 className="text-lg font-semibold text-white mb-2">
+              Vista Previa del Branding
+            </h4>
+            <p className="text-dark-400 mb-4">
+              Esta vista muestra cómo se verá el branding configurado en la pantalla de acceso.
+            </p>
+            <div className="bg-dark-800 rounded-lg p-4 text-left">
+              <h5 className="text-white font-medium mb-2">
+                Configuración Actual:
+              </h5>
+              <ul className="space-y-1 text-sm text-dark-300">
+                <li>
+                  • Nombre del Negocio: {brandingConfig.businessName || 'No configurado'}
+                </li>
+                <li>
+                  • Color Primario: {brandingConfig.primaryColor || 'No configurado'}
+                </li>
+                <li>
+                  • Imágenes del Carrusel: {(brandingConfig.carouselImages?.length ?? 0)} imagen(es)
+                </li>
+              </ul>
+              <div className="mt-3 pt-3 border-t border-dark-600">
+                <p className="text-xs text-dark-400">
+                  💡 Para editar el branding, usa la pestaña "Branding" en el menú principal.
+                </p>
+              </div>
+            </div>
+          </div>
         )}
 
         {activeTab === 'preview' && previewMode === 'tarjetas' && (
@@ -991,6 +970,7 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
               showNotification={(message: string, type: any) =>
                 showNotification(message, type)
               }
+              tarjetasConfig={config.tarjetas || []}
             />
           </div>
         )}

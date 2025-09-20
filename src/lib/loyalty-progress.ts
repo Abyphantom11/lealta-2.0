@@ -11,11 +11,14 @@ export function calcularProgresoUnificado(
   puntosProgreso: number,
   visitasActuales: number, 
   nivelActual: string,
-  esAsignacionManual: boolean
+  esAsignacionManual: boolean,
+  puntosRequeridosConfig?: { [key: string]: number }
 ): ProgressResult {
   
   const jerarquia = ['Bronce', 'Plata', 'Oro', 'Diamante', 'Platino'];
-  const puntosRequeridos: { [key: string]: number } = {
+  
+  // ✅ USAR CONFIGURACIÓN PASADA O VALORES POR DEFECTO
+  const puntosRequeridos: { [key: string]: number } = puntosRequeridosConfig || {
     'Bronce': 0,
     'Plata': 400,
     'Oro': 480,

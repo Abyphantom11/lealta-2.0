@@ -14,23 +14,31 @@ const extendedPrisma = prisma as any;
 async function loadPortalConfig(): Promise<Record<string, number>> {
   const puntosRequeridosBase: Record<string, number> = {
     'Bronce': 0,
-    'Plata': 500,
-    'Oro': 1200,
-    'Diamante': 3000,
-    'Platino': 5000
+    'Plata': 400,
+    'Oro': 480,
+    'Diamante': 15000,
+    'Platino': 25000
   };
 
   try {
+    // ✅ LEER DESDE LA MISMA FUENTE QUE EL ADMIN
     const configPath = path.join(process.cwd(), 'portal-config.json');
-    const configData = fs.readFileSync(configPath, 'utf8');
-    const portalConfig = JSON.parse(configData);
+    
+    if (fs.existsSync(configPath)) {
+      const configData = fs.readFileSync(configPath, 'utf8');
+      const portalConfig = JSON.parse(configData);
 
-    if (portalConfig.tarjetas) {
-      portalConfig.tarjetas.forEach((tarjeta: any) => {
-        if (tarjeta.condiciones?.puntosMinimos !== undefined) {
-          puntosRequeridosBase[tarjeta.nivel as keyof typeof puntosRequeridosBase] = tarjeta.condiciones.puntosMinimos;
-        }
-      });
+      // ✅ USAR CONFIGURACIÓN DE TARJETAS DEL ADMIN
+      if (portalConfig.tarjetas && Array.isArray(portalConfig.tarjetas)) {
+        portalConfig.tarjetas.forEach((tarjeta: any) => {
+          if (tarjeta.condiciones?.puntosMinimos !== undefined && tarjeta.nivel) {
+            puntosRequeridosBase[tarjeta.nivel as keyof typeof puntosRequeridosBase] = tarjeta.condiciones.puntosMinimos;
+          }
+        });
+        console.log('✅ Configuración de tarjetas cargada desde admin:', puntosRequeridosBase);
+      }
+    } else {
+      console.warn('⚠️ portal-config.json no encontrado, usando valores por defecto');
     }
   } catch (error) {
     console.warn('⚠️ Error leyendo configuración, usando valores por defecto:', error);

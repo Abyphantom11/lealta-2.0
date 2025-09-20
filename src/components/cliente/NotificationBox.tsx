@@ -32,6 +32,29 @@ const NotificationBox: React.FC<NotificationBoxProps> = ({
   console.log('🔔 NotificationBox - notifications count:', notifications.length);
   console.log('🔔 NotificationBox - notifications:', notifications);
 
+  // Filtrar notificaciones PWA para el render principal
+  const pwaNotifications = notifications.filter(n => n.tipo === 'pwa');
+  const otherNotifications = notifications.filter(n => n.tipo !== 'pwa');
+
+  // Debug PWA notifications - información detallada
+  console.log('🔧 Debug PWA notifications en NotificationBox:');
+  console.log('📊 Total notifications:', notifications.length);
+  console.log('📱 PWA notifications:', pwaNotifications.length);
+  console.log('📱 PWA notification details:', pwaNotifications);
+  console.log('🏠 Other notifications:', otherNotifications.length);
+  
+  // Debug específico para PWA
+  pwaNotifications.forEach((notif, index) => {
+    console.log(`📱 PWA ${index + 1}:`, {
+      id: notif.id,
+      tipo: notif.tipo,
+      titulo: notif.titulo,
+      mensaje: notif.mensaje,
+      leida: notif.leida,
+      fecha: notif.fecha
+    });
+  });
+
   const getIconoTipo = (tipo: string) => {
     switch (tipo) {
       case 'promocion': return '🎉';
@@ -204,13 +227,26 @@ const NotificationBox: React.FC<NotificationBoxProps> = ({
                             
                             {/* Botón especial para notificaciones PWA */}
                             {notificacion.tipo === 'pwa' && !notificacion.leida && (
-                              <button
-                                type="button"
-                                className="mt-2 w-full bg-transparent border-none p-0 m-0"
-                                onClick={(e) => e.stopPropagation()}
-                              >
+                              <div className="mt-3 space-y-2">
                                 <PWAInstallButton />
-                              </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    marcarComoLeida(notificacion.id);
+                                  }}
+                                  className="w-full text-xs text-gray-400 hover:text-gray-300 transition-colors py-1"
+                                >
+                                  Recordar más tarde
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Debug: Mostrar siempre un botón PWA para testing */}
+                            {process.env.NODE_ENV === 'development' && notificacion.tipo === 'pwa' && (
+                              <div className="mt-3 p-2 bg-blue-900/50 rounded">
+                                <small className="text-blue-300 block mb-2">Debug PWA:</small>
+                                <PWAInstallButton />
+                              </div>
                             )}
                           </div>
 
@@ -229,6 +265,32 @@ const NotificationBox: React.FC<NotificationBoxProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* Debug PWA Rendering Section - Solo en desarrollo */}
+              {process.env.NODE_ENV === 'development' && (
+                <div className="p-3 border-t border-yellow-600/50 bg-yellow-900/20">
+                  <h4 className="text-yellow-300 text-xs font-semibold mb-2">🔧 Debug PWA Status:</h4>
+                  <div className="text-xs space-y-1">
+                    <div className="text-yellow-200">
+                      📊 PWA Notifications: {pwaNotifications.length}
+                    </div>
+                    {pwaNotifications.map((notif, idx) => (
+                      <div key={notif.id} className="text-yellow-100 bg-yellow-900/30 p-2 rounded">
+                        <div>📱 PWA {idx + 1}: {notif.titulo}</div>
+                        <div>📄 Mensaje: {notif.mensaje}</div>
+                        <div>👁️ Leída: {notif.leida ? 'Sí' : 'No'}</div>
+                        <div>🕒 Fecha: {notif.fecha.toLocaleTimeString()}</div>
+                        <div className="mt-2">
+                          <PWAInstallButton />
+                        </div>
+                      </div>
+                    ))}
+                    {pwaNotifications.length === 0 && (
+                      <div className="text-yellow-300">❌ No hay notificaciones PWA</div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Footer */}
               <div className="p-3 border-t border-gray-700/50">

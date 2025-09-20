@@ -47,6 +47,7 @@ model Business {
   portalRecompensas    PortalRecompensa[]     @relation("BusinessPortalRecompensas")
   portalFavoritos      PortalFavoritoDelDia[] @relation("BusinessPortalFavoritos")
   portalTarjetasConfig PortalTarjetasConfig?  @relation("BusinessPortalTarjetasConfig")
+  brandingConfig       BrandingConfig?        @relation("BusinessBranding")
 }
 
 model User {
@@ -563,6 +564,25 @@ model PortalTarjetasConfig {
 
   // Relación con Business
   business Business @relation("BusinessPortalTarjetasConfig", fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+}
+
+// Configuración de branding del negocio
+model BrandingConfig {
+  id               String   @id @default(cuid())
+  businessId       String   @unique // FK a Business (uno por business)
+  businessName     String? // Nombre del negocio para mostrar
+  primaryColor     String? // Color primario del brand
+  secondaryColor   String? // Color secundario del brand
+  accentColor      String? // Color de acento
+  logoUrl          String? // URL del logo
+  carouselImages   String[] // URLs de imágenes del carrusel
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relación con Business
+  business Business @relation("BusinessBranding", fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([businessId])
 }

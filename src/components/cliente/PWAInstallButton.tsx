@@ -12,20 +12,45 @@ export default function PWAInstallButton() {
   const { addNotification } = useClientNotifications();
 
   useEffect(() => {
+    // console.log('🔧 PWAInstallButton useEffect iniciado');
+    
     // Verificar estado inicial
-    setIsInstalled(isPWAInstalled());
-    setCanInstall(canInstallPWA());
+    const installed = isPWAInstalled();
+    const installable = canInstallPWA();
+    
+    // console.log('🔧 PWA Estado inicial:', { installed, installable });
+    
+    setIsInstalled(installed);
+    setCanInstall(installable);
 
-    // Escuchar cambios en la disponibilidad de instalación
-    const checkInstallability = () => {
-      setCanInstall(canInstallPWA());
-      setIsInstalled(isPWAInstalled());
+    // Escuchar evento pwa-ready
+    const handlePWAReady = () => {
+      console.log('📱 PWA Ready event recibido');
+      const newCanInstall = canInstallPWA();
+      const newIsInstalled = isPWAInstalled();
+      setCanInstall(newCanInstall);
+      setIsInstalled(newIsInstalled);
     };
 
-    // Verificar cada 2 segundos si se puede instalar
-    const interval = setInterval(checkInstallability, 2000);
+    window.addEventListener('pwa-ready', handlePWAReady);
 
-    return () => clearInterval(interval);
+    // Escuchar cambios en la disponibilidad de instalación cada 3 segundos
+    const checkInstallability = () => {
+      const newCanInstall = canInstallPWA();
+      const newIsInstalled = isPWAInstalled();
+      
+      // console.log('🔧 PWA Check periódico:', { newCanInstall, newIsInstalled });
+      
+      setCanInstall(newCanInstall);
+      setIsInstalled(newIsInstalled);
+    };
+
+    const interval = setInterval(checkInstallability, 3000);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('pwa-ready', handlePWAReady);
+    };
   }, []);
 
   const handleInstall = async () => {
@@ -48,8 +73,8 @@ export default function PWAInstallButton() {
       } else {
         addNotification({
           tipo: 'general',
-          titulo: 'Instalación disponible',
-          mensaje: 'Para instalar, usa el menú de tu navegador > "Agregar a pantalla de inicio"',
+          titulo: 'Instalación no disponible',
+          mensaje: 'El navegador no permite instalación automática en este momento',
           leida: false
         });
       }
@@ -58,7 +83,7 @@ export default function PWAInstallButton() {
       addNotification({
         tipo: 'general',
         titulo: 'Error al instalar',
-        mensaje: 'Intenta instalar desde el menú del navegador',
+        mensaje: 'Hubo un problema al intentar instalar la aplicación',
         leida: false
       });
     } finally {
@@ -66,12 +91,62 @@ export default function PWAInstallButton() {
     }
   };
 
-  // No mostrar si ya está instalada
+  console.log('🔧 PWAInstallButton render:', { canInstall, isInstalled, isInstalling });
+
+  // No mostrar debug logs en producción
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🔧 User Agent:', navigator.userAgent);
+    console.log('🔧 Is Mobile:', /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+    console.log('🔧 Display Mode:', window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  }
+
+  // Mostrar estado de debug en desarrollo
+  if (process.env.NODE_ENV === 'development') {
+    if (isInstalled) {
+      return (
+        <div className="w-full px-4 py-3 bg-green-600 text-white rounded-lg text-sm font-medium text-center">
+          ✅ PWA ya instalada
+        </div>
+      );
+    }
+
+    if (!canInstall) {
+      return (
+        <div className="w-full px-4 py-3 bg-gray-600 text-white rounded-lg text-sm font-medium text-center">
+          ❌ PWA no disponible
+          <div className="text-xs mt-1 opacity-75">
+            (Requiere prompt nativo del navegador)
+          </div>
+        </div>
+      );
+    }
+
+    // Mostrar cuando SÍ está disponible el prompt nativo
+    return (
+      <div className="w-full space-y-2">
+        <div className="px-4 py-2 bg-green-600 text-white rounded-lg text-xs text-center">
+          ✅ PROMPT NATIVO DISPONIBLE
+        </div>
+        <button
+          onClick={handleInstall}
+          disabled={isInstalling}
+          className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-blue-400 disabled:to-purple-400 text-white rounded-lg transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none"
+        >
+          <Download size={18} className={isInstalling ? 'animate-bounce' : ''} />
+          <span>
+            {isInstalling ? '📱 Instalando...' : '� Instalar App'}
+          </span>
+        </button>
+      </div>
+    );
+  }
+
+  // No mostrar si ya está instalada (en producción)
   if (isInstalled) {
     return null;
   }
 
-  // No mostrar si no se puede instalar
+  // No mostrar si no se puede instalar (en producción)
   if (!canInstall) {
     return null;
   }
@@ -80,11 +155,18 @@ export default function PWAInstallButton() {
     <button
       onClick={handleInstall}
       disabled={isInstalling}
-      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg transition-colors duration-200 text-sm font-medium"
+      className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-blue-400 disabled:to-purple-400 text-white rounded-lg transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none"
       aria-label="Instalar aplicación en pantalla de inicio"
     >
-      <Download size={16} />
-      {isInstalling ? 'Instalando...' : 'Agregar al inicio'}
+      <Download size={18} className={isInstalling ? 'animate-bounce' : ''} />
+      <span>
+        {isInstalling 
+          ? '📱 Instalando...' 
+          : /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+            ? '📲 Instalar App'
+            : '🚀 Agregar al Inicio'
+        }
+      </span>
     </button>
   );
 }

@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`🤖 Cliente Evaluación: Evaluando nivel para cliente ${cedula} en business ${businessId}`);
+    // console.log(`🤖 Cliente Evaluación: Evaluando nivel para cliente ${cedula} en business ${businessId}`);
 
     // Buscar el cliente
     const cliente = await prisma.cliente.findFirst({
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     // Evaluar y actualizar el nivel del cliente
     const evaluationResult = await evaluateAndUpdateLevel(cliente.id, businessId);
 
-    console.log(`✅ Cliente Evaluación: Resultado para ${cedula}:`, evaluationResult);
+    // console.log(`✅ Cliente Evaluación: Resultado para ${cedula}:`, evaluationResult);
 
     return NextResponse.json(evaluationResult);
 

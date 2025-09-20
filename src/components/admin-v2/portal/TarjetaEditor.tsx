@@ -247,6 +247,24 @@ export default function TarjetaEditor({
     if (!response.ok) {
       throw new Error('Error al guardar en el servidor');
     }
+
+    // ✅ NOTIFICAR A CLIENTES CONECTADOS SOBRE EL CAMBIO DE CONFIGURACIÓN
+    try {
+      await fetch('/api/admin/notify-config-change', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'tarjetas_config_updated',
+          data: { tarjetas: newTarjetas }
+        }),
+      });
+      console.log('✅ Notificación de cambio de configuración enviada');
+    } catch (error) {
+      console.warn('⚠️ Error enviando notificación de cambio:', error);
+      // No fallar si la notificación falla
+    }
   };
 
   const handleSaveCard = async () => {

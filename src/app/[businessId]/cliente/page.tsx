@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { BrandingProvider } from '../../cliente/components/branding/BrandingProvider';
 import AuthHandler from '../../cliente/components/AuthHandler';
+import DynamicManifest from '@/components/DynamicManifest';
 
 /**
  * Página dinámica del portal cliente
@@ -51,10 +52,10 @@ export default function BusinessClientePage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-100">
+      <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-800 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando portal cliente {businessSlug}...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
+          <p className="text-white">Cargando portal cliente {businessSlug}...</p>
         </div>
       </div>
     );
@@ -65,6 +66,7 @@ export default function BusinessClientePage() {
     console.log('✅ Rendering client with business data:', businessData);
     return (
       <BrandingProvider businessId={businessData.id}>
+        <DynamicManifest businessSlug={businessSlug} />
         <AuthHandler businessId={businessData.id} />
       </BrandingProvider>
     );

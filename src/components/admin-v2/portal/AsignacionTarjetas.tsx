@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Users, Search, X } from 'lucide-react';
 import ClientListItem from './ClientListItem';
 import CardAssignmentForm from './CardAssignmentForm';
@@ -8,10 +8,12 @@ import { Cliente, NivelTarjeta } from './types';
 
 interface AsignacionTarjetasProps {
   showNotification: (message: string, type: NivelTarjeta) => void;
+  tarjetasConfig?: any[]; // ✅ AGREGAR CONFIGURACIÓN DE TARJETAS
 }
 
 export default function AsignacionTarjetas({
   showNotification,
+  tarjetasConfig = [], // ✅ RECIBIR CONFIGURACIÓN
 }: Readonly<AsignacionTarjetasProps>) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState<any>(null);
@@ -38,39 +40,59 @@ export default function AsignacionTarjetas({
     }
   }, [searchTerm, showNotification]);
 
-  const nivelesConfig = {
-    Bronce: {
-      condiciones: { puntosMinimos: 0, gastosMinimos: 0, visitasMinimas: 0 },
-    },
-    Plata: {
-      condiciones: {
-        puntosMinimos: 100,
-        gastosMinimos: 500,
-        visitasMinimas: 5,
+  // ✅ USAR CONFIGURACIÓN DINÁMICA EN LUGAR DE HARDCODED
+  const nivelesConfig = useMemo(() => {
+    const defaultConfig = {
+      Bronce: {
+        condiciones: { puntosMinimos: 0, gastosMinimos: 0, visitasMinimas: 0 },
       },
-    },
-    Oro: {
-      condiciones: {
-        puntosMinimos: 500,
-        gastosMinimos: 1500,
-        visitasMinimas: 10,
+      Plata: {
+        condiciones: {
+          puntosMinimos: 100,
+          gastosMinimos: 500,
+          visitasMinimas: 5,
+        },
       },
-    },
-    Diamante: {
-      condiciones: {
-        puntosMinimos: 1500,
-        gastosMinimos: 3000,
-        visitasMinimas: 20,
+      Oro: {
+        condiciones: {
+          puntosMinimos: 500,
+          gastosMinimos: 1500,
+          visitasMinimas: 10,
+        },
       },
-    },
-    Platino: {
-      condiciones: {
-        puntosMinimos: 3000,
-        gastosMinimos: 5000,
-        visitasMinimas: 30,
+      Diamante: {
+        condiciones: {
+          puntosMinimos: 1500,
+          gastosMinimos: 3000,
+          visitasMinimas: 20,
+        },
       },
-    },
-  };
+      Platino: {
+        condiciones: {
+          puntosMinimos: 3000,
+          gastosMinimos: 5000,
+          visitasMinimas: 30,
+        },
+      },
+    };
+
+    // ✅ ACTUALIZAR con configuración real del admin
+    if (tarjetasConfig && Array.isArray(tarjetasConfig)) {
+      tarjetasConfig.forEach((tarjeta: any) => {
+        if (tarjeta.condiciones && tarjeta.nivel) {
+          const nivel = tarjeta.nivel as keyof typeof defaultConfig;
+          if (defaultConfig[nivel]) {
+            defaultConfig[nivel].condiciones = {
+              ...defaultConfig[nivel].condiciones,
+              ...tarjeta.condiciones
+            };
+          }
+        }
+      });
+    }
+
+    return defaultConfig;
+  }, [tarjetasConfig]);
 
   // Buscar clientes
   const searchClients = useCallback(async () => {

@@ -10,6 +10,58 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateUserSession, AdminSession, ClientSession } from './security';
 import { prisma } from '../lib/prisma';
 
+// Tipo para los datos de business en cache
+interface BusinessData {
+  id: string;
+  name: string;
+  isActive: boolean;
+  [key: string]: unknown;
+}
+
+// Importar funciones de cache del middleware
+const getCachedBusiness: ((businessId: string) => BusinessData | null) | null = null;
+const setCachedBusiness: ((businessId: string, data: BusinessData) => void) | null = null;
+
+/**
+ * Función optimizada para validar business con cache
+ */
+async function validateBusinessExists(businessId: string): Promise<BusinessData | null> {
+  // Intentar obtener del cache primero
+  if (getCachedBusiness) {
+    const cached = getCachedBusiness(businessId);
+    if (cached) {
+      console.log(`🚀 CACHE HIT: Business ${businessId} found in cache`);
+      return cached;
+    }
+  }
+
+  // Si no está en cache, consultar base de datos
+  try {
+    const business = await prisma.business.findUnique({
+      where: {
+        id: businessId,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        isActive: true,
+      },
+    });
+
+    // Guardar en cache si está disponible
+    if (setCachedBusiness && business) {
+      setCachedBusiness(businessId, business);
+      console.log(`💾 CACHE SET: Business ${businessId} cached`);
+    }
+
+    return business;
+  } catch (error) {
+    console.error('Error validating business:', error);
+    return null;
+  }
+}
+
 export interface SessionValidationResult {
   valid: boolean;
   session?: AdminSession | ClientSession;
@@ -175,17 +227,7 @@ async function validateClientSession(
   // Aquí solo verificamos que el business existe y está activo
   
   try {
-    const business = await prisma.business.findUnique({
-      where: {
-        id: businessId,
-        isActive: true,
-      },
-      select: {
-        id: true,
-        name: true,
-        isActive: true,
-      },
-    });
+    const business = await validateBusinessExists(businessId);
     
     if (!business) {
       console.log(`❌ CLIENT SESSION: Business not found or inactive: ${businessId}`);
@@ -263,9 +305,8 @@ export async function handleSessionSegregation(
   response.headers.set('x-business-id', businessId);
   
   if (result.session?.sessionType === 'admin') {
-    const adminSession = result.session as AdminSession;
-    response.headers.set('x-user-role', adminSession.role);
-    response.headers.set('x-user-id', adminSession.userId);
+    response.headers.set('x-user-role', result.session.role);
+    response.headers.set('x-user-id', result.session.userId);
   }
   
   return response;

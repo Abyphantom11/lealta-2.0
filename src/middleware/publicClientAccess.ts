@@ -1,6 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../lib/prisma';
 
+// Importar funciones de cache del middleware
+let getCachedBusiness: ((businessId: string) => any | null) | null = null;
+let setCachedBusiness: ((businessId: string, data: any) => void) | null = null;
+
+// Función async para inicializar funciones de cache
+async function initializeCacheFunctions() {
+  if (getCachedBusiness && setCachedBusiness) return; // Ya inicializadas
+  
+  try {
+    const middlewareModule = await import('../../middleware');
+    getCachedBusiness = middlewareModule.getCachedBusiness;
+    setCachedBusiness = middlewareModule.setCachedBusiness;
+  } catch (error) {
+    console.log('Cache functions not available:', error instanceof Error ? error.message : 'Unknown error');
+  }
+}
+
+/**
+ * Función optimizada para buscar business por múltiples criterios con cache
+ */
+async function findBusinessByCriteria(businessId: string): Promise<any | null> {
+  // Inicializar funciones de cache si es necesario
+  await initializeCacheFunctions();
+  
+  // Crear una clave de cache específica para el criterio
+  const cacheKey = `criteria:${businessId}`;
+  
+  // Intentar obtener del cache primero
+  if (getCachedBusiness) {
+    const cached = getCachedBusiness(cacheKey);
+    if (cached) {
+      console.log(`🚀 CACHE HIT: Business by criteria ${businessId} found in cache`);
+      return cached;
+    }
+  }
+
+  // Si no está en cache, consultar base de datos
+  try {
+    const business = await prisma.business.findFirst({
+      where: {
+        OR: [
+          { id: businessId },
+          { slug: businessId },
+          { subdomain: businessId }
+        ],
+        isActive: true
+      }
+    });
+
+    // Guardar en cache si está disponible
+    if (setCachedBusiness && business) {
+      setCachedBusiness(cacheKey, business);
+      // También cache por ID para reutilización
+      setCachedBusiness(business.id, business);
+      console.log(`💾 CACHE SET: Business criteria ${businessId} cached`);
+    }
+
+    return business;
+  } catch (error) {
+    console.error('Error finding business by criteria:', error);
+    return null;
+  }
+}
+
 /**
  * Middleware para permitir acceso público a /[businessId]/cliente
  * Valida que el businessId existe y está activo
@@ -12,7 +76,8 @@ export async function publicClientAccess(request: NextRequest) {
   console.log(`🔍 PUBLIC CLIENT ACCESS: Procesando ${pathname}`);
   
   // Extraer businessId de la ruta: /[businessId]/cliente
-  const match = pathname.match(/^\/([^/]+)\/cliente/);
+  const regex = /^\/([^/]+)\/cliente/;
+  const match = regex.exec(pathname);
   const businessId = match ? match[1] : null;
 
   console.log(`📊 BusinessId extraído: ${businessId}`);
@@ -27,17 +92,8 @@ export async function publicClientAccess(request: NextRequest) {
 
   console.log(`🔍 Buscando business en DB: ${businessId}`);
   
-  // Validar que el business existe y está activo
-  const business = await prisma.business.findFirst({
-    where: {
-      OR: [
-        { id: businessId },
-        { slug: businessId },
-        { subdomain: businessId }
-      ],
-      isActive: true
-    }
-  });
+  // Validar que el business existe y está activo usando cache
+  const business = await findBusinessByCriteria(businessId);
 
   console.log(`📋 Resultado búsqueda business:`, business ? {
     id: business.id,

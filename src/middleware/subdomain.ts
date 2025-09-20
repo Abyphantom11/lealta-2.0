@@ -2,6 +2,75 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '../lib/prisma';
 
+// Importar funciones de cache del middleware
+let getCachedBusiness: ((businessId: string) => any | null) | null = null;
+let setCachedBusiness: ((businessId: string, data: any) => void) | null = null;
+
+// Función de inicialización asíncrona para las funciones de cache
+async function initializeCacheFunctions() {
+  if (getCachedBusiness && setCachedBusiness) return; // Ya inicializadas
+  
+  try {
+    const middlewareModule = await import('../../middleware');
+    getCachedBusiness = middlewareModule.getCachedBusiness;
+    setCachedBusiness = middlewareModule.setCachedBusiness;
+  } catch (error) {
+    console.log('Cache functions not available:', error.message);
+  }
+}
+
+/**
+ * Función optimizada para buscar business por identifier con cache
+ */
+async function findBusinessByIdentifier(identifier: string): Promise<any | null> {
+  // Inicializar funciones de cache si no están ya inicializadas
+  await initializeCacheFunctions();
+  // Crear una clave de cache específica para el identifier
+  const cacheKey = `identifier:${identifier}`;
+  
+  // Intentar obtener del cache primero
+  if (getCachedBusiness) {
+    const cached = getCachedBusiness(cacheKey);
+    if (cached) {
+      console.log(`🚀 CACHE HIT: Business by identifier ${identifier} found in cache`);
+      return cached;
+    }
+  }
+
+  // Si no está en cache, consultar base de datos
+  try {
+    const business = await prisma.business.findFirst({
+      where: { 
+        OR: [
+          { subdomain: identifier },
+          { slug: identifier }
+        ],
+        isActive: true 
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        subdomain: true,
+        isActive: true
+      }
+    });
+
+    // Guardar en cache si está disponible
+    if (setCachedBusiness && business) {
+      setCachedBusiness(cacheKey, business);
+      // También cache por ID para reutilización
+      setCachedBusiness(business.id, business);
+      console.log(`💾 CACHE SET: Business ${identifier} cached`);
+    }
+
+    return business;
+  } catch (error) {
+    console.error('Error finding business by identifier:', error);
+    return null;
+  }
+}
+
 /**
  * Extrae información del business desde la URL
  * Soporta patrones: /cafedani/admin, /cafedani/cliente, etc.
@@ -63,23 +132,8 @@ export function extractBusinessFromUrl(pathname: string): {
  */
 export async function validateBusinessSubdomain(identifier: string): Promise<BusinessContext['business'] | null> {
   try {
-    // Buscar por subdomain O por slug
-    const business = await prisma.business.findFirst({
-      where: { 
-        OR: [
-          { subdomain: identifier },
-          { slug: identifier }
-        ],
-        isActive: true 
-      },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        subdomain: true,
-        isActive: true
-      }
-    });
+    // Buscar por subdomain O por slug usando cache
+    const business = await findBusinessByIdentifier(identifier);
     
     return business;
   } catch (error) {

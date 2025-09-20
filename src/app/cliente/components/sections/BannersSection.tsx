@@ -45,15 +45,39 @@ export default function BannersSection({ businessId }: BannersProps) {
   }, [getBanners]);
 
   // Estados para UI
-  const [showNotificationPrompt, setShowNotificationPrompt] = useState(true);
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(() => {
+    // Verificar localStorage para persistir la decisión del usuario
+    if (typeof window !== 'undefined') {
+      const dismissed = localStorage.getItem('notification-prompt-dismissed');
+      return dismissed !== 'true';
+    }
+    return true;
+  });
   const [selectedBanner, setSelectedBanner] = useState<Banner | null>(null);
 
   // Función para habilitar notificaciones del navegador
   const enableNotifications = async () => {
     try {
+      console.log('🔔 Intentando habilitar notificaciones del navegador...');
       const granted = await browserNotifications.requestPermission();
+      
       if (granted) {
+        console.log('✅ Notificaciones del navegador habilitadas');
         setShowNotificationPrompt(false);
+        // Persistir la decisión del usuario
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('notification-prompt-dismissed', 'true');
+          localStorage.setItem('browser-notifications-enabled', 'true');
+        }
+        
+        // Mostrar confirmación al usuario
+        browserNotifications.showNotification(
+          '🔔 Notificaciones Activadas',
+          'Ahora recibirás alertas de promociones y actualizaciones importantes'
+        );
+      } else {
+        console.log('❌ Usuario rechazó las notificaciones del navegador');
+        // No ocultar el prompt si fue rechazado, dar otra oportunidad
       }
     } catch (error) {
       console.error('Error al habilitar notificaciones:', error);
@@ -63,6 +87,10 @@ export default function BannersSection({ businessId }: BannersProps) {
   // Función para descartar el prompt de notificaciones
   const dismissNotificationPrompt = () => {
     setShowNotificationPrompt(false);
+    // Persistir la decisión del usuario en localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('notification-prompt-dismissed', 'true');
+    }
   };
 
   if (isLoading) {
@@ -76,36 +104,37 @@ export default function BannersSection({ businessId }: BannersProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-4">
-        {/* Prompt de notificaciones - Solo mostrar si no hay banners y el usuario no ha descartado */}
-        {showNotificationPrompt && banners.length === 0 && (
+        {/* Prompt de notificaciones - Mostrar siempre que no haya sido descartado */}
+        {showNotificationPrompt && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl p-4"
+            className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl p-4 mb-4"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <Bell className="h-5 w-5 text-white" />
+                <Bell className="h-5 w-5 text-white animate-pulse" />
                 <div>
                   <h4 className="font-semibold text-white">
-                    ¡No te pierdas nuestras ofertas!
+                    🔔 ¡Activa las Notificaciones!
                   </h4>
                   <p className="text-white/80 text-sm">
-                    Activa las notificaciones para recibir banners y promociones en tiempo real
+                    Recibe alertas de nuevos niveles, promociones y actualizaciones en tiempo real
                   </p>
                 </div>
               </div>
               <div className="flex items-center space-x-2">
                 <button
                   onClick={enableNotifications}
-                  className="bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-lg text-sm font-medium transition-colors"
+                  className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                 >
-                  Activar
+                  ✨ Activar
                 </button>
                 <button
                   onClick={dismissNotificationPrompt}
-                  className="text-white/60 hover:text-white transition-colors"
+                  className="text-white/60 hover:text-white transition-colors p-1"
+                  title="Cerrar"
                 >
                   <X className="h-4 w-4" />
                 </button>

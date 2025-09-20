@@ -5,7 +5,7 @@ import AuthHandler from './components/AuthHandler';
 
 export default function ClienteV2Page() {
   return (
-    <BrandingProvider>
+    <BrandingProvider businessId="cmfr2y0ia0000eyvw7ef3k20u">
       <AuthHandler />
     </BrandingProvider>
   );

@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log(`📋 Portal config v2 request for business: ${businessId}`);
+    // console.log(`📋 Portal config v2 request for business: ${businessId}`);
 
     // Obtener información del business
     const business = await prisma.business.findUnique({
@@ -288,7 +288,7 @@ export async function GET(request: NextRequest) {
       }
     };
 
-    console.log(`📋 Portal config v2 loaded from DATABASE for business ${businessId} at ${new Date().toLocaleTimeString()}`);
+    // console.log(`📋 Portal config v2 loaded from DATABASE for business ${businessId} at ${new Date().toLocaleTimeString()}`);
     
     // Headers anti-cache para el cliente (mantener compatibilidad)
     const response = NextResponse.json(config);

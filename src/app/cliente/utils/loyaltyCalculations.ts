@@ -17,14 +17,7 @@ export const calculateLoyaltyLevel = (portalConfig: any, clienteData: ClienteDat
   const nivelActual = clienteData?.tarjetaLealtad?.nivel || 'Bronce';
   const esAsignacionManual = clienteData?.tarjetaLealtad?.asignacionManual || false; // ✅ USAR CAMPO CORRECTO
 
-  const resultado = calcularProgresoUnificado(
-    puntosProgreso, // ✅ USAR PUNTOS DE PROGRESO EN LUGAR DE PUNTOS TOTALES
-    visitasActuales,
-    nivelActual,
-    esAsignacionManual
-  );
-
-  // Configuración base para compatibilidad
+  // 🎯 USAR CONFIGURACIÓN REAL DEL ADMIN en lugar de valores hardcoded
   const puntosRequeridos = {
     'Bronce': 0,
     'Plata': 400,
@@ -33,12 +26,22 @@ export const calculateLoyaltyLevel = (portalConfig: any, clienteData: ClienteDat
     'Platino': 25000
   };
   
-  // Actualizar con configuración del admin si existe
-  portalConfig.tarjetas?.forEach((tarjeta: any) => {
-    if (tarjeta.condiciones?.puntosMinimos) {
-      puntosRequeridos[tarjeta.nivel as keyof typeof puntosRequeridos] = tarjeta.condiciones.puntosMinimos;
-    }
-  });
+  // ✅ ACTUALIZAR con configuración del admin si existe
+  if (portalConfig?.tarjetas && Array.isArray(portalConfig.tarjetas)) {
+    portalConfig.tarjetas.forEach((tarjeta: any) => {
+      if (tarjeta.condiciones?.puntosMinimos !== undefined && tarjeta.nivel) {
+        puntosRequeridos[tarjeta.nivel as keyof typeof puntosRequeridos] = tarjeta.condiciones.puntosMinimos;
+      }
+    });
+  }
+
+  const resultado = calcularProgresoUnificado(
+    puntosProgreso, // ✅ USAR PUNTOS DE PROGRESO EN LUGAR DE PUNTOS TOTALES
+    visitasActuales,
+    nivelActual,
+    esAsignacionManual,
+    puntosRequeridos // ✅ PASAR CONFIGURACIÓN REAL
+  );
   
   const maxPuntos = Math.max(...Object.values(puntosRequeridos));
   const puntosActuales = puntosProgreso;

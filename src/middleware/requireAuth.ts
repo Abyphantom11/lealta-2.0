@@ -167,7 +167,7 @@ function extractBusinessIdFromUrl(pathname: string): string | null {
 /**
  * Wrapper para APIs que necesitan autenticación simple
  */
-export async function withAuth<T = any>(
+export async function withAuth(
   request: NextRequest,
   handler: (session: AdminSession) => Promise<NextResponse> | NextResponse,
   config?: AuthConfig
