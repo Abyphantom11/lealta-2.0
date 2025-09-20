@@ -199,11 +199,28 @@ async function updateClientePuntos(cliente: any, puntosGenerados: number) {
 
 async function syncTarjetaPuntos(clienteActualizado: any) {
   if (clienteActualizado.tarjetaLealtad) {
+    // 🎯 LÓGICA CORREGIDA: Para tarjetas manuales, mantener progreso correcto
+    const esAsignacionManual = clienteActualizado.tarjetaLealtad.asignacionManual;
+    const puntosProgresoActual = clienteActualizado.tarjetaLealtad.puntosProgreso || 0;
+    const puntosAcumulados = clienteActualizado.puntosAcumulados || 0;
+    
+    let nuevoPuntosProgreso;
+    
+    if (esAsignacionManual) {
+      // Para tarjetas manuales: si los puntos acumulados superan el progreso actual, usar acumulados
+      // Esto permite que el progreso crezca con nuevos consumos
+      nuevoPuntosProgreso = Math.max(puntosProgresoActual, puntosAcumulados);
+    } else {
+      // Para tarjetas automáticas: usar siempre puntos acumulados
+      nuevoPuntosProgreso = puntosAcumulados;
+    }
+    
     await prisma.tarjetaLealtad.update({
       where: { clienteId: clienteActualizado.id },
-      data: { puntosProgreso: clienteActualizado.puntosAcumulados }
+      data: { puntosProgreso: nuevoPuntosProgreso }
     });
-    console.log(`📊 PuntosProgreso actualizados a ${clienteActualizado.puntosAcumulados}`);
+    
+    console.log(`📊 PuntosProgreso actualizados: ${puntosProgresoActual} → ${nuevoPuntosProgreso} (manual: ${esAsignacionManual}, acumulados: ${puntosAcumulados})`);
   }
 }
 

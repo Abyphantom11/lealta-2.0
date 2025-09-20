@@ -12,17 +12,18 @@ const extendedPrisma = prisma as any;
 
 // Helper functions para reducir complejidad cognitiva
 async function loadPortalConfig(): Promise<Record<string, number>> {
+  // ✅ CONFIGURACIÓN BASE CORREGIDA QUE COINCIDE CON ADMIN
   const puntosRequeridosBase: Record<string, number> = {
     'Bronce': 0,
-    'Plata': 400,
-    'Oro': 480,
-    'Diamante': 15000,
-    'Platino': 25000
+    'Plata': 100,     // ✅ CORREGIDO: según admin config
+    'Oro': 500,
+    'Diamante': 1500, // ✅ CORREGIDO: era 15000, debe ser 1500
+    'Platino': 3000   // ✅ CORREGIDO: era 25000, debe ser 3000
   };
 
   try {
-    // ✅ LEER DESDE LA MISMA FUENTE QUE EL ADMIN
-    const configPath = path.join(process.cwd(), 'portal-config.json');
+    // 🎯 LEER DESDE EL MISMO JSON QUE USA EL ADMIN
+    const configPath = path.join(process.cwd(), 'config', 'portal', 'portal-config-arepa.json');
     
     if (fs.existsSync(configPath)) {
       const configData = fs.readFileSync(configPath, 'utf8');
@@ -38,10 +39,10 @@ async function loadPortalConfig(): Promise<Record<string, number>> {
         console.log('✅ Configuración de tarjetas cargada desde admin:', puntosRequeridosBase);
       }
     } else {
-      console.warn('⚠️ portal-config.json no encontrado, usando valores por defecto');
+      console.warn('⚠️ Archivo de configuración del admin no encontrado, usando valores por defecto corregidos');
     }
   } catch (error) {
-    console.warn('⚠️ Error leyendo configuración, usando valores por defecto:', error);
+    console.warn('⚠️ Error leyendo configuración del admin, usando valores por defecto:', error);
   }
 
   return puntosRequeridosBase;
@@ -102,9 +103,17 @@ async function updateExistingCard(cliente: any, nivel: string, asignacionManual:
 
   let nuevosPuntosProgreso = tarjetaExistente.puntosProgreso;
 
+  // 🎯 NUEVA LÓGICA DE RESET PARA ASIGNACIÓN MANUAL
   if (asignacionManual) {
     const puntosRequeridosBase = await loadPortalConfig();
+    
+    // 📌 CUANDO SE ASIGNE MANUALMENTE UNA TARJETA, EL PROGRESO SIEMPRE ES EL MÍNIMO DE ESA TARJETA
     nuevosPuntosProgreso = puntosRequeridosBase[nivel] || 0;
+    
+    console.log(`🔄 RESET MANUAL: ${cliente.cedula}`);
+    console.log(`   Nivel anterior: ${tarjetaExistente.nivel} (progreso: ${tarjetaExistente.puntosProgreso})`);
+    console.log(`   Nivel nuevo: ${nivel} (progreso reseteado a: ${nuevosPuntosProgreso})`);
+    console.log(`   Tipo operación: ${tipoOperacion}`);
   }
 
   const historicoLimitado = await processHistorico(tarjetaExistente.historicoNiveles);
@@ -124,22 +133,19 @@ async function updateExistingCard(cliente: any, nivel: string, asignacionManual:
           asignacionManual,
           tipoOperacion,
           puntosProgresoAnterior: tarjetaExistente.puntosProgreso,
-          puntosProgresoNuevo: nuevosPuntosProgreso
+          puntosProgresoNuevo: nuevosPuntosProgreso,
+          reseteoManual: asignacionManual // 📌 MARCAR CUANDO HUBO RESET
         },
       },
     },
   });
 
-  // Enviar notificación solo para ascensos
-  if (changeAnalysis.esAscenso && !(asignacionManual && changeAnalysis.esDegradacion)) {
+  // ✅ ENVIAR NOTIFICACIÓN SOLO PARA ASCENSOS (NO PARA DEGRADACIONES)
+  if (changeAnalysis.esAscenso) {
     await enviarNotificacionClientes(TipoNotificacion.TARJETA_ASIGNADA);
-  }
-
-  // 🎯 NUEVO: Para asignaciones manuales, también enviar señal específica al cliente
-  if (asignacionManual && changeAnalysis.esAscenso) {
-    // Aquí podrías implementar un sistema de notificación específico para el cliente
-    // Por ejemplo, usar un sistema de eventos en tiempo real o WebSockets
-    console.log(`🔔 Ascenso manual completado: ${cliente.cedula} -> ${nivel}`);
+    console.log(`🔔 Notificación de ascenso enviada: ${cliente.cedula} -> ${nivel}`);
+  } else if (changeAnalysis.esDegradacion && asignacionManual) {
+    console.log(`⬇️ Degradación manual (sin notificación): ${cliente.cedula} -> ${nivel}`);
   }
 
   return {
@@ -151,7 +157,11 @@ async function updateExistingCard(cliente: any, nivel: string, asignacionManual:
 
 async function createNewCard(cliente: any, nivel: string, asignacionManual: boolean) {
   const puntosRequeridosBase = await loadPortalConfig();
+  
+  // 🎯 PARA NUEVAS TARJETAS, EL PROGRESO SIEMPRE ES EL MÍNIMO DEL NIVEL ASIGNADO
   const puntosRequeridosNivel = puntosRequeridosBase[nivel] || 0;
+
+  console.log(`🆕 NUEVA TARJETA: ${cliente.cedula} -> ${nivel} (progreso inicial: ${puntosRequeridosNivel})`);
 
   const nuevaTarjeta = await extendedPrisma.tarjetaLealtad.create({
     data: {
@@ -165,12 +175,17 @@ async function createNewCard(cliente: any, nivel: string, asignacionManual: bool
           nivelAnterior: null,
           nivelNuevo: nivel,
           asignacionManual,
+          tipoOperacion: asignacionManual ? 'creacion_manual' : 'creacion_automatica',
+          puntosProgresoNuevo: puntosRequeridosNivel
         },
       },
     },
   });
 
+  // ✅ SOLO ENVIAR NOTIFICACIÓN SI ES UN ASCENSO (nueva tarjeta siempre es ascenso desde "sin tarjeta")
   await enviarNotificacionClientes(TipoNotificacion.TARJETA_ASIGNADA);
+  console.log(`🔔 Notificación de nueva tarjeta enviada: ${cliente.cedula} -> ${nivel}`);
+  
   return nuevaTarjeta;
 }
 

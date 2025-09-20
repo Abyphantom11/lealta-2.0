@@ -29,20 +29,27 @@ class PWAService {
     installAttempts: 0
   };
 
-  private listeners: Array<(state: PWAInstallState) => void> = [];
+  private readonly listeners: Array<(state: PWAInstallState) => void> = [];
   private readonly STORAGE_KEY = 'lealta_pwa_state';
   private readonly MIN_PROMPT_INTERVAL = 300000; // 5 minutos entre prompts
   private readonly MAX_INSTALL_ATTEMPTS = 3;
 
   constructor() {
     this.loadState();
-    this.initializePWA();
+    // Inicializar PWA de forma asíncrona para evitar problemas en constructor
+    setTimeout(() => this.initializePWA(), 0);
   }
 
   /**
    * Inicializa el servicio PWA con detección mejorada para Android
    */
   private async initializePWA(): Promise<void> {
+    // Verificar que estamos en el navegador
+    if (typeof window === 'undefined') {
+      console.log('⚠️ PWA Service: Ejecutándose en servidor, saltando inicialización');
+      return;
+    }
+
     try {
       // Detectar si ya está en modo standalone
       this.state.isStandalone = window.matchMedia('(display-mode: standalone)').matches;
@@ -119,6 +126,9 @@ class PWAService {
       this.saveState();
       this.notifyListeners();
       
+      // Notificar que PWA está disponible para instalación
+      this.triggerPWANotification();
+      
       // Log información del evento para debugging
       console.log('📱 Plataformas soportadas:', event.platforms);
       console.log('🔧 Estado actual PWA:', this.state);
@@ -135,6 +145,44 @@ class PWAService {
       this.saveState();
       this.notifyListeners();
     });
+
+    // Para Android: recheck periódico más agresivo
+    if (/Android/.test(navigator.userAgent)) {
+      console.log('📱 Android detectado - configurando estrategia agresiva');
+      
+      // Recheck cada 15 segundos durante los primeros 3 minutos
+      let recheckCount = 0;
+      const maxRechecks = 12; // 3 minutos
+      
+      const recheckInterval = setInterval(() => {
+        recheckCount++;
+        
+        if (recheckCount >= maxRechecks || this.state.canInstall) {
+          clearInterval(recheckInterval);
+          console.log('🏁 Recheck PWA completado');
+          return;
+        }
+        
+        // Disparar eventos que pueden activar beforeinstallprompt en Android
+        setTimeout(() => window.dispatchEvent(new Event('scroll')), 100);
+        setTimeout(() => window.dispatchEvent(new Event('touchstart', { bubbles: true })), 200);
+        setTimeout(() => window.dispatchEvent(new Event('click', { bubbles: true })), 300);
+        
+        console.log(`🔄 PWA Recheck Android ${recheckCount}/${maxRechecks}`);
+      }, 15000);
+
+      // También verificar en eventos de usuario
+      const userEvents = ['scroll', 'click', 'touchstart', 'touchend'];
+      userEvents.forEach(eventType => {
+        document.addEventListener(eventType, () => {
+          if (!this.state.canInstall) {
+            setTimeout(() => {
+              console.log('👤 Evento de usuario - verificando PWA...');
+            }, 2000);
+          }
+        }, { once: true, passive: true });
+      });
+    }
   }
 
   /**
@@ -341,6 +389,11 @@ class PWAService {
    * Guarda estado en localStorage
    */
   private saveState(): void {
+    // Verificar que estamos en el navegador
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return;
+    }
+
     try {
       const stateToSave = {
         ...this.state,
@@ -356,6 +409,12 @@ class PWAService {
    * Carga estado desde localStorage
    */
   private loadState(): void {
+    // Verificar que estamos en el navegador
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      console.log('⚠️ PWA Service: localStorage no disponible, usando estado por defecto');
+      return;
+    }
+
     try {
       const saved = localStorage.getItem(this.STORAGE_KEY);
       if (saved) {
@@ -380,17 +439,104 @@ class PWAService {
       }
     });
   }
+
+  /**
+   * Activa notificación PWA cuando está disponible para instalar
+   */
+  private triggerPWANotification(): void {
+    try {
+      // Solo notificar en dispositivos móviles y Chrome
+      const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isChrome = /Chrome/.test(navigator.userAgent) && !/Edg/.test(navigator.userAgent);
+      
+      if (isMobile && isChrome) {
+        console.log('📱 Activando notificación PWA...');
+        
+        // Importar dinámicamente el servicio de notificaciones para evitar dependencia circular
+        import('@/services/clientNotificationService').then(() => {
+          // Usar setTimeout para asegurar que el componente esté montado
+          setTimeout(() => {
+            try {
+              // Crear evento personalizado para notificar PWA disponible
+              window.dispatchEvent(new CustomEvent('pwaInstallAvailable', {
+                detail: { canInstall: true }
+              }));
+            } catch (error) {
+              console.warn('⚠️ Error activando notificación PWA:', error);
+            }
+          }, 2000); // Esperar 2 segundos después de detectar beforeinstallprompt
+        });
+      }
+    } catch (error) {
+      console.warn('⚠️ Error en triggerPWANotification:', error);
+    }
+  }
 }
 
 // Instancia singleton
 export const pwaService = new PWAService();
 
-// Funciones de utilidad
+// Funciones de utilidad principales
 export const initializePWA = () => pwaService;
 export const installPWA = () => pwaService.installPWA();
 export const getPWAState = () => pwaService.getState();
 export const subscribeToPWAState = (callback: (state: PWAInstallState) => void) => 
   pwaService.subscribe(callback);
+
+// Funciones adicionales para compatibilidad con componentes existentes
+export const isPWAInstalled = (): boolean => {
+  const state = pwaService.getState();
+  return state.isInstalled || state.isStandalone;
+};
+
+export const canInstallPWA = (): boolean => {
+  return pwaService.canShowInstallPrompt();
+};
+
+export const checkPWAStatus = () => {
+  return {
+    isInstalled: isPWAInstalled(),
+    canInstall: canInstallPWA(),
+    isStandalone: pwaService.getState().isStandalone,
+    hasPrompt: !!pwaService.getState().deferredPrompt
+  };
+};
+
+// Funciones adicionales para compatibilidad con Dashboard
+export const showPWANotificationIfAvailable = (): boolean => {
+  const state = pwaService.getState();
+  if (state.canInstall && !state.isInstalled) {
+    console.log('📱 PWA disponible para instalación');
+    return true;
+  }
+  return false;
+};
+
+export const forcePWACheck = async (): Promise<void> => {
+  console.log('🔄 Forzando verificación PWA...');
+  await pwaService.recheckInstallability();
+};
+
+export const verifyPWAConfigurationForBusiness = async (businessSlug?: string): Promise<boolean> => {
+  console.log('🔧 Verificando configuración PWA para business:', businessSlug);
+  
+  // Verificar que el manifest sea accesible
+  try {
+    if (typeof document === 'undefined') return false;
+    
+    const manifestLink = document.querySelector('link[rel="manifest"]');
+    if (!manifestLink) return false;
+    
+    const response = await fetch((manifestLink as HTMLLinkElement).href);
+    if (!response.ok) return false;
+    
+    const manifest = await response.json();
+    return !!(manifest.name && manifest.icons && manifest.start_url);
+  } catch (error) {
+    console.error('❌ Error verificando configuración PWA:', error);
+    return false;
+  }
+};
 
 // Para debugging
 if (typeof window !== 'undefined') {

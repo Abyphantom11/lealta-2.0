@@ -83,7 +83,7 @@ export default function SignupPage() {
 
       if (response.ok) {
         // Redirigir al login con mensaje de éxito
-        window.location.href = '/login?message=Empresa registrada exitosamente';
+        window.location.href = '/login?message=Negocio registrado exitosamente';
       } else {
         setError(data.error || 'Error al registrar la empresa');
       }
@@ -202,7 +202,7 @@ export default function SignupPage() {
             </motion.div>
           )}
 
-          {/* Sección: Datos de la Empresa */}
+          {/* Sección: Datos del Negocio */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-white border-b border-gray-700 pb-2">
               Información de la Empresa

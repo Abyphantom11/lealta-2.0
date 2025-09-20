@@ -11,17 +11,26 @@ export const dynamic = 'force-dynamic';
 
 // Helper function to validate form data
 function validateFormData(formData: FormData) {
-  const schema = z.object({
-    cedula: z.string().min(1, 'Cédula es requerida'),
-    businessId: z.string().optional(),
-    empleadoId: z.string().optional(),
-  });
+  try {
+    const schema = z.object({
+      cedula: z.string().min(1, 'Cédula es requerida'),
+      businessId: z.string().optional(),
+      empleadoId: z.string().optional(),
+    });
 
-  return schema.parse({
-    cedula: formData.get('cedula'),
-    businessId: formData.get('businessId'),
-    empleadoId: formData.get('empleadoId'),
-  });
+    const data = {
+      cedula: formData.get('cedula'),
+      businessId: formData.get('businessId'),
+      empleadoId: formData.get('empleadoId'),
+    };
+
+    console.log('🧪 [VALIDATE] Datos para validar:', data);
+    
+    return schema.parse(data);
+  } catch (error) {
+    console.error('🧪 [VALIDATE] Error en validación:', error);
+    throw error;
+  }
 }
 
 // Helper function to save image
@@ -117,9 +126,20 @@ async function processImageWithGemini(filepath: string): Promise<{
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('🧪 [ANALYZE] Iniciando análisis de ticket...');
+    
     const formData = await request.formData();
+    console.log('🧪 [ANALYZE] FormData recibido');
+    
     const validatedData = validateFormData(formData);
+    console.log('🧪 [ANALYZE] Datos validados:', validatedData);
+    
     const image = formData.get('image') as File;
+    console.log('🧪 [ANALYZE] Imagen recibida:', {
+      name: image?.name,
+      size: image?.size,
+      type: image?.type
+    });
 
     if (!image) {
       return NextResponse.json(
@@ -142,15 +162,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Buscar cliente por cédula
-    const cliente = await prisma.cliente.findUnique({
-      where: { cedula: validatedData.cedula },
+    console.log('🧪 [ANALYZE] Buscando cliente por cédula y businessId...');
+    
+    // Buscar cliente por cédula - usar findFirst ya que ahora cedula no es única
+    const cliente = await prisma.cliente.findFirst({
+      where: { 
+        cedula: validatedData.cedula,
+        businessId: validatedData.businessId || 'cmfr2y0ia0000eyvw7ef3k20u' // Fallback al business por defecto
+      },
       include: {
         business: true
       }
     });
 
     if (!cliente) {
+      console.log('🧪 [ANALYZE] Cliente no encontrado para cédula:', validatedData.cedula);
       return NextResponse.json(
         { success: false, error: 'Cliente no encontrado' },
         { status: 404 }
@@ -204,8 +230,9 @@ export async function POST(request: NextRequest) {
       }
     });
 
-  } catch (error) {
-    console.error('Error en análisis de imagen:', error);
+  } catch (error: any) {
+    console.error('🧪 [ANALYZE] Error en análisis de imagen:', error);
+    console.error('🧪 [ANALYZE] Stack trace:', error.stack);
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -215,7 +242,12 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { success: false, error: 'Error interno del servidor' },
+      { 
+        success: false, 
+        error: 'Error interno del servidor',
+        details: error.message,
+        type: error.constructor.name
+      },
       { status: 500 }
     );
   }

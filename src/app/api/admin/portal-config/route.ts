@@ -1,9 +1,91 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
+import fs from 'fs';
+import path from 'path';
 
 // Configurar como ruta dinámica para permitir el uso de request.url
 export const dynamic = 'force-dynamic';
+
+// Función auxiliar para leer tarjetas del JSON file como en config-v2
+const getAdminTarjetas = async (businessId: string) => {
+  try {
+    const configPath = path.join(process.cwd(), 'config', 'portal', `portal-config-${businessId}.json`);
+    console.log('🔍 Admin reading tarjetas from:', configPath);
+    
+    if (fs.existsSync(configPath)) {
+      const fileContent = fs.readFileSync(configPath, 'utf8');
+      const config = JSON.parse(fileContent);
+      
+      console.log('📊 Admin tarjetas RAW data:', {
+        tarjetasArrayLength: config.tarjetas?.length || 0,
+        tarjetasExist: !!config.tarjetas,
+        tarjetasType: typeof config.tarjetas,
+        firstTarjeta: config.tarjetas?.[0]?.nivel,
+        allNiveles: config.tarjetas?.map(t => t.nivel) || [],
+        nombreEmpresa: config.nombreEmpresa,
+        nivelesConfigKeys: Object.keys(config.nivelesConfig || {})
+      });
+      
+      return {
+        tarjetas: config.tarjetas || [],
+        nombreEmpresa: config.nombreEmpresa || 'Mi Negocio',
+        nivelesConfig: config.nivelesConfig || {}
+      };
+    }
+  } catch (error) {
+    console.error('❌ Error reading admin tarjetas JSON:', error);
+  }
+  
+  return {
+    tarjetas: [],
+    nombreEmpresa: 'Mi Negocio',
+    nivelesConfig: {}
+  };
+};
+
+// Función auxiliar para guardar tarjetas en el JSON file
+const saveAdminTarjetas = async (businessId: string, tarjetas: any[], nombreEmpresa: string, nivelesConfig: any) => {
+  try {
+    const configDir = path.join(process.cwd(), 'config', 'portal');
+    const configPath = path.join(configDir, `portal-config-${businessId}.json`);
+    
+    // Crear directorio si no existe
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+    
+    // Leer configuración existente o crear nueva
+    let existingConfig = {};
+    if (fs.existsSync(configPath)) {
+      const fileContent = fs.readFileSync(configPath, 'utf8');
+      existingConfig = JSON.parse(fileContent);
+    }
+    
+    // Actualizar solo los campos relacionados con tarjetas
+    const updatedConfig = {
+      ...existingConfig,
+      tarjetas: tarjetas,
+      nombreEmpresa: nombreEmpresa,
+      nivelesConfig: nivelesConfig,
+      lastUpdated: new Date().toISOString(),
+      version: '2.0.0'
+    };
+    
+    fs.writeFileSync(configPath, JSON.stringify(updatedConfig, null, 2));
+    
+    console.log('💾 Admin tarjetas saved to JSON:', {
+      path: configPath,
+      tarjetasCount: tarjetas.length,
+      nombreEmpresa
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Error saving admin tarjetas JSON:', error);
+    return false;
+  }
+};
 
 // 🔒 GET - Obtener configuración del portal desde PostgreSQL (PROTEGIDO)
 export async function GET(request: NextRequest) {
@@ -30,6 +112,9 @@ export async function GET(request: NextRequest) {
           orderBy: { date: 'desc' }
         })
       ]);
+
+      // 🎯 CRÍTICO: Leer tarjetas y configuración empresa del JSON file
+      const { tarjetas, nombreEmpresa, nivelesConfig } = await getAdminTarjetas(session.businessId);
 
       // Convertir a formato esperado por el admin panel (mantener compatibilidad)
       const portalConfig = {
@@ -72,12 +157,14 @@ export async function GET(request: NextRequest) {
         events: [],
         rewards: [],
         favorites: [],
-        tarjetas: [],
-        nombreEmpresa: '',
+        // 🎯 TARJETAS Y CONFIGURACIÓN DESDE JSON FILE
+        tarjetas: tarjetas,
+        nombreEmpresa: nombreEmpresa,
+        nivelesConfig: nivelesConfig,
         settings: {
           lastUpdated: new Date().toISOString(),
           version: '2.0.0',
-          source: 'postgresql'
+          source: 'hybrid-postgresql-json'
         }
       };
 
@@ -123,13 +210,19 @@ export async function PUT(request: NextRequest) {
         promociones,
         recompensas,
         favoritoDelDia,
+        tarjetas,
+        nombreEmpresa,
+        nivelesConfig
       } = body;
 
       console.log('📦 Data received for update:', {
         bannersCount: banners?.length || 0,
         promocionesCount: promociones?.length || 0,
         recompensasCount: recompensas?.length || 0,
-        favoritosCount: favoritoDelDia?.length || 0
+        favoritosCount: favoritoDelDia?.length || 0,
+        tarjetasCount: tarjetas?.length || 0,
+        nombreEmpresa: nombreEmpresa,
+        hasNivelesConfig: !!nivelesConfig
       });
 
       // 🔄 NUEVA LÓGICA: Actualizar directamente en PostgreSQL usando transacciones
@@ -242,15 +335,40 @@ export async function PUT(request: NextRequest) {
         console.log(`✅ Updated ${favoritoDelDia.length} favoritos del día`);
       }
 
-      console.log(`✅ Portal config updated successfully in PostgreSQL by ${session.role} for business ${session.businessId}`);
+      // 🎯 ACTUALIZAR TARJETAS Y CONFIGURACIÓN EMPRESA EN JSON FILE
+      if (tarjetas || nombreEmpresa || nivelesConfig) {
+        console.log('💳 Updating tarjetas in JSON file...');
+        
+        // Leer configuración actual para mantener otros datos
+        const currentConfig = await getAdminTarjetas(session.businessId);
+        
+        const updatedTarjetas = tarjetas || currentConfig.tarjetas;
+        const updatedNombreEmpresa = nombreEmpresa || currentConfig.nombreEmpresa;
+        const updatedNivelesConfig = nivelesConfig || currentConfig.nivelesConfig;
+        
+        const saved = await saveAdminTarjetas(
+          session.businessId, 
+          updatedTarjetas, 
+          updatedNombreEmpresa, 
+          updatedNivelesConfig
+        );
+        
+        if (saved) {
+          console.log(`✅ Updated tarjetas in JSON file for business ${session.businessId}`);
+        } else {
+          console.warn(`⚠️ Failed to update tarjetas in JSON file for business ${session.businessId}`);
+        }
+      }
+
+      console.log(`✅ Portal config updated successfully (PostgreSQL + JSON) by ${session.role} for business ${session.businessId}`);
       
       return NextResponse.json({
         success: true,
-        message: 'Configuración actualizada en PostgreSQL',
+        message: 'Configuración actualizada en PostgreSQL y JSON file',
         updatedBy: session.userId,
         businessId: session.businessId,
         timestamp: new Date().toISOString(),
-        source: 'postgresql'
+        source: 'hybrid-postgresql-json'
       });
     } catch (error) {
       console.error('❌ Error actualizando configuración del portal:', error);

@@ -91,15 +91,6 @@ export default function PWAInstallButton() {
     }
   };
 
-  console.log('🔧 PWAInstallButton render:', { canInstall, isInstalled, isInstalling });
-
-  // No mostrar debug logs en producción
-  if (process.env.NODE_ENV === 'development') {
-    console.log('🔧 User Agent:', navigator.userAgent);
-    console.log('🔧 Is Mobile:', /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
-    console.log('🔧 Display Mode:', window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
-  }
-
   // Mostrar estado de debug en desarrollo
   if (process.env.NODE_ENV === 'development') {
     if (isInstalled) {
@@ -112,10 +103,18 @@ export default function PWAInstallButton() {
 
     if (!canInstall) {
       return (
-        <div className="w-full px-4 py-3 bg-gray-600 text-white rounded-lg text-sm font-medium text-center">
-          ❌ PWA no disponible
-          <div className="text-xs mt-1 opacity-75">
-            (Requiere prompt nativo del navegador)
+        <div className="w-full space-y-3 px-4 py-3 bg-orange-600 text-white rounded-lg text-sm">
+          <div className="font-medium text-center">
+            ⏳ Chrome aún no activó la instalación automática
+          </div>
+          <div className="text-xs space-y-2">
+            <div className="font-medium">📱 Instalación manual:</div>
+            <div>1. Toca el menú ⋮ de Chrome</div>
+            <div>2. Busca "Instalar app" o "Agregar a pantalla de inicio"</div>
+            <div>3. Confirma la instalación</div>
+          </div>
+          <div className="text-xs text-center opacity-90 border-t border-orange-400 pt-2 mt-2">
+            El prompt automático aparecerá después de usar más la app
           </div>
         </div>
       );
@@ -125,7 +124,7 @@ export default function PWAInstallButton() {
     return (
       <div className="w-full space-y-2">
         <div className="px-4 py-2 bg-green-600 text-white rounded-lg text-xs text-center">
-          ✅ PROMPT NATIVO DISPONIBLE
+          ✅ Acceso rápido disponible
         </div>
         <button
           onClick={handleInstall}
@@ -134,7 +133,7 @@ export default function PWAInstallButton() {
         >
           <Download size={18} className={isInstalling ? 'animate-bounce' : ''} />
           <span>
-            {isInstalling ? '📱 Instalando...' : '� Instalar App'}
+            {isInstalling ? '📱 Instalando...' : '📲 Instalar App'}
           </span>
         </button>
       </div>

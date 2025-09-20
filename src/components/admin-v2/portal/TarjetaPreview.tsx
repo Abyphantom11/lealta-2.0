@@ -61,7 +61,7 @@ const TarjetaPreview: React.FC<TarjetaPreviewProps> = ({ config }) => {
               }}
             >
               <div>
-                <div className="text-lg font-bold">{config.nombreEmpresa || 'Mi Empresa'}</div>
+                <div className="text-lg font-bold">{config.nombreEmpresa || 'Mi Negocio'}</div>
                 <div className="text-sm opacity-80">Tarjeta {selectedLevel}</div>
               </div>
               

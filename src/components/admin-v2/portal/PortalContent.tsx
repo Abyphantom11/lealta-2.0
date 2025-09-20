@@ -41,7 +41,7 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
     recompensas: [],
     tarjetas: [],
     favoritoDelDia: [],
-    nombreEmpresa: 'Rosita',
+    nombreEmpresa: 'Mi Negocio',
     nivelesConfig: {
       Bronce: {
         colores: { gradiente: ['#CD7F32', '#8B4513'] },
@@ -72,7 +72,7 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
         condiciones: {
           puntosMinimos: 1500,
           gastosMinimos: 3000,
-          visitasMinimas: 20,
+          visitasMinimas: 15,
         },
       },
       Platino: {
@@ -168,58 +168,115 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
         const loadedConfig = data.config || data;
 
         // Asegurar que siempre tenemos nivelesConfig y nombreEmpresa
+        const defaultNivelesConfig = {
+          Bronce: {
+            colores: { gradiente: ['#CD7F32', '#8B4513'] },
+            textoDefault: 'Cliente Inicial',
+            condiciones: { puntosMinimos: 0, gastosMinimos: 0, visitasMinimas: 0 },
+          },
+          Plata: {
+            colores: { gradiente: ['#C0C0C0', '#808080'] },
+            textoDefault: 'Cliente Frecuente',
+            condiciones: { puntosMinimos: 100, gastosMinimos: 500, visitasMinimas: 5 },
+          },
+          Oro: {
+            colores: { gradiente: ['#FFD700', '#FFA500'] },
+            textoDefault: 'Cliente VIP',
+            condiciones: { puntosMinimos: 500, gastosMinimos: 1500, visitasMinimas: 10 },
+          },
+          Diamante: {
+            colores: { gradiente: ['#B9F2FF', '#00CED1'] },
+            textoDefault: 'Cliente Elite',
+            condiciones: { puntosMinimos: 1500, gastosMinimos: 3000, visitasMinimas: 15 },
+          },
+          Platino: {
+            colores: { gradiente: ['#E5E4E2', '#C0C0C0'] },
+            textoDefault: 'Cliente Exclusivo',
+            condiciones: { puntosMinimos: 3000, gastosMinimos: 5000, visitasMinimas: 30 },
+          },
+        };
+
+        // 🎯 GENERAR TARJETAS SI NO EXISTEN DESDE NIVELESCONFIG
+        let finalTarjetas = loadedConfig.tarjetas || [];
+        if (!finalTarjetas || finalTarjetas.length === 0) {
+          finalTarjetas = Object.entries(defaultNivelesConfig).map(([nivel, config]) => ({
+            id: `tarjeta-${nivel.toLowerCase()}`,
+            nivel: nivel,
+            nombrePersonalizado: `Tarjeta ${nivel}`,
+            textoCalidad: config.textoDefault,
+            colores: {
+              gradiente: config.colores.gradiente,
+              texto: '#FFFFFF',
+              nivel: config.colores.gradiente[0]
+            },
+            condiciones: config.condiciones,
+            beneficio: `Acceso a beneficios ${nivel}`,
+            activo: true
+          }));
+          
+          console.log('🎯 Generated tarjetas from loaded config:', {
+            count: finalTarjetas.length,
+            niveles: finalTarjetas.map(t => `${t.nivel}:${t.condiciones.puntosMinimos}`)
+          });
+        }
+
         setConfig({
           ...loadedConfig,
-          nombreEmpresa: loadedConfig.nombreEmpresa || 'Rosita',
-          nivelesConfig: loadedConfig.nivelesConfig || {
-            Bronce: {
-              colores: { gradiente: ['#CD7F32', '#8B4513'] },
-              textoDefault: 'Cliente Inicial',
-              condiciones: {
-                puntosMinimos: 0,
-                gastosMinimos: 0,
-                visitasMinimas: 0,
-              },
-            },
-            Plata: {
-              colores: { gradiente: ['#C0C0C0', '#808080'] },
-              textoDefault: 'Cliente Frecuente',
-              condiciones: {
-                puntosMinimos: 100,
-                gastosMinimos: 500,
-                visitasMinimas: 5,
-              },
-            },
-            Oro: {
-              colores: { gradiente: ['#FFD700', '#FFA500'] },
-              textoDefault: 'Cliente VIP',
-              condiciones: {
-                puntosMinimos: 500,
-                gastosMinimos: 1500,
-                visitasMinimas: 10,
-              },
-            },
-            Diamante: {
-              colores: { gradiente: ['#B9F2FF', '#00CED1'] },
-              textoDefault: 'Cliente Elite',
-              condiciones: {
-                puntosMinimos: 1500,
-                gastosMinimos: 3000,
-                visitasMinimas: 20,
-              },
-            },
-            Platino: {
-              colores: { gradiente: ['#E5E4E2', '#C0C0C0'] },
-              textoDefault: 'Cliente Exclusivo',
-              condiciones: {
-                puntosMinimos: 3000,
-                gastosMinimos: 5000,
-                visitasMinimas: 30,
-              },
-            },
-          },
+          nombreEmpresa: loadedConfig.nombreEmpresa || 'Mi Negocio',
+          tarjetas: finalTarjetas,
+          nivelesConfig: loadedConfig.nivelesConfig || defaultNivelesConfig,
         });
       } else {
+        // 🎯 GENERAR CONFIGURACIÓN POR DEFECTO CON TARJETAS DESDE NIVELESCONFIG
+        const defaultNivelesConfig = {
+          Bronce: {
+            colores: { gradiente: ['#CD7F32', '#8B4513'] },
+            textoDefault: 'Cliente Inicial',
+            condiciones: { puntosMinimos: 0, gastosMinimos: 0, visitasMinimas: 0 },
+          },
+          Plata: {
+            colores: { gradiente: ['#C0C0C0', '#808080'] },
+            textoDefault: 'Cliente Frecuente',
+            condiciones: { puntosMinimos: 100, gastosMinimos: 500, visitasMinimas: 5 },
+          },
+          Oro: {
+            colores: { gradiente: ['#FFD700', '#FFA500'] },
+            textoDefault: 'Cliente VIP',
+            condiciones: { puntosMinimos: 500, gastosMinimos: 1500, visitasMinimas: 10 },
+          },
+          Diamante: {
+            colores: { gradiente: ['#B9F2FF', '#00CED1'] },
+            textoDefault: 'Cliente Elite',
+            condiciones: { puntosMinimos: 1500, gastosMinimos: 3000, visitasMinimas: 15 },
+          },
+          Platino: {
+            colores: { gradiente: ['#E5E4E2', '#C0C0C0'] },
+            textoDefault: 'Cliente Exclusivo',
+            condiciones: { puntosMinimos: 3000, gastosMinimos: 5000, visitasMinimas: 30 },
+          },
+        };
+
+        // 🎯 GENERAR TARJETAS DESDE NIVELESCONFIG
+        const generatedTarjetas = Object.entries(defaultNivelesConfig).map(([nivel, config]) => ({
+          id: `tarjeta-${nivel.toLowerCase()}`,
+          nivel: nivel,
+          nombrePersonalizado: `Tarjeta ${nivel}`,
+          textoCalidad: config.textoDefault,
+          colores: {
+            gradiente: config.colores.gradiente,
+            texto: '#FFFFFF',
+            nivel: config.colores.gradiente[0]
+          },
+          condiciones: config.condiciones,
+          beneficio: `Acceso a beneficios ${nivel}`,
+          activo: true
+        }));
+
+        console.log('🎯 Generated default tarjetas:', {
+          count: generatedTarjetas.length,
+          niveles: generatedTarjetas.map(t => `${t.nivel}:${t.condiciones.puntosMinimos}`)
+        });
+
         setConfig({
           banners: [
             {
@@ -249,6 +306,10 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
             },
           ],
           favoritoDelDia: [],
+          // 🎯 INCLUIR TARJETAS GENERADAS DESDE NIVELESCONFIG
+          tarjetas: generatedTarjetas,
+          nombreEmpresa: 'Mi Negocio',
+          nivelesConfig: defaultNivelesConfig
         });
       }
     } catch (error) {

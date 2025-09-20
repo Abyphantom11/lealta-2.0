@@ -118,7 +118,6 @@ interface RecentTicket {
 interface TodayStats {
   ticketsProcessed: number;
   totalPoints: number;
-  uniqueCustomers: number;
   totalAmount: number;
 }
 
@@ -477,10 +476,9 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
   
   const [recentTickets, setRecentTickets] = useState<RecentTicket[]>([]);
   const [todayStats, setTodayStats] = useState<TodayStats>({
-    ticketsProcessed: 12,
-    totalPoints: 256,
-    uniqueCustomers: 8,
-    totalAmount: 180.5,
+    ticketsProcessed: 0,
+    totalPoints: 0,
+    totalAmount: 0,
   });
 
   // Referencias para el input de archivo
@@ -774,7 +772,6 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
         const newStats = {
           ticketsProcessed: stats.totalConsumos || 0,
           totalPoints: stats.totalPuntos || 0,
-          uniqueCustomers: stats.clientesUnicos || 0,
           totalAmount: stats.totalMonto || 0,
         };
         
@@ -1695,7 +1692,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8"
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
         >
           <div className="bg-dark-800/50 backdrop-blur-sm border border-dark-700 rounded-xl p-6">
             <div className="flex items-center justify-between">
@@ -1721,20 +1718,6 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
               </div>
               <div className="bg-yellow-500/10 p-3 rounded-lg">
                 <Award className="w-6 h-6 text-yellow-400" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-dark-800/50 backdrop-blur-sm border border-dark-700 rounded-xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-dark-400 text-sm">Clientes</p>
-                <p className="text-2xl font-bold text-white">
-                  {todayStats.uniqueCustomers}
-                </p>
-              </div>
-              <div className="bg-green-500/10 p-3 rounded-lg">
-                <Users className="w-6 h-6 text-green-400" />
               </div>
             </div>
           </div>

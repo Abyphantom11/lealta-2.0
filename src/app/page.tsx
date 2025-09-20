@@ -162,7 +162,7 @@ export default function HomePage() {
               transition={{ delay: 0.6 }}
               className="text-xl md:text-2xl text-gray-400 mb-12 max-w-4xl mx-auto leading-relaxed"
             >
-              Transforma tu empresa en una organización{' '}
+              Transforma tu negocio en una organización{' '}
               <span className="text-white font-semibold">data-driven</span> con
               inteligencia artificial, análisis predictivo y escalabilidad sin límites.
               <br />
@@ -227,7 +227,7 @@ export default function HomePage() {
             className="text-center mb-16"
           >
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              ¿Tu empresa está lista para{' '}
+              ¿Tu negocio está listo para{' '}
               <span className="text-blue-400">crecer sin límites?</span>
             </h2>
             <p className="text-xl text-gray-400 max-w-3xl mx-auto">

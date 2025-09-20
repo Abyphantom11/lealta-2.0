@@ -30,8 +30,17 @@ interface AuthHandlerProps {
 }
 
 export default function AuthHandler({ businessId }: AuthHandlerProps) {
-  const { brandingConfig } = useBranding();
+  const { brandingConfig, isLoading: brandingLoading } = useBranding();
   const { notifyLevelUpManual } = useClientNotifications();
+
+  // 🔥 VERIFICAR SI TENEMOS DATOS REALES DE CONFIGURACIÓN
+  const hasRealBrandingData = brandingConfig.businessName && 
+                             brandingConfig.businessName !== 'Mi Negocio' && 
+                             brandingConfig.businessName !== 'LEALTA' &&
+                             brandingConfig.businessName.trim() !== '';
+
+  // 🔥 MOSTRAR LOADING HASTA TENER DATOS REALES
+  const shouldShowLoading = brandingLoading || !hasRealBrandingData;
 
   // Estados principales de autenticación - EXTRAÍDOS DEL ORIGINAL
   // Estado local
@@ -245,6 +254,8 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
 
     try {
       logger.log('🔄 Refrescando datos del cliente...');
+      
+      // 1. Refrescar datos del cliente
       const response = await fetch('/api/cliente/verificar', {
         method: 'POST',
         headers: { 
@@ -269,11 +280,14 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
         
         // Actualizar datos después de verificar notificaciones
         setClienteData(data.cliente);
+        
+        // 2. También refrescar configuración del portal para sincronizar cambios del admin
+        await loadPortalConfig();
       }
     } catch (error) {
       console.error('❌ Error refrescando datos del cliente:', error);
     }
-  }, [cedula, clienteData, notifyLevelUpManual]);
+  }, [cedula, clienteData, notifyLevelUpManual, businessId, loadPortalConfig]);
 
   // Configurar polling para refrescar datos automáticamente (con notificaciones en tiempo real)
   useEffect(() => {
@@ -689,13 +703,15 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
     }
   }, [step, clienteData?.id, clienteData?.cedula, clienteData?.tarjetaLealtad?.asignacionManual, handleLevelUpdateInEffect, businessId, updateClienteDataOnly]);
 
-  // Mostrar loading inicial mientras se carga el branding
-  if (isInitialLoading) {
+  // 🔥 MOSTRAR LOADING hasta tener datos reales de configuración
+  if (isInitialLoading || shouldShowLoading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-gray-600 border-t-purple-500 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400 text-sm">Cargando...</p>
+          <div className="w-8 h-8 border-2 border-gray-600 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-300 text-sm">
+            {isInitialLoading ? 'Inicializando...' : 'Cargando configuración...'}
+          </p>
         </div>
       </div>
     );

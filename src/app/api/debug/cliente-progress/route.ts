@@ -49,14 +49,14 @@ export async function GET(request: NextRequest) {
       calculosProgreso: {
         puntosRequeridos: {
           'Bronce': 0,
-          'Plata': 400,
-          'Oro': 480,
-          'Diamante': 15000,
-          'Platino': 25000
+          'Plata': 100,     // ✅ CORREGIDO: según admin config
+          'Oro': 500,
+          'Diamante': 1500, // ✅ CORREGIDO: era 15000, debe ser 1500
+          'Platino': 3000   // ✅ CORREGIDO: era 25000, debe ser 3000
         },
         nivelActual: cliente.tarjetaLealtad?.nivel || 'Bronce',
         siguienteNivel: 'Oro', // Asumiendo que está en Plata
-        puntosParaProximo: 480 - (cliente.puntos || 0)
+        puntosParaProximo: 500 - (cliente.puntos || 0)  // ✅ CORREGIDO
       }
     };
 

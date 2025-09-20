@@ -33,43 +33,41 @@ function evaluarNivelCliente(cliente: any, tarjetasConfig: any[]) {
   const puntosProgreso = cliente.tarjetaLealtad?.puntosProgreso || cliente.puntosAcumulados || cliente.puntos || 0;
   const visitas = cliente.totalVisitas || 0;
 
-  // Buscar la configuración de tarjetas activa
-  const tarjetaActiva = tarjetasConfig.find(t => t.activa !== false);
-  if (!tarjetaActiva?.niveles) {
-    console.warn('No hay configuración de tarjetas válida');
-    return 'Bronce';
+  console.log(`🤖 Evaluando nivel para cliente ${cliente.id}:`);
+  console.log(`   • PuntosProgreso: ${puntosProgreso}`);
+  console.log(`   • Puntos canjeables: ${cliente.puntos || 0}`);
+  console.log(`   • Visitas: ${visitas}`);
+  console.log(`   • Nivel actual: ${cliente.tarjetaLealtad?.nivel || 'Sin tarjeta'}`);
+
+  // 🎯 USAR CONFIGURACIÓN HARDCODEADA QUE COINCIDA EXACTAMENTE CON EL ADMIN
+  const nivelesHardcoded = [
+    { nivel: 'Bronce', puntosMinimos: 0, visitasMinimas: 0 },
+    { nivel: 'Plata', puntosMinimos: 100, visitasMinimas: 5 },
+    { nivel: 'Oro', puntosMinimos: 500, visitasMinimas: 10 },
+    { nivel: 'Diamante', puntosMinimos: 1500, visitasMinimas: 15 },
+    { nivel: 'Platino', puntosMinimos: 3000, visitasMinimas: 30 }
+  ];
+
+  console.log(`🎯 Usando configuración hardcoded:`);
+  nivelesHardcoded.forEach(n => console.log(`   • ${n.nivel}: ${n.puntosMinimos} puntos, ${n.visitasMinimas} visitas`));
+
+  // Obtener el nivel MÁS ALTO que cumple los requisitos (evaluar de mayor a menor)
+  const nivelesOrdenados = [...nivelesHardcoded].reverse();
+  
+  for (const nivelConfig of nivelesOrdenados) {
+    const cumplePuntos = puntosProgreso >= nivelConfig.puntosMinimos;
+    const cumpleVisitas = visitas >= nivelConfig.visitasMinimas;
+
+    console.log(`🔍 Evaluando ${nivelConfig.nivel}: puntos=${cumplePuntos} (${puntosProgreso}>=${nivelConfig.puntosMinimos}), visitas=${cumpleVisitas} (${visitas}>=${nivelConfig.visitasMinimas})`);
+
+    // Usar lógica OR: cumple puntos O visitas
+    if (cumplePuntos || cumpleVisitas) {
+      console.log(`✅ Cliente califica para ${nivelConfig.nivel}`);
+      return nivelConfig.nivel;
+    }
   }
 
-  // Obtener niveles de la tarjeta y ordenarlos por puntos requeridos (de mayor a menor)
-  const nivelesOrdenados = tarjetaActiva.niveles
-    .slice() // crear copia para no mutar el original
-    .sort((a: any, b: any) => (b.puntosRequeridos || 0) - (a.puntosRequeridos || 0));
-
-  // Encontrar el nivel MÁS ALTO que cumple los requisitos
-  for (const nivel of nivelesOrdenados) {
-    const puntosRequeridos = nivel.puntosRequeridos || 0;
-    const visitasRequeridas = nivel.visitasRequeridas || 0;
-    
-    const cumplePuntos = puntosProgreso >= puntosRequeridos;
-    const cumpleVisitas = visitas >= visitasRequeridas;
-
-    // Usar lógica OR como está configurado
-    const condicional = tarjetaActiva.condicional || 'AND';
-    let califica = false;
-    
-    if (condicional === 'OR') {
-      califica = cumplePuntos || cumpleVisitas;
-    } else {
-      califica = cumplePuntos && cumpleVisitas;
-    }
-
-    if (califica) {
-      return nivel.nombre;
-    }
-  }
-
-  // Si no cumple con ninguno, devolver el nivel más bajo (Bronce)
-  console.log(`ℹ️ Cliente no califica para niveles superiores, mantiene: Bronce`);
+  console.log(`🔧 Fallback a Bronce`);
   return 'Bronce';
 }
 

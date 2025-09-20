@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
       data: {
         clienteId: body.clienteId || null,
         sessionId: body.sessionId,
+        businessId: session.businessId,
         path: body.path,
         referrer: body.referrer || null,
         userAgent,
@@ -227,34 +228,69 @@ export async function GET(request: NextRequest) {
     
     const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
 
-    console.log('📊 GET - Obteniendo estadísticas:');
-    console.log('📅 Buscando día:', hoy.toISOString().split('T')[0]);
-    console.log('📅 Buscando semana:', inicioSemana.toISOString().split('T')[0]);
-    console.log('📅 Buscando mes:', inicioMes.toISOString().split('T')[0]);
+    console.log('📊 GET - Obteniendo estadísticas para business:', session.businessId);
 
-    // Obtener estadísticas de la base de datos
-    const [estadisticaDia, estadisticaSemana, estadisticaMes] = await Promise.all([
-      prisma.estadisticaVisita.findUnique({
-        where: { fecha_periodo: { fecha: hoy, periodo: 'dia' } }
+    // 🎯 CONSULTAR DIRECTAMENTE TABLA VISITA CON BUSINESS CONTEXT
+    const [visitasHoy, visitasSemana, visitasMes] = await Promise.all([
+      // Visitas de hoy
+      prisma.visita.count({
+        where: {
+          businessId: session.businessId,
+          timestamp: {
+            gte: hoy
+          }
+        }
       }),
-      prisma.estadisticaVisita.findUnique({
-        where: { fecha_periodo: { fecha: inicioSemana, periodo: 'semana' } }
+      // Visitas de esta semana
+      prisma.visita.count({
+        where: {
+          businessId: session.businessId,
+          timestamp: {
+            gte: inicioSemana
+          }
+        }
       }),
-      prisma.estadisticaVisita.findUnique({
-        where: { fecha_periodo: { fecha: inicioMes, periodo: 'mes' } }
+      // Visitas de este mes
+      prisma.visita.count({
+        where: {
+          businessId: session.businessId,
+          timestamp: {
+            gte: inicioMes
+          }
+        }
       })
     ]);
 
-    console.log('📈 Estadísticas encontradas:');
-    console.log('📅 Día:', estadisticaDia?.totalVisitas || 0);
-    console.log('📅 Semana:', estadisticaSemana?.totalVisitas || 0);
-    console.log('📅 Mes:', estadisticaMes?.totalVisitas || 0);
+    console.log('📈 Visitas encontradas - Hoy:', visitasHoy, 'Semana:', visitasSemana, 'Mes:', visitasMes);
+
+    // Calcular tendencia simple basada en comparación hoy vs ayer
+    const ayer = new Date(hoy);
+    ayer.setDate(ayer.getDate() - 1);
+    
+    const visitasAyer = await prisma.visita.count({
+      where: {
+        businessId: session.businessId,
+        timestamp: {
+          gte: ayer,
+          lt: hoy
+        }
+      }
+    });
+
+    let tendencia: 'estable' | 'subiendo' | 'bajando' = 'estable';
+    if (visitasHoy > visitasAyer) {
+      tendencia = 'subiendo';
+    } else if (visitasHoy < visitasAyer) {
+      tendencia = 'bajando';
+    }
 
     const result = {
-      visitasHoy: estadisticaDia?.totalVisitas || 0,
-      visitasSemana: estadisticaSemana?.totalVisitas || 0,
-      visitasMes: estadisticaMes?.totalVisitas || 0,
-      tendencia: calcularTendencia(estadisticaDia, estadisticaSemana)
+      visitasHoy,
+      visitasSemana,
+      visitasMes,
+      tendencia,
+      visitasAyer, // Para debug
+      businessId: session.businessId // Para debug
     };
 
     return NextResponse.json({
@@ -271,22 +307,4 @@ export async function GET(request: NextRequest) {
     );
   }
   }, AuthConfigs.READ_ONLY);
-}
-
-/**
- * Calcular tendencia basada en datos históricos
- */
-function calcularTendencia(
-  estadisticaDia: any, 
-  estadisticaSemana: any
-): 'estable' | 'subiendo' | 'bajando' {
-  // Lógica simple: comparar visitas de hoy con promedio de la semana
-  if (!estadisticaDia || !estadisticaSemana) return 'estable';
-  
-  const visitasHoy = estadisticaDia.totalVisitas;
-  const promedioSemana = estadisticaSemana.totalVisitas / 7;
-  
-  if (visitasHoy > promedioSemana * 1.2) return 'subiendo';
-  if (visitasHoy < promedioSemana * 0.8) return 'bajando';
-  return 'estable';
 }

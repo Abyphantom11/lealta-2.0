@@ -45,10 +45,25 @@ export default function PWAInstallPrompt({
 
     checkPWAStatus();
 
+    // Escuchar evento personalizado de PWA
+    const handlePWAInstallable = () => {
+      console.log('📱 PWA installable detectado');
+      setCanInstall(true);
+      if (!isPWAInstalled()) {
+        const delay = showOnLogin ? 1000 : 3000;
+        setTimeout(() => setShowPrompt(true), delay);
+      }
+    };
+
+    window.addEventListener('pwa-installable', handlePWAInstallable);
+
     // Verificar periódicamente
     const interval = setInterval(checkPWAStatus, 3000);
     
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('pwa-installable', handlePWAInstallable);
+    };
   }, [showOnLogin]);
 
   const handleInstall = async () => {

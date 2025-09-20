@@ -1,11 +1,12 @@
 // Service Worker optimizado para PWA Android con iconos oficiales de Lealta
-const CACHE_NAME = 'lealta-android-v1.0.5';
+const CACHE_NAME = 'lealta-android-v1.0.6';
 const urlsToCache = [
   '/',
   '/offline.html',
-  '/icons/icon-base.svg',
-  '/icons/icon-192-new.svg', 
-  '/icons/icon-512-new.svg',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/icons/icon-192-maskable.png',
+  '/icons/icon-512-maskable.png',
   '/manifest.json'
 ];
 
@@ -30,10 +31,11 @@ self.addEventListener('install', (event) => {
               return null;
             })
           ),
-          // Cachear iconos oficiales de Lealta
-          cache.add('/icons/icon-base.svg').catch(() => null),
-          cache.add('/icons/icon-192-new.svg').catch(() => null),
-          cache.add('/icons/icon-512-new.svg').catch(() => null)
+          // Cachear iconos oficiales de Lealta PNG para Android PWA
+          cache.add('/icons/icon-192.png').catch(() => null),
+          cache.add('/icons/icon-512.png').catch(() => null),
+          cache.add('/icons/icon-192-maskable.png').catch(() => null),
+          cache.add('/icons/icon-512-maskable.png').catch(() => null)
         ]);
       })
       .then((results) => {

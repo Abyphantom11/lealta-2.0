@@ -249,10 +249,10 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
           config={{
             nivelesConfig: config.nivelesConfig || {},
             empresa: config.empresa || {
-              nombre: config.nombreEmpresa || 'Rosita',
+              nombre: config.nombreEmpresa || 'Mi Negocio',
             },
             nombreEmpresa:
-              config.nombreEmpresa || config.empresa?.nombre || 'Rosita',
+              config.nombreEmpresa || config.empresa?.nombre || 'Mi Negocio',
           }}
         />
       );

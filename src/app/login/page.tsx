@@ -280,13 +280,10 @@ function LoginContent() {
             className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
           >
             <UserPlus className="w-5 h-5 mr-2" />
-            Registrar Empresa
+            Registrar Negocio
           </Link>
         </motion.div>
       </motion.div>
-      
-      {/* PWA Install Prompt */}
-      <PWAInstallPrompt variant="auto" showOnLogin={true} position="bottom" />
     </div>
   );
 }
@@ -294,7 +291,6 @@ function LoginContent() {
 export default function LoginPage() {
   return (
     <>
-      
       <Suspense fallback={
         <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-800 flex items-center justify-center">
           <div className="text-center">
@@ -305,6 +301,7 @@ export default function LoginPage() {
       }>
         <LoginContent />
       </Suspense>
+      <PWAInstallPrompt variant="auto" showOnLogin={true} position="bottom" />
     </>
   );
 }

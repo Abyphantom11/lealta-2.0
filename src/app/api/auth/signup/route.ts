@@ -11,7 +11,7 @@ const signupSchema = z.object({
   // Datos de la empresa
   businessName: z
     .string()
-    .min(2, 'Nombre de empresa debe tener al menos 2 caracteres'),
+    .min(2, 'Nombre de negocio debe tener al menos 2 caracteres'),
   subdomain: z
     .string()
     .min(3, 'Subdominio debe tener al menos 3 caracteres')
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Empresa y administrador creados exitosamente',
+      message: 'Negocio y administrador creados exitosamente',
       business: {
         id: result.business.id,
         name: result.business.name,

@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import { useRequireAuth } from '../../../hooks/useAuth';
 import SuperAdminPage from '../../../app/superadmin/SuperAdminDashboard';
+import PWALayout from '../../../components/layouts/PWALayout';
 
 /**
  * Página de SuperAdmin contextualizada con businessId
@@ -151,6 +152,8 @@ export default function BusinessSuperAdminPage() {
   }
 
   return (
-    <SuperAdminPage businessId={businessId} />
+    <PWALayout promptPosition="bottom">
+      <SuperAdminPage businessId={businessId} />
+    </PWALayout>
   );
 }

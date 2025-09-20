@@ -82,19 +82,60 @@ const DashboardMain: React.FC = () => {
 
   const cargarDatosVisitas = async () => {
     try {
-      // En el futuro, esto vendrá de una API
-      // const response = await fetch('/api/admin/visitas');
-      // const data = await response.json();
+      // 🎯 USAR NUEVA API DE VISITAS
+      const businessId = 'cmfr2y0ia0000eyvw7ef3k20u'; // ID del negocio arepa
       
-      // Datos mock por ahora
+      // Obtener estadísticas para cada período
+      const [responseHoy, responseSemana, responseMes] = await Promise.all([
+        fetch(`/api/cliente/visitas?businessId=${businessId}&periodo=hoy`),
+        fetch(`/api/cliente/visitas?businessId=${businessId}&periodo=semana`),
+        fetch(`/api/cliente/visitas?businessId=${businessId}&periodo=mes`)
+      ]);
+
+      if (responseHoy.ok && responseSemana.ok && responseMes.ok) {
+        const [dataHoy, dataSemana, dataMes] = await Promise.all([
+          responseHoy.json(),
+          responseSemana.json(),
+          responseMes.json()
+        ]);
+
+        const visitasHoy = dataHoy.estadisticas?.totalVisitas || 0;
+        const visitasSemana = dataSemana.estadisticas?.totalVisitas || 0;
+        const visitasMes = dataMes.estadisticas?.totalVisitas || 0;
+
+        // 📈 CALCULAR TENDENCIA
+        let tendencia: 'estable' | 'subiendo' | 'bajando' = 'estable';
+        if (visitasHoy > visitasSemana / 7) {
+          tendencia = 'subiendo';
+        } else if (visitasHoy < visitasSemana / 7 * 0.5) {
+          tendencia = 'bajando';
+        }
+
+        setVisitas({
+          visitasHoy,
+          visitasSemana,
+          visitasMes,
+          tendencia
+        });
+
+        console.log('📊 Estadísticas de visitas cargadas:', {
+          visitasHoy,
+          visitasSemana,
+          visitasMes,
+          tendencia
+        });
+      } else {
+        throw new Error('Error en la respuesta de la API');
+      }
+    } catch (error) {
+      console.error('Error cargando visitas:', error);
+      // Fallback a datos por defecto
       setVisitas({
         visitasHoy: 0,
         visitasSemana: 0,
         visitasMes: 0,
         tendencia: 'estable'
       });
-    } catch (error) {
-      console.error('Error cargando visitas:', error);
     }
   };
 

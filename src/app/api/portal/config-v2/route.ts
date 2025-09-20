@@ -1,8 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getBusinessIdFromRequest } from '@/lib/business-utils';
+import fs from 'fs';
+import path from 'path';
 
 const prisma = new PrismaClient();
+
+// 🔄 Función auxiliar para leer configuración del admin (JSON)
+function getAdminTarjetas(businessId: string) {
+  try {
+    const configPath = path.join(process.cwd(), 'config', 'portal', `portal-config-${businessId}.json`);
+    if (fs.existsSync(configPath)) {
+      const configData = fs.readFileSync(configPath, 'utf8');
+      const config = JSON.parse(configData);
+      console.log(`✅ Admin config encontrado para ${businessId}, tarjetas:`, config.tarjetas?.length || 0);
+      return {
+        tarjetas: config.tarjetas || [],
+        nombreEmpresa: config.nombreEmpresa
+      };
+    }
+  } catch (error) {
+    console.error(`❌ Error leyendo admin config para ${businessId}:`, error);
+  }
+  return null;
+}
 
 // GET - Obtener configuración completa del portal desde la BD
 export async function GET(request: NextRequest) {
@@ -264,27 +285,50 @@ export async function GET(request: NextRequest) {
         updatedAt: favoritoDelDia.updatedAt.toISOString()
       }] : [],
 
-      // CONFIGURACIÓN DE TARJETAS - Formato compatible
-      tarjetas: [{
-        id: 'tarjeta-default',
-        nombre: `Tarjeta ${business.name}`,
-        descripcion: 'Sistema de lealtad personalizado',
-        activa: true,
-        condicional: 'OR',
-        niveles: generateNiveles(tarjetasConfig)
-      }],
+      // CONFIGURACIÓN DE TARJETAS - ✅ PRIORIZAR ADMIN CONFIG
+      tarjetas: (() => {
+        const adminConfig = getAdminTarjetas(businessId);
+        if (adminConfig && adminConfig.tarjetas && adminConfig.tarjetas.length > 0) {
+          // Usar configuración del admin (formato directo)
+          return adminConfig.tarjetas.map((tarjeta: any) => ({
+            id: tarjeta.id || `tarjeta-${tarjeta.nivel?.toLowerCase()}`,
+            nivel: tarjeta.nivel,
+            nombrePersonalizado: tarjeta.nombrePersonalizado,
+            textoCalidad: tarjeta.textoCalidad,
+            colores: tarjeta.colores,
+            condiciones: tarjeta.condiciones,
+            beneficio: tarjeta.beneficio,
+            activo: tarjeta.activo
+          }));
+        }
+        // Fallback: usar BD como antes
+        return [{
+          id: 'tarjeta-default',
+          nombre: `Tarjeta ${business.name}`,
+          descripcion: 'Sistema de lealtad personalizado',
+          activa: true,
+          condicional: 'OR',
+          niveles: generateNiveles(tarjetasConfig)
+        }];
+      })(),
 
       // EVENTOS - Por ahora vacío (se puede agregar después)
       events: [],
 
-      // METADATA
-      nombreEmpresa: business.name,
+      // METADATA - ✅ USAR ADMIN CONFIG PARA NOMBRE EMPRESA
+      nombreEmpresa: (() => {
+        const adminConfig = getAdminTarjetas(businessId);
+        return adminConfig?.nombreEmpresa || business.name;
+      })(),
       settings: {
         lastUpdated: new Date().toISOString(),
         version: '2.0.0', // Nueva versión con BD
         createdBy: 'database',
         businessId: business.id,
-        dataSource: 'database' // Identificador de fuente
+        dataSource: (() => {
+          const adminConfig = getAdminTarjetas(businessId);
+          return adminConfig ? 'admin-json-primary' : 'database-fallback';
+        })()
       }
     };
 

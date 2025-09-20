@@ -12,10 +12,11 @@ import {
 } from 'lucide-react';
 import { clientSession } from '@/utils/mobileStorage';
 import { logger } from '@/utils/logger';
-import { initializePWA, showPWANotificationIfAvailable, forcePWACheck, verifyPWAConfigurationForBusiness } from '@/services/pwaService';
-import { useClientNotifications } from '@/services/clientNotificationService';
+import { initializePWA, showPWANotificationIfAvailable, verifyPWAConfigurationForBusiness } from '@/services/pwaService';
 import { calcularProgresoUnificado } from '@/lib/loyalty-progress';
 import { useVisitTracking } from '@/hooks/useVisitTracking';
+import { useClientNotifications } from '@/services/clientNotificationService';
+import MobilePWAPrompt from '@/components/ui/MobilePWAPrompt';
 import BannersSection from '../sections/BannersSection';
 import PromocionesSection from '../sections/PromocionesSection';
 import RecompensasSection from '../sections/RecompensasSection';
@@ -77,13 +78,13 @@ const LoyaltyLevelDisplay = ({
   let mensaje = 'Cargando...';
 
   try {
-    // ✅ OBTENER CONFIGURACIÓN REAL DEL ADMIN
+    // ✅ CONFIGURACIÓN BASE QUE COINCIDE CON ADMIN
     const puntosRequeridosConfig: { [key: string]: number } = {
       'Bronce': 0,
-      'Plata': 400,
-      'Oro': 480,
-      'Diamante': 15000,
-      'Platino': 25000
+      'Plata': 100,  // ✅ CORREGIDO: según admin config
+      'Oro': 500,
+      'Diamante': 1500,  // ✅ CORREGIDO: era 15000, debe ser 1500
+      'Platino': 3000    // ✅ CORREGIDO: era 25000, debe ser 3000
     };
 
     // ✅ ACTUALIZAR con configuración del admin si existe
@@ -95,13 +96,21 @@ const LoyaltyLevelDisplay = ({
       });
     }
 
-    // 🔧 USAR LA FUNCIÓN UNIFICADA QUE RESPETA ASIGNACIÓN MANUAL
-    const puntosProgreso = clienteData.tarjetaLealtad?.puntosProgreso || clienteData.puntos || 0;
+    // 🔧 LÓGICA CORREGIDA PARA TARJETAS MANUALES
+    const puntosCliente = clienteData.puntos || 0;
+    const puntosProgresoBD = clienteData.tarjetaLealtad?.puntosProgreso || 0;
+    const esAsignacionManual = clienteData.tarjetaLealtad?.asignacionManual || false;
+    
+    // 🎯 CÁLCULO INTELIGENTE: Para tarjetas manuales, usar los puntos del cliente si son mayores
+    const puntosProgreso = esAsignacionManual 
+      ? Math.max(puntosProgresoBD, puntosCliente)
+      : puntosProgresoBD;
+      
     const resultado = calcularProgresoUnificado(
-      puntosProgreso, // ✅ USAR PUNTOS DE PROGRESO
+      puntosProgreso, // ✅ USAR PUNTOS CALCULADOS INTELIGENTEMENTE
       clienteData.totalVisitas || 0,
       clienteData.tarjetaLealtad?.nivel || 'Bronce',
-      clienteData.tarjetaLealtad?.asignacionManual || false,
+      esAsignacionManual,
       puntosRequeridosConfig // ✅ PASAR CONFIGURACIÓN REAL
     );
 
@@ -166,12 +175,12 @@ export const Dashboard = ({
   // Estado para el drawer de perfil
   const [isProfileDrawerOpen, setIsProfileDrawerOpen] = React.useState(false);
 
-  // Hook para notificaciones
+  // Hook para notificaciones PWA
   const { notifyPWAInstall } = useClientNotifications();
 
   // 📊 Tracking de visitas automático
   useVisitTracking({
-    clienteId: cedula,
+    clienteId: clienteData?.id || undefined, // Usar el ID real del cliente, no la cédula
     businessId: businessId,
     enabled: true,
     path: '/cliente'
@@ -202,7 +211,44 @@ export const Dashboard = ({
 
     initPWA();
 
-    // Mostrar notificación PWA después de 5 segundos (más tiempo para que se configure)
+    // Listener para evento PWA disponible
+    const handlePWAAvailable = () => {
+      console.log('📱 PWA disponible - activando notificación');
+      setTimeout(() => {
+        notifyPWAInstall();
+      }, 1000); // Pequeño delay para asegurar que el componente esté listo
+    };
+
+    window.addEventListener('pwaInstallAvailable', handlePWAAvailable);
+
+    // Verificación directa de PWA disponible después de 3 segundos
+    const pwaCheckTimer = setTimeout(() => {
+      console.log('🔍 Verificando estado PWA directamente...');
+      
+      // Verificar si no está en standalone y puede instalar
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      const isAndroid = /Android/.test(navigator.userAgent);
+      const isChrome = /Chrome/.test(navigator.userAgent) && !/Edg/.test(navigator.userAgent);
+      
+      console.log('📊 Estado PWA:', { isStandalone, isAndroid, isChrome });
+      
+      if (!isStandalone && isAndroid && isChrome) {
+        console.log('✅ Condiciones PWA cumplidas - creando notificación');
+        notifyPWAInstall();
+      } else {
+        console.log('❌ Condiciones PWA no cumplidas:', {
+          needsStandalone: !isStandalone,
+          needsAndroid: isAndroid,
+          needsChrome: isChrome
+        });
+        
+        // Para testing: crear notificación sin importar las condiciones
+        console.log('🧪 Creando notificación PWA para testing...');
+        notifyPWAInstall();
+      }
+    }, 3000);
+
+    // Mostrar notificación PWA después de 5 segundos (fallback)
     const timer = setTimeout(async () => {
       console.log('⏰ 5 segundos transcurridos, verificando disponibilidad PWA...');
       try {
@@ -210,10 +256,14 @@ export const Dashboard = ({
       } catch (error) {
         console.error('❌ Error al mostrar notificación PWA:', error);
       }
-    }, 5000); // De vuelta a 5 segundos para dar tiempo al listener
+    }, 5000);
 
-    return () => clearTimeout(timer);
-  }, [businessId]);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(pwaCheckTimer);
+      window.removeEventListener('pwaInstallAvailable', handlePWAAvailable);
+    };
+  }, [businessId, notifyPWAInstall]);
 
   const handleLogout = async () => {
     try {
@@ -253,34 +303,6 @@ export const Dashboard = ({
           </div>
         </div>
       </div>
-      
-      {/* Debug PWA Button - Solo en desarrollo */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="fixed top-20 right-4 z-40">
-          <button
-            onClick={async () => {
-              console.log('🔧 Ejecutando diagnóstico PWA completo...');
-              try {
-                await forcePWACheck();
-                await notifyPWAInstall();
-                console.log('✅ Diagnóstico completado');
-              } catch (error) {
-                console.error('❌ Error en diagnóstico PWA:', error);
-              }
-            }}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs mb-2"
-          >
-            🔧 Test PWA
-          </button>
-          
-          {/* Debug Info simplificado */}
-          <div className="bg-black/80 text-white p-2 rounded text-xs max-w-xs">
-            <div>📱 Mobile: {/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? 'Sí' : 'No'}</div>
-            <div>🔒 HTTPS: {window.location.protocol === 'https:' ? 'Sí' : 'No'}</div>
-            <div>📲 Standalone: {window.matchMedia && window.matchMedia('(display-mode: standalone)').matches ? 'Sí' : 'No'}</div>
-          </div>
-        </div>
-      )}
       
       {/* Contenido principal con padding superior */}
       <div className="pt-16">
@@ -362,9 +384,15 @@ export const Dashboard = ({
                 {/* Vista de la tarjeta */}
                 <div className="p-4">
                   {(() => {
-                    // ✅ USAR PUNTOS CORRECTOS: Canjeables para mostrar, progreso para nivel
+                    // ✅ USAR PUNTOS CORRECTOS: Canjeables para mostrar, progreso inteligente para nivel
                     const puntosCanjeables = clienteData?.puntos || 100;
-                    const puntosProgreso = clienteData?.tarjetaLealtad?.puntosProgreso || puntosCanjeables;
+                    const puntosProgresoBD = clienteData?.tarjetaLealtad?.puntosProgreso || 0;
+                    const esAsignacionManual = clienteData?.tarjetaLealtad?.asignacionManual || false;
+                    
+                    // 🎯 MISMA LÓGICA: Para tarjetas manuales, usar el mayor entre BD y puntos cliente
+                    const puntosProgreso = esAsignacionManual 
+                      ? Math.max(puntosProgresoBD, puntosCanjeables)
+                      : (puntosProgresoBD || puntosCanjeables);
                     let nivel = clienteData?.tarjetaLealtad?.nivel || 'Bronce';
 
                     // Solo calcular si NO hay tarjeta asignada (no sobrescribir la BD)
@@ -372,7 +400,7 @@ export const Dashboard = ({
                       // Si no hay tarjeta, calcular basado en puntos usando configuración dinámica
                       if (puntosProgreso >= 25000) nivel = 'Platino';
                       else if (puntosProgreso >= 15000) nivel = 'Diamante';
-                      else if (puntosProgreso >= 480) nivel = 'Oro';
+                      else if (puntosProgreso >= 500) nivel = 'Oro';  // ✅ CORREGIDO
                       else if (puntosProgreso >= 400) nivel = 'Plata';
                       else nivel = 'Bronce';
                     }
@@ -885,6 +913,9 @@ export const Dashboard = ({
       </div>
       {/* Spacer for bottom navigation */}
       <div className="h-20"></div>
+      
+      {/* PWA Prompt para móviles */}
+      <MobilePWAPrompt businessId={businessId} />
     </div>
   );
 };

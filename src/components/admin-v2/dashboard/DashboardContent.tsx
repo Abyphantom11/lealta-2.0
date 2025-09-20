@@ -394,7 +394,8 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
   useEffect(() => {
     const cargarDatosVisitas = async () => {
       try {
-        console.log('🔄 CARGANDO DATOS DE VISITAS - DashboardContent');
+        console.log('🔄 Cargando datos de visitas para admin dashboard');
+        
         const response = await fetch('/api/admin/visitas', {
           method: 'GET',
           headers: {

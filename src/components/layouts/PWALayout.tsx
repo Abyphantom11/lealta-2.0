@@ -5,9 +5,9 @@ import { initializePWA } from '@/services/pwaService';
 import PWAInstallPrompt from '@/components/ui/PWAInstallPrompt';
 
 interface PWALayoutProps {
-  children: React.ReactNode;
-  showInstallPrompt?: boolean;
-  promptPosition?: 'top' | 'bottom' | 'floating';
+  readonly children: React.ReactNode;
+  readonly showInstallPrompt?: boolean;
+  readonly promptPosition?: 'top' | 'bottom' | 'floating';
 }
 
 export default function PWALayout({ 

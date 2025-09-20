@@ -149,7 +149,7 @@
         "nivel": "#FFD700"
       },
       "condiciones": {
-        "puntosMinimos": 480,
+        "puntosMinimos": 500,
         "gastosMinimos": 1500,
         "visitasMinimas": 10
       },
@@ -199,7 +199,7 @@
       "activo": true
     }
   ],
-  "nombreEmpresa": "Rosita",
+  "nombreEmpresa": "Mi Negocio",
   "configuracionPuntos": {
     "puntosPorDolar": 4,
     "bonusPorRegistro": 400,
