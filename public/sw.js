@@ -1,32 +1,45 @@
-// Service Worker optimizado para PWA móvil
-const CACHE_NAME = 'lealta-2-0-v1.0.4';
+// Service Worker optimizado para PWA Android con iconos oficiales de Lealta
+const CACHE_NAME = 'lealta-android-v1.0.5';
 const urlsToCache = [
   '/',
-  '/offline.html'
+  '/offline.html',
+  '/icons/icon-base.svg',
+  '/icons/icon-192-new.svg', 
+  '/icons/icon-512-new.svg',
+  '/manifest.json'
 ];
 
-// Instalación del service worker
+// Instalación del service worker con pre-caching agresivo
 self.addEventListener('install', (event) => {
-  console.log('🔧 Service Worker instalándose');
+  console.log('🔧 Service Worker Android instalándose');
   
-  // Forzar activación inmediata
+  // Forzar activación inmediata para Android
   self.skipWaiting();
   
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('🚀 Cache abierto');
-        // No fallar si algún recurso no se puede cachear
-        return Promise.allSettled(
-          urlsToCache.map(url => 
-            cache.add(url).catch(err => 
-              console.warn(`No se pudo cachear ${url}:`, err)
-            )
-          )
-        );
+        console.log('🚀 Cache abierto - Android PWA');
+        
+        // Pre-cachear recursos críticos para PWA
+        return Promise.allSettled([
+          // Cachear recursos principales
+          ...urlsToCache.map(url => 
+            cache.add(url).catch(err => {
+              console.warn(`⚠️ No se pudo cachear ${url}:`, err);
+              return null;
+            })
+          ),
+          // Cachear iconos oficiales de Lealta
+          cache.add('/icons/icon-base.svg').catch(() => null),
+          cache.add('/icons/icon-192-new.svg').catch(() => null),
+          cache.add('/icons/icon-512-new.svg').catch(() => null)
+        ]);
       })
-      .then(() => {
-        console.log('✅ Service Worker instalado correctamente');
+      .then((results) => {
+        const successful = results.filter(r => r.status === 'fulfilled').length;
+        const failed = results.filter(r => r.status === 'rejected').length;
+        console.log(`✅ Service Worker instalado: ${successful} éxitos, ${failed} fallos`);
       })
   );
 });
