@@ -65,6 +65,8 @@ const nextConfig = {
   
   // Headers for security and performance
   async headers() {
+    const isProduction = process.env.NODE_ENV === 'production';
+    
     return [
       {
         source: '/(.*)',
@@ -85,6 +87,23 @@ const nextConfig = {
             key: 'Referrer-Policy',
             value: 'strict-origin-when-cross-origin',
           },
+          // 🛡️ SECURITY HEADERS MEJORADOS PARA PRODUCCIÓN
+          {
+            key: 'Strict-Transport-Security',
+            value: isProduction 
+              ? 'max-age=31536000; includeSubDomains; preload' 
+              : 'max-age=0',
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: isProduction
+              ? "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' *.googleapis.com *.gstatic.com; style-src 'self' 'unsafe-inline' *.googleapis.com fonts.googleapis.com; font-src 'self' fonts.gstatic.com; img-src 'self' data: blob: *.unsplash.com *.pixabay.com; connect-src 'self' *.upstash.io; frame-ancestors 'none';"
+              : "default-src 'self' 'unsafe-eval' 'unsafe-inline' *; frame-ancestors 'none';",
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()',
+          },
         ],
       },
       {
@@ -94,6 +113,11 @@ const nextConfig = {
             key: 'Cache-Control',
             value: 'no-store, no-cache, must-revalidate',
           },
+          // 🛡️ API SECURITY HEADERS
+          {
+            key: 'X-Robots-Tag',
+            value: 'noindex, nofollow',
+          },
         ],
       },
       {
@@ -102,6 +126,16 @@ const nextConfig = {
           {
             key: 'Cache-Control',
             value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      // 🛡️ SECURITY: Proteger archivos sensibles
+      {
+        source: '/:path*\\.(env|env\\.local|env\\.production|env\\.development)',
+        headers: [
+          {
+            key: 'X-Robots-Tag',
+            value: 'noindex, nofollow',
           },
         ],
       },

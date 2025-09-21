@@ -15,6 +15,7 @@ import {
 import { handleSessionSegregation } from './src/middleware/sessionSegregation';
 import { prisma } from './src/lib/prisma';
 import { publicClientAccess } from './src/middleware/publicClientAccess';
+import { createRateLimitResponse } from './src/lib/rate-limiter';
 
 // 🚀 CACHE SIMPLE PARA OPTIMIZACIÓN DE RENDIMIENTO
 const CACHE_TTL = 30000; // 30 segundos
@@ -286,6 +287,22 @@ async function getUserBusinessSlug(sessionCookie: string): Promise<string | null
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // 🛡️ RATE LIMITING - APLICAR ANTES DE CUALQUIER PROCESAMIENTO
+  // Determinar tipo de rate limiting basado en la ruta
+  let rateLimitType: 'auth' | 'api' | 'public' = 'public';
+  
+  if (pathname.startsWith('/api/auth/') || pathname.startsWith('/login') || pathname.startsWith('/signup')) {
+    rateLimitType = 'auth';
+  } else if (pathname.startsWith('/api/')) {
+    rateLimitType = 'api';
+  }
+
+  const rateLimitResponse = await createRateLimitResponse(request, rateLimitType);
+  if (rateLimitResponse) {
+    console.log(`🛡️ Rate limit blocked: ${pathname} (${rateLimitType})`);
+    return rateLimitResponse;
+  }
 
   // Log básico para debug
   console.log(`🔒 MIDDLEWARE HARDENED: ${pathname}`);

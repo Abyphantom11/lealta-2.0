@@ -6,6 +6,9 @@ import ServiceWorkerRegistration from '../components/ServiceWorkerRegistration';
 import CookieBanner from '../components/ui/CookieBanner';
 import './globals.css';
 
+// 🛡️ Validación de variables de entorno al inicio
+import '../lib/env-validator';
+
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
