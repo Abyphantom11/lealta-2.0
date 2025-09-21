@@ -4,8 +4,8 @@
 
 Copia estas variables en el dashboard de Vercel (Project Settings > Environment Variables):
 
-### 🗄️ Base de Datos
-DATABASE_URL=postgresql://neondb_owner:npg_XcL6eWBCMz9b@ep-floral-morning-ad47ojau-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
+### 🗄️ Base de Datos (NUEVA - REGENERADA POR SEGURIDAD)
+DATABASE_URL=postgresql://neondb_owner:npg_FSM59yCGwBeE@ep-dark-glitter-adgpeao8-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
 
 ### 🔐 Autenticación
 NEXTAUTH_SECRET=3nULI9Ywt+8ALxxA9zvL6JJIRHImT6ALSMlhUN8wbDs=
