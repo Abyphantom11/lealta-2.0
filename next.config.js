@@ -104,7 +104,7 @@ const nextConfig = {
           {
             key: 'Content-Security-Policy',
             value: isProduction
-              ? "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' *.googleapis.com *.gstatic.com; style-src 'self' 'unsafe-inline' *.googleapis.com fonts.googleapis.com; font-src 'self' fonts.gstatic.com; img-src 'self' data: blob: *.unsplash.com *.pixabay.com; connect-src 'self' *.upstash.io; frame-ancestors 'none';"
+              ? "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' *.googleapis.com *.gstatic.com; style-src 'self' 'unsafe-inline' *.googleapis.com fonts.googleapis.com; font-src 'self' fonts.gstatic.com; img-src 'self' data: blob: *.unsplash.com *.pixabay.com; connect-src 'self' *.upstash.io *.sentry.io *.ingest.us.sentry.io; frame-ancestors 'none';"
               : "default-src 'self' 'unsafe-eval' 'unsafe-inline' *; frame-ancestors 'none';",
           },
           {
