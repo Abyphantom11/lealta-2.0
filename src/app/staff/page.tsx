@@ -25,6 +25,7 @@ import {
   UserPlus,
   Copy,
 } from 'lucide-react';
+import logger from '@/lib/logger';
 
 // ========================================
 // 🔧 SECCIÓN: INTERFACES Y TIPOS (19-100)
@@ -189,7 +190,7 @@ export default function StaffPage() {
     const areSimilar = totals.every(total => Math.abs(total - firstTotal) < 0.1);
     
     if (areSimilar && firstTotal > 0) {
-      console.log('🔍 Detectada misma cuenta en múltiples imágenes. Total: $', firstTotal);
+      logger.debug('Detectada misma cuenta en múltiples imágenes. Total: $', firstTotal);
       return true;
     }
     
@@ -213,7 +214,7 @@ export default function StaffPage() {
     // NO corregir nombres que son claramente fragmentos incorrectos
     const invalidFragments = ['doval', 'dovai', 'roval'];
     if (invalidFragments.includes(cleanPartial)) {
-      console.log(`❌ Fragmento inválido detectado y filtrado: "${cleanPartial}"`);
+      logger.debug(`Fragmento inválido detectado y filtrado: "${cleanPartial}"`);
       return null; // Retornar null para que se filtre
     }
     
@@ -223,7 +224,7 @@ export default function StaffPage() {
       
       // Verificar coincidencia exacta al inicio con al menos 70% del nombre
       if (cleanProduct.startsWith(cleanPartial) && cleanPartial.length >= cleanProduct.length * 0.7) {
-        console.log(`✅ Corrección por prefijo: "${partialName}" → "${product}"`);
+        logger.debug(`Corrección por prefijo: "${partialName}" → "${product}"`);
         return product;
       }
       
@@ -240,7 +241,7 @@ export default function StaffPage() {
       
       // Solo si todas las palabras del fragmento coinciden exactamente
       if (partialWords.length > 0 && exactMatches === partialWords.length && exactMatches >= 2) {
-        console.log(`✅ Corrección por palabras clave: "${partialName}" → "${product}"`);
+        logger.debug(`Corrección por palabras clave: "${partialName}" → "${product}"`);
         return product;
       }
     }
@@ -254,7 +255,7 @@ export default function StaffPage() {
     };
     
     if (highConfidenceCorrections[cleanPartial]) {
-      console.log(`✅ Corrección específica: "${partialName}" → "${highConfidenceCorrections[cleanPartial]}"`);
+      logger.debug(`Corrección específica: "${partialName}" → "${highConfidenceCorrections[cleanPartial]}"`);
       return highConfidenceCorrections[cleanPartial];
     }
     
@@ -309,7 +310,7 @@ export default function StaffPage() {
       await navigator.clipboard.writeText(text);
       showNotification('success', successMessage);
     } catch (error) {
-      console.error('Error copiando al portapapeles:', error);
+      logger.error('Error copiando al portapapeles:', error);
       showNotification('error', 'Error al copiar');
     }
   };
@@ -464,12 +465,15 @@ export default function StaffPage() {
   // Referencias para el input de archivo
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Debug para el cuadro de confirmación
+  // Efecto para debug del estado de confirmación
   useEffect(() => {
-    console.log('🎨 Estado de confirmación cambió:', {
-      showConfirmation,
-      editableData,
-    });
+    // Estado de confirmación para logging interno
+    if (process.env.NODE_ENV === 'development') {
+      logger.debug('Estado de confirmación cambió:', {
+        showConfirmation,
+        editableData,
+      });
+    }
   }, [showConfirmation, editableData]);
 
   // ========================================
