@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import NotificationContainer from '@/components/ui/NotificationContainer';
 import RedirectInterceptor from '../components/RedirectInterceptor';
 import ServiceWorkerRegistration from '../components/ServiceWorkerRegistration';
+import CookieBanner from '../components/ui/CookieBanner';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -63,6 +64,7 @@ export default function RootLayout({
         <div className="min-h-screen bg-gradient-to-br from-slate-950 via-gray-950 to-black">
           {children}
           <NotificationContainer />
+          <CookieBanner position="from-logo" theme="dark" />
         </div>
       </body>
     </html>

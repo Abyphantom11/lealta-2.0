@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { motion } from '../components/motion';
 import { DesktopTitleBar } from '../components/DesktopUI';
+import Footer from '../components/ui/Footer';
+import Header from '../components/ui/Header';
 
 // ========================================
 // 🎨 COMPONENTES AUXILIARES PREMIUM
@@ -108,6 +110,9 @@ export default function HomePage() {
       {/* Desktop Title Bar - Only shown in Electron */}
       <DesktopTitleBar />
 
+      {/* Header con navegación */}
+      <Header />
+
       {/* Hero Section Premium */}
       <div className="relative overflow-hidden">
         {/* Background Elements */}
@@ -117,7 +122,7 @@ export default function HomePage() {
           <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-pink-500/20 rounded-full blur-3xl transform -translate-x-1/2 -translate-y-1/2" />
         </div>
 
-        <div className="relative container mx-auto px-4 py-20">
+        <div className="relative container mx-auto px-4 py-16">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -182,22 +187,24 @@ export default function HomePage() {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="group px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl shadow-2xl shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300 flex items-center text-lg"
+                  className="group px-10 py-5 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl shadow-2xl shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300 flex items-center text-xl"
                 >
-                  Prueba Gratis 14 Días
-                  <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                  <Sparkles className="w-6 h-6 mr-3" />
+                  Comenzar Prueba Gratis
+                  <ArrowRight className="w-6 h-6 ml-3 group-hover:translate-x-1 transition-transform" />
                 </motion.button>
               </Link>
-              <Link href="/login">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="px-8 py-4 border-2 border-gray-600 text-gray-300 font-semibold rounded-xl hover:border-gray-400 hover:text-white transition-all duration-300 flex items-center text-lg"
-                >
-                  <Rocket className="w-5 h-5 mr-2" />
-                  Ver Demo
-                </motion.button>
-              </Link>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="px-8 py-4 border-2 border-gray-600 text-gray-300 font-semibold rounded-xl hover:border-gray-400 hover:text-white transition-all duration-300 flex items-center text-lg"
+                onClick={() => {
+                  document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                <Rocket className="w-5 h-5 mr-2" />
+                Conocer Más
+              </motion.button>
             </motion.div>
           </motion.div>
 
@@ -217,7 +224,7 @@ export default function HomePage() {
       </div>
 
       {/* Value Proposition Section */}
-      <div className="py-20 bg-gradient-to-b from-gray-900/50 to-gray-900">
+      <div id="features" className="py-20 bg-gradient-to-b from-gray-900/50 to-gray-900">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -339,6 +346,9 @@ export default function HomePage() {
           </motion.div>
         </div>
       </div>
+
+      {/* Footer */}
+      <Footer variant="full" />
     </div>
   );
 }

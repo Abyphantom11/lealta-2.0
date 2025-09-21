@@ -4,9 +4,9 @@ import { useState, useEffect, Suspense } from 'react';
 import { motion } from '../../components/motion';
 import { Mail, Lock, Eye, EyeOff, UserPlus, Sparkles, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
-import { LealtaLogo } from '../../components/LealtaLogo';
 import { useSearchParams, useRouter } from 'next/navigation';
 import PWAInstallPrompt from '../../components/ui/PWAInstallPrompt';
+import AuthHeader from '../../components/ui/AuthHeader';
 
 function LoginContent() {
   const [formData, setFormData] = useState({
@@ -150,35 +150,29 @@ function LoginContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black flex items-center justify-center p-4">
-      {/* Background Elements */}
-      <div className="absolute inset-0 opacity-20">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black">
+      {/* Header con navegación optimizada */}
+      <AuthHeader showBackButton={true} />
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative w-full max-w-md"
-      >
-        {/* Header */}
-        <div className="text-center mb-8">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-            className="mb-6"
-          >
-            <LealtaLogo size={60} className="mx-auto" animated />
-          </motion.div>
-          <h1 className="text-3xl font-bold text-white mb-2">
-            <span className="bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-              lealta
-            </span>
-          </h1>
-          <p className="text-gray-400">Panel de administración</p>
+      {/* Contenido principal */}
+      <div className="flex items-center justify-center p-4 pt-0">
+        {/* Background Elements */}
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl" />
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
         </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative w-full max-w-md"
+        >
+          {/* Header del formulario - simplificado */}
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-bold text-white mb-6">
+              Accede a tu cuenta
+            </h1>
+          </div>
 
         {/* Login Form */}
         <motion.form
@@ -283,7 +277,8 @@ function LoginContent() {
             Registrar Negocio
           </Link>
         </motion.div>
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   );
 }
