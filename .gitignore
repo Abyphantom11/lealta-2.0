@@ -39,7 +39,12 @@ lerna-debug.log*
 .env
 .env*.local
 .env.production
+.env.postgres
+.env.neon
+.env.development
+.env.staging
 !.env.example
+!.env.production.template
 
 # Vercel
 .vercel
