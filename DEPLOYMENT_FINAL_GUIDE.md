@@ -21,7 +21,7 @@ DATABASE_URL="postgresql://neondb_owner:npg_U01XgvNznHhO@ep-dark-glitter-adgpeao
 ### ✅ **2. Variables de Entorno**
 ```bash
 NEXTAUTH_SECRET="lealta-production-secret-key-2025-secure-32-chars-min"
-GEMINI_API_KEY="AIzaSyAkSmHtoNHHNAwukPwtJEL5pQ0U7IzAM7k"
+GEMINI_API_KEY="YOUR_GOOGLE_GEMINI_API_KEY_HERE"
 NODE_ENV="production"
 ```
 
