@@ -1,7 +1,14 @@
-﻿// eslint-disable-next-line @typescript-eslint/no-require-imports
-const withBundleAnalyzer = require('@next/bundle-analyzer')({
-  enabled: process.env.ANALYZE === 'true',
-});
+﻿// Bundle analyzer with fallback for production builds
+let withBundleAnalyzer;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  withBundleAnalyzer = require('@next/bundle-analyzer')({
+    enabled: process.env.ANALYZE === 'true',
+  });
+} catch {
+  // Fallback if bundle analyzer is not available
+  withBundleAnalyzer = (config) => config;
+}
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
