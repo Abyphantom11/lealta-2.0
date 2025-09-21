@@ -1,30 +1,37 @@
 // This file configures the initialization of Sentry on the server side.
-// The config you add here will be used whenever the server handles a request.
-// https://docs.sentry.io/platforms/javascript/guides/nextjs/
-
 import * as Sentry from "@sentry/nextjs";
 
 Sentry.init({
-  dsn: process.env.SENTRY_DSN,
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
   
-  // Adjust this value in production, or use tracesSampler for greater control
+  // Debug mode for development
+  debug: process.env.NODE_ENV === "development",
+  
+  // Performance Monitoring
   tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
   
-  // Only capture errors in production
-  enabled: process.env.NODE_ENV === 'production',
+  // Enable only when DSN is configured
+  enabled: !!process.env.NEXT_PUBLIC_SENTRY_DSN,
   
-  // Performance monitoring
-  integrations: [
-    new Sentry.Integrations.Http({ tracing: true }),
-  ],
+  // Environment
+  environment: process.env.NODE_ENV,
   
   beforeSend(event) {
-    // Filter out development errors and sensitive data
+    // In development, log to console
     if (process.env.NODE_ENV === 'development') {
-      return null;
+      console.log('🔍 Sentry Server:', event.exception?.values?.[0]?.value || event.message);
     }
     
-    // Remove sensitive information
+    // Filter common server errors
+    if (event.exception) {
+      const error = event.exception.values?.[0];
+      if (error?.value?.includes('ECONNRESET') || 
+          error?.value?.includes('socket hang up')) {
+        return null;
+      }
+    }
+    
+    // Remove sensitive data
     if (event.request?.headers) {
       delete event.request.headers.authorization;
       delete event.request.headers.cookie;

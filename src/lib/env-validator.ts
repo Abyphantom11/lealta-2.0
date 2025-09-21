@@ -58,9 +58,9 @@ const ENV_CONFIG: EnvConfig = {
     description: 'API Key de Resend para emails',
   },
   
-  // 🔑 Monitoreo y errores (OPCIONALES)
+  // 🔑 Monitoreo y errores (RECOMENDADO PARA PRODUCCIÓN)
   NEXT_PUBLIC_SENTRY_DSN: {
-    required: false,
+    required: process.env.NODE_ENV === 'production',
     description: 'DSN de Sentry para monitoreo de errores',
     validate: (value) => value.startsWith('https://') && value.includes('sentry.io'),
   },

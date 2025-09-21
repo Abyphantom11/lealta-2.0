@@ -177,3 +177,6 @@ public/uploads/*
 # Temporary files
 *.tmp
 *.temp
+
+# Sentry Config File
+.env.sentry-build-plugin

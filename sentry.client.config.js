@@ -1,34 +1,35 @@
 // This file configures the initialization of Sentry on the browser side.
-// The config you add here will be used whenever a page is visited.
-// https://docs.sentry.io/platforms/javascript/guides/nextjs/
-
 import * as Sentry from "@sentry/nextjs";
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
   
-  // Adjust this value in production, or use tracesSampler for greater control
+  // Debug mode for development
+  debug: process.env.NODE_ENV === "development",
+  
+  // Performance Monitoring
   tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
   
-  // Note: if you want to override the automatic release value, do not set a
-  // `release` value here - use the environment variable `SENTRY_RELEASE`, so
-  // that it will also get attached to your source maps
+  // Session Replay - disabled for now to avoid issues
+  // replaysSessionSampleRate: 0.1, // 10% of sessions
+  // replaysOnErrorSampleRate: 1.0, // 100% of sessions with errors
   
-  // Only capture errors in production
-  enabled: process.env.NODE_ENV === 'production',
+  // Enable only when DSN is configured
+  enabled: !!process.env.NEXT_PUBLIC_SENTRY_DSN,
   
-  // Performance monitoring
-  integrations: [
-    new Sentry.BrowserTracing({
-      // Set sampling rate for performance monitoring
-      tracePropagationTargets: ["localhost", /^https:\/\/yourapi\.domain\.com\/api/],
-    }),
-  ],
+  // Environment
+  environment: process.env.NODE_ENV,
   
-  beforeSend(event, hint) {
-    // Filter out development errors
+  // Custom configuration
+  beforeSend(event) {
+    // In development, log to console
     if (process.env.NODE_ENV === 'development') {
-      return null;
+      console.log("🔍 Sentry Client - Enviando evento:", {
+        message: event.message,
+        level: event.level,
+        exception: event.exception?.values?.[0]?.value,
+        timestamp: new Date().toISOString()
+      });
     }
     return event;
   },
