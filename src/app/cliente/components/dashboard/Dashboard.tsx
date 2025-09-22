@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Coffee,
@@ -12,11 +12,8 @@ import {
 } from 'lucide-react';
 import { clientSession } from '@/utils/mobileStorage';
 import { logger } from '@/utils/logger';
-import { initializePWA, showPWANotificationIfAvailable, verifyPWAConfigurationForBusiness } from '@/services/pwaService';
 import { calcularProgresoUnificado } from '@/lib/loyalty-progress';
 import { useVisitTracking } from '@/hooks/useVisitTracking';
-import { useClientNotifications } from '@/services/clientNotificationService';
-import MobilePWAPrompt from '@/components/ui/MobilePWAPrompt';
 import BannersSection from '../sections/BannersSection';
 import PromocionesSection from '../sections/PromocionesSection';
 import RecompensasSection from '../sections/RecompensasSection';
@@ -174,9 +171,6 @@ export const Dashboard = ({
   // Estado para el drawer de perfil
   const [isProfileDrawerOpen, setIsProfileDrawerOpen] = React.useState(false);
 
-  // Hook para notificaciones PWA
-  const { notifyPWAInstall } = useClientNotifications();
-
   // 📊 Tracking de visitas automático
   useVisitTracking({
     clienteId: clienteData?.id || undefined, // Usar el ID real del cliente, no la cédula
@@ -184,85 +178,6 @@ export const Dashboard = ({
     enabled: true,
     path: '/cliente'
   });
-
-  // Inicializar PWA cuando se carga el Dashboard
-  useEffect(() => {
-    const initPWA = async () => {
-      try {
-        initializePWA();
-        console.log('✅ PWA service inicializado en Dashboard');
-        
-        // Verificar configuración específica del business después de 3 segundos
-        if (businessId) {
-          setTimeout(async () => {
-            const isConfigured = await verifyPWAConfigurationForBusiness(businessId);
-            if (isConfigured) {
-              console.log('✅ PWA configurado correctamente para business:', businessId);
-            } else {
-              console.warn('⚠️ PWA no está configurado correctamente para business:', businessId);
-            }
-          }, 3000);
-        }
-      } catch (error) {
-        console.error('❌ Error al inicializar PWA:', error);
-      }
-    };
-
-    initPWA();
-
-    // Listener para evento PWA disponible
-    const handlePWAAvailable = () => {
-      console.log('📱 PWA disponible - activando notificación');
-      setTimeout(() => {
-        notifyPWAInstall();
-      }, 1000); // Pequeño delay para asegurar que el componente esté listo
-    };
-
-    window.addEventListener('pwaInstallAvailable', handlePWAAvailable);
-
-    // Verificación directa de PWA disponible después de 3 segundos
-    const pwaCheckTimer = setTimeout(() => {
-      console.log('🔍 Verificando estado PWA directamente...');
-      
-      // Verificar si no está en standalone y puede instalar
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-      const isAndroid = /Android/.test(navigator.userAgent);
-      const isChrome = /Chrome/.test(navigator.userAgent) && !/Edg/.test(navigator.userAgent);
-      
-      console.log('📊 Estado PWA:', { isStandalone, isAndroid, isChrome });
-      
-      if (!isStandalone && isAndroid && isChrome) {
-        console.log('✅ Condiciones PWA cumplidas - creando notificación');
-        notifyPWAInstall();
-      } else {
-        console.log('❌ Condiciones PWA no cumplidas:', {
-          needsStandalone: !isStandalone,
-          needsAndroid: isAndroid,
-          needsChrome: isChrome
-        });
-        
-        // Para testing: crear notificación sin importar las condiciones
-        console.log('🧪 Creando notificación PWA para testing...');
-        notifyPWAInstall();
-      }
-    }, 3000);
-
-    // Mostrar notificación PWA después de 5 segundos (fallback)
-    const timer = setTimeout(async () => {
-      console.log('⏰ 5 segundos transcurridos, verificando disponibilidad PWA...');
-      try {
-        showPWANotificationIfAvailable();
-      } catch (error) {
-        console.error('❌ Error al mostrar notificación PWA:', error);
-      }
-    }, 5000);
-
-    return () => {
-      clearTimeout(timer);
-      clearTimeout(pwaCheckTimer);
-      window.removeEventListener('pwaInstallAvailable', handlePWAAvailable);
-    };
-  }, [businessId, notifyPWAInstall]);
 
   const handleLogout = async () => {
     try {
@@ -912,9 +827,6 @@ export const Dashboard = ({
       </div>
       {/* Spacer for bottom navigation */}
       <div className="h-20"></div>
-      
-      {/* PWA Prompt para móviles */}
-      <MobilePWAPrompt businessId={businessId} />
     </div>
   );
 };

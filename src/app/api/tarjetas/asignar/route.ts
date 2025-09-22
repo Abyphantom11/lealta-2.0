@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import fs from 'fs';
-import path from 'path';
+import { getPuntosMinimosConfig } from '@/lib/tarjetas-config-central';
 import {
   enviarNotificacionClientes,
   TipoNotificacion,
@@ -11,41 +10,27 @@ import {
 const extendedPrisma = prisma as any;
 
 // Helper functions para reducir complejidad cognitiva
-async function loadPortalConfig(): Promise<Record<string, number>> {
-  // ✅ CONFIGURACIÓN BASE CORREGIDA QUE COINCIDE CON ADMIN
-  const puntosRequeridosBase: Record<string, number> = {
-    'Bronce': 0,
-    'Plata': 100,     // ✅ CORREGIDO: según admin config
-    'Oro': 500,
-    'Diamante': 1500, // ✅ CORREGIDO: era 15000, debe ser 1500
-    'Platino': 3000   // ✅ CORREGIDO: era 25000, debe ser 3000
-  };
-
+async function loadPortalConfig(businessId: string = 'default'): Promise<Record<string, number>> {
+  console.log(`🎯 [ASIGNAR] Usando configuración central para ${businessId}`);
+  
   try {
-    // 🎯 LEER DESDE EL MISMO JSON QUE USA EL ADMIN
-    const configPath = path.join(process.cwd(), 'config', 'portal', 'portal-config-arepa.json');
+    // ✅ USAR CONFIGURACIÓN CENTRAL - ELIMINANDO HARDCODING
+    const puntosRequeridosBase = await getPuntosMinimosConfig(businessId);
     
-    if (fs.existsSync(configPath)) {
-      const configData = fs.readFileSync(configPath, 'utf8');
-      const portalConfig = JSON.parse(configData);
-
-      // ✅ USAR CONFIGURACIÓN DE TARJETAS DEL ADMIN
-      if (portalConfig.tarjetas && Array.isArray(portalConfig.tarjetas)) {
-        portalConfig.tarjetas.forEach((tarjeta: any) => {
-          if (tarjeta.condiciones?.puntosMinimos !== undefined && tarjeta.nivel) {
-            puntosRequeridosBase[tarjeta.nivel as keyof typeof puntosRequeridosBase] = tarjeta.condiciones.puntosMinimos;
-          }
-        });
-        console.log('✅ Configuración de tarjetas cargada desde admin:', puntosRequeridosBase);
-      }
-    } else {
-      console.warn('⚠️ Archivo de configuración del admin no encontrado, usando valores por defecto corregidos');
-    }
+    console.log('✅ [ASIGNAR] Configuración de tarjetas cargada desde central:', puntosRequeridosBase);
+    return puntosRequeridosBase;
   } catch (error) {
-    console.warn('⚠️ Error leyendo configuración del admin, usando valores por defecto:', error);
+    console.error('❌ [ASIGNAR] Error obteniendo configuración central:', error);
+    
+    // Fallback seguro
+    return {
+      'Bronce': 0,
+      'Plata': 100,
+      'Oro': 500,
+      'Diamante': 1500,
+      'Platino': 3000
+    };
   }
-
-  return puntosRequeridosBase;
 }
 
 function analyzeCardChange(currentLevel: string, newLevel: string) {
@@ -105,12 +90,14 @@ async function updateExistingCard(cliente: any, nivel: string, asignacionManual:
 
   // 🎯 NUEVA LÓGICA DE RESET PARA ASIGNACIÓN MANUAL
   if (asignacionManual) {
-    const puntosRequeridosBase = await loadPortalConfig();
+    // ✅ USAR BUSINESS ID DEL CLIENTE
+    const businessId = cliente.businessId || 'default';
+    const puntosRequeridosBase = await loadPortalConfig(businessId);
     
     // 📌 CUANDO SE ASIGNE MANUALMENTE UNA TARJETA, EL PROGRESO SIEMPRE ES EL MÍNIMO DE ESA TARJETA
     nuevosPuntosProgreso = puntosRequeridosBase[nivel] || 0;
     
-    console.log(`🔄 RESET MANUAL: ${cliente.cedula}`);
+    console.log(`🔄 RESET MANUAL: ${cliente.cedula} (business: ${businessId})`);
     console.log(`   Nivel anterior: ${tarjetaExistente.nivel} (progreso: ${tarjetaExistente.puntosProgreso})`);
     console.log(`   Nivel nuevo: ${nivel} (progreso reseteado a: ${nuevosPuntosProgreso})`);
     console.log(`   Tipo operación: ${tipoOperacion}`);
@@ -156,12 +143,14 @@ async function updateExistingCard(cliente: any, nivel: string, asignacionManual:
 }
 
 async function createNewCard(cliente: any, nivel: string, asignacionManual: boolean) {
-  const puntosRequeridosBase = await loadPortalConfig();
+  // ✅ USAR BUSINESS ID DEL CLIENTE
+  const businessId = cliente.businessId || 'default';
+  const puntosRequeridosBase = await loadPortalConfig(businessId);
   
   // 🎯 PARA NUEVAS TARJETAS, EL PROGRESO SIEMPRE ES EL MÍNIMO DEL NIVEL ASIGNADO
   const puntosRequeridosNivel = puntosRequeridosBase[nivel] || 0;
 
-  console.log(`🆕 NUEVA TARJETA: ${cliente.cedula} -> ${nivel} (progreso inicial: ${puntosRequeridosNivel})`);
+  console.log(`🆕 NUEVA TARJETA: ${cliente.cedula} -> ${nivel} (business: ${businessId}, progreso inicial: ${puntosRequeridosNivel})`);
 
   const nuevaTarjeta = await extendedPrisma.tarjetaLealtad.create({
     data: {

@@ -18,11 +18,6 @@ export const BalanceCard = ({
   setShowTarjeta 
 }: BalanceCardProps) => {
   
-  // Debug: Verificar qué datos estamos recibiendo
-  console.log('🐛 BalanceCard - clienteData:', clienteData);
-  console.log('🐛 BalanceCard - tarjetaLealtad:', clienteData?.tarjetaLealtad);
-  console.log('🐛 BalanceCard - puntos:', clienteData?.tarjetaLealtad?.puntos);
-  
   // Obtener puntos de forma más robusta
   const puntos = clienteData?.tarjetaLealtad?.puntos ?? 0;
   

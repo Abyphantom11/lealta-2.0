@@ -1,8 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getBusinessIdFromRequest } from '@/lib/business-utils';
+import fs from 'fs';
+import path from 'path';
 
 const prisma = new PrismaClient();
+
+// Función para obtener banners desde archivo de configuración central
+async function getBannersFromConfig(businessId: string) {
+  try {
+    // Intentar archivo específico del business primero
+    const specificPath = path.join(process.cwd(), 'config', 'portal', `portal-config-${businessId}.json`);
+    const defaultPath = path.join(process.cwd(), 'portal-config.json');
+    
+    let configPath = defaultPath;
+    if (fs.existsSync(specificPath)) {
+      configPath = specificPath;
+    }
+    
+    const configData = fs.readFileSync(configPath, 'utf8');
+    const config = JSON.parse(configData);
+    
+    console.log(`📂 [BANNERS] Leyendo banners desde: ${configPath}`);
+    console.log(`📊 [BANNERS] Encontrados: ${config.banners?.length || 0} banners`);
+    
+    return config.banners || [];
+  } catch (error) {
+    console.error('❌ [BANNERS] Error leyendo configuración:', error);
+    return [];
+  }
+}
 
 // GET - Obtener banners del portal
 export async function GET(request: NextRequest) {
@@ -16,6 +43,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // 🎯 PRIORIDAD CORREGIDA: Usar base de datos primero (fuente de verdad)
+    console.log(`📊 [BANNERS] Consultando banners desde BD para ${businessId}`);
     const banners = await prisma.portalBanner.findMany({
       where: {
         businessId,
@@ -26,7 +55,33 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    return NextResponse.json({ banners });
+    if (banners.length > 0) {
+      console.log(`✅ [BANNERS] Usando ${banners.length} banners desde base de datos`);
+      // Transformar a formato compatible con cliente
+      const bannersFormatted = banners.map(banner => ({
+        id: banner.id,
+        titulo: banner.title,
+        title: banner.title,
+        descripcion: banner.description || '',
+        description: banner.description || '',
+        imagenUrl: banner.imageUrl || '',
+        imageUrl: banner.imageUrl || '',
+        activo: banner.active,
+        active: banner.active,
+        orden: banner.orden || 0,
+        dia: banner.dia || 'todos', // Si no tiene día específico
+        linkUrl: banner.linkUrl || ''
+      }));
+      
+      return NextResponse.json({ banners: bannersFormatted });
+    }
+    
+    // Fallback: usar configuración JSON solo si no hay datos en BD
+    console.log(`📁 [BANNERS] No hay banners en BD, usando configuración JSON como fallback`);
+    const configBanners = await getBannersFromConfig(businessId);
+    
+    console.log(`✅ [BANNERS] Fallback: ${configBanners.length} banners desde configuración`);
+    return NextResponse.json({ banners: configBanners });
   } catch (error) {
     console.error('Error obteniendo banners:', error);
     return NextResponse.json(

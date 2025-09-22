@@ -2,30 +2,32 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getBusinessIdFromRequest } from '@/lib/business-utils';
 import { getBusinessDayRange } from '@/lib/business-day-utils';
-import fs from 'fs';
-import path from 'path';
+import { getTarjetasConfigCentral } from '@/lib/tarjetas-config-central';
 
 const prisma = new PrismaClient();
 
 export const dynamic = 'force-dynamic';
 
-// 🔄 Función auxiliar para leer configuración del admin (JSON)
-function getAdminTarjetas(businessId: string) {
+// 🔄 Función auxiliar para obtener configuración usando sistema central
+async function getAdminTarjetas(businessId: string) {
   try {
-    const configPath = path.join(process.cwd(), 'config', 'portal', `portal-config-${businessId}.json`);
-    if (fs.existsSync(configPath)) {
-      const configData = fs.readFileSync(configPath, 'utf8');
-      const config = JSON.parse(configData);
-      console.log(`✅ Admin config encontrado para ${businessId}, tarjetas:`, config.tarjetas?.length || 0);
-      return {
-        tarjetas: config.tarjetas || [],
-        nombreEmpresa: config.nombreEmpresa
-      };
+    const config = await getTarjetasConfigCentral(businessId);
+    console.log(`✅ Admin config encontrado para ${businessId}, tarjetas:`, config.tarjetas?.length || 0);
+    
+    if (config.erroresValidacion.length > 0) {
+      console.warn(`⚠️ Errores de validación para ${businessId}:`, config.erroresValidacion);
     }
+    
+    return {
+      tarjetas: config.tarjetas || [],
+      nombreEmpresa: config.nombreEmpresa || 'Sistema Lealta',
+      jerarquiaValida: config.jerarquiaValida,
+      erroresValidacion: config.erroresValidacion
+    };
   } catch (error) {
-    console.error(`❌ Error leyendo admin config para ${businessId}:`, error);
+    console.error(`❌ Error obteniendo config central para ${businessId}:`, error);
+    return null;
   }
-  return null;
 }
 
 // GET - Obtener configuración completa del portal desde la BD
@@ -296,20 +298,30 @@ export async function GET(request: NextRequest) {
       }] : [],
 
       // CONFIGURACIÓN DE TARJETAS - ✅ PRIORIZAR ADMIN CONFIG
-      tarjetas: (() => {
-        const adminConfig = getAdminTarjetas(businessId);
+      tarjetas: await (async () => {
+        const adminConfig = await getAdminTarjetas(businessId);
         if (adminConfig && adminConfig.tarjetas && adminConfig.tarjetas.length > 0) {
-          // Usar configuración del admin (formato directo)
-          return adminConfig.tarjetas.map((tarjeta: any) => ({
-            id: tarjeta.id || `tarjeta-${tarjeta.nivel?.toLowerCase()}`,
-            nivel: tarjeta.nivel,
-            nombrePersonalizado: tarjeta.nombrePersonalizado,
-            textoCalidad: tarjeta.textoCalidad,
-            colores: tarjeta.colores,
-            condiciones: tarjeta.condiciones,
-            beneficio: tarjeta.beneficio,
-            activo: tarjeta.activo
-          }));
+          // ✅ CORRECCIÓN: Transformar correctamente la estructura de niveles
+          const tarjetaBase = adminConfig.tarjetas[0]; // Primera tarjeta con niveles
+          if (tarjetaBase && tarjetaBase.niveles && Array.isArray(tarjetaBase.niveles)) {
+            return tarjetaBase.niveles.map((nivel: any) => ({
+              id: `tarjeta-${nivel.nombre?.toLowerCase()}`,
+              nivel: nivel.nombre,
+              nombrePersonalizado: `Tarjeta ${nivel.nombre}`,
+              textoCalidad: nivel.beneficio || `Cliente ${nivel.nombre}`,
+              colores: {
+                gradiente: nivel.colores || ['#666666', '#999999'],
+                texto: '#FFFFFF',
+                nivel: nivel.colores?.[0] || '#666666'
+              },
+              condiciones: {
+                puntosMinimos: nivel.puntosRequeridos || 0,
+                visitasMinimas: nivel.visitasRequeridas || 0
+              },
+              beneficio: `${nivel.descuento || 0}% de descuento en compras`,
+              activo: true
+            }));
+          }
         }
         // Fallback: usar BD como antes
         return [{
@@ -326,8 +338,8 @@ export async function GET(request: NextRequest) {
       events: [],
 
       // METADATA - ✅ USAR ADMIN CONFIG PARA NOMBRE EMPRESA
-      nombreEmpresa: (() => {
-        const adminConfig = getAdminTarjetas(businessId);
+      nombreEmpresa: await (async () => {
+        const adminConfig = await getAdminTarjetas(businessId);
         return adminConfig?.nombreEmpresa || business.name;
       })(),
       settings: {
@@ -335,8 +347,8 @@ export async function GET(request: NextRequest) {
         version: '2.0.0', // Nueva versión con BD
         createdBy: 'database',
         businessId: business.id,
-        dataSource: (() => {
-          const adminConfig = getAdminTarjetas(businessId);
+        dataSource: await (async () => {
+          const adminConfig = await getAdminTarjetas(businessId);
           return adminConfig ? 'admin-json-primary' : 'database-fallback';
         })()
       }

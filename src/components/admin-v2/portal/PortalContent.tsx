@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Eye, Smartphone, Gift, TrendingUp, Building, CreditCard, Settings } from 'lucide-react';
+import { Eye, Smartphone, Gift, TrendingUp, Building, CreditCard } from 'lucide-react';
 import PortalContentManager from './PortalContentManager';
 import { GeneralConfig } from './types';
 import {
@@ -28,7 +28,7 @@ type NivelTarjeta = 'success' | 'error' | 'warning' | 'info';
 // Portal Content Component - Gestión completa del portal del cliente
 const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
   const [activeTab, setActiveTab] = useState<
-    'preview' | 'branding' | 'banners' | 'promociones' | 'recompensas' | 'favorito' | 'tarjetas' | 'configuracion'
+    'preview' | 'branding' | 'banners' | 'promociones' | 'recompensas' | 'favorito' | 'tarjetas'
   >('preview');
   const [previewMode, setPreviewMode] = useState<ModoVistaPrevia>('portal'); // Estado para cambiar entre Portal, Login y Tarjetas
   const [brandingConfig, setBrandingConfig] = useState<BrandingConfig>(
@@ -88,7 +88,6 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [currentBusinessSlug, setCurrentBusinessSlug] = useState<string | null>(null);
-  const [currentBusinessId, setCurrentBusinessId] = useState<string | null>(null);
 
   // 🔧 Funciones auxiliares reutilizables
   const getCurrentBusinessFromUrl = useCallback((): string | null => {
@@ -144,9 +143,6 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
       } else {
         finalBusinessId = storedBusinessId || 'cmfr2y0ia0000eyvw7ef3k20u';
       }
-      
-      // Actualizar el estado del businessId actual
-      setCurrentBusinessId(finalBusinessId);
       
       console.log('🔍 Portal fetchConfig - BusinessId resolution:', {
         urlBusinessIdentifier,
@@ -568,7 +564,6 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
           { id: 'favorito', label: 'Favorito del Día', icon: TrendingUp },
           { id: 'recompensas', label: 'Recompensas', icon: Gift },
           { id: 'tarjetas', label: 'Tarjetas', icon: CreditCard },
-          { id: 'configuracion', label: 'Configuración', icon: Settings },
         ].map(tab => {
           const Icon = tab.icon;
           return (
@@ -597,7 +592,6 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
         brandingConfig={brandingConfig}
         handleBrandingChange={handleBrandingChange}
         showNotification={showNotification}
-        businessId={currentBusinessId}
       />
     </div>
   );

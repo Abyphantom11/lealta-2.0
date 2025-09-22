@@ -1,4 +1,5 @@
 'use client';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ClienteData } from '../types';
 import { calculateLoyaltyLevel } from '../../utils/loyaltyCalculations';
@@ -9,18 +10,48 @@ interface FidelityCardModalProps {
   clienteData: ClienteData | null;
   cedula: string;
   portalConfig: any;
+  businessId?: string; // Agregando businessId como prop opcional
 }
 
-// Componente para mostrar nivel de lealtad - ACTUALIZADO PARA USAR FUNCIÓN UNIFICADA
-function LoyaltyLevelDisplay({ portalConfig, clienteData, tarjeta, nivel }: { 
+// Componente para mostrar nivel de lealtad - ACTUALIZADO PARA MANEJAR ASYNC
+function LoyaltyLevelDisplay({ portalConfig, clienteData, tarjeta, nivel, businessId }: { 
   readonly portalConfig: any, 
   readonly clienteData: any, 
   readonly tarjeta: any, 
-  readonly nivel: string 
+  readonly nivel: string,
+  readonly businessId: string 
 }) {
-  const levelData = calculateLoyaltyLevel(portalConfig, clienteData);
-  const { nivelesOrdenados, puntosRequeridos,
-          progreso, mensaje, esAsignacionManual } = levelData;
+  const [levelData, setLevelData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadLevelData = async () => {
+      try {
+        setLoading(true);
+        const data = await calculateLoyaltyLevel(portalConfig, clienteData);
+        setLevelData(data);
+      } catch (error) {
+        console.error('Error calculating loyalty level:', error);
+        setLevelData(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (clienteData && businessId) {
+      loadLevelData();
+    }
+  }, [portalConfig, clienteData, businessId]);
+
+  if (loading) {
+    return <div className="text-white/60">Calculando nivel...</div>;
+  }
+
+  if (!levelData) {
+    return <div className="text-white/60">Error al calcular nivel</div>;
+  }
+
+  const { nivelesOrdenados, puntosRequeridos, progreso, mensaje, esAsignacionManual } = levelData;
   
   return (
     <>
@@ -63,12 +94,12 @@ function LoyaltyLevelDisplay({ portalConfig, clienteData, tarjeta, nivel }: {
       </div>
 
       <div className="grid grid-cols-5 text-xs text-white/60 mb-1 mt-3">
-        {nivelesOrdenados.map(nivelNombre => (
+        {nivelesOrdenados.map((nivelNombre: string) => (
           <div key={nivelNombre} className="text-center">{nivelNombre}</div>
         ))}
       </div>
       <div className="flex justify-between text-xs text-white/60">
-        {nivelesOrdenados.map(nivelNombre => (
+        {nivelesOrdenados.map((nivelNombre: string) => (
           <div key={nivelNombre}>{puntosRequeridos[nivelNombre as keyof typeof puntosRequeridos]}</div>
         ))}
       </div>
@@ -82,7 +113,8 @@ export const FidelityCardModal = ({
   setShowTarjeta, 
   clienteData, 
   cedula, 
-  portalConfig 
+  portalConfig,
+  businessId = 'default' // Valor por defecto
 }: FidelityCardModalProps) => {
   return (
     <AnimatePresence>
@@ -306,6 +338,7 @@ export const FidelityCardModal = ({
                             clienteData={clienteData}
                             tarjeta={tarjeta}
                             nivel={nivel}
+                            businessId={businessId}
                           />
                         </div>
                         

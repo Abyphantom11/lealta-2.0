@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { initializePWA } from '@/services/pwaService';
+// import { initializePWA } from '@/services/pwaService'; // ✅ DESHABILITADO
 import PWAInstallPrompt from '@/components/ui/PWAInstallPrompt';
 
 interface PWALayoutProps {
@@ -12,20 +12,21 @@ interface PWALayoutProps {
 
 export default function PWALayout({ 
   children, 
-  showInstallPrompt = true, 
+  showInstallPrompt = false, // ✅ DESHABILITADO por defecto
   promptPosition = 'bottom' 
 }: PWALayoutProps) {
   useEffect(() => {
-    // Inicializar PWA cuando el componente se monta
-    initializePWA();
+    // ✅ PWA COMPLETAMENTE DESHABILITADO
+    console.log('🚫 PWA Layout: Inicialización deshabilitada');
+    // initializePWA(); // COMENTADO - NO INICIALIZAR PWA
   }, []);
 
   return (
     <>
       {children}
       
-      {/* PWA Install Prompt global */}
-      {showInstallPrompt && (
+      {/* ✅ PWA Install Prompt COMPLETAMENTE DESHABILITADO */}
+      {false && showInstallPrompt && (
         <PWAInstallPrompt 
           variant="auto" 
           showOnLogin={false} 

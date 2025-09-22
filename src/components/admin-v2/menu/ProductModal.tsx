@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { useImageUpload } from '../../../hooks/useImageUpload';
 
 // Tipos para el componente
 type CategoryData = {
@@ -60,12 +61,35 @@ export default function ProductModal({
     imagenUrl: product?.imagenUrl || '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // ✅ USAR HOOK UNIFICADO para upload de imágenes
+  const [uploadState, uploadActions] = useImageUpload({
+    maxSizeMB: 5,
+    allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+    onSuccess: (imageUrl) => {
+      setFormData(prev => ({ ...prev, imagenUrl: imageUrl }));
+    },
+    onError: (error) => {
+      console.error('Error uploading product image:', error);
+    }
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // ✅ Si hay archivo seleccionado, subirlo primero
+    let finalImageUrl = formData.imagenUrl;
+    if (uploadState.selectedFile) {
+      const uploadedUrl = await uploadActions.uploadImage();
+      if (uploadedUrl) {
+        finalImageUrl = uploadedUrl;
+      }
+    }
+
     // Agregar la categoria basada en categoryId
     const selectedCategory = categories.find(cat => cat.id === formData.categoryId);
     const submitData = {
       ...formData,
+      imagenUrl: finalImageUrl, // ✅ Usar URL del servidor
       categoria: selectedCategory?.nombre || formData.categoryId,
       precio: typeof formData.precio === 'string' ? parseFloat(formData.precio) || 0 : formData.precio,
       precioVaso: typeof formData.precioVaso === 'string' ? parseFloat(formData.precioVaso) || undefined : formData.precioVaso,
@@ -263,31 +287,45 @@ export default function ProductModal({
               id="product-imagen"
               type="file"
               accept="image/*"
-              onChange={e => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  const reader = new FileReader();
-                  reader.onload = event => {
-                    setFormData(prev => ({
-                      ...prev,
-                      imagenUrl: event.target?.result as string,
-                    }));
-                  };
-                  reader.readAsDataURL(file);
-                }
-              }}
+              onChange={uploadActions.handleFileSelect}
               className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md text-white file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-primary-600 file:text-white hover:file:bg-primary-700"
             />
-            {formData.imagenUrl && (
+            
+            {/* ✅ Mostrar preview de imagen nueva o existente */}
+            {(uploadState.previewUrl || formData.imagenUrl) && (
               <div className="mt-2">
                 <Image
-                  src={formData.imagenUrl}
+                  src={uploadState.previewUrl || formData.imagenUrl}
                   alt="Preview"
                   width={80}
                   height={80}
                   className="w-20 h-20 object-cover rounded-md"
                 />
+                {uploadState.previewUrl && !formData.imagenUrl && (
+                  <p className="text-xs text-primary-400 mt-1">
+                    ✅ Nueva imagen seleccionada
+                  </p>
+                )}
+                {formData.imagenUrl && !uploadState.previewUrl && (
+                  <p className="text-xs text-green-400 mt-1">
+                    ✅ Imagen guardada
+                  </p>
+                )}
               </div>
+            )}
+            
+            {/* ✅ Mostrar estado de upload */}
+            {uploadState.isUploading && (
+              <p className="text-xs text-primary-400 mt-1">
+                Subiendo imagen...
+              </p>
+            )}
+            
+            {/* ✅ Mostrar errores de validación */}
+            {uploadState.error && (
+              <p className="text-xs text-red-400 mt-1">
+                {uploadState.error}
+              </p>
             )}
           </div>
 

@@ -197,14 +197,14 @@ const NotificationBox: React.FC<NotificationBoxProps> = ({
                               {notificacion.mensaje}
                             </p>
                             
-                            {/* Botón especial para notificaciones PWA */}
+                            {/* Botón especial para notificaciones PWA - ✅ HABILITADO */}
                             {notificacion.tipo === 'pwa' && !notificacion.leida && (
                               <div className="mt-3 space-y-2">
                                 <PWAInstallButton />
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    marcarComoLeida(notificacion.id);
+                                    markAsRead(notificacion.id);
                                   }}
                                   className="w-full text-xs text-gray-400 hover:text-gray-300 transition-colors py-1"
                                 >

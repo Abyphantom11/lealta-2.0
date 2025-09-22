@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import notificationService from '@/lib/notificationService';
-import { Clock, Upload, Star, Calendar } from 'lucide-react';
+import { Clock, Star, Calendar } from 'lucide-react';
 
 interface FavoritoDelDiaManagerProps {
   favoritos: FavoritoDelDia[];
@@ -21,24 +21,7 @@ interface FavoritoDelDia {
   activo?: boolean;
 }
 
-/**
- * Hook personalizado para manejo de archivos
- */
-const useFileUpload = (setFormData: (data: any) => void) => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      // Crear URL temporal para preview
-      const url = URL.createObjectURL(file);
-      setFormData((prev: any) => ({ ...prev, imagenUrl: url }));
-    }
-  };
-
-  return { selectedFile, handleFileChange };
-};
+// ❌ ELIMINADO: Hook obsoleto - usar useImageUpload unificado
 
 /**
  * Componente para gestionar el favorito del día
@@ -59,7 +42,57 @@ const FavoritoDelDiaManager: React.FC<FavoritoDelDiaManagerProps> = ({
     horaPublicacion: '09:00',
   });
   const [uploading, setUploading] = useState(false);
-  const { selectedFile, handleFileChange } = useFileUpload(setFormData);
+
+  // ✅ Handler simplificado - upload directo sin hook
+  const handleCarouselImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // ✅ Validación igual que BrandingManager
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      notificationService.error({ message: 'Solo se permiten archivos JPG, PNG o WebP' });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) { // 5MB igual que BrandingManager
+      notificationService.error({ message: 'El archivo debe ser menor a 5MB' });
+      return;
+    }
+
+    try {
+      console.log('🔄 Favorito direct upload for day:', selectedDay);
+      console.log('📁 Iniciando upload directo de imagen:', file.name);
+      
+      // ✅ UPLOAD DIRECTO - sin usar el estado del hook
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const uploadResponse = await fetch('/api/admin/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        throw new Error(errorData.error || `Error HTTP: ${uploadResponse.status}`);
+      }
+
+      const uploadResult = await uploadResponse.json();
+      const imageUrl = uploadResult.fileUrl;
+
+      // ✅ Actualizar formData directamente
+      setFormData(prev => ({ ...prev, imagenUrl: imageUrl }));
+      notificationService.success({ message: '✅ Imagen del favorito actualizada' });
+      
+    } catch (error) {
+      console.error('❌ Favorito direct upload error:', error);
+      notificationService.error({ message: 'Error al procesar la imagen' });
+    } finally {
+      // Limpiar input para permitir cargar la misma imagen nuevamente
+      event.target.value = '';
+    }
+  };
 
   // Días de la semana
   const diasSemana = [
@@ -93,16 +126,18 @@ const FavoritoDelDiaManager: React.FC<FavoritoDelDiaManagerProps> = ({
     ? favoritos.find(f => f.dia === selectedDay)
     : null;
 
-  // Actualizar formulario cuando cambia el día seleccionado
+  // Actualizar formulario cuando cambia el día seleccionado o favorito
   useEffect(() => {
-    if (favoritoPorDia) {
+    const favorito = Array.isArray(favoritos) ? favoritos.find(f => f.dia === selectedDay) : null;
+    
+    if (favorito) {
       setFormData({
-        nombre: favoritoPorDia.nombre || '',
-        descripcion: favoritoPorDia.descripcion || '',
-        imagenUrl: favoritoPorDia.imagenUrl || '',
-        horaPublicacion: favoritoPorDia.horaPublicacion || '09:00',
+        nombre: favorito.nombre || '',
+        descripcion: favorito.descripcion || '',
+        imagenUrl: favorito.imagenUrl || '',
+        horaPublicacion: favorito.horaPublicacion || '09:00',
       });
-      setPublishTime(favoritoPorDia.horaPublicacion || '09:00');
+      setPublishTime(favorito.horaPublicacion || '09:00');
     } else {
       setFormData({
         nombre: '',
@@ -112,46 +147,44 @@ const FavoritoDelDiaManager: React.FC<FavoritoDelDiaManagerProps> = ({
       });
       setPublishTime('09:00');
     }
+  }, [selectedDay, favoritos]);
+
+  // Limpiar upload cuando cambia el día - independiente
+  useEffect(() => {
   }, [selectedDay, favoritoPorDia]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploading(true);
 
-    let imageUrl = formData.imagenUrl;
+    try {
+      const favoritoData: FavoritoDelDia = {
+        ...favoritoPorDia,
+        dia: selectedDay,
+        nombre: formData.nombre,
+        descripcion: formData.descripcion,
+        imagenUrl: formData.imagenUrl, // Ya actualizada por el callback del upload
+        horaPublicacion: publishTime,
+        activo: favoritoPorDia?.activo ?? true,
+      };
 
-    // Si hay un archivo seleccionado, subirlo primero
-    if (selectedFile) {
-      try {
-        const formDataUpload = new FormData();
-        formDataUpload.append('file', selectedFile);
+      console.log('🔄 Actualizando favorito:', {
+        id: favoritoPorDia?.id,
+        oldImage: favoritoPorDia?.imagenUrl,
+        newImage: favoritoData.imagenUrl,
+        data: favoritoData
+      });
 
-        const uploadResponse = await fetch('/api/admin/upload', {
-          method: 'POST',
-          body: formDataUpload,
-        });
-
-        if (uploadResponse.ok) {
-          const uploadData = await uploadResponse.json();
-          imageUrl = uploadData.fileUrl;
-        }
-      } catch (error) {
-        console.error('Error uploading file:', error);
-      }
+      onUpdate(favoritoData);
+      notificationService.success({
+        message: `Favorito del ${diasCompletos[selectedDay as keyof typeof diasCompletos]} ${favoritoPorDia ? 'actualizado' : 'creado'} exitosamente`
+      });
+    } catch (error) {
+      console.error('Error al guardar favorito:', error);
+      notificationService.error({ message: 'Error al guardar favorito' });
+    } finally {
+      setUploading(false);
     }
-
-    const dataToSubmit = {
-      id: favoritoPorDia?.id || `favorito_${selectedDay}_${Date.now()}`,
-      dia: selectedDay,
-      nombre: formData.nombre,
-      descripcion: formData.descripcion,
-      imagenUrl: imageUrl,
-      horaPublicacion: publishTime,
-      activo: favoritoPorDia?.activo !== false, // Mantener estado activo si existe, o activar por defecto
-    };
-
-    onUpdate(dataToSubmit);
-    setUploading(false);
   };
 
   return (
@@ -279,117 +312,76 @@ const FavoritoDelDiaManager: React.FC<FavoritoDelDiaManagerProps> = ({
 
           {/* Upload de imagen */}
 
+          {/* 🎯 IMAGEN DEL FAVORITO - Patrón exacto de BrandingManager */}
           <div>
-            <label
-              htmlFor="favoritoImage"
-              className="block text-sm font-medium text-dark-300 mb-2"
-            >
-              <Upload className="w-4 h-4 inline mr-1" />
+            <label htmlFor="favorito-upload" className="block text-sm font-medium text-white mb-2">
               Imagen del Favorito
             </label>
-            <input
-              id="favoritoImage"
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded text-white file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-primary-600 file:text-white hover:file:bg-primary-700"
-              required={!favoritoPorDia?.imagenUrl}
-            />
-            <p className="text-xs text-dark-400 mt-1">
-              Formatos soportados: JPG, PNG, WebP. Tamaño máximo: 2MB
+            <p className="text-xs text-dark-400 mb-3">
+              Formatos soportados: JPG, PNG, WebP. Tamaño máximo: 5MB
             </p>
-          </div>
-
-          {/* Vista previa de imagen */}
-          {(formData.imagenUrl || favoritoPorDia?.imagenUrl) && (
-            <div className="bg-dark-700 rounded-lg p-3">
-              <p className="text-sm text-dark-300 mb-2 font-medium">
-                Vista previa:
-              </p>
-              {/* Mostrar el nombre como encabezado separado */}
-              {formData.nombre && (
-                <h3 className="text-white font-semibold text-sm mb-2">
-                  {formData.nombre}
-                </h3>
-              )}
-              <div className="relative">
-                <img
-                  src={formData.imagenUrl || favoritoPorDia?.imagenUrl}
-                  alt="Preview del favorito"
-                  className="w-full h-48 object-cover rounded-lg border border-dark-600"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-lg" />
-                {/* Solo mostrar la descripción si existe y no es igual al nombre */}
-                {formData.descripcion &&
-                  formData.descripcion !== formData.nombre && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-black/70 backdrop-blur-sm p-3">
-                      <p className="text-sm text-white">
-                        {formData.descripcion}
-                      </p>
-                    </div>
-                  )}
-                <div className="absolute top-3 left-3">
-                  <span className="bg-primary-600 text-white px-2 py-1 rounded-full text-xs font-medium">
-                    Favorito del{' '}
-                    {diasCompletos[selectedDay as keyof typeof diasCompletos]}
-                  </span>
+            
+            <div className="grid grid-cols-1 gap-2">
+              {/* Mostrar imagen actual O recién subida */}
+              {(formData.imagenUrl || favoritoPorDia?.imagenUrl) && (
+                <div className="relative group">
+                  <img
+                    src={formData.imagenUrl || favoritoPorDia?.imagenUrl}
+                    alt="Favorito actual"
+                    className="w-full h-32 object-cover rounded-lg border border-dark-600"
+                    onError={(e) => {
+                      // ✅ PROTECCIÓN: Mostrar placeholder si la imagen falla
+                      (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiBmaWxsPSIjMzc0MTUxIi8+Cjx0ZXh0IHg9IjEyIiB5PSIxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgZmlsbD0iIzlDQTNBRiIgZm9udC1zaXplPSI4Ij5FcnJvcjwvdGV4dD4KPHN2Zz4K';
+                      console.warn('❌ Error cargando imagen del favorito:', formData.imagenUrl || favoritoPorDia?.imagenUrl);
+                    }}
+                  />
+                  <div className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                    Favorito {diasCompletos[selectedDay as keyof typeof diasCompletos]}
+                  </div>
+                  {/* Botón para cambiar imagen superpuesto */}
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <input
+                      type="file"
+                      id="favorito-upload-change"
+                      accept="image/*"
+                      onChange={handleCarouselImageUpload}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                    />
+                    <span className="text-white text-xs">Cambiar imagen</span>
+                  </div>
                 </div>
+              )}
 
-                {/* Indicador de estado de publicación */}
-                {(() => {
-                  const hoy = new Date();
-                  const diasSemana = [
-                    'domingo',
-                    'lunes',
-                    'martes',
-                    'miercoles',
-                    'jueves',
-                    'viernes',
-                    'sabado',
-                  ];
-                  const diaActual = diasSemana[hoy.getDay()];
-
-                  // Verificar si hay un día simulado configurado
-                  const diaSimulado = window.portalPreviewDay;
-                  const esModoSimulacion = !!diaSimulado;
-
-                  // Si estamos en modo simulación, mostrar indicador especial
-                  if (esModoSimulacion) {
-                    const coincideSimulacion = selectedDay === diaSimulado;
-                    if (coincideSimulacion) {
-                      return (
-                        <div className="absolute top-3 right-3 bg-green-600/80 text-white px-2 py-1 rounded-full text-xs font-medium">
-                          Visible en simulación
-                        </div>
-                      );
-                    } else {
-                      return (
-                        <div className="absolute top-3 right-3 bg-yellow-600/80 text-white px-2 py-1 rounded-full text-xs font-medium">
-                          No visible (día simulado: {diaSimulado})
-                        </div>
-                      );
-                    }
-                  }
-
-                  // Modo normal (sin simulación)
-                  const esDiaActual = selectedDay === diaActual;
-                  if (!esDiaActual) {
-                    return (
-                      <div className="absolute top-3 right-3 bg-yellow-600/80 text-white px-2 py-1 rounded-full text-xs font-medium">
-                        Solo visible{' '}
-                        {
-                          diasCompletos[
-                            selectedDay as keyof typeof diasCompletos
-                          ]
-                        }
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
-              </div>
+              {/* Botón para agregar imagen - solo si NO hay imagen */}
+              {!(formData.imagenUrl || favoritoPorDia?.imagenUrl) && (
+                <div className="relative">
+                  <input
+                    type="file"
+                    id="favorito-upload"
+                    accept="image/*"
+                    onChange={handleCarouselImageUpload}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                  />
+                  <div className="w-full h-32 border-2 border-dashed border-dark-600 rounded-lg flex flex-col items-center justify-center text-dark-400 hover:border-primary-500 hover:text-primary-400 transition-colors cursor-pointer">
+                    <svg
+                      className="w-6 h-6 mb-1"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 4v16m8-8H4"
+                      />
+                    </svg>
+                    <span className="text-xs">Agregar imagen</span>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          </div>
 
           {/* Botones de acción */}
           <div className="flex space-x-3">

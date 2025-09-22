@@ -3,6 +3,7 @@ import path from 'path';
 
 /**
  * Crea un portal-config por defecto personalizado para un nuevo business
+ * Usa la estructura centralizada y validada del sistema
  * @param businessId - ID del business
  * @param businessName - Nombre del business para personalización
  * @returns Promise<PortalConfig>
@@ -72,53 +73,119 @@ export async function createDefaultPortalConfig(businessId: string, businessName
       },
     ],
     favoritoDelDia: [],
+    // ✅ ESTRUCTURA CENTRALIZADA: 5 tarjetas con jerarquía validada
     tarjetas: [
       {
-        id: 'tarjeta-default',
-        nombre: `Tarjeta ${businessName}`,
-        descripcion: 'Sistema de lealtad personalizado',
-        activa: true,
-        condicional: 'OR',
-        niveles: [
-          {
-            nombre: 'Bronce',
-            puntosRequeridos: 0,
-            visitasRequeridas: 0,
-            beneficio: 'Cliente Inicial',
-            colores: ['#CD7F32', '#B8860B'],
-          },
-          {
-            nombre: 'Plata',
-            puntosRequeridos: 500,
-            visitasRequeridas: 10,
-            beneficio: 'Cliente Frecuente',
-            colores: ['#C0C0C0', '#E8E8E8'],
-          },
-          {
-            nombre: 'Oro',
-            puntosRequeridos: 1500,
-            visitasRequeridas: 25,
-            beneficio: 'Cliente VIP',
-            colores: ['#FFD700', '#FFA500'],
-          },
-        ],
+        id: 'tarjeta-bronce',
+        nivel: 'Bronce',
+        nombrePersonalizado: 'Tarjeta Bronce',
+        textoCalidad: 'Cliente Inicial',
+        colores: {
+          gradiente: ['#CD7F32', '#8B4513'],
+          texto: '#FFFFFF',
+          nivel: '#CD7F32'
+        },
+        condiciones: {
+          puntosMinimos: 0,
+          gastosMinimos: 0,
+          visitasMinimas: 0
+        },
+        beneficio: 'Acceso a promociones exclusivas',
+        activo: true
       },
+      {
+        id: 'tarjeta-plata',
+        nivel: 'Plata',
+        nombrePersonalizado: 'Tarjeta Plata',
+        textoCalidad: 'Cliente Frecuente',
+        colores: {
+          gradiente: ['#C0C0C0', '#808080'],
+          texto: '#FFFFFF',
+          nivel: '#C0C0C0'
+        },
+        condiciones: {
+          puntosMinimos: 100,
+          gastosMinimos: 500,
+          visitasMinimas: 5
+        },
+        beneficio: '5% de descuento en compras',
+        activo: true
+      },
+      {
+        id: 'tarjeta-oro',
+        nivel: 'Oro',
+        nombrePersonalizado: 'Tarjeta Oro',
+        textoCalidad: 'Cliente Premium',
+        colores: {
+          gradiente: ['#FFD700', '#FFA500'],
+          texto: '#000000',
+          nivel: '#FFD700'
+        },
+        condiciones: {
+          puntosMinimos: 500,
+          gastosMinimos: 1500,
+          visitasMinimas: 10
+        },
+        beneficio: '10% de descuento en compras',
+        activo: true
+      },
+      {
+        id: 'tarjeta-diamante',
+        nivel: 'Diamante',
+        nombrePersonalizado: 'Tarjeta Diamante',
+        textoCalidad: 'Cliente VIP',
+        colores: {
+          gradiente: ['#B9F2FF', '#0891B2'],
+          texto: '#FFFFFF',
+          nivel: '#B9F2FF'
+        },
+        condiciones: {
+          puntosMinimos: 1500,
+          gastosMinimos: 3000,
+          visitasMinimas: 20
+        },
+        beneficio: '15% de descuento en compras',
+        activo: true
+      },
+      {
+        id: 'tarjeta-platino',
+        nivel: 'Platino',
+        nombrePersonalizado: 'Tarjeta Platino',
+        textoCalidad: 'Cliente Elite',
+        colores: {
+          gradiente: ['#E5E7EB', '#9CA3AF'],
+          texto: '#FFFFFF',
+          nivel: '#E5E7EB'
+        },
+        condiciones: {
+          puntosMinimos: 3000,
+          gastosMinimos: 5000,
+          visitasMinimas: 30
+        },
+        beneficio: '20% de descuento en compras',
+        activo: true
+      }
     ],
-    // ✅ FIXED: Usar nombre real del negocio en lugar de "Rosita"
+    // ✅ FIXED: Usar nombre real del negocio con sistema centralizado
     nombreEmpresa: businessName,
     settings: {
       lastUpdated: new Date().toISOString(),
-      version: '1.0.0',
-      createdBy: 'system',
+      version: '2.0.0', // ✅ NUEVA VERSIÓN con sistema centralizado
+      createdBy: 'system-central',
       businessId: businessId,
     },
+    nivelesConfig: {}, // Compatibilidad
+    lastUpdated: new Date().toISOString(),
+    version: '2.0.0'
   };
 
   // Crear archivo business-specific en carpeta organizada
   const configPath = path.join(process.cwd(), 'config', 'portal', `portal-config-${businessId}.json`);
   await fs.writeFile(configPath, JSON.stringify(defaultConfig, null, 2), 'utf-8');
   
-  console.log(`✅ Portal config created for business ${businessId} (${businessName})`);
+  console.log(`✅ Portal config created for business ${businessId} (${businessName}) with centralized card structure`);
+  console.log(`📂 Config path: ${configPath}`);
+  console.log(`🎯 Cards created: 5 (Bronce → Plata → Oro → Diamante → Platino)`);
   return defaultConfig;
 }
 

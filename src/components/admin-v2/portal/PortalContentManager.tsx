@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Smartphone, Eye, Gift } from 'lucide-react';
 
 // Importar componentes ya creados
@@ -12,7 +12,6 @@ import TarjetaCompacta from './TarjetaCompacta';
 import AsignacionTarjetas from './AsignacionTarjetas';
 import TarjetaEditor from './TarjetaEditor';
 import BrandingManager from './BrandingManager';
-import BusinessDayConfig from './BusinessDayConfig';
 import { SharedBrandingConfig } from './shared-branding-types';
 import { Tarjeta } from './types';
 
@@ -30,7 +29,6 @@ interface PortalContentManagerProps {
     value: string | string[]
   ) => Promise<void>;
   showNotification: (message: string, type: NivelTarjeta) => void;
-  businessId?: string | null;
 }
 
 interface GeneralConfig {
@@ -177,8 +175,43 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
   brandingConfig,
   handleBrandingChange,
   showNotification,
-  businessId,
 }) => {
+  
+  // 🆕 Estado para datos reales de vista previa desde BD
+  const [previewData, setPreviewData] = useState<any>(null);
+  
+  // 🆕 Función para cargar datos reales para vista previa
+  const loadPreviewData = useCallback(async () => {
+    try {
+      const response = await fetch('/api/portal/config-v2', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setPreviewData(data);
+        console.log('🔄 Preview data loaded from DB:', {
+          banners: data.banners?.length || 0,
+          promociones: data.promociones?.length || 0
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error loading preview data:', error);
+    }
+  }, []);
+  
+  // 🆕 Efecto para cargar datos cuando cambia el modo de vista previa
+  useEffect(() => {
+    if (previewMode === 'portal') {
+      loadPreviewData();
+      // Recargar cada 10 segundos para mantener sincronización
+      const interval = setInterval(loadPreviewData, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [previewMode, loadPreviewData]);
   
   // Función para renderizar contenido de vista previa
   const renderPreviewContent = () => {
@@ -355,6 +388,8 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
     // 🆕 Guardar inmediatamente en PostgreSQL
     try {
       await handleSyncToClient();
+      // 🆕 Recargar datos de vista previa inmediatamente
+      await loadPreviewData();
       showNotification(`✅ ${type} agregado y sincronizado con el cliente`, 'success');
     } catch (error) {
       console.error('Error sincronizando con cliente:', error);
@@ -367,6 +402,8 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
     itemId: string,
     updates: Partial<ConfigurableItem>
   ) => {
+    console.log('🔄 updateItem ejecutado:', { type, itemId, updates });
+    
     // 🆕 Actualizar estado local primero para UI responsiva
     setConfig((prev: GeneralConfig): GeneralConfig => {
       if (type === 'favoritoDelDia') {
@@ -391,12 +428,15 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
         ),
       };
 
+      console.log('✅ Config actualizado para', type, ':', newConfig[type]);
       return newConfig;
     });
 
     // 🆕 Guardar inmediatamente en PostgreSQL
     try {
       await handleSyncToClient();
+      // 🆕 Recargar datos de vista previa inmediatamente
+      await loadPreviewData();
       showNotification(`✅ ${type} actualizado y sincronizado con el cliente`, 'success');
     } catch (error) {
       console.error('Error sincronizando con cliente:', error);
@@ -445,6 +485,8 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
     // 🆕 Guardar inmediatamente en PostgreSQL
     try {
       await handleSyncToClient();
+      // 🆕 Recargar datos de vista previa inmediatamente
+      await loadPreviewData();
       showNotification(`✅ ${itemName} eliminado y sincronizado con el cliente`, 'success');
     } catch (error) {
       console.error('Error sincronizando con cliente:', error);
@@ -482,6 +524,8 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
     // 🆕 Guardar inmediatamente en PostgreSQL
     try {
       await handleSyncToClient();
+      // 🆕 Recargar datos de vista previa inmediatamente
+      await loadPreviewData();
       showNotification(`✅ ${type} actualizado y sincronizado con el cliente`, 'success');
     } catch (error) {
       console.error('Error sincronizando con cliente:', error);
@@ -650,12 +694,14 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
                 const diaParaMostrar = window.portalPreviewDay || diaActual;
 
                 // Filtrar banners por día seleccionado y actividad
-                const bannersDia = (config.banners || []).filter(
+                // 🆕 USAR DATOS REALES DE BD EN LUGAR DEL ESTADO LOCAL
+                const bannersReales = previewData?.banners || config.banners || [];
+                const bannersDia = bannersReales.filter(
                   (b: Banner) =>
                     b.activo &&
                     b.imagenUrl &&
                     b.imagenUrl.trim() !== '' &&
-                    b.dia === diaParaMostrar
+                    (b.dia === diaParaMostrar || !b.dia) // Sin restricción de día o día específico
                 );
 
                 return bannersDia.length > 0 ? (
@@ -708,14 +754,14 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
                 const diaParaMostrar = window.portalPreviewDay || diaActual;
 
                 // Filtrar promociones por día seleccionado y actividad
-                const promocionesDia = getPromocionesList(
-                  config.promociones
-                ).filter(
+                // 🆕 USAR DATOS REALES DE BD EN LUGAR DEL ESTADO LOCAL
+                const promocionesReales = previewData?.promociones || config.promociones || [];
+                const promocionesDia = promocionesReales.filter(
                   (p: Promocion) =>
                     p.activo &&
                     p.titulo &&
                     p.descripcion &&
-                    p.dia === diaParaMostrar
+                    (p.dia === diaParaMostrar || !p.dia) // Sin restricción de día o día específico
                 );
 
                 return (
@@ -774,8 +820,10 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
                 const diaParaMostrar = window.portalPreviewDay || diaActual;
 
                 // En modo simulación, mostrar favorito del día simulado aunque esté inactivo
-                const favoritoHoy = Array.isArray(config.favoritoDelDia)
-                  ? config.favoritoDelDia.find((f: FavoritoDelDia) => {
+                // 🆕 USAR DATOS REALES DE BD EN LUGAR DEL ESTADO LOCAL
+                const favoritosReales = previewData?.favoritoDelDia || config.favoritoDelDia || [];
+                const favoritoHoy = Array.isArray(favoritosReales)
+                  ? favoritosReales.find((f: FavoritoDelDia) => {
                       // Si hay día simulado, mostrar ese específico independiente del estado activo
                       if (window.portalPreviewDay) {
                         return (
@@ -797,8 +845,8 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
                 // Solo usar fallback si no hay simulación de día
                 const favoritoFallback =
                   !window.portalPreviewDay &&
-                  Array.isArray(config.favoritoDelDia)
-                    ? config.favoritoDelDia.find(
+                  Array.isArray(favoritosReales)
+                    ? favoritosReales.find(
                         (f: FavoritoDelDia) =>
                           f.activo && f.imagenUrl && f.imagenUrl.trim() !== ''
                       )
@@ -863,44 +911,46 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
               })()}
 
               {/* Recompensas */}
-              {getRecompensasList(config.recompensas).filter(
-                (r: Recompensa) => r.activo && r.nombre && r.puntosRequeridos
-              ).length > 0 && (
-                <div className="mx-4 mb-3">
-                  <h3 className="text-white font-semibold text-sm mb-2">
-                    Recompensas
-                  </h3>
-                  <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg p-3">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Gift className="w-4 h-4 text-white" />
-                      <span className="text-white font-medium text-sm">
-                        Programa de Puntos
-                      </span>
-                    </div>
-                    <div className="flex overflow-x-auto space-x-2 pb-1">
-                      {getRecompensasList(config.recompensas)
-                        .filter(
-                          (r: Recompensa) =>
-                            r.activo && r.nombre && r.puntosRequeridos
-                        )
-                        .slice(0, 3)
-                        .map((recompensa: Recompensa) => (
-                          <div
-                            key={recompensa.id}
-                            className="bg-white/20 rounded-lg p-2 min-w-[120px]"
-                          >
-                            <div className="text-white font-medium text-xs">
-                              {recompensa.nombre}
+              {(() => {
+                // 🆕 USAR DATOS REALES DE BD EN LUGAR DEL ESTADO LOCAL
+                const recompensasReales = previewData?.recompensas || config.recompensas || [];
+                const recompensasActivas = getRecompensasList(recompensasReales).filter(
+                  (r: Recompensa) => r.activo && r.nombre && r.puntosRequeridos
+                );
+                
+                return recompensasActivas.length > 0 && (
+                  <div className="mx-4 mb-3">
+                    <h3 className="text-white font-semibold text-sm mb-2">
+                      Recompensas
+                    </h3>
+                    <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg p-3">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Gift className="w-4 h-4 text-white" />
+                        <span className="text-white font-medium text-sm">
+                          Programa de Puntos
+                        </span>
+                      </div>
+                      <div className="flex overflow-x-auto space-x-2 pb-1">
+                        {recompensasActivas
+                          .slice(0, 3)
+                          .map((recompensa: Recompensa) => (
+                            <div
+                              key={recompensa.id}
+                              className="bg-white/20 rounded-lg p-2 min-w-[120px]"
+                            >
+                              <div className="text-white font-medium text-xs">
+                                {recompensa.nombre}
+                              </div>
+                              <div className="text-white font-bold text-xs">
+                                {recompensa.puntosRequeridos} pts
+                              </div>
                             </div>
-                            <div className="text-white font-bold text-xs">
-                              {recompensa.puntosRequeridos} pts
-                            </div>
-                          </div>
-                        ))}
+                          ))}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Estado vacío */}
               {!config.banners?.filter(
@@ -1156,12 +1206,6 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
               setConfig={(newConfig: GeneralConfig) => setConfig(newConfig)}
               showNotification={showNotification}
             />
-          </div>
-        )}
-
-        {activeTab === 'configuracion' && (
-          <div className="max-h-[80vh] overflow-y-auto">
-            <BusinessDayConfig businessId={businessId || undefined} />
           </div>
         )}
       </div>

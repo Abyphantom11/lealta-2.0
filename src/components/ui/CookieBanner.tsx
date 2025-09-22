@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Cookie, X, Settings, Shield } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 interface CookieBannerProps {
   position?: 'from-logo' | 'bottom-left' | 'bottom-right' | 'bottom-center';
@@ -14,6 +15,7 @@ export default function CookieBanner({
   position = 'from-logo', 
   theme = 'dark' 
 }: CookieBannerProps) {
+  const pathname = usePathname();
   const [isVisible, setIsVisible] = useState(false);
   const [showPreIndicator, setShowPreIndicator] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
@@ -25,6 +27,13 @@ export default function CookieBanner({
   });
 
   useEffect(() => {
+    // 🚫 No mostrar en rutas de cliente
+    const isClientRoute = pathname?.includes('/cliente') || pathname?.endsWith('/cliente');
+    
+    if (isClientRoute) {
+      return; // No hacer nada en rutas de cliente
+    }
+
     // Verificar si ya se dio consentimiento
     const consentGiven = localStorage.getItem('lealta-cookie-consent');
     
@@ -54,7 +63,7 @@ export default function CookieBanner({
         return () => clearTimeout(timer);
       }
     }
-  }, [position]);
+  }, [position, pathname]);
 
   const handleAcceptAll = () => {
     localStorage.setItem('lealta-cookie-consent', JSON.stringify({
@@ -104,6 +113,13 @@ export default function CookieBanner({
   const themeClasses = theme === 'dark' 
     ? 'bg-gray-900/95 border-gray-700 text-white' 
     : 'bg-white/95 border-gray-200 text-gray-900';
+
+  // 🚫 No renderizar en rutas de cliente
+  const isClientRoute = pathname?.includes('/cliente') || pathname?.endsWith('/cliente');
+  
+  if (isClientRoute) {
+    return null; // No mostrar banner en rutas de cliente
+  }
 
   if (!isVisible && !showPreIndicator) return null;
 

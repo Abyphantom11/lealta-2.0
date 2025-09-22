@@ -24,6 +24,7 @@ import {
 import { IdCard } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useClientNotifications } from '@/services/clientNotificationService';
+import PWANotificationTrigger from '@/components/pwa/PWANotificationTrigger';
 
 interface AuthHandlerProps {
   businessId?: string;
@@ -475,20 +476,27 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
   const loadMenuCategories = useCallback(async () => {
     setIsLoadingMenu(true);
     try {
-      const response = await fetch('/api/menu/categorias');
+      const response = await fetch('/api/menu/categorias', {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(businessId && { 'x-business-id': businessId })
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         const mainCategories = data.filter((cat: any) => !cat.parentId);
         setMenuCategories(mainCategories);
         setAllCategories(data);
         setActiveMenuSection('categories');
+      } else {
+        console.error('Error en respuesta de categorías:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error cargando categorías del menú:', error);
     } finally {
       setIsLoadingMenu(false);
     }
-  }, []);
+  }, [businessId]);
 
   // Función para cargar productos de una categoría
   const loadCategoryProducts = useCallback(
@@ -511,7 +519,13 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
         } else {
           // Cargar productos de la categoría
           const response = await fetch(
-            `/api/menu/productos?categoriaId=${categoryId}`
+            `/api/menu/productos?categoriaId=${categoryId}`,
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                ...(businessId && { 'x-business-id': businessId })
+              }
+            }
           );
           if (response.ok) {
             const data = await response.json();
@@ -525,7 +539,7 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
         setIsLoadingMenu(false);
       }
     },
-    [allCategories]
+    [allCategories, businessId]
   );
 
   // Verificar sesión inicial
@@ -719,6 +733,14 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
 
   return (
     <div>
+      {/* PWA Notification Trigger - Solo activo cuando hay un cliente logueado */}
+      {clienteData && (
+        <PWANotificationTrigger 
+          clienteId={clienteData.cedula} 
+          enabled={true} 
+        />
+      )}
+      
       {step === 'presentation' && !clienteData && (
         <div className="min-h-screen bg-black text-white">
           {/* Header */}

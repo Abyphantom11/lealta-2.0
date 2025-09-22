@@ -3,11 +3,6 @@
  * Centraliza la lógica para que todos los componentes usen la misma definición de "día"
  */
 
-import { PrismaClient } from '@prisma/client';
-
-// Instancia de Prisma para consultas de base de datos
-const prisma = new PrismaClient();
-
 // Hora de reseteo por defecto (4 AM estándar para bares/restaurantes)
 const DEFAULT_RESET_HOUR = 4;
 
@@ -46,30 +41,37 @@ export async function getBusinessDayConfig(businessId?: string): Promise<Busines
     };
   }
 
+  // ✅ Verificar si estamos en el navegador
+  if (typeof window === 'undefined') {
+    // En servidor, retornar configuración por defecto
+    return {
+      businessId,
+      resetHour: DEFAULT_RESET_HOUR,
+      resetMinute: 0
+    };
+  }
+
   // Verificar cache primero
   if (configCache.has(businessId)) {
     return configCache.get(businessId)!;
   }
 
   try {
-    // Obtener configuración desde base de datos
-    const business = await prisma.business.findUnique({
-      where: { id: businessId },
-      select: { settings: true }
+    // ✅ USAR API en lugar de Prisma directamente
+    const response = await fetch(`/api/business-day/config?businessId=${businessId}`, {
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json'
+      }
     });
 
-    // Extraer configuración de día comercial del campo settings
-    const settings = business?.settings as any || {};
-    const dayConfig = settings.businessDay || {};
-    
-    const config: BusinessDayConfig = {
-      businessId,
-      resetHour: dayConfig.resetHour ?? DEFAULT_RESET_HOUR,
-      resetMinute: dayConfig.resetMinute ?? 0
-    };
-    
-    configCache.set(businessId, config);
-    return config;
+    if (response.ok) {
+      const config = await response.json();
+      configCache.set(businessId, config);
+      return config;
+    } else {
+      throw new Error(`Error ${response.status}: ${response.statusText}`);
+    }
   } catch (error) {
     console.warn(`⚠️ Error obteniendo configuración de día para ${businessId}, usando default:`, error);
     
@@ -79,6 +81,7 @@ export async function getBusinessDayConfig(businessId?: string): Promise<Busines
       resetMinute: 0
     };
     
+    configCache.set(businessId, fallbackConfig);
     return fallbackConfig;
   }
 }
@@ -93,46 +96,60 @@ export async function getCurrentBusinessDay(
   businessId?: string, 
   customDate?: Date
 ): Promise<DayOfWeek> {
-  const config = await getBusinessDayConfig(businessId);
-  const now = customDate || new Date();
+  try {
+    // ✅ Verificar si estamos en el navegador
+    if (typeof window === 'undefined') {
+      // En servidor, usar día natural por defecto
+      const now = customDate || new Date();
+      return DAYS_OF_WEEK[now.getDay()];
+    }
+    
+    const config = await getBusinessDayConfig(businessId);
+    const now = customDate || new Date();
+    
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const resetHour = config.resetHour;
+    const resetMinute = config.resetMinute || 0;
+    
+    // Calcular si estamos antes o después de la hora de reseteo
+    const currentTimeInMinutes = currentHour * 60 + currentMinute;
+    const resetTimeInMinutes = resetHour * 60 + resetMinute;
+    
+    let businessDay: Date;
+    
+    if (currentTimeInMinutes < resetTimeInMinutes) {
+      // Antes de la hora de reseteo = día anterior
+      businessDay = new Date(now);
+      businessDay.setDate(businessDay.getDate() - 1);
+    } else {
+      // Después de la hora de reseteo = día actual
+      businessDay = new Date(now);
+    }
   
-  const currentHour = now.getHours();
-  const currentMinute = now.getMinutes();
-  const resetHour = config.resetHour;
-  const resetMinute = config.resetMinute || 0;
-  
-  // Calcular si estamos antes o después de la hora de reseteo
-  const currentTimeInMinutes = currentHour * 60 + currentMinute;
-  const resetTimeInMinutes = resetHour * 60 + resetMinute;
-  
-  let businessDay: Date;
-  
-  if (currentTimeInMinutes < resetTimeInMinutes) {
-    // Antes de la hora de reseteo = día anterior
-    businessDay = new Date(now);
-    businessDay.setDate(businessDay.getDate() - 1);
-  } else {
-    // Después de la hora de reseteo = día actual
-    businessDay = new Date(now);
+    const dayIndex = businessDay.getDay();
+    const businessDayName = DAYS_OF_WEEK[dayIndex];
+    
+    // Debug logging para desarrollo
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🗓️ Business Day Calculation:`, {
+        businessId: businessId || 'default',
+        resetHour: `${resetHour}:${resetMinute.toString().padStart(2, '0')}`,
+        currentTime: `${currentHour}:${currentMinute.toString().padStart(2, '0')}`,
+        isAfterReset: currentTimeInMinutes >= resetTimeInMinutes,
+        naturalDay: DAYS_OF_WEEK[now.getDay()],
+        businessDay: businessDayName,
+        date: businessDay.toDateString()
+      });
+    }
+    
+    return businessDayName;
+  } catch (error) {
+    console.error('Error obteniendo día comercial:', error);
+    // Fallback a día natural
+    const now = customDate || new Date();
+    return DAYS_OF_WEEK[now.getDay()];
   }
-  
-  const dayIndex = businessDay.getDay();
-  const businessDayName = DAYS_OF_WEEK[dayIndex];
-  
-  // Debug logging para desarrollo
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`🗓️ Business Day Calculation:`, {
-      businessId: businessId || 'default',
-      resetHour: `${resetHour}:${resetMinute.toString().padStart(2, '0')}`,
-      currentTime: `${currentHour}:${currentMinute.toString().padStart(2, '0')}`,
-      isAfterReset: currentTimeInMinutes >= resetTimeInMinutes,
-      naturalDay: DAYS_OF_WEEK[now.getDay()],
-      businessDay: businessDayName,
-      date: businessDay.toDateString()
-    });
-  }
-  
-  return businessDayName;
 }
 
 /**

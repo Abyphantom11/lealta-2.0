@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Building, Save } from 'lucide-react';
-import { SharedBrandingConfig, isValidImageFile, convertToBase64 } from './shared-branding-types';
+import { SharedBrandingConfig } from './shared-branding-types';
 
 /**
  * Componente BrandingManager
@@ -21,71 +21,57 @@ const BrandingManager: React.FC<BrandingManagerProps> = ({
   handleBrandingChange,
   showNotification,
 }) => {
-  
-  // 🔥 DEBUG: Verificar datos recibidos
-  // 🔥 DEBUG: Verificar datos recibidos
-  // Solo mantener logs críticos de error
-  // console.log('🎨 BrandingManager - Datos recibidos:', {
-  //   brandingConfig,
-  //   hasCarouselImages: !!brandingConfig.carouselImages,
-  //   carouselImagesLength: brandingConfig.carouselImages?.length,
-  //   businessName: brandingConfig.businessName,
-  //   primaryColor: brandingConfig.primaryColor
-  // });
-  
+
   /**
    * Manejo de subida de imágenes del carrusel
-   * Extraído de: src/app/admin/page.tsx (líneas 2750-2800)
+   * ✅ IMPLEMENTACIÓN SIMPLIFICADA: Upload directo
    */
   const handleCarouselImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validar archivo
-    if (!isValidImageFile(file)) {
-      showNotification('Por favor selecciona una imagen válida (JPG, PNG, WebP, máx. 5MB)', 'error');
-      return;
-    }
-
     // Validar límite de imágenes
     const currentImages = brandingConfig.carouselImages || [];
     if (currentImages.length >= 6) {
       showNotification('Máximo 6 imágenes permitidas en el carrusel', 'warning');
+      event.target.value = '';
       return;
     }
 
     try {
-      // Convertir a base64
-      const base64 = await convertToBase64(file);
-      const updatedImages = [...currentImages, base64];
+      console.log('📁 Iniciando upload de imagen:', file.name);
       
-      // Actualizar estado
+      // ✅ Upload directo usando FormData
+      const formData = new FormData();
+      formData.append('file', file);
+
+      showNotification('🔄 Subiendo imagen...', 'info');
+
+      const response = await fetch('/api/admin/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Error HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const imageUrl = result.fileUrl;
+
+      // Agregar imagen al carrusel
+      const updatedImages = [...currentImages, imageUrl];
       await handleBrandingChange('carouselImages', updatedImages);
-      showNotification(`Imagen agregada al carrusel (${updatedImages.length}/6)`, 'success');
       
+      showNotification(`✅ Imagen agregada al carrusel (${updatedImages.length}/6)`, 'success');
+      
+    } catch (error) {
+      console.error('Error en handleCarouselImageUpload:', error);
+      showNotification(`❌ Error al subir imagen: ${error instanceof Error ? error.message : String(error)}`, 'error');
+    } finally {
       // Limpiar input para permitir cargar la misma imagen nuevamente
       event.target.value = '';
-    } catch (error) {
-      console.error('Error subiendo imagen:', error);
-      showNotification('Error al procesar la imagen', 'error');
-    }
-  };
-
-  /**
-   * Limpiar datos corruptos del carrusel
-   * ✅ NUEVA FUNCIÓN: Remover elementos no válidos
-   */
-  const handleCleanupCarousel = async () => {
-    const currentImages = brandingConfig.carouselImages || [];
-    const validImages = currentImages.filter((imageUrl: string | number) => {
-      return typeof imageUrl === 'string' && imageUrl.length > 10;
-    });
-    
-    if (validImages.length !== currentImages.length) {
-      await handleBrandingChange('carouselImages', validImages);
-      showNotification(`Limpieza completada: ${currentImages.length - validImages.length} elementos corruptos removidos`, 'success');
-    } else {
-      showNotification('No se encontraron datos corruptos', 'info');
     }
   };
 
@@ -103,45 +89,48 @@ const BrandingManager: React.FC<BrandingManagerProps> = ({
 
   /**
    * Función para actualizar portal y mostrar feedback
-   * Extraído de: src/app/admin/page.tsx (líneas 3630-3680)
+   * ✅ MEJORADA: Solo guardar datos básicos en localStorage, las imágenes se cargan desde BD
    */
   const handleUpdatePortal = () => {
     try {
-      // ✅ SOLUCIÓN: NO guardar imágenes en localStorage para evitar corrupción
+      // ✅ SOLUCIÓN: Solo guardar datos básicos en localStorage (NO imágenes)
+      // Las imágenes se cargan directamente desde la base de datos vía API
       const lightConfig = {
         businessName: brandingConfig.businessName,
         primaryColor: brandingConfig.primaryColor,
-        // ❌ NO incluir carouselImages
+        // ❌ NO incluir carouselImages - evita corrupción de localStorage
+        lastUpdated: new Date().toISOString(),
       };
 
       try {
         localStorage.setItem('portalBranding', JSON.stringify(lightConfig));
+        
+        // Enviar evento personalizado para notificar cambios
+        window.dispatchEvent(new CustomEvent('brandingUpdated', {
+          detail: {
+            ...brandingConfig,
+            source: 'admin-update'
+          },
+        }));
+
+        // También usar storage event para otras pestañas
+        localStorage.setItem('brandingTrigger', Date.now().toString());
+
+        showNotification('✅ Portal actualizado - Los cambios se verán inmediatamente', 'success');
+        
       } catch (storageError) {
-        console.warn('localStorage lleno, usando solo datos básicos:', storageError);
-        // Guardar solo datos esenciales
-        const basicConfig = {
-          businessName: brandingConfig.businessName,
-          primaryColor: brandingConfig.primaryColor,
-          // ❌ NO incluir carouselImages para evitar datos corruptos
-        };
-        try {
-          localStorage.removeItem('portalBranding');
-          localStorage.setItem('portalBranding', JSON.stringify(basicConfig));
-        } catch (finalError) {
-          console.error('No se pudo actualizar localStorage:', finalError);
-        }
+        console.warn('localStorage lleno, pero la sincronización funciona vía BD:', storageError);
+        
+        // Aún así enviar evento porque la BD está actualizada
+        window.dispatchEvent(new CustomEvent('brandingUpdated', {
+          detail: {
+            ...brandingConfig,
+            source: 'admin-update-no-storage'
+          },
+        }));
+        
+        showNotification('✅ Portal actualizado vía base de datos', 'success');
       }
-
-      // Enviar evento personalizado para notificar a otras pestañas
-      window.dispatchEvent(new CustomEvent('brandingUpdated', {
-        detail: brandingConfig,
-      }));
-
-      // También usar storage event para otras pestañas
-      localStorage.setItem('brandingTrigger', Date.now().toString());
-
-      // Mostrar feedback visual
-      showNotification('✅ Portal actualizado - Recarga el portal cliente', 'success');
       
     } catch (error) {
       console.error('Error actualizando portal:', error);
@@ -190,8 +179,15 @@ const BrandingManager: React.FC<BrandingManagerProps> = ({
             <div className="grid grid-cols-2 gap-3">
               {Array.isArray(brandingConfig.carouselImages) && brandingConfig.carouselImages
                 .filter((imageUrl: string | number) => {
-                  // ✅ PROTECCIÓN: Filtrar solo URLs válidas (no números)
-                  return typeof imageUrl === 'string' && imageUrl.length > 10;
+                  // ✅ PROTECCIÓN MEJORADA: Filtrar solo URLs válidas
+                  if (typeof imageUrl !== 'string') return false;
+                  if (imageUrl.length < 10) return false;
+                  
+                  // Rechazar datos base64 muy largos (probablemente corruptos)
+                  if (imageUrl.startsWith('data:') && imageUrl.length > 1000) return false;
+                  
+                  // Aceptar URLs válidas
+                  return imageUrl.startsWith('http') || imageUrl.startsWith('/uploads/') || imageUrl.startsWith('data:image');
                 })
                 .map((imageUrl: string, index: number) => (
                   <div
@@ -258,13 +254,6 @@ const BrandingManager: React.FC<BrandingManagerProps> = ({
                   {brandingConfig.carouselImages?.length || 0} / 6 imágenes
                 </span>
                 <div className="flex gap-2">
-                  <button
-                    onClick={handleCleanupCarousel}
-                    className="text-yellow-400 hover:text-yellow-300 text-xs"
-                    title="Limpiar datos corruptos"
-                  >
-                    🔧 Reparar
-                  </button>
                   <button
                     onClick={() => handleBrandingChange('carouselImages', [])}
                     className="text-red-400 hover:text-red-300 text-xs"

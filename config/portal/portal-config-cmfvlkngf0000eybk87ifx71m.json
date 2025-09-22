@@ -1,103 +1,73 @@
 {
   "banners": [
     {
-      "id": "banner_jueves_1758227957037",
-      "dia": "jueves",
-      "titulo": "aasdada",
-      "descripcion": "sdadad",
-      "imagenUrl": "/uploads/cmfpsex360002eymgivqb1wlb_1758227956992-0tedwn.jpg",
-      "horaPublicacion": "04:00",
-      "activo": true
+      "id": "banner-1",
+      "title": "¡Bienvenido a arepa!",
+      "description": "Descubre nuestras increíbles ofertas y recompensas exclusivas",
+      "imageUrl": "",
+      "linkUrl": "/promociones",
+      "isActive": true,
+      "order": 1,
+      "createdAt": "2025-09-22T20:47:13.515Z",
+      "updatedAt": "2025-09-22T20:47:13.515Z"
     }
   ],
   "promotions": [],
+  "promociones": [],
   "events": [
     {
       "id": "event-1",
       "title": "Gran Apertura",
-      "description": "Celebra con nosotros la gran apertura de nuestra nueva tienda",
-      "location": "Centro Comercial Plaza Norte",
-      "startDate": "2024-06-01T18:00:00.000Z",
-      "endDate": "2024-06-01T22:00:00.000Z",
+      "description": "Celebra con nosotros la gran apertura de arepa",
+      "location": "Nuestra ubicación principal",
+      "startDate": "2025-09-29T20:47:13.515Z",
+      "endDate": "2025-09-30T00:47:13.515Z",
       "imageUrl": "",
       "isActive": true,
       "maxAttendees": 200,
       "currentAttendees": 0,
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z"
+      "createdAt": "2025-09-22T20:47:13.515Z",
+      "updatedAt": "2025-09-22T20:47:13.515Z"
     }
   ],
   "rewards": [
     {
       "id": "reward-1",
       "title": "Producto Gratis",
-      "description": "Canjea 500 puntos por un producto de tu eleccion",
+      "description": "Canjea 500 puntos por un producto de tu elección",
       "pointsCost": 500,
       "category": "productos",
       "imageUrl": "",
       "isActive": true,
       "stock": 50,
-      "availableFrom": "2024-01-01T00:00:00.000Z",
-      "availableTo": "2024-12-31T23:59:59.000Z",
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z"
+      "availableFrom": "2025-09-22T20:47:13.515Z",
+      "availableTo": "2026-09-22T20:47:13.515Z",
+      "createdAt": "2025-09-22T20:47:13.515Z",
+      "updatedAt": "2025-09-22T20:47:13.515Z"
     }
   ],
+  "recompensas": [],
   "favorites": [
     {
       "id": "fav-1",
-      "title": "Cafe Premium",
-      "description": "Nuestro cafe de especialidad mas popular",
+      "title": "Especialidad del Día",
+      "description": "El producto favorito de arepa",
       "imageUrl": "",
-      "category": "bebidas",
+      "category": "destacados",
       "price": 12.99,
       "isActive": true,
       "order": 1,
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z"
+      "createdAt": "2025-09-22T20:47:13.515Z",
+      "updatedAt": "2025-09-22T20:47:13.515Z"
     }
   ],
-  "settings": {
-    "lastUpdated": "2025-09-19T04:49:58.825Z",
-    "version": "1.0.0"
-  },
-  "favoritoDelDia": [
-    {
-      "id": "favorito_jueves_1758228000477",
-      "dia": "jueves",
-      "nombre": "sdfsfs",
-      "descripcion": "fsfsdf",
-      "imagenUrl": "/uploads/cmfpsex360002eymgivqb1wlb_1758228000394-812zbc.jpg",
-      "horaPublicacion": "09:00",
-      "activo": true
-    }
-  ],
-  "promociones": [
-    {
-      "dia": "jueves",
-      "titulo": "� SEGUNDA ACTUALIZACIÓN - AUTO REFRESH TEST",
-      "descripcion": "📱 Si ves esto, el polling de 15 segundos está funcionando!",
-      "descuento": 75,
-      "horaTermino": "04:00",
-      "activo": true,
-      "id": "promociones_1758227978588"
-    }
-  ],
-  "recompensas": [
-    {
-      "nombre": "sdfsf",
-      "descripcion": "sdfsf",
-      "puntosRequeridos": 1213,
-      "id": "recompensas_1758148623488",
-      "activo": true
-    }
-  ],
+  "favoritoDelDia": [],
   "tarjetas": [
     {
       "id": "tarjeta-bronce",
       "nivel": "Bronce",
       "nombrePersonalizado": "Tarjeta Bronce",
-      "textoCalidad": "Cliente Premium",
+      "textoCalidad": "Cliente Inicial",
       "colores": {
         "gradiente": [
           "#CD7F32",
@@ -118,7 +88,7 @@
       "id": "tarjeta-plata",
       "nivel": "Plata",
       "nombrePersonalizado": "Tarjeta Plata",
-      "textoCalidad": "Cliente VIP",
+      "textoCalidad": "Cliente Frecuente",
       "colores": {
         "gradiente": [
           "#C0C0C0",
@@ -128,7 +98,7 @@
         "nivel": "#C0C0C0"
       },
       "condiciones": {
-        "puntosMinimos": 400,
+        "puntosMinimos": 100,
         "gastosMinimos": 500,
         "visitasMinimas": 5
       },
@@ -149,7 +119,7 @@
         "nivel": "#FFD700"
       },
       "condiciones": {
-        "puntosMinimos": 480,
+        "puntosMinimos": 500,
         "gastosMinimos": 1500,
         "visitasMinimas": 10
       },
@@ -170,7 +140,7 @@
         "nivel": "#B9F2FF"
       },
       "condiciones": {
-        "puntosMinimos": 15000,
+        "puntosMinimos": 1500,
         "gastosMinimos": 3000,
         "visitasMinimas": 20
       },
@@ -191,7 +161,7 @@
         "nivel": "#E5E7EB"
       },
       "condiciones": {
-        "puntosMinimos": 25000,
+        "puntosMinimos": 3000,
         "gastosMinimos": 5000,
         "visitasMinimas": 30
       },
@@ -199,16 +169,14 @@
       "activo": true
     }
   ],
-  "nombreEmpresa": "Mi Negocio",
-  "configuracionPuntos": {
-    "puntosPorDolar": 4,
-    "bonusPorRegistro": 400,
-    "limites": {
-      "maxPuntosPorDolar": 10,
-      "maxBonusRegistro": 1000
-    }
+  "nombreEmpresa": "arepa",
+  "settings": {
+    "lastUpdated": "2025-09-22T20:47:13.515Z",
+    "version": "2.0.0",
+    "createdBy": "system-central",
+    "businessId": "cmfvlkngf0000eybk87ifx71m"
   },
-  "lastModifiedBy": "cmfqcyncv0002ey3s4gxcokqh",
-  "lastModifiedAt": "2025-09-19T04:49:58.825Z",
-  "lastModifiedRole": "superadmin"
+  "nivelesConfig": {},
+  "lastUpdated": "2025-09-22T20:51:54.707Z",
+  "version": "2.0.0"
 }

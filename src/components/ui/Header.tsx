@@ -59,10 +59,12 @@ export default function Header({ className = '' }: HeaderProps) {
               </motion.button>
             </Link>
 
-            {/* PWA Install Button */}
-            <div className="relative">
-              <PWAInstallButton position="top-right" theme="dark" />
-            </div>
+            {/* PWA Install Button - ✅ DESHABILITADO */}
+            {false && (
+              <div className="relative">
+                <PWAInstallButton position="top-right" theme="dark" />
+              </div>
+            )}
           </motion.div>
         </div>
       </div>

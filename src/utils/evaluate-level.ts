@@ -1,75 +1,47 @@
 import { PrismaClient } from '@prisma/client';
-import fs from 'fs';
-import path from 'path';
+import { getTarjetasConfigCentral, evaluarNivelCorrespondiente } from '@/lib/tarjetas-config-central';
 
 const prisma = new PrismaClient();
 
 // Función para obtener la configuración del portal
 async function getPortalConfig(businessId: string) {
+  console.log(`🎯 [EVALUATE] Usando configuración central para ${businessId}`);
+  
   try {
-    // Primero intentar leer el portal-config específico del business
-    const businessSpecificPath = path.join(process.cwd(), 'config', 'portal', `portal-config-${businessId}.json`);
+    // ✅ USAR CONFIGURACIÓN CENTRAL - SINGLE SOURCE OF TRUTH
+    const config = await getTarjetasConfigCentral(businessId);
     
-    if (fs.existsSync(businessSpecificPath)) {
-      console.log(`✅ Usando portal-config específico para business ${businessId}`);
-      const configData = fs.readFileSync(businessSpecificPath, 'utf8');
-      return JSON.parse(configData);
+    if (!config.jerarquiaValida) {
+      console.error(`❌ [EVALUATE] Jerarquía inválida detectada:`, config.erroresValidacion);
     }
     
-    // Si no existe, usar el portal-config general
-    const configPath = path.join(process.cwd(), 'portal-config.json');
-    const configData = fs.readFileSync(configPath, 'utf8');
-    return JSON.parse(configData);
+    return {
+      tarjetas: config.tarjetas
+    };
   } catch (error) {
-    console.error('Error reading portal config:', error);
+    console.error(`❌ [EVALUATE] Error obteniendo configuración central:`, error);
     return null;
   }
 }
 
 // Función para evaluar el nivel más alto que le corresponde a un cliente
-function evaluarNivelCliente(cliente: any, tarjetasConfig: any[]) {
+async function evaluarNivelCliente(cliente: any, businessId: string) {
   // 🎯 CAMBIO CRÍTICO: Usar puntosProgreso de la tarjeta para evaluación automática
   // Esto respeta los reseteos/actualizaciones de asignaciones manuales
   const puntosProgreso = cliente.tarjetaLealtad?.puntosProgreso || cliente.puntosAcumulados || cliente.puntos || 0;
   const visitas = cliente.totalVisitas || 0;
 
-  console.log(`🤖 Evaluando nivel para cliente ${cliente.id}:`);
+  console.log(`🤖 [EVALUATE] Evaluando nivel para cliente ${cliente.id}:`);
   console.log(`   • PuntosProgreso: ${puntosProgreso}`);
   console.log(`   • Puntos canjeables: ${cliente.puntos || 0}`);
   console.log(`   • Visitas: ${visitas}`);
   console.log(`   • Nivel actual: ${cliente.tarjetaLealtad?.nivel || 'Sin tarjeta'}`);
-  console.log(`   • Configuración disponible: ${tarjetasConfig.length} niveles`);
 
-  // 🎯 USAR CONFIGURACIÓN HARDCODEADA QUE COINCIDA EXACTAMENTE CON EL ADMIN
-  const nivelesHardcoded = [
-    { nivel: 'Bronce', puntosMinimos: 0, visitasMinimas: 0 },
-    { nivel: 'Plata', puntosMinimos: 100, visitasMinimas: 5 },
-    { nivel: 'Oro', puntosMinimos: 500, visitasMinimas: 10 },
-    { nivel: 'Diamante', puntosMinimos: 1500, visitasMinimas: 15 },
-    { nivel: 'Platino', puntosMinimos: 3000, visitasMinimas: 30 }
-  ];
-
-  console.log(`🎯 Usando configuración hardcoded:`);
-  nivelesHardcoded.forEach(n => console.log(`   • ${n.nivel}: ${n.puntosMinimos} puntos, ${n.visitasMinimas} visitas`));
-
-  // Obtener el nivel MÁS ALTO que cumple los requisitos (evaluar de mayor a menor)
-  const nivelesOrdenados = [...nivelesHardcoded].reverse();
+  // ✅ USAR CONFIGURACIÓN CENTRAL - ELIMINANDO HARDCODING
+  const nivelCorrespondiente = await evaluarNivelCorrespondiente(businessId, puntosProgreso, visitas);
   
-  for (const nivelConfig of nivelesOrdenados) {
-    const cumplePuntos = puntosProgreso >= nivelConfig.puntosMinimos;
-    const cumpleVisitas = visitas >= nivelConfig.visitasMinimas;
-
-    console.log(`🔍 Evaluando ${nivelConfig.nivel}: puntos=${cumplePuntos} (${puntosProgreso}>=${nivelConfig.puntosMinimos}), visitas=${cumpleVisitas} (${visitas}>=${nivelConfig.visitasMinimas})`);
-
-    // Usar lógica OR: cumple puntos O visitas
-    if (cumplePuntos || cumpleVisitas) {
-      console.log(`✅ Cliente califica para ${nivelConfig.nivel}`);
-      return nivelConfig.nivel;
-    }
-  }
-
-  console.log(`🔧 Fallback a Bronce`);
-  return 'Bronce';
+  console.log(`✅ [EVALUATE] Nivel correspondiente calculado: ${nivelCorrespondiente}`);
+  return nivelCorrespondiente;
 }
 
 // Función para crear una nueva tarjeta cuando el cliente no tiene una
@@ -126,7 +98,7 @@ export async function evaluateAndUpdateLevel(clienteId: string, businessId: stri
     }
 
     // Evaluar el nivel que le corresponde al cliente
-    const nivelCorrespondiente = evaluarNivelCliente(cliente, portalConfig.tarjetas);
+    const nivelCorrespondiente = await evaluarNivelCliente(cliente, businessId);
     const nivelActual = cliente.tarjetaLealtad?.nivel || 'Bronce';
     const esAsignacionManual = cliente.tarjetaLealtad?.asignacionManual || false;
 

@@ -97,7 +97,7 @@
       "id": "tarjeta-bronce",
       "nivel": "Bronce",
       "nombrePersonalizado": "Tarjeta Bronce",
-      "textoCalidad": "Cliente Premium",
+      "textoCalidad": "Cliente Inicial",
       "colores": {
         "gradiente": [
           "#CD7F32",
@@ -118,7 +118,7 @@
       "id": "tarjeta-plata",
       "nivel": "Plata",
       "nombrePersonalizado": "Tarjeta Plata",
-      "textoCalidad": "Cliente VIP",
+      "textoCalidad": "Cliente Frecuente",
       "colores": {
         "gradiente": [
           "#C0C0C0",
@@ -128,7 +128,7 @@
         "nivel": "#C0C0C0"
       },
       "condiciones": {
-        "puntosMinimos": 400,
+        "puntosMinimos": 100,
         "gastosMinimos": 500,
         "visitasMinimas": 5
       },
@@ -149,7 +149,7 @@
         "nivel": "#FFD700"
       },
       "condiciones": {
-        "puntosMinimos": 480,
+        "puntosMinimos": 500,
         "gastosMinimos": 1500,
         "visitasMinimas": 10
       },
@@ -170,7 +170,7 @@
         "nivel": "#B9F2FF"
       },
       "condiciones": {
-        "puntosMinimos": 15000,
+        "puntosMinimos": 1500,
         "gastosMinimos": 3000,
         "visitasMinimas": 20
       },
@@ -191,7 +191,7 @@
         "nivel": "#E5E7EB"
       },
       "condiciones": {
-        "puntosMinimos": 25000,
+        "puntosMinimos": 3000,
         "gastosMinimos": 5000,
         "visitasMinimas": 30
       },

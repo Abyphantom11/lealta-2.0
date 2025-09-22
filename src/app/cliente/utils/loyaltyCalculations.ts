@@ -1,5 +1,6 @@
 import { ClienteData } from '../components/types';
 import { calcularProgresoUnificado } from '@/lib/loyalty-progress';
+import { getPuntosMinimosConfig } from '@/lib/tarjetas-config-central';
 
 // Función para comparar niveles de tarjeta - EXTRAÍDA DEL ORIGINAL
 export const isHigherLevel = (newLevel: string, oldLevel: string): boolean => {
@@ -8,7 +9,7 @@ export const isHigherLevel = (newLevel: string, oldLevel: string): boolean => {
 };
 
 // Helper para calcular datos de nivel de lealtad - ACTUALIZADO PARA USAR FUNCIÓN UNIFICADA
-export const calculateLoyaltyLevel = (portalConfig: any, clienteData: ClienteData | null): any => {
+export const calculateLoyaltyLevel = async (portalConfig: any, clienteData: ClienteData | null): Promise<any> => {
   const nivelesOrdenados = ['Bronce', 'Plata', 'Oro', 'Diamante', 'Platino'];
 
   // ✅ LÓGICA CORREGIDA PARA TARJETAS MANUALES
@@ -26,22 +27,24 @@ export const calculateLoyaltyLevel = (portalConfig: any, clienteData: ClienteDat
   const visitasActuales = 0; // No tenemos visitas en ClienteData del frontend
   const nivelActual = clienteData?.tarjetaLealtad?.nivel || 'Bronce';
 
-  // 🎯 CONFIGURACIÓN BASE CORREGIDA QUE COINCIDE CON ADMIN
-  const puntosRequeridos = {
-    'Bronce': 0,
-    'Plata': 100,     // ✅ CORREGIDO: según admin config
-    'Oro': 500,
-    'Diamante': 1500, // ✅ CORREGIDO: era 15000, debe ser 1500 
-    'Platino': 3000   // ✅ CORREGIDO: era 25000, debe ser 3000
-  };
+  // ✅ USAR CONFIGURACIÓN CENTRAL
+  let puntosRequeridos: Record<string, number> = {};
   
-  // ✅ ACTUALIZAR con configuración del admin si existe
-  if (portalConfig?.tarjetas && Array.isArray(portalConfig.tarjetas)) {
-    portalConfig.tarjetas.forEach((tarjeta: any) => {
-      if (tarjeta.condiciones?.puntosMinimos !== undefined && tarjeta.nivel) {
-        puntosRequeridos[tarjeta.nivel as keyof typeof puntosRequeridos] = tarjeta.condiciones.puntosMinimos;
-      }
-    });
+  try {
+    // Obtener businessId del portalConfig o usar default
+    const businessId = portalConfig?.businessId || portalConfig?.settings?.businessId || 'default';
+    puntosRequeridos = await getPuntosMinimosConfig(businessId);
+    console.log(`✅ [LOYALTY-CALC] Usando configuración central para ${businessId}:`, puntosRequeridos);
+  } catch (error) {
+    console.error('❌ [LOYALTY-CALC] Error obteniendo configuración central:', error);
+    // Fallback seguro
+    puntosRequeridos = {
+      'Bronce': 0,
+      'Plata': 100,
+      'Oro': 500,
+      'Diamante': 1500,
+      'Platino': 3000
+    };
   }
 
   const resultado = calcularProgresoUnificado(

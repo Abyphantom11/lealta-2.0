@@ -24,11 +24,27 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Obtener productos de la categoría especificada
+    // 🔒 BUSINESS ISOLATION: Obtener businessId desde headers del middleware
+    const businessId = request.headers.get('x-business-id');
+    
+    if (!businessId) {
+      console.error('❌ SECURITY: Falta x-business-id header');
+      return NextResponse.json(
+        { error: 'Business context required' },
+        { status: 400 }
+      );
+    }
+
+    console.log('🏢 Filtrando productos para businessId:', businessId);
+
+    // 🛡️ FILTRAR POR BUSINESS - Solo productos del negocio actual
     const productos = await prisma.menuProduct.findMany({
       where: {
         categoryId: categoriaId,
         disponible: true,
+        category: {
+          businessId: businessId, // ✅ BUSINESS ISOLATION
+        },
       },
       orderBy: {
         orden: 'asc',
