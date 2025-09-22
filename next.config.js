@@ -6,7 +6,7 @@ try {
     enabled: process.env.ANALYZE === 'true',
   });
 } catch {
-  // Fallback if bundle analyzer is not available
+  // Fallback if bundle analyzer is not available  
   withBundleAnalyzer = (config) => config;
 }
 
@@ -29,17 +29,21 @@ const nextConfig = {
   poweredByHeader: false,
   compress: true,
   
-  // Bundle optimization
+  // Bundle optimization - SIMPLIFICADO PARA EVITAR BUCLES
   webpack: (config, { isServer }) => {
-    // Optimize bundle size
+    // 🎯 OPTIMIZACIONES BÁSICAS (sin optimizaciones agresivas que pueden causar loops)
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,
         path: false,
         os: false,
+        crypto: false,
+        stream: false,
+        buffer: false,
       };
     }
+    
     return config;
   },
   
@@ -47,8 +51,13 @@ const nextConfig = {
   experimental: {
     // Disabled esmExternals to fix worker script issues
     esmExternals: false,
-    // Temporarily disabled due to critters module issue
-    // optimizeCss: true,
+    // � OPTIMIZACIONES DESHABILITADAS PARA EVITAR BUCLES
+    // Estas pueden causar loops infinitos durante la optimización
+    // turbotrace: {
+    //   logLevel: process.env.NODE_ENV === 'production' ? 'error' : 'info',
+    // },
+    // optimizePackageImports: ['react-icons', 'lodash', '@prisma/client'],
+    // optimizeServerReact: true,
   },
   
   // Allow cross-origin requests from the local network
@@ -104,12 +113,12 @@ const nextConfig = {
           {
             key: 'Content-Security-Policy',
             value: isProduction
-              ? "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' *.googleapis.com *.gstatic.com; style-src 'self' 'unsafe-inline' *.googleapis.com fonts.googleapis.com; font-src 'self' fonts.gstatic.com; img-src 'self' data: blob: *.unsplash.com *.pixabay.com; connect-src 'self' *.upstash.io *.sentry.io *.ingest.us.sentry.io; frame-ancestors 'none';"
-              : "default-src 'self' 'unsafe-eval' 'unsafe-inline' *; frame-ancestors 'none';",
+              ? "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' *.googleapis.com *.gstatic.com; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' *.googleapis.com fonts.googleapis.com; font-src 'self' fonts.gstatic.com; img-src 'self' data: blob: *.unsplash.com *.pixabay.com; connect-src 'self' *.upstash.io *.sentry.io *.ingest.us.sentry.io; frame-ancestors 'none';"
+              : "default-src 'self' 'unsafe-eval' 'unsafe-inline' *; worker-src 'self' blob:; frame-ancestors 'none';",
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()',
+            value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
           },
         ],
       },
@@ -150,15 +159,13 @@ const nextConfig = {
   },
 };
 
-module.exports = withBundleAnalyzer(nextConfig);
-
-
 // Injected content via Sentry wizard below
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { withSentryConfig } = require("@sentry/nextjs");
 
-module.exports = withSentryConfig(
-  module.exports,
+const sentryNextConfig = withSentryConfig(
+  withBundleAnalyzer(nextConfig),
   {
     // For all available options, see:
     // https://www.npmjs.com/package/@sentry/webpack-plugin#options
@@ -191,3 +198,5 @@ module.exports = withSentryConfig(
     automaticVercelMonitors: true,
   }
 );
+
+module.exports = sentryNextConfig;

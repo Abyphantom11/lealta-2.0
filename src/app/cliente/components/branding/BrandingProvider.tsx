@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
 
 // Interfaz para la configuración de branding
 interface BrandingConfig {
@@ -74,7 +74,7 @@ export const BrandingProvider = ({ children, businessId }: BrandingProviderProps
   };
 
   // 🔥 FUNCIÓN PARA CARGA INMEDIATA DESDE LOCALSTORAGE
-  const loadFromLocalStorage = () => {
+  const loadFromLocalStorage = useCallback(() => {
     try {
       const storageKey = businessId ? `portalBranding_${businessId}` : 'portalBranding';
       const storedBranding = localStorage.getItem(storageKey);
@@ -94,10 +94,10 @@ export const BrandingProvider = ({ children, businessId }: BrandingProviderProps
       console.warn('⚠️ Cliente - Error leyendo localStorage:', error);
     }
     return false;
-  };
+  }, [businessId]);
 
   // Función para cargar branding desde la API
-  const loadBranding = async () => {
+  const loadBranding = useCallback(async () => {
     // Función para validar color hexadecimal
     const isValidHexColor = (color: string): boolean => {
       return typeof color === 'string' && /^#[0-9A-Fa-f]{6}$/.test(color);
@@ -141,7 +141,7 @@ export const BrandingProvider = ({ children, businessId }: BrandingProviderProps
     } catch (error) {
       console.warn('Error cargando branding:', error);
     }
-  };
+  }, [businessId]);
 
   // Cargar branding al montar el componente Y cuando cambia businessId
   useEffect(() => {
@@ -154,7 +154,7 @@ export const BrandingProvider = ({ children, businessId }: BrandingProviderProps
     // Cargar branding desde API
     loadBranding();
     
-  }, []); // Sin dependencias para evitar loops infinitos
+  }, [loadBranding, loadFromLocalStorage]); // Agregar dependencias
 
   // Quitar loading cuando se carga el branding inicial - OPTIMIZADO
   useEffect(() => {

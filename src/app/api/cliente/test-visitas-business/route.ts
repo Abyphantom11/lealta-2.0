@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 // 🧪 ENDPOINT SIMPLE PARA VERIFICAR VISITAS POR BUSINESS
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const businessId = searchParams.get('businessId') || 'cmfr2y0ia0000eyvw7ef3k20u';
     
     console.log('🧪 Verificando visitas para business:', businessId);

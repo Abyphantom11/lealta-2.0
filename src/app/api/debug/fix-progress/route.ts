@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     const nuevoPuntosProgreso = Math.max(puntosCliente, minimoNivel);
 
     // Actualizar puntosProgreso
-    const tarjetaActualizada = await prisma.tarjetaLealtad.update({
+    await prisma.tarjetaLealtad.update({
       where: { id: cliente.tarjetaLealtad.id },
       data: { puntosProgreso: nuevoPuntosProgreso }
     });

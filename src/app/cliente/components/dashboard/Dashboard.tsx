@@ -36,7 +36,6 @@ interface DashboardProps {
   businessId?: string; // Agregar businessId prop
   onMenuOpen?: () => void;
   handleLogout?: () => void;
-  refreshClienteData?: () => void;
   // Compatibilidad con versiones antiguas
   setStep?: (step: 'initial' | 'cedula' | 'register' | 'dashboard') => void;
   setIsMenuDrawerOpen?: (open: boolean) => void;
@@ -75,7 +74,7 @@ const LoyaltyLevelDisplay = ({
   // 🎯 USAR FUNCIÓN UNIFICADA PARA CALCULAR PROGRESO CORRECTO
   let progress = 0;
   let siguienteNivel = 'Platino'; // Por defecto
-  let mensaje = 'Cargando...';
+  let mensaje: string;
 
   try {
     // ✅ CONFIGURACIÓN BASE QUE COINCIDE CON ADMIN
@@ -170,7 +169,7 @@ export const Dashboard = ({
   businessId, // Agregar businessId
   handleLogout: externalHandleLogout,
   onMenuOpen,
-  refreshClienteData, // eslint-disable-line @typescript-eslint/no-unused-vars
+  // refreshClienteData no se usa actualmente
 }: DashboardProps) => {
   // Estado para el drawer de perfil
   const [isProfileDrawerOpen, setIsProfileDrawerOpen] = React.useState(false);
@@ -190,7 +189,7 @@ export const Dashboard = ({
   useEffect(() => {
     const initPWA = async () => {
       try {
-        await initializePWA();
+        initializePWA();
         console.log('✅ PWA service inicializado en Dashboard');
         
         // Verificar configuración específica del business después de 3 segundos
@@ -252,7 +251,7 @@ export const Dashboard = ({
     const timer = setTimeout(async () => {
       console.log('⏰ 5 segundos transcurridos, verificando disponibilidad PWA...');
       try {
-        await showPWANotificationIfAvailable();
+        showPWANotificationIfAvailable();
       } catch (error) {
         console.error('❌ Error al mostrar notificación PWA:', error);
       }

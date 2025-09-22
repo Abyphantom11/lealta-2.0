@@ -405,8 +405,8 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
       }
     };
 
-        checkSavedSession();
-      }, [loadPortalConfig]); // Función simplificada para inicialización  // Función simplificada para el fondo (sin SVG dinámico para evitar hidratación)
+    checkSavedSession();
+  }, [loadPortalConfig, businessId]); // Agregar businessId como dependencia
   const getBackgroundStyle = () => {
     if (!isClient) return { backgroundColor: '#1a1a1a' }; // Fondo simple en el servidor
 
@@ -601,7 +601,7 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
     }
   }, [businessId]);
 
-  const evaluateClientLevel = async (cedula: string) => {
+  const evaluateClientLevel = useCallback(async (cedula: string) => {
     const evaluacionResponse = await fetch('/api/cliente/evaluar-nivel', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -613,9 +613,9 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
       return evaluacionData;
     }
     return null;
-  };
+  }, [businessId]);
 
-  const checkStoredLevelChange = (cliente: any) => {
+  const checkStoredLevelChange = useCallback((cliente: any) => {
     const clientLevel = cliente.tarjetaLealtad?.nivel || 'Bronce';
     const storedLevel = localStorage.getItem(`lastLevel_${cliente.cedula}`);
 
@@ -627,7 +627,7 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
     } else if (!storedLevel) {
       localStorage.setItem(`lastLevel_${cliente.cedula}`, clientLevel);
     }
-  };
+  }, [setOldLevel, setNewLevel, setShowLevelUpAnimation]);
 
   // Función extraída para manejar actualizaciones de nivel y reducir complejidad cognitiva
   const handleLevelUpdateInEffect = useCallback((evaluacionData: any) => {
@@ -701,7 +701,7 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
 
       return () => clearInterval(updateInterval);
     }
-  }, [step, clienteData?.id, clienteData?.cedula, clienteData?.tarjetaLealtad?.asignacionManual, handleLevelUpdateInEffect, businessId, updateClienteDataOnly]);
+  }, [step, clienteData?.id, clienteData?.cedula, clienteData?.tarjetaLealtad?.asignacionManual, handleLevelUpdateInEffect, businessId, updateClienteDataOnly, evaluateClientLevel, checkStoredLevelChange]);
 
   // 🔥 MOSTRAR LOADING hasta tener datos reales de configuración
   if (isInitialLoading || shouldShowLoading) {
@@ -922,7 +922,6 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
             setShowTarjeta={setShowTarjeta}
             portalConfig={portalConfig}
             businessId={businessId}
-            refreshClienteData={refreshClienteData}
           />
 
           <MenuDrawer

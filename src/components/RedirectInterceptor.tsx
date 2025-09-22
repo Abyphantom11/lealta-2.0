@@ -9,22 +9,21 @@ export default function RedirectInterceptor() {
   useEffect(() => {
     // console.log('🛡️ RedirectInterceptor activado');
     
-    // Interceptar fetch calls para monitorear APIs
+    // Interceptar fetch calls para monitorear APIs (solo errores críticos)
     const originalFetch = window.fetch;
     window.fetch = async function(...args) {
       const [url, options] = args;
-      console.log('📡 FETCH interceptado:', {
-        url: url.toString(),
-        method: options?.method || 'GET'
-      });
       
       const response = await originalFetch.apply(this, args);
       
-      console.log('📡 FETCH respuesta:', {
-        url: url.toString(),
-        status: response.status,
-        ok: response.ok
-      });
+      // Solo logear errores no esperados (no 401 para /api/auth/me)
+      if (!response.ok && !(response.status === 401 && url.toString().includes('/api/auth/me'))) {
+        console.log('📡 FETCH error:', {
+          url: url.toString(),
+          status: response.status,
+          method: options?.method || 'GET'
+        });
+      }
       
       return response;
     };

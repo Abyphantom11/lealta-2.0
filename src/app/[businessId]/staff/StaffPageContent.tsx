@@ -6,124 +6,18 @@
  * Contiene toda la funcionalidad del staff original
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import Image from 'next/image';
-import { motion, AnimatePresence } from '../../../components/motion';
 import { useRequireAuth } from '../../../hooks/useAuth';
 import RoleSwitch from '../../../components/RoleSwitch';
-import {
-  Camera,
-  Upload,
-  CheckCircle,
-  AlertCircle,
-  User,
-  History,
-  TrendingUp,
-  Users,
-  FileText,
-  Clock,
-  Award,
-  X,
-  Zap,
-  UserPlus,
-  Copy,
-} from 'lucide-react';
+import { Zap, Users, History } from 'lucide-react';
 
 interface StaffPageContentProps {
   businessId: string;
 }
 
-// Tipos para el sistema (copiados del original)
-interface NotificationType {
-  type: 'success' | 'error' | 'info';
-  message: string;
-}
-
-interface RecentTicket {
-  id: string;
-  cliente: string;
-  cedula: string;
-  monto: number | string;
-  puntos: number;
-  hora: string;
-  items: string[];
-  tipo?: string;
-}
-
-interface TodayStats {
-  ticketsProcessed: number;
-  totalPoints: number;
-  uniqueCustomers: number;
-  totalAmount: number;
-}
-
-interface CustomerInfo {
-  id: string;
-  cedula: string;
-  nombre: string;
-  email?: string;
-  telefono?: string;
-  puntos: number;
-  nivel: string;
-  ultimaVisita?: string | null;
-  totalGastado?: number;
-  frecuencia?: string;
-}
-
-// Types for product data
-interface Product {
-  id?: string;
-  nombre: string;
-  precio: number;
-  cantidad: number;
-  categoria?: string;
-  name?: string;
-  price?: number;
-}
-
-interface EditableProduct {
-  name: string;
-  price: number;
-  line: string;
-}
-
-// Types for AI analysis results
-interface AnalysisProduct {
-  nombre: string;
-  precio: number;
-  cantidad: number;
-  categoria?: string;
-}
-
-interface AIAnalysis {
-  empleadoDetectado: string;
-  productos: AnalysisProduct[];
-  total: number;
-  confianza: number;
-}
-
-interface AIResult {
-  cliente: {
-    id: string;
-    nombre: string;
-    cedula: string;
-    puntos: number;
-  };
-  analisis: AIAnalysis;
-  metadata: {
-    businessId: string;
-    empleadoId: string;
-    imagenUrl: string;
-    isBatchProcess?: boolean;
-    totalImages?: number;
-    successfulImages?: number;
-  };
-}
-
 // Por ahora, vamos a crear un componente básico
 // TODO: Migrar toda la funcionalidad del staff page original
 export default function StaffPageContent({ businessId }: StaffPageContentProps) {
-  const { user, loading, logout } = useRequireAuth('STAFF');
+  const { user, loading } = useRequireAuth('STAFF');
 
   if (loading) {
     return (

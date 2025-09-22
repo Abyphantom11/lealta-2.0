@@ -3,14 +3,14 @@
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import PWAInstallButton from './PWAInstallButton';
+import SimplePWAButton from './SimplePWAButton';
 
 interface AuthHeaderProps {
   showBackButton?: boolean;
   className?: string;
 }
 
-export default function AuthHeader({ showBackButton = true, className = '' }: AuthHeaderProps) {
+export default function AuthHeader({ showBackButton = true, className = '' }: Readonly<AuthHeaderProps>) {
   return (
     <header className={`relative z-50 ${className}`}>
       <div className="container mx-auto px-4 py-6">
@@ -44,7 +44,7 @@ export default function AuthHeader({ showBackButton = true, className = '' }: Au
             transition={{ duration: 0.6, delay: 0.2 }}
             className="relative"
           >
-            <PWAInstallButton position="top-right" theme="dark" />
+            <SimplePWAButton position="top-right" theme="dark" />
           </motion.div>
         </div>
       </div>

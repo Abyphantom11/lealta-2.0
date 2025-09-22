@@ -2,17 +2,17 @@
 import { logger } from './logger';
 
 interface OperaFallback {
-  storageManager: {
-    save: (key: string, value: unknown) => Promise<boolean>;
-    load: (key: string) => unknown;
-    remove: (key: string) => void;
+  readonly storageManager: {
+    readonly save: (key: string, value: unknown) => Promise<boolean>;
+    readonly load: (key: string) => unknown;
+    readonly remove: (key: string) => void;
   };
-  notificationManager: {
-    isSupported: () => boolean;
-    requestPermission: () => Promise<boolean>;
-    show: (title: string, options?: NotificationOptions) => void;
+  readonly notificationManager: {
+    readonly isSupported: () => boolean;
+    readonly requestPermission: () => Promise<boolean>;
+    readonly show: (title: string, options?: NotificationOptions) => void;
   };
-  installManager: {
+  readonly installManager: {
     canInstall: () => boolean;
     showManualInstructions: () => void;
   };

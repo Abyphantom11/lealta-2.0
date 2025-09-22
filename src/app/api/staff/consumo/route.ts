@@ -260,8 +260,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'La imagen es demasiado grande (máximo 10MB)' }, { status: 400 });
     }
 
+    // Buscar cliente usando la clave compuesta businessId + cedula
     const cliente = await prisma.cliente.findUnique({
-      where: { cedula: validatedData.cedula }
+      where: { 
+        businessId_cedula: {
+          businessId: validatedData.businessId || 'cmfr2y0ia0000eyvw7ef3k20u', // fallback business
+          cedula: validatedData.cedula
+        }
+      }
     });
 
     if (!cliente) {
@@ -317,7 +323,7 @@ export async function POST(request: NextRequest) {
       }
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error en registro de consumo:', error);
 
     if (error instanceof z.ZodError) {

@@ -1,2 +1,1 @@
-// Tipo para transacciones de Prisma
-export type PrismaTransaction = any;
+// Este archivo ya no es necesario - el tipo PrismaTransaction era redundante con 'any'

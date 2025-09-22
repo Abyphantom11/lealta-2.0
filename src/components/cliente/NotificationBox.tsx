@@ -25,7 +25,6 @@ const NotificationBox: React.FC<NotificationBoxProps> = ({
     removeNotification,
     clearAll,
     forceCleanStorage,
-    cleanDebugNotifications,
   } = useClientNotifications(clienteId);
 
   const getIconoTipo = (tipo: string) => {

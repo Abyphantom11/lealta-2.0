@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getBusinessIdFromRequest } from '@/lib/business-utils';
+import { getBusinessDayRange } from '@/lib/business-day-utils';
 import fs from 'fs';
 import path from 'path';
 
 const prisma = new PrismaClient();
+
+export const dynamic = 'force-dynamic';
 
 // 🔄 Función auxiliar para leer configuración del admin (JSON)
 function getAdminTarjetas(businessId: string) {
@@ -29,8 +32,8 @@ function getAdminTarjetas(businessId: string) {
 export async function GET(request: NextRequest) {
   try {
     // Obtener businessId del query param (para rutas públicas) o headers (para rutas autenticadas)
-    const url = new URL(request.url);
-    const queryBusinessId = url.searchParams.get('businessId');
+    const searchParams = request.nextUrl.searchParams;
+    const queryBusinessId = searchParams.get('businessId');
     const headerBusinessId = getBusinessIdFromRequest(request);
     
     const businessId = queryBusinessId || headerBusinessId;
@@ -41,8 +44,6 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    // console.log(`📋 Portal config v2 request for business: ${businessId}`);
 
     // Obtener información del business
     const business = await prisma.business.findUnique({
@@ -107,15 +108,24 @@ export async function GET(request: NextRequest) {
         ]
       }),
       
-      // Favorito del día activo para hoy
+      // ✅ SOLUCIÓN: Favorito del día activo para el día comercial actual
       prisma.portalFavoritoDelDia.findFirst({
         where: {
           businessId,
           active: true,
-          date: {
-            gte: new Date(new Date().setHours(0, 0, 0, 0)),
-            lte: new Date(new Date().setHours(23, 59, 59, 999))
-          }
+          // Usar rango de día comercial en lugar de día natural
+          ...(await getBusinessDayRange(businessId).then(({ start, end }) => ({
+            date: {
+              gte: start,
+              lte: end
+            }
+          })).catch(() => ({
+            // Fallback a día natural si falla el cálculo de día comercial
+            date: {
+              gte: new Date(new Date().setHours(0, 0, 0, 0)),
+              lte: new Date(new Date().setHours(23, 59, 59, 999))
+            }
+          })))
         },
         orderBy: { createdAt: 'desc' }
       }),
@@ -331,8 +341,6 @@ export async function GET(request: NextRequest) {
         })()
       }
     };
-
-    // console.log(`📋 Portal config v2 loaded from DATABASE for business ${businessId} at ${new Date().toLocaleTimeString()}`);
     
     // Headers anti-cache para el cliente (mantener compatibilidad)
     const response = NextResponse.json(config);

@@ -72,6 +72,24 @@ const BrandingManager: React.FC<BrandingManagerProps> = ({
   };
 
   /**
+   * Limpiar datos corruptos del carrusel
+   * ✅ NUEVA FUNCIÓN: Remover elementos no válidos
+   */
+  const handleCleanupCarousel = async () => {
+    const currentImages = brandingConfig.carouselImages || [];
+    const validImages = currentImages.filter((imageUrl: string | number) => {
+      return typeof imageUrl === 'string' && imageUrl.length > 10;
+    });
+    
+    if (validImages.length !== currentImages.length) {
+      await handleBrandingChange('carouselImages', validImages);
+      showNotification(`Limpieza completada: ${currentImages.length - validImages.length} elementos corruptos removidos`, 'success');
+    } else {
+      showNotification('No se encontraron datos corruptos', 'info');
+    }
+  };
+
+  /**
    * Remover imagen del carrusel
    * Extraído de: src/app/admin/page.tsx (líneas 2800-2850)
    */
@@ -89,10 +107,11 @@ const BrandingManager: React.FC<BrandingManagerProps> = ({
    */
   const handleUpdatePortal = () => {
     try {
-      // Crear versión ligera para localStorage (sin imágenes base64)
+      // ✅ SOLUCIÓN: NO guardar imágenes en localStorage para evitar corrupción
       const lightConfig = {
-        ...brandingConfig,
-        carouselImages: brandingConfig.carouselImages?.length || 0, // Solo guardar la cantidad
+        businessName: brandingConfig.businessName,
+        primaryColor: brandingConfig.primaryColor,
+        // ❌ NO incluir carouselImages
       };
 
       try {
@@ -103,7 +122,7 @@ const BrandingManager: React.FC<BrandingManagerProps> = ({
         const basicConfig = {
           businessName: brandingConfig.businessName,
           primaryColor: brandingConfig.primaryColor,
-          carouselImages: [],
+          // ❌ NO incluir carouselImages para evitar datos corruptos
         };
         try {
           localStorage.removeItem('portalBranding');
@@ -117,8 +136,6 @@ const BrandingManager: React.FC<BrandingManagerProps> = ({
       window.dispatchEvent(new CustomEvent('brandingUpdated', {
         detail: brandingConfig,
       }));
-
-      // console.log('Evento brandingUpdated disparado con carrusel:', brandingConfig.carouselImages?.length || 0, 'imágenes');
 
       // También usar storage event para otras pestañas
       localStorage.setItem('brandingTrigger', Date.now().toString());
@@ -171,8 +188,12 @@ const BrandingManager: React.FC<BrandingManagerProps> = ({
           <div className="space-y-4">
             {/* Grid de imágenes actuales */}
             <div className="grid grid-cols-2 gap-3">
-              {Array.isArray(brandingConfig.carouselImages) && brandingConfig.carouselImages.map(
-                (imageUrl: string, index: number) => (
+              {Array.isArray(brandingConfig.carouselImages) && brandingConfig.carouselImages
+                .filter((imageUrl: string | number) => {
+                  // ✅ PROTECCIÓN: Filtrar solo URLs válidas (no números)
+                  return typeof imageUrl === 'string' && imageUrl.length > 10;
+                })
+                .map((imageUrl: string, index: number) => (
                   <div
                     key={`carousel-${index}-${imageUrl.substring(0, 20)}`}
                     className="relative group"
@@ -181,6 +202,11 @@ const BrandingManager: React.FC<BrandingManagerProps> = ({
                       src={imageUrl}
                       alt={`Carrusel ${index + 1}`}
                       className="w-full h-24 object-cover rounded-lg border border-dark-600"
+                      onError={(e) => {
+                        // ✅ PROTECCIÓN: Mostrar placeholder si la imagen falla
+                        (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiBmaWxsPSIjMzc0MTUxIi8+Cjx0ZXh0IHg9IjEyIiB5PSIxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgZmlsbD0iIzlDQTNBRiIgZm9udC1zaXplPSI4Ij5FcnJvcjwvdGV4dD4KPHN2Zz4K';
+                        console.warn(`❌ Error cargando imagen ${index + 1}:`, imageUrl);
+                      }}
                     />
                     <button
                       onClick={() => handleRemoveCarouselImage(index)}
@@ -231,13 +257,22 @@ const BrandingManager: React.FC<BrandingManagerProps> = ({
                 <span className="text-white text-sm font-medium">
                   {brandingConfig.carouselImages?.length || 0} / 6 imágenes
                 </span>
-                <button
-                  onClick={() => handleBrandingChange('carouselImages', [])}
-                  className="text-red-400 hover:text-red-300 text-xs"
-                  disabled={!brandingConfig.carouselImages?.length}
-                >
-                  Limpiar todo
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCleanupCarousel}
+                    className="text-yellow-400 hover:text-yellow-300 text-xs"
+                    title="Limpiar datos corruptos"
+                  >
+                    🔧 Reparar
+                  </button>
+                  <button
+                    onClick={() => handleBrandingChange('carouselImages', [])}
+                    className="text-red-400 hover:text-red-300 text-xs"
+                    disabled={!brandingConfig.carouselImages?.length}
+                  >
+                    Limpiar todo
+                  </button>
+                </div>
               </div>
               <p className="text-dark-400 text-xs">
                 Las imágenes aparecen en el carrusel del login con rotación automática cada 6 segundos

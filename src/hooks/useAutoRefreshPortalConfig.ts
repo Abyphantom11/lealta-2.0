@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { getCurrentBusinessDay, type DayOfWeek } from '@/lib/business-day-utils';
 
 interface UseAutoRefreshOptions {
   businessId?: string;
@@ -86,7 +87,26 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
     };
   }, [fetchConfig, refreshInterval, enabled]);
 
-  // Función para obtener datos específicos con filtros
+  // ✅ NUEVA FUNCIÓN: Obtener promociones usando día comercial
+  const getPromocionesForBusinessDay = useCallback(async () => {
+    if (!config?.promociones && !config?.promotions) return [];
+    
+    const promociones = config.promociones || config.promotions || [];
+    const todasActivas = promociones.filter((p: any) => p.activo !== false) || [];
+    
+    try {
+      const diaComercial = await getCurrentBusinessDay(businessId);
+      return todasActivas.filter((p: any) => {
+        if (!p.dias || p.dias.length === 0) return true; // Sin restricción de días
+        return p.dias.includes(diaComercial);
+      });
+    } catch (error) {
+      console.error('Error obteniendo día comercial para promociones:', error);
+      return todasActivas; // Fallback: mostrar todas las activas
+    }
+  }, [config, businessId]);
+
+  // Función para obtener datos específicos con filtros (LEGACY - mantener compatibilidad)
   const getPromociones = useCallback((diaActual?: string) => {
     if (!config?.promociones && !config?.promotions) return [];
     
@@ -102,17 +122,34 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
     });
   }, [config]);
 
-  const getFavoritoDelDia = useCallback((diaActual: string) => {
+  const getFavoritoDelDia = useCallback(async (diaActual?: string) => {
     const favoritoData = config?.favoritoDelDia || config?.favorites || [];
     if (!favoritoData || favoritoData.length === 0) return null;
     
+    let diaParaBuscar = diaActual;
+    
+    // ✅ Si no se especifica día, usar día comercial
+    if (!diaParaBuscar) {
+      try {
+        diaParaBuscar = await getCurrentBusinessDay(businessId);
+      } catch (error) {
+        console.error('Error obteniendo día comercial para favorito:', error);
+        // Fallback a día natural
+        const diasSemana: DayOfWeek[] = [
+          'domingo', 'lunes', 'martes', 'miercoles', 
+          'jueves', 'viernes', 'sabado'
+        ];
+        diaParaBuscar = diasSemana[new Date().getDay()];
+      }
+    }
+    
     // Retornar el primer favorito activo que coincida con el día
     const favorito = favoritoData.find(
-      (f: any) => f.activo !== false && (f.dia === diaActual || f.dia?.toLowerCase() === diaActual.toLowerCase())
+      (f: any) => f.activo !== false && (f.dia === diaParaBuscar || f.dia?.toLowerCase() === diaParaBuscar?.toLowerCase())
     ) || favoritoData[0]; // Fallback al primero si no hay coincidencia exacta
     
     return favorito;
-  }, [config]);
+  }, [config, businessId]);
 
   const getRecompensas = useCallback(() => {
     const recompensas = config?.recompensas || config?.rewards || [];
@@ -130,6 +167,7 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
     lastUpdate,
     refresh,
     getPromociones,
+    getPromocionesForBusinessDay,
     getFavoritoDelDia,
     getRecompensas,
     getBanners,

@@ -8,13 +8,13 @@ export const isHigherLevel = (newLevel: string, oldLevel: string): boolean => {
 };
 
 // Helper para calcular datos de nivel de lealtad - ACTUALIZADO PARA USAR FUNCIÓN UNIFICADA
-export const calculateLoyaltyLevel = (portalConfig: any, clienteData: ClienteData | null) => {
+export const calculateLoyaltyLevel = (portalConfig: any, clienteData: ClienteData | null): any => {
   const nivelesOrdenados = ['Bronce', 'Plata', 'Oro', 'Diamante', 'Platino'];
 
   // ✅ LÓGICA CORREGIDA PARA TARJETAS MANUALES
   // Para tarjetas manuales: usar el MAYOR entre puntosProgreso de la BD y puntos totales del cliente
   // Para tarjetas automáticas: usar puntosProgreso de la BD (que es igual a puntos totales)
-  const puntosCliente = clienteData?.puntos || 0;
+  const puntosCliente = clienteData?.tarjetaLealtad?.puntos || 0;
   const puntosProgresoBD = clienteData?.tarjetaLealtad?.puntosProgreso || 0;
   const esAsignacionManual = clienteData?.tarjetaLealtad?.asignacionManual || false;
   

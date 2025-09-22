@@ -17,10 +17,10 @@ interface Banner {
 }
 
 interface BannersProps {
-  businessId?: string;
+  readonly businessId?: string;
 }
 
-export default function BannersSection({ businessId }: BannersProps) {
+export default function BannersSection({ businessId }: Readonly<BannersProps>) {
   // 🔄 Auto-refresh hook para sincronización admin → cliente
   const { getBanners, isLoading } = useAutoRefreshPortalConfig({
     businessId,
@@ -41,7 +41,6 @@ export default function BannersSection({ businessId }: BannersProps) {
       (banner: Banner) => banner.activo && banner.imagenUrl && banner.imagenUrl.trim() !== ''
     );
 
-    // console.log('📢 Banners activos encontrados:', activeBanners.length);
     return activeBanners;
   }, [getBanners]);
 
@@ -117,9 +116,9 @@ export default function BannersSection({ businessId }: BannersProps) {
 
         {/* Banners normales - Solo mostrar si hay al menos uno con URL válida */}
         {banners
-          .filter(banner => banner.imagenUrl && banner.imagenUrl.trim() !== '')
+          .filter((banner: Banner) => banner.imagenUrl && banner.imagenUrl.trim() !== '')
           .slice(0, 1)
-          .map((banner: Banner, index: number) => (
+          .map((banner: any, index: number) => (
             <motion.div
               key={banner.id}
               className="bg-dark-800 rounded-xl overflow-hidden relative cursor-pointer"

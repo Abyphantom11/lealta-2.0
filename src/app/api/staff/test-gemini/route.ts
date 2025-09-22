@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getGeminiApiKey } from '@/lib/env';
 
 // 🧪 ENDPOINT DE TEST PARA VERIFICAR GEMINI API
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const apiKey = getGeminiApiKey();
     

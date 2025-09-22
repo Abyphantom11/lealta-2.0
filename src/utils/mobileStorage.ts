@@ -2,9 +2,9 @@
 import { logger } from './logger';
 
 interface StorageData<T = unknown> {
-  data: T;
-  timestamp: number;
-  expires?: number;
+  readonly data: T;
+  readonly timestamp: number;
+  readonly expires?: number;
 }
 
 class MobileStorage {

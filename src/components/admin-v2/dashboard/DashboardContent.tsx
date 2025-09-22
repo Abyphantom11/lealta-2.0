@@ -65,96 +65,96 @@ interface DashboardContentProps {
  */
 const DashboardContent: React.FC<DashboardContentProps> = () => {
   // Configuración de niveles
-  const nivelesConfig = {
-    Bronce: {
-      condiciones: { puntosMinimos: 0, gastosMinimos: 0, visitasMinimas: 0 },
-    },
-    Plata: {
-      condiciones: {
-        puntosMinimos: 100,
-        gastosMinimos: 500,
-        visitasMinimas: 5,
-      },
-    },
-    Oro: {
-      condiciones: {
-        puntosMinimos: 500,
-        gastosMinimos: 1500,
-        visitasMinimas: 10,
-      },
-    },
-    Diamante: {
-      condiciones: {
-        puntosMinimos: 5000,
-        gastosMinimos: 8000,
-        visitasMinimas: 50,
-      },
-    },
-    Platino: {
-      condiciones: {
-        puntosMinimos: 3000,
-        gastosMinimos: 5000,
-        visitasMinimas: 30,
-      },
-    },
-  };
+  // const nivelesConfig = {
+  //   Bronce: {
+  //     condiciones: { puntosMinimos: 0, gastosMinimos: 0, visitasMinimas: 0 },
+  //   },
+  //   Plata: {
+  //     condiciones: {
+  //       puntosMinimos: 100,
+  //       gastosMinimos: 500,
+  //       visitasMinimas: 5,
+  //     },
+  //   },
+  //   Oro: {
+  //     condiciones: {
+  //       puntosMinimos: 500,
+  //       gastosMinimos: 1500,
+  //       visitasMinimas: 10,
+  //     },
+  //   },
+  //   Diamante: {
+  //     condiciones: {
+  //       puntosMinimos: 5000,
+  //       gastosMinimos: 8000,
+  //       visitasMinimas: 50,
+  //     },
+  //   },
+  //   Platino: {
+  //     condiciones: {
+  //       puntosMinimos: 3000,
+  //       gastosMinimos: 5000,
+  //       visitasMinimas: 30,
+  //     },
+  //   },
+  // };
 
   // Función para calcular nivel automático del cliente
-  const calculateClientLevel = (client: Cliente) => {
-    // ✅ CORRECCIÓN: Usar puntos para determinar nivel
-    const puntosAcumulados = client.puntos || 0;
-    const visitas = client.totalVisitas || 0;
+  // const calculateClientLevel = (client: Cliente) => {
+  //   // ✅ CORRECCIÓN: Usar puntos para determinar nivel
+  //   const puntosAcumulados = client.puntos || 0;
+  //   const visitas = client.totalVisitas || 0;
 
-    // ✅ CORRECCIÓN: Usar configuración real del portal en lugar de valores hardcodeados
-    if (portalConfig?.tarjetas) {
-      const tarjetasActivas = portalConfig.tarjetas.filter((t: any) => t.activo);
-      if (tarjetasActivas.length > 0) {
-        // Ordenar tarjetas por requisitos de puntos (de mayor a menor)
-        const tarjetasOrdenadas = tarjetasActivas
-          .slice()
-          .sort((a: any, b: any) => (b.condiciones?.puntosMinimos || 0) - (a.condiciones?.puntosMinimos || 0));
+  //   // ✅ CORRECCIÓN: Usar configuración real del portal en lugar de valores hardcodeados
+  //   if (portalConfig?.tarjetas) {
+  //     const tarjetasActivas = portalConfig.tarjetas.filter((t: any) => t.activo);
+  //     if (tarjetasActivas.length > 0) {
+  //       // Ordenar tarjetas por requisitos de puntos (de mayor a menor)
+  //       const tarjetasOrdenadas = tarjetasActivas
+  //         .slice()
+  //         .sort((a: any, b: any) => (b.condiciones?.puntosMinimos || 0) - (a.condiciones?.puntosMinimos || 0));
 
-        // Encontrar el nivel MÁS ALTO que cumple los requisitos (lógica OR)
-        for (const tarjeta of tarjetasOrdenadas) {
-          const puntosRequeridos = tarjeta.condiciones?.puntosMinimos || 0;
-          const visitasRequeridas = tarjeta.condiciones?.visitasMinimas || 0;
+  //       // Encontrar el nivel MÁS ALTO que cumple los requisitos (lógica OR)
+  //       for (const tarjeta of tarjetasOrdenadas) {
+  //         const puntosRequeridos = tarjeta.condiciones?.puntosMinimos || 0;
+  //         const visitasRequeridas = tarjeta.condiciones?.visitasMinimas || 0;
 
-          const cumplePuntos = puntosAcumulados >= puntosRequeridos;
-          const cumpleVisitas = visitas >= visitasRequeridas;
+  //         const cumplePuntos = puntosAcumulados >= puntosRequeridos;
+  //         const cumpleVisitas = visitas >= visitasRequeridas;
 
-          // Lógica OR: cumple si tiene puntos suficientes O visitas suficientes
-          if (cumplePuntos || cumpleVisitas) {
-            return tarjeta.nivel;
-          }
-        }
-      }
-    }
+  //         // Lógica OR: cumple si tiene puntos suficientes O visitas suficientes
+  //         if (cumplePuntos || cumpleVisitas) {
+  //           return tarjeta.nivel;
+  //         }
+  //       }
+  //     }
+  //   }
 
-    // Fallback a la lógica anterior si no hay configuración del portal
-    const niveles = ['Diamante', 'Platino', 'Oro', 'Plata', 'Bronce'];
-    for (const nivel of niveles) {
-      const condiciones = nivelesConfig[nivel as keyof typeof nivelesConfig].condiciones;
-      if (
-        puntosAcumulados >= condiciones.puntosMinimos &&
-        visitas >= condiciones.visitasMinimas
-      ) {
-        return nivel;
-      }
-    }
-    return 'Bronce'; // Nivel por defecto
-  };
+  //   // Fallback a la lógica anterior si no hay configuración del portal
+  //   const niveles = ['Diamante', 'Platino', 'Oro', 'Plata', 'Bronce'];
+  //   for (const nivel of niveles) {
+  //     const condiciones = nivelesConfig[nivel as keyof typeof nivelesConfig].condiciones;
+  //     if (
+  //       puntosAcumulados >= condiciones.puntosMinimos &&
+  //       visitas >= condiciones.visitasMinimas
+  //     ) {
+  //       return nivel;
+  //     }
+  //   }
+  //   return 'Bronce'; // Nivel por defecto
+  // };
 
   // Función para obtener colores de niveles
-  const getNivelColor = (nivel: string) => {
-    const colores = {
-      Bronce: 'from-amber-600 to-amber-700',
-      Plata: 'from-gray-400 to-gray-500',
-      Oro: 'from-yellow-400 to-yellow-500',
-      Diamante: 'from-blue-400 to-blue-500',
-      Platino: 'from-gray-300 to-gray-400',
-    };
-    return colores[nivel as keyof typeof colores] || 'from-gray-400 to-gray-500';
-  };
+  // const getNivelColor = (nivel: string) => {
+  //   const colores = {
+  //     Bronce: 'from-amber-600 to-amber-700',
+  //     Plata: 'from-gray-400 to-gray-500',
+  //     Oro: 'from-yellow-400 to-yellow-500',
+  //     Diamante: 'from-blue-400 to-blue-500',
+  //     Platino: 'from-gray-300 to-gray-400',
+  //   };
+  //   return colores[nivel as keyof typeof colores] || 'from-gray-400 to-gray-500';
+  // };
 
   // Estados
   const [visitas, setVisitas] = useState<VisitasData>({
@@ -176,7 +176,7 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
     });
 
   // ✅ NUEVO: Estado para configuración del portal (niveles de tarjetas)
-  const [portalConfig, setPortalConfig] = useState<any>(null);
+  // const [portalConfig, setPortalConfig] = useState<any>(null);
 
   const [guardandoConfig, setGuardandoConfig] = useState(false);
   const [mensajeGuardado, setMensajeGuardado] = useState<string | null>(null);
@@ -461,7 +461,7 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
 
         // ✅ NUEVO: Cargar configuración completa del portal (incluye tarjetas)
         console.log('📊 Cargando configuración del portal:', config);
-        setPortalConfig(config);
+        // setPortalConfig(config);
 
         if (config.configuracionPuntos) {
           const nuevaConfig = {
@@ -945,7 +945,7 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
                   {!loading && clients.length > 0 && (
                     <div className="divide-y divide-gray-600">
                       {clients.map((client) => {
-                        const nivelAutomatico = calculateClientLevel(client);
+                        // const nivelAutomatico = calculateClientLevel(client);
                         
                         return (
                           <button

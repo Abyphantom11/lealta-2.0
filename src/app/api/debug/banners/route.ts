@@ -1,14 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { getCurrentBusinessDay } from '@/lib/business-day-utils';
 
 const PORTAL_CONFIG_PATH = path.join(process.cwd(), 'portal-config.json');
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    // Obtener día actual
-    const diasSemana = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-    const diaActual = diasSemana[new Date().getDay()];
+    // ✅ SOLUCIÓN: Obtener día comercial en lugar de día natural
+    const diaActual = await getCurrentBusinessDay();
     const ahora = new Date();
     const horaActualMinutos = ahora.getHours() * 60 + ahora.getMinutes();
     
@@ -57,8 +57,9 @@ export async function GET(request: NextRequest) {
       },
       bannersParaMostrar: bannersDelDia
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error en debug banners:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

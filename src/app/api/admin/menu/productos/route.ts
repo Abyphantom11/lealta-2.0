@@ -199,7 +199,7 @@ export async function DELETE(request: NextRequest) {
   try {
     console.log(`🗑️ Menu-productos DELETE by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
     
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
 
     if (!id) {

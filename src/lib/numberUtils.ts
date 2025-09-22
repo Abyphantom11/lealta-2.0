@@ -148,7 +148,7 @@ export function clamp(number: number, min: number, max: number): number {
 }
 
 // Exportar el objeto completo para facilitar su uso
-export default {
+const numberUtils = {
   formatPrice,
   calculateDiscountedPrice,
   calculateDiscountPercentage,
@@ -158,3 +158,5 @@ export default {
   sumWithPrecision,
   clamp,
 };
+
+export default numberUtils;

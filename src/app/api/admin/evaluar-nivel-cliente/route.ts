@@ -29,11 +29,6 @@ function evaluarNivelCliente(cliente: any, tarjetasConfig: any[]) {
   const puntosProgreso = cliente.tarjetaLealtad?.puntosProgreso || cliente.puntosAcumulados || cliente.puntos || 0;
   const visitas = cliente.totalVisitas || 0;
 
-  // console.log(`🤖 Evaluación automática usando:`);
-  // console.log(`   • puntosProgreso: ${puntosProgreso} (desde tarjeta)`);
-  // console.log(`   • puntos canjeables: ${cliente.puntos || 0} (se mantienen separados)`);
-  // console.log(`   • visitas: ${visitas}`);
-
   // Usar las tarjetas activas de la nueva estructura
   const tarjetasActivas = tarjetasConfig.filter(t => t.activo);
   if (!tarjetasActivas.length) {

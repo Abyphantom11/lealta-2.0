@@ -1,5 +1,5 @@
 // src/app/api/businesses/list/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
  * GET - Listar todos los businesses activos
  * Para selección de business en caso de rutas legacy bloqueadas
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Obtener todos los businesses activos
     const businesses = await prisma.business.findMany({

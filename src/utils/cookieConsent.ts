@@ -4,19 +4,19 @@
  */
 
 export interface CookieConsent {
-  necessary: boolean;
-  analytics: boolean;
-  marketing: boolean;
-  functional: boolean;
-  timestamp: number;
+  readonly necessary: boolean;
+  readonly analytics: boolean;
+  readonly marketing: boolean;
+  readonly functional: boolean;
+  readonly timestamp: number;
 }
 
 export interface CookieSettings {
-  hasConsent: boolean;
-  consent: CookieConsent | null;
-  canUseAnalytics: boolean;
-  canUseMarketing: boolean;
-  canUseFunctional: boolean;
+  readonly hasConsent: boolean;
+  readonly consent: CookieConsent | null;
+  readonly canUseAnalytics: boolean;
+  readonly canUseMarketing: boolean;
+  readonly canUseFunctional: boolean;
 }
 
 const CONSENT_KEY = 'lealta-cookie-consent';

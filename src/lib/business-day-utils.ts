@@ -1,0 +1,252 @@
+/**
+ * Utilidades para manejo de día comercial con hora de reseteo configurable
+ * Centraliza la lógica para que todos los componentes usen la misma definición de "día"
+ */
+
+import { PrismaClient } from '@prisma/client';
+
+// Instancia de Prisma para consultas de base de datos
+const prisma = new PrismaClient();
+
+// Hora de reseteo por defecto (4 AM estándar para bares/restaurantes)
+const DEFAULT_RESET_HOUR = 4;
+
+// Mapeo de días de la semana
+const DAYS_OF_WEEK = [
+  'domingo', 'lunes', 'martes', 'miercoles', 
+  'jueves', 'viernes', 'sabado'
+] as const;
+
+export type DayOfWeek = typeof DAYS_OF_WEEK[number];
+
+/**
+ * Configuración de día comercial por negocio
+ */
+interface BusinessDayConfig {
+  businessId: string;
+  resetHour: number; // Hora de reseteo (0-23)
+  resetMinute?: number; // Minutos de reseteo (opcional, default: 0)
+  timezone?: string; // Timezone (opcional, default: local)
+}
+
+// Cache de configuraciones para mejorar performance
+const configCache = new Map<string, BusinessDayConfig>();
+
+/**
+ * Obtiene la configuración de día comercial para un negocio
+ * @param businessId ID del negocio
+ * @returns Configuración de día comercial
+ */
+export async function getBusinessDayConfig(businessId?: string): Promise<BusinessDayConfig> {
+  if (!businessId) {
+    return {
+      businessId: 'default',
+      resetHour: DEFAULT_RESET_HOUR,
+      resetMinute: 0
+    };
+  }
+
+  // Verificar cache primero
+  if (configCache.has(businessId)) {
+    return configCache.get(businessId)!;
+  }
+
+  try {
+    // Obtener configuración desde base de datos
+    const business = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: { settings: true }
+    });
+
+    // Extraer configuración de día comercial del campo settings
+    const settings = business?.settings as any || {};
+    const dayConfig = settings.businessDay || {};
+    
+    const config: BusinessDayConfig = {
+      businessId,
+      resetHour: dayConfig.resetHour ?? DEFAULT_RESET_HOUR,
+      resetMinute: dayConfig.resetMinute ?? 0
+    };
+    
+    configCache.set(businessId, config);
+    return config;
+  } catch (error) {
+    console.warn(`⚠️ Error obteniendo configuración de día para ${businessId}, usando default:`, error);
+    
+    const fallbackConfig: BusinessDayConfig = {
+      businessId,
+      resetHour: DEFAULT_RESET_HOUR,
+      resetMinute: 0
+    };
+    
+    return fallbackConfig;
+  }
+}
+
+/**
+ * Calcula el día comercial actual basado en la hora de reseteo
+ * @param businessId ID del negocio (opcional)
+ * @param customDate Fecha personalizada para testing (opcional)
+ * @returns Día comercial actual
+ */
+export async function getCurrentBusinessDay(
+  businessId?: string, 
+  customDate?: Date
+): Promise<DayOfWeek> {
+  const config = await getBusinessDayConfig(businessId);
+  const now = customDate || new Date();
+  
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  const resetHour = config.resetHour;
+  const resetMinute = config.resetMinute || 0;
+  
+  // Calcular si estamos antes o después de la hora de reseteo
+  const currentTimeInMinutes = currentHour * 60 + currentMinute;
+  const resetTimeInMinutes = resetHour * 60 + resetMinute;
+  
+  let businessDay: Date;
+  
+  if (currentTimeInMinutes < resetTimeInMinutes) {
+    // Antes de la hora de reseteo = día anterior
+    businessDay = new Date(now);
+    businessDay.setDate(businessDay.getDate() - 1);
+  } else {
+    // Después de la hora de reseteo = día actual
+    businessDay = new Date(now);
+  }
+  
+  const dayIndex = businessDay.getDay();
+  const businessDayName = DAYS_OF_WEEK[dayIndex];
+  
+  // Debug logging para desarrollo
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`🗓️ Business Day Calculation:`, {
+      businessId: businessId || 'default',
+      resetHour: `${resetHour}:${resetMinute.toString().padStart(2, '0')}`,
+      currentTime: `${currentHour}:${currentMinute.toString().padStart(2, '0')}`,
+      isAfterReset: currentTimeInMinutes >= resetTimeInMinutes,
+      naturalDay: DAYS_OF_WEEK[now.getDay()],
+      businessDay: businessDayName,
+      date: businessDay.toDateString()
+    });
+  }
+  
+  return businessDayName;
+}
+
+/**
+ * Versión síncrona que usa configuración cacheada o default
+ * Útil para componentes que necesitan el día inmediatamente
+ * @param businessId ID del negocio
+ * @param customDate Fecha personalizada para testing
+ * @returns Día comercial actual
+ */
+export function getCurrentBusinessDaySync(
+  businessId?: string, 
+  customDate?: Date
+): DayOfWeek {
+  const now = customDate || new Date();
+  
+  // Usar configuración cacheada o default
+  const config = configCache.get(businessId || 'default') || {
+    businessId: businessId || 'default',
+    resetHour: DEFAULT_RESET_HOUR,
+    resetMinute: 0
+  };
+  
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  const resetHour = config.resetHour;
+  const resetMinute = config.resetMinute || 0;
+  
+  const currentTimeInMinutes = currentHour * 60 + currentMinute;
+  const resetTimeInMinutes = resetHour * 60 + resetMinute;
+  
+  let businessDay: Date;
+  
+  if (currentTimeInMinutes < resetTimeInMinutes) {
+    businessDay = new Date(now);
+    businessDay.setDate(businessDay.getDate() - 1);
+  } else {
+    businessDay = new Date(now);
+  }
+  
+  return DAYS_OF_WEEK[businessDay.getDay()];
+}
+
+/**
+ * Obtiene el rango de fechas para el día comercial actual
+ * @param businessId ID del negocio
+ * @param customDate Fecha de referencia
+ * @returns Rango de fechas del día comercial
+ */
+export async function getBusinessDayRange(
+  businessId?: string,
+  customDate?: Date
+): Promise<{ start: Date; end: Date }> {
+  const config = await getBusinessDayConfig(businessId);
+  const now = customDate || new Date();
+  
+  const resetHour = config.resetHour;
+  const resetMinute = config.resetMinute || 0;
+  
+  // Calcular inicio del día comercial
+  const start = new Date(now);
+  start.setHours(resetHour, resetMinute, 0, 0);
+  
+  // Si estamos antes de la hora de reseteo, el día comercial empezó ayer
+  if (now.getHours() < resetHour || 
+      (now.getHours() === resetHour && now.getMinutes() < resetMinute)) {
+    start.setDate(start.getDate() - 1);
+  }
+  
+  // Calcular fin del día comercial (inicio del siguiente día comercial)
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  end.setMilliseconds(-1); // 23:59:59.999 del día comercial
+  
+  return { start, end };
+}
+
+/**
+ * Valida si una fecha está dentro del día comercial actual
+ * @param date Fecha a validar
+ * @param businessId ID del negocio
+ * @returns True si está dentro del día comercial actual
+ */
+export async function isWithinCurrentBusinessDay(
+  date: Date,
+  businessId?: string
+): Promise<boolean> {
+  const { start, end } = await getBusinessDayRange(businessId);
+  return date >= start && date <= end;
+}
+
+/**
+ * Obtiene información de debug del día comercial
+ * @param businessId ID del negocio
+ * @returns Información detallada para debugging
+ */
+export async function getBusinessDayDebugInfo(businessId?: string) {
+  const config = await getBusinessDayConfig(businessId);
+  const now = new Date();
+  const businessDay = await getCurrentBusinessDay(businessId);
+  const { start, end } = await getBusinessDayRange(businessId);
+  
+  return {
+    config,
+    currentTime: now.toISOString(),
+    naturalDay: DAYS_OF_WEEK[now.getDay()],
+    businessDay,
+    businessDayRange: {
+      start: start.toISOString(),
+      end: end.toISOString()
+    },
+    isAfterReset: now >= start && now <= end
+  };
+}
+
+// Exportar constantes útiles
+export { DAYS_OF_WEEK, DEFAULT_RESET_HOUR };
+export type { BusinessDayConfig };

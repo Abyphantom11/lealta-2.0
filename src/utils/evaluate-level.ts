@@ -38,6 +38,7 @@ function evaluarNivelCliente(cliente: any, tarjetasConfig: any[]) {
   console.log(`   • Puntos canjeables: ${cliente.puntos || 0}`);
   console.log(`   • Visitas: ${visitas}`);
   console.log(`   • Nivel actual: ${cliente.tarjetaLealtad?.nivel || 'Sin tarjeta'}`);
+  console.log(`   • Configuración disponible: ${tarjetasConfig.length} niveles`);
 
   // 🎯 USAR CONFIGURACIÓN HARDCODEADA QUE COINCIDA EXACTAMENTE CON EL ADMIN
   const nivelesHardcoded = [

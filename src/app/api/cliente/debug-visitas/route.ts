@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log('🧪 Body recibido:', body);
     
-    const { sessionId, clienteId, businessId, path } = body;
+    const { sessionId, path } = body;
 
     // Test 1: Verificar que tenemos los datos mínimos
     if (!sessionId) {

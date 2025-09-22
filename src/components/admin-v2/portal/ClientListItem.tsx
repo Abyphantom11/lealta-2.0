@@ -15,9 +15,8 @@ export default function ClientListItem({
   onSelect,
   calculateClientLevel,
 }: ClientListItemProps) {
-  const nivelAutomatico = calculateClientLevel(client);
-  const cumpleCondiciones = nivelAutomatico !== 'Bronce';
   const tieneTarjeta = client.tarjetaLealtad !== null;
+  const nivelCalculado = calculateClientLevel(client);
 
   return (
     <button
@@ -36,6 +35,13 @@ export default function ClientListItem({
         </div>
         <div className="text-right text-sm">
           <p className="text-yellow-400 font-medium">Puntos: {client.puntos || 0}</p>
+          
+          {/* Mostrar nivel calculado si no hay tarjeta */}
+          {!tieneTarjeta && nivelCalculado && (
+            <p className="text-blue-400 text-xs">
+              Nivel sugerido: {nivelCalculado}
+            </p>
+          )}
 
           {tieneTarjeta && client.tarjetaLealtad ? (
             <div className="mt-1">

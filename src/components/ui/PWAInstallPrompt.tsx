@@ -6,16 +6,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { canInstallPWA, installPWA, isPWAInstalled } from '@/services/pwaService';
 
 interface PWAInstallPromptProps {
-  variant?: 'desktop' | 'mobile' | 'auto';
-  showOnLogin?: boolean;
-  position?: 'top' | 'bottom' | 'floating';
+  readonly variant?: 'desktop' | 'mobile' | 'auto';
+  readonly showOnLogin?: boolean;
+  readonly position?: 'top' | 'bottom' | 'floating';
 }
 
 export default function PWAInstallPrompt({ 
   variant = 'auto', 
   showOnLogin = false,
   position = 'top'
-}: PWAInstallPromptProps) {
+}: Readonly<PWAInstallPromptProps>) {
   const [canInstall, setCanInstall] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);

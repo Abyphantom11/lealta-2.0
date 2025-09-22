@@ -5,7 +5,6 @@ import { motion } from '../../components/motion';
 import { Mail, Lock, Eye, EyeOff, UserPlus, Sparkles, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import PWAInstallPrompt from '../../components/ui/PWAInstallPrompt';
 import AuthHeader from '../../components/ui/AuthHeader';
 
 function LoginContent() {
@@ -167,11 +166,14 @@ function LoginContent() {
           animate={{ opacity: 1, y: 0 }}
           className="relative w-full max-w-md"
         >
-          {/* Header del formulario - simplificado */}
+          {/* Header del formulario - con degradado azul-morado */}
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-white mb-6">
+            <h1 className="text-2xl font-bold text-white mb-2">
               Accede a tu cuenta
             </h1>
+            <div className="text-3xl font-bold bg-gradient-to-r from-blue-500 via-purple-500 to-blue-600 bg-clip-text text-transparent">
+              lealta
+            </div>
           </div>
 
         {/* Login Form */}
@@ -285,18 +287,15 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <>
-      <Suspense fallback={
-        <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-800 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
-            <p className="text-white">Cargando...</p>
-          </div>
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
+          <p className="text-white">Cargando...</p>
         </div>
-      }>
-        <LoginContent />
-      </Suspense>
-      <PWAInstallPrompt variant="auto" showOnLogin={true} position="bottom" />
-    </>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

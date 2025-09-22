@@ -3,6 +3,8 @@ import { Inter } from 'next/font/google';
 import NotificationContainer from '@/components/ui/NotificationContainer';
 import RedirectInterceptor from '../components/RedirectInterceptor';
 import ServiceWorkerRegistration from '../components/ServiceWorkerRegistration';
+import PWAManager from '../components/PWAManager';
+import ConditionalPWAPrompt from '../components/ConditionalPWAPrompt';
 import CookieBanner from '../components/ui/CookieBanner';
 import './globals.css';
 
@@ -60,6 +62,8 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <ServiceWorkerRegistration />
+        <PWAManager />
+        <ConditionalPWAPrompt />
         <RedirectInterceptor />
         <div className="min-h-screen bg-gradient-to-br from-slate-950 via-gray-950 to-black">
           {children}

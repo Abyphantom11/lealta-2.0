@@ -70,10 +70,6 @@ const ENV_CONFIG: EnvConfig = {
     required: false,
     description: 'DSN de Sentry para monitoreo de errores (servidor)',
   },
-  NEXT_PUBLIC_SENTRY_DSN: {
-    required: false,
-    description: 'DSN de Sentry para monitoreo de errores (cliente)',
-  },
   
   // 🔑 Configuración de aplicación
   NODE_ENV: {
@@ -184,7 +180,7 @@ export function getEnvironmentStatus(): 'development' | 'production' | 'test' {
 }
 
 export function isProductionReady(): boolean {
-  const validation = validateEnvironmentVariables();
+  validateEnvironmentVariables();
   const requiredForProduction = [
     'DATABASE_URL',
     'NEXTAUTH_SECRET', 

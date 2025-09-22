@@ -11,7 +11,6 @@ import {
   User,
   Phone,
   Globe,
-  ArrowLeft,
   Sparkles,
   ArrowRight,
   CheckCircle,
@@ -20,7 +19,6 @@ import {
   Shield,
 } from 'lucide-react';
 import Link from 'next/link';
-import { LealtaLogo } from '../../components/LealtaLogo';
 import { EmailVerificationModal } from '../../components/EmailVerificationModal';
 import AuthHeader from '../../components/ui/AuthHeader';
 

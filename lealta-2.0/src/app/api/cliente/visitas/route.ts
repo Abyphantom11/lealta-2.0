@@ -3,6 +3,103 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Función auxiliar para determinar businessId del request body
+function getBusinessIdFromBody(businessId?: string): string | null {
+  if (businessId) {
+    console.log(`✅ BusinessId from request body: ${businessId}`);
+    return businessId;
+  }
+  return null;
+}
+
+// Función auxiliar para determinar businessId del header
+function getBusinessIdFromHeader(request: NextRequest): string | null {
+  const businessId = request.headers.get('x-business-id');
+  if (businessId) {
+    console.log(`✅ BusinessId from header: ${businessId}`);
+    return businessId;
+  }
+  return null;
+}
+
+// Función auxiliar para determinar businessId del referer
+async function getBusinessIdFromReferer(request: NextRequest): Promise<string | null> {
+  const refererHeader = request.headers.get('referer');
+  if (!refererHeader) return null;
+
+  try {
+    const refererUrl = new URL(refererHeader);
+    const pathSegments = refererUrl.pathname.split('/').filter(Boolean);
+    
+    if (pathSegments.length <= 1 || pathSegments[1] !== 'cliente') {
+      return null;
+    }
+
+    const potentialBusinessSlug = pathSegments[0];
+    const business = await prisma.business.findFirst({
+      where: {
+        OR: [
+          { slug: potentialBusinessSlug },
+          { subdomain: potentialBusinessSlug },
+          { id: potentialBusinessSlug }
+        ],
+        isActive: true
+      }
+    });
+
+    if (business) {
+      console.log(`✅ BusinessId from referer: ${potentialBusinessSlug} → ${business.id}`);
+      return business.id;
+    }
+  } catch (error) {
+    console.error('Error parsing referer URL:', error);
+  }
+
+  return null;
+}
+
+// Función auxiliar para resolver businessId con múltiples métodos
+async function resolveBusinessId(request: NextRequest, bodyBusinessId?: string): Promise<string | null> {
+  console.log('📊 Cliente Visita: Determinando business context...');
+
+  // Método 1: Del cuerpo de la petición
+  let businessId = getBusinessIdFromBody(bodyBusinessId);
+  if (businessId) return businessId;
+
+  // Método 2: Del header
+  businessId = getBusinessIdFromHeader(request);
+  if (businessId) return businessId;
+
+  // Método 3: Del referer
+  businessId = await getBusinessIdFromReferer(request);
+  if (businessId) return businessId;
+
+  return null;
+}
+
+// Función auxiliar para crear la visita
+async function createVisita(data: {
+  sessionId: string;
+  clienteId?: string;
+  path?: string;
+  referrer?: string;
+  businessId: string;
+  request: NextRequest;
+}) {
+  return await prisma.visita.create({
+    data: {
+      sessionId: data.sessionId,
+      clienteId: data.clienteId || null,
+      path: data.path || '/',
+      referrer: data.referrer || null,
+      businessId: data.businessId,
+      timestamp: new Date(),
+      userAgent: data.request.headers.get('user-agent') || '',
+      ip: data.request.headers.get('x-forwarded-for') || data.request.headers.get('x-real-ip') || 'unknown'
+    }
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { sessionId, clienteId, path, referrer, businessId } = await request.json();
@@ -14,54 +111,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 🔥 CRÍTICO: Obtener businessId con múltiples métodos para business isolation
-    let actualBusinessId = null;
-    
-    console.log('📊 Cliente Visita: Determinando business context...');
-    
-    // Método 1: Del cuerpo de la petición (más confiable para rutas públicas)
-    if (businessId) {
-      actualBusinessId = businessId;
-      console.log(`✅ BusinessId from request body: ${actualBusinessId}`);
-    }
-    
-    // Método 2: Del header (para compatibilidad con middleware)
-    if (!actualBusinessId) {
-      actualBusinessId = request.headers.get('x-business-id');
-      if (actualBusinessId) {
-        console.log(`✅ BusinessId from header: ${actualBusinessId}`);
-      }
-    }
-    
-    // Método 3: Del referer (extraer de la URL de origen)
-    if (!actualBusinessId) {
-      const refererHeader = request.headers.get('referer');
-      if (refererHeader) {
-        const refererUrl = new URL(refererHeader);
-        const pathSegments = refererUrl.pathname.split('/').filter(Boolean);
-        if (pathSegments.length > 1 && pathSegments[1] === 'cliente') {
-          const potentialBusinessSlug = pathSegments[0];
-          
-          // Validar que es un business válido consultando la DB
-          const business = await prisma.business.findFirst({
-            where: {
-              OR: [
-                { slug: potentialBusinessSlug },
-                { subdomain: potentialBusinessSlug },
-                { id: potentialBusinessSlug }
-              ],
-              isActive: true
-            }
-          });
-          
-          if (business) {
-            actualBusinessId = business.id;
-            console.log(`✅ BusinessId from referer: ${potentialBusinessSlug} → ${actualBusinessId}`);
-          }
-        }
-      }
-    }
-    
+    const actualBusinessId = await resolveBusinessId(request, businessId);
+
     if (!actualBusinessId) {
       console.error('❌ No se pudo determinar el business context para la visita');
       return NextResponse.json(
@@ -70,18 +121,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Registrar la visita
-    const visita = await prisma.visita.create({
-      data: {
-        sessionId,
-        clienteId: clienteId || null,
-        path: path || '/',
-        referrer: referrer || null,
-        businessId: actualBusinessId,
-        timestamp: new Date(),
-        userAgent: request.headers.get('user-agent') || '',
-        ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
-      }
+    const visita = await createVisita({
+      sessionId,
+      clienteId,
+      path,
+      referrer,
+      businessId: actualBusinessId,
+      request
     });
 
     console.log(`📊 Visita registrada para business ${actualBusinessId}:`, {

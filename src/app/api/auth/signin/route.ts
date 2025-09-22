@@ -271,9 +271,9 @@ export async function POST(request: NextRequest) {
 
     // En este punto sabemos que user no es nulo
     // Verify password
-    const isValid = await compare(password, user!.passwordHash);
+    const isValid = await compare(password, user.passwordHash);
     if (!isValid) {
-      await handleInvalidPassword(user!);
+      await handleInvalidPassword(user);
       throw new Error('Credenciales inválidas');
     }
 

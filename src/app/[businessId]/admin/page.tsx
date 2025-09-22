@@ -66,7 +66,7 @@ export default function BusinessAdminPage() {
   // Business context válido
   if (isValidBusiness) {
     return (
-      <PWALayout promptPosition="bottom">
+      <PWALayout showInstallPrompt={false} promptPosition="bottom">
         <AdminV2Page businessId={businessId} />
       </PWALayout>
     );

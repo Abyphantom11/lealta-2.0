@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Eye, Smartphone, Gift, TrendingUp, Building, CreditCard } from 'lucide-react';
+import { Eye, Smartphone, Gift, TrendingUp, Building, CreditCard, Settings } from 'lucide-react';
 import PortalContentManager from './PortalContentManager';
 import { GeneralConfig } from './types';
 import {
@@ -28,7 +28,7 @@ type NivelTarjeta = 'success' | 'error' | 'warning' | 'info';
 // Portal Content Component - Gestión completa del portal del cliente
 const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
   const [activeTab, setActiveTab] = useState<
-    'preview' | 'branding' | 'banners' | 'promociones' | 'recompensas' | 'favorito' | 'tarjetas'
+    'preview' | 'branding' | 'banners' | 'promociones' | 'recompensas' | 'favorito' | 'tarjetas' | 'configuracion'
   >('preview');
   const [previewMode, setPreviewMode] = useState<ModoVistaPrevia>('portal'); // Estado para cambiar entre Portal, Login y Tarjetas
   const [brandingConfig, setBrandingConfig] = useState<BrandingConfig>(
@@ -88,16 +88,30 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [currentBusinessSlug, setCurrentBusinessSlug] = useState<string | null>(null);
+  const [currentBusinessId, setCurrentBusinessId] = useState<string | null>(null);
 
-  // Función para obtener el slug del business actual
-  const getCurrentBusinessFromUrl = (): string | null => {
+  // 🔧 Funciones auxiliares reutilizables
+  const getCurrentBusinessFromUrl = useCallback((): string | null => {
     if (typeof window === 'undefined') return null;
     const pathSegments = window.location.pathname.split('/').filter(Boolean);
     if (pathSegments.length >= 2 && pathSegments[1] === 'admin') {
       return pathSegments[0];
     }
     return null;
-  };
+  }, []);
+
+  const resolveBusinessId = useCallback(async (identifier: string): Promise<string | null> => {
+    try {
+      const response = await fetch(`/api/businesses/${identifier}/validate`);
+      if (response.ok) {
+        const business = await response.json();
+        return business.id || null;
+      }
+    } catch (error) {
+      console.error('Error resolving business ID:', error);
+    }
+    return null;
+  }, []);
 
   // Función para construir la URL dinámica del portal cliente
   const getPortalUrl = (): string => {
@@ -111,31 +125,9 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
     return `${window.location.origin}/cliente`;
   };
 
-  const fetchConfig = async () => {
+  const fetchConfig = useCallback(async () => {
     try {
       // 🔥 CRÍTICO: Resolver el businessId real desde el slug/subdomain
-      const resolveBusinessId = async (identifier: string): Promise<string | null> => {
-        try {
-          const response = await fetch(`/api/businesses/${identifier}/validate`);
-          if (response.ok) {
-            const business = await response.json();
-            return business.id || null;
-          }
-        } catch (error) {
-          console.error('Error resolving business ID:', error);
-        }
-        return null;
-      };
-
-      const getCurrentBusinessFromUrl = (): string | null => {
-        if (typeof window === 'undefined') return null;
-        const pathSegments = window.location.pathname.split('/').filter(Boolean);
-        if (pathSegments.length >= 2 && pathSegments[1] === 'admin') {
-          return pathSegments[0];
-        }
-        return null;
-      };
-
       const urlBusinessIdentifier = getCurrentBusinessFromUrl();
       const storedBusinessId = localStorage.getItem('currentBusinessId');
       
@@ -152,6 +144,9 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
       } else {
         finalBusinessId = storedBusinessId || 'cmfr2y0ia0000eyvw7ef3k20u';
       }
+      
+      // Actualizar el estado del businessId actual
+      setCurrentBusinessId(finalBusinessId);
       
       console.log('🔍 Portal fetchConfig - BusinessId resolution:', {
         urlBusinessIdentifier,
@@ -216,7 +211,7 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
           
           console.log('🎯 Generated tarjetas from loaded config:', {
             count: finalTarjetas.length,
-            niveles: finalTarjetas.map(t => `${t.nivel}:${t.condiciones.puntosMinimos}`)
+            niveles: finalTarjetas.map((t: any) => `${t.nivel}:${t.condiciones.puntosMinimos}`)
           });
         }
 
@@ -263,7 +258,7 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
           nombrePersonalizado: `Tarjeta ${nivel}`,
           textoCalidad: config.textoDefault,
           colores: {
-            gradiente: config.colores.gradiente,
+            gradiente: [config.colores.gradiente[0], config.colores.gradiente[1]] as [string, string],
             texto: '#FFFFFF',
             nivel: config.colores.gradiente[0]
           },
@@ -317,33 +312,11 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [getCurrentBusinessFromUrl, resolveBusinessId]);
 
   const handleSave = useCallback(async () => {
     try {
       // 🔥 CRÍTICO: Resolver el businessId real desde el slug/subdomain
-      const resolveBusinessId = async (identifier: string): Promise<string | null> => {
-        try {
-          const response = await fetch(`/api/businesses/${identifier}/validate`);
-          if (response.ok) {
-            const business = await response.json();
-            return business.id || null;
-          }
-        } catch (error) {
-          console.error('Error resolving business ID:', error);
-        }
-        return null;
-      };
-
-      const getCurrentBusinessFromUrl = (): string | null => {
-        if (typeof window === 'undefined') return null;
-        const pathSegments = window.location.pathname.split('/').filter(Boolean);
-        if (pathSegments.length >= 2 && pathSegments[1] === 'admin') {
-          return pathSegments[0];
-        }
-        return null;
-      };
-
       const urlBusinessIdentifier = getCurrentBusinessFromUrl();
       const storedBusinessId = localStorage.getItem('currentBusinessId');
       
@@ -358,7 +331,6 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
       
       console.log('💾 Portal handleSave - BusinessId resolved:', finalBusinessId);
       
-      // console.log('💾 Admin - Guardando config:', config);
       const response = await fetch('/api/admin/portal-config', {
         method: 'PUT',
         headers: {
@@ -374,16 +346,14 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
         throw new Error('Error al guardar configuración');
       }
 
-      // const result = await response.json();
-      // console.log('✅ Admin - Config guardada exitosamente:', result);
     } catch (error) {
       console.error('❌ Admin - Error saving portal config:', error);
     }
-  }, [config]);
+  }, [config, getCurrentBusinessFromUrl, resolveBusinessId]);
 
   useEffect(() => {
     fetchConfig();
-  }, []);
+  }, [fetchConfig]);
 
   // Auto-save when config changes
   useEffect(() => {
@@ -409,28 +379,6 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
 
     try {
       // 🔥 CRÍTICO: Resolver el businessId real desde el slug/subdomain
-      const resolveBusinessId = async (identifier: string): Promise<string | null> => {
-        try {
-          const response = await fetch(`/api/businesses/${identifier}/validate`);
-          if (response.ok) {
-            const business = await response.json();
-            return business.id || null;
-          }
-        } catch (error) {
-          console.error('Error resolving business ID:', error);
-        }
-        return null;
-      };
-
-      const getCurrentBusinessFromUrl = (): string | null => {
-        if (typeof window === 'undefined') return null;
-        const pathSegments = window.location.pathname.split('/').filter(Boolean);
-        if (pathSegments.length >= 2 && pathSegments[1] === 'admin') {
-          return pathSegments[0];
-        }
-        return null;
-      };
-
       const urlBusinessIdentifier = getCurrentBusinessFromUrl();
       const storedBusinessId = localStorage.getItem('currentBusinessId');
       
@@ -455,21 +403,9 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
       //   field,
       //   value,
       //   businessId: finalBusinessId,
-      //   newConfig: configWithBusinessId,
-      //   configSize: JSON.stringify(configWithBusinessId).length,
-      //   businessIdInObject: configWithBusinessId.businessId,
-      //   stringifiedBody: JSON.stringify(configWithBusinessId),
-      //   firstCharsOfBody: JSON.stringify(configWithBusinessId).substring(0, 300)
-      // });
-
+      
       // Guardar en la API (funcionará entre diferentes dominios/puertos)
       const requestBody = JSON.stringify(configWithBusinessId);
-      // console.log('📤 Admin: Enviando POST con body:', {
-      //   bodyPreview: requestBody.substring(0, 500),
-      //   bodySize: requestBody.length,
-      //   containsBusinessId: requestBody.includes('businessId'),
-      //   businessIdValue: configWithBusinessId.businessId
-      // });
       
       const response = await fetch('/api/branding', {
         method: 'POST',
@@ -480,15 +416,13 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
         body: requestBody,
       });
 
-      // console.log('📡 Admin: Response status:', response.status);
-
       if (response.ok) {
-        // const responseData = await response.json();
-        // console.log('✅ Admin: Branding guardado exitosamente:', responseData);
-        // Crear una versión reducida para localStorage (sin imágenes base64)
+        // ✅ SOLUCIÓN: NO guardar imágenes en localStorage (son muy pesadas)
+        // Solo guardar datos básicos para mejorar rendimiento
         const lightConfig = {
-          ...newConfig,
-          carouselImages: newConfig.carouselImages?.length || 0, // Solo guardar la cantidad
+          businessName: newConfig.businessName,
+          primaryColor: newConfig.primaryColor,
+          // ❌ NO guardar carouselImages en localStorage para evitar corrupción
         };
 
         try {
@@ -505,7 +439,7 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
             JSON.stringify({
               businessName: newConfig.businessName,
               primaryColor: newConfig.primaryColor,
-              carouselImages: [], // No guardar imágenes en localStorage
+              // ❌ NO guardar carouselImages para evitar corrupción
             })
           );
         }
@@ -524,7 +458,7 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
         const basicConfig = {
           businessName: newConfig.businessName,
           primaryColor: newConfig.primaryColor,
-          carouselImages: [], // No guardar imágenes pesadas en localStorage
+          // ❌ NO guardar carouselImages para evitar datos corruptos
         };
         localStorage.setItem('portalBranding', JSON.stringify(basicConfig));
       } catch (storageError) {
@@ -546,28 +480,6 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
     const loadBranding = async () => {
       try {
         // 🔥 CRÍTICO: Usar el mismo sistema de resolución de businessId
-        const resolveBusinessId = async (identifier: string): Promise<string | null> => {
-          try {
-            const response = await fetch(`/api/businesses/${identifier}/validate`);
-            if (response.ok) {
-              const business = await response.json();
-              return business.id || null;
-            }
-          } catch (error) {
-            console.error('Error resolving business ID:', error);
-          }
-          return null;
-        };
-
-        const getCurrentBusinessFromUrl = (): string | null => {
-          if (typeof window === 'undefined') return null;
-          const pathSegments = window.location.pathname.split('/').filter(Boolean);
-          if (pathSegments.length >= 2 && pathSegments[1] === 'admin') {
-            return pathSegments[0];
-          }
-          return null;
-        };
-
         const urlBusinessIdentifier = getCurrentBusinessFromUrl();
         const storedBusinessId = localStorage.getItem('currentBusinessId');
         
@@ -585,13 +497,13 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
         const response = await fetch(`/api/branding?businessId=${finalBusinessId}`);
         if (response.ok) {
           const branding = await response.json();
-          // console.log('✅ Admin: Branding cargado desde API:', branding);
           setBrandingConfig(branding);
-          // Guardar versión ligera en localStorage
+          // ✅ Guardar solo datos básicos en localStorage (NO imágenes)
           try {
             const lightConfig = {
-              ...branding,
-              carouselImages: branding.carouselImages?.length || 0, // Solo guardar la cantidad
+              businessName: branding.businessName,
+              primaryColor: branding.primaryColor,
+              // ❌ NO guardar carouselImages para evitar corrupción
             };
             localStorage.setItem('portalBranding', JSON.stringify(lightConfig));
           } catch (storageError) {
@@ -599,39 +511,26 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
           }
         } else {
           console.error('Admin: Error cargando branding desde API');
-          // Fallback a localStorage (datos básicos solamente)
-          const savedBranding = localStorage.getItem('portalBranding');
-          if (savedBranding) {
-            const parsed = JSON.parse(savedBranding);
-            // Si localStorage solo tiene datos básicos, usar valores por defecto para imágenes
-            setBrandingConfig({
-              ...parsed,
-              carouselImages:
-                parsed.carouselImages || DEFAULT_BRANDING_CONFIG.carouselImages,
-            });
-          }
+          // ✅ SOLUCIÓN: Si falla API, usar configuración por defecto limpia
+          setBrandingConfig({
+            businessName: 'Mi Negocio',
+            primaryColor: '#3B82F6',
+            carouselImages: DEFAULT_BRANDING_CONFIG.carouselImages, // Array vacío
+          });
         }
       } catch (error) {
         console.error('Admin: Error conectando con API:', error);
-        // Fallback a localStorage
-        const savedBranding = localStorage.getItem('portalBranding');
-        if (savedBranding) {
-          try {
-            const parsed = JSON.parse(savedBranding);
-            setBrandingConfig({
-              ...parsed,
-              carouselImages:
-                parsed.carouselImages || DEFAULT_BRANDING_CONFIG.carouselImages,
-            });
-          } catch (parseError) {
-            console.error('Admin: Error parsing localStorage:', parseError);
-          }
-        }
+        // ✅ SOLUCIÓN: Si falla conexión, usar configuración por defecto limpia
+        setBrandingConfig({
+          businessName: 'Mi Negocio',
+          primaryColor: '#3B82F6',
+          carouselImages: DEFAULT_BRANDING_CONFIG.carouselImages, // Array vacío
+        });
       }
     };
 
     loadBranding();
-  }, []);
+  }, [getCurrentBusinessFromUrl, resolveBusinessId]);
 
   if (isLoading) {
     return (
@@ -669,6 +568,7 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
           { id: 'favorito', label: 'Favorito del Día', icon: TrendingUp },
           { id: 'recompensas', label: 'Recompensas', icon: Gift },
           { id: 'tarjetas', label: 'Tarjetas', icon: CreditCard },
+          { id: 'configuracion', label: 'Configuración', icon: Settings },
         ].map(tab => {
           const Icon = tab.icon;
           return (
@@ -697,6 +597,7 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
         brandingConfig={brandingConfig}
         handleBrandingChange={handleBrandingChange}
         showNotification={showNotification}
+        businessId={currentBusinessId}
       />
     </div>
   );

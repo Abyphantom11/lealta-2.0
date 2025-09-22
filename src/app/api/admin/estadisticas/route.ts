@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     try {
       console.log(`📊 Estadísticas request by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
       
-      const { searchParams } = new URL(request.url);
+      const searchParams = request.nextUrl.searchParams;
     const periodo = searchParams.get('periodo') || 'today'; // today, week, month, all
 
     let fechaInicio: Date;

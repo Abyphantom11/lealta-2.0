@@ -17,21 +17,59 @@ import { prisma } from './src/lib/prisma';
 import { publicClientAccess } from './src/middleware/publicClientAccess';
 import { createRateLimitResponse } from './src/lib/rate-limiter';
 
-// 🚀 CACHE SIMPLE PARA OPTIMIZACIÓN DE RENDIMIENTO
-const CACHE_TTL = 30000; // 30 segundos
-const BUSINESS_CACHE_TTL = 60000; // 60 segundos para business (más estable)
+// 🚀 CACHE OPTIMIZADO PARA PRODUCCIÓN
+const CACHE_TTL = process.env.NODE_ENV === 'production' ? 120000 : 30000; // 2 min en prod, 30s en dev
+const BUSINESS_CACHE_TTL = process.env.NODE_ENV === 'production' ? 300000 : 60000; // 5 min en prod, 1 min en dev
+const MAX_CACHE_SIZE = 1000; // Límite de entradas en cache
 
 interface CacheEntry {
   data: any;
   timestamp: number;
+  hitCount: number; // Para LRU optimization
 }
 
 const validationCache = new Map<string, CacheEntry>();
 const businessCache = new Map<string, CacheEntry>();
 
+// 🎯 OPTIMIZACIÓN: Cleanup periódico del cache
+let lastCleanup = Date.now();
+const CLEANUP_INTERVAL = 300000; // 5 minutos
+
+function cleanupCache() {
+  const now = Date.now();
+  if (now - lastCleanup < CLEANUP_INTERVAL) return;
+  
+  // Limpiar validation cache
+  for (const [key, entry] of validationCache.entries()) {
+    if (now - entry.timestamp > CACHE_TTL) {
+      validationCache.delete(key);
+    }
+  }
+  
+  // Limpiar business cache
+  for (const [key, entry] of businessCache.entries()) {
+    if (now - entry.timestamp > BUSINESS_CACHE_TTL) {
+      businessCache.delete(key);
+    }
+  }
+  
+  // LRU: Si el cache está muy lleno, eliminar las entradas menos usadas
+  if (validationCache.size > MAX_CACHE_SIZE) {
+    const entries = Array.from(validationCache.entries())
+      .sort((a, b) => a[1].hitCount - b[1].hitCount)
+      .slice(0, Math.floor(MAX_CACHE_SIZE * 0.2)); // Eliminar 20% menos usadas
+    
+    entries.forEach(([key]) => validationCache.delete(key));
+  }
+  
+  lastCleanup = now;
+}
+
 function getCachedValidation(key: string): any | null {
+  cleanupCache(); // Cleanup automático
   const entry = validationCache.get(key);
   if (entry && (Date.now() - entry.timestamp) < CACHE_TTL) {
+    entry.hitCount++; // Incrementar contador para LRU
     return entry.data;
   }
   validationCache.delete(key);
@@ -39,12 +77,14 @@ function getCachedValidation(key: string): any | null {
 }
 
 function setCachedValidation(key: string, data: any): void {
-  validationCache.set(key, { data, timestamp: Date.now() });
+  validationCache.set(key, { data, timestamp: Date.now(), hitCount: 1 });
 }
 
 function getCachedBusiness(businessId: string): any | null {
+  cleanupCache(); // Cleanup automático
   const entry = businessCache.get(businessId);
   if (entry && (Date.now() - entry.timestamp) < BUSINESS_CACHE_TTL) {
+    entry.hitCount++; // Incrementar contador para LRU
     return entry.data;
   }
   businessCache.delete(businessId);
@@ -52,7 +92,7 @@ function getCachedBusiness(businessId: string): any | null {
 }
 
 function setCachedBusiness(businessId: string, data: any): void {
-  businessCache.set(businessId, { data, timestamp: Date.now() });
+  businessCache.set(businessId, { data, timestamp: Date.now(), hitCount: 1 });
 }
 
 // Exportar funciones de cache para uso en otros módulos

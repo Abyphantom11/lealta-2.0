@@ -3,10 +3,10 @@
 export type UserRole = 'SUPERADMIN' | 'ADMIN' | 'STAFF' | 'CLIENTE';
 
 export interface BusinessInfo {
-  id: string;
-  name: string;
-  subdomain: string;
-  subscriptionPlan?: string; // Opcional para compatibilidad
+  readonly id: string;
+  readonly name: string;
+  readonly subdomain: string;
+  readonly subscriptionPlan?: string; // Opcional para compatibilidad
 }
 
 /**

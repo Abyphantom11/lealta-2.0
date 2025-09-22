@@ -2,35 +2,49 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '../lib/prisma';
 
-// Importar funciones de cache del middleware
-let getCachedBusiness: ((businessId: string) => any | null) | null = null;
-let setCachedBusiness: ((businessId: string, data: any) => void) | null = null;
+// Tipo para el business
+type Business = {
+  id: string;
+  name: string;
+  slug: string;
+  subdomain: string;
+  isActive: boolean;
+};
+
+// Tipos para las funciones de cache
+type CachedBusinessFunction = (businessId: string) => Promise<Business | null>;
+type SetCachedBusinessFunction = (businessId: string, data: Business) => void;
+
+// Variables para las funciones de cache
+let cachedBusinessFunction: CachedBusinessFunction | null = null;
+let setCachedBusinessFunction: SetCachedBusinessFunction | null = null;
 
 // Función de inicialización asíncrona para las funciones de cache
 async function initializeCacheFunctions() {
-  if (getCachedBusiness && setCachedBusiness) return; // Ya inicializadas
+  if (cachedBusinessFunction && setCachedBusinessFunction) return; // Ya inicializadas
   
   try {
     const middlewareModule = await import('../../middleware');
-    getCachedBusiness = middlewareModule.getCachedBusiness;
-    setCachedBusiness = middlewareModule.setCachedBusiness;
-  } catch (error) {
-    console.log('Cache functions not available:', error.message);
+    cachedBusinessFunction = middlewareModule.getCachedBusiness;
+    setCachedBusinessFunction = middlewareModule.setCachedBusiness;
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.log('Cache functions not available:', errorMessage);
   }
 }
 
 /**
  * Función optimizada para buscar business por identifier con cache
  */
-async function findBusinessByIdentifier(identifier: string): Promise<any | null> {
+async function findBusinessByIdentifier(identifier: string): Promise<BusinessContext['business'] | null> {
   // Inicializar funciones de cache si no están ya inicializadas
   await initializeCacheFunctions();
   // Crear una clave de cache específica para el identifier
   const cacheKey = `identifier:${identifier}`;
   
   // Intentar obtener del cache primero
-  if (getCachedBusiness) {
-    const cached = getCachedBusiness(cacheKey);
+  if (cachedBusinessFunction) {
+    const cached = await cachedBusinessFunction(cacheKey);
     if (cached) {
       console.log(`🚀 CACHE HIT: Business by identifier ${identifier} found in cache`);
       return cached;
@@ -57,10 +71,10 @@ async function findBusinessByIdentifier(identifier: string): Promise<any | null>
     });
 
     // Guardar en cache si está disponible
-    if (setCachedBusiness && business) {
-      setCachedBusiness(cacheKey, business);
+    if (setCachedBusinessFunction && business) {
+      setCachedBusinessFunction(cacheKey, business);
       // También cache por ID para reutilización
-      setCachedBusiness(business.id, business);
+      setCachedBusinessFunction(business.id, business);
       console.log(`💾 CACHE SET: Business ${identifier} cached`);
     }
 
@@ -223,10 +237,11 @@ export async function getCachedBusiness(subdomain: string): Promise<BusinessCont
   const business = await validateBusinessSubdomain(subdomain);
   
   if (business) {
-    businessCache.set(subdomain, {
-      ...business,
+    const cachedEntry: CachedBusiness = {
+      business,
       timestamp: Date.now()
-    } as any); // TODO: Fix type after launch
+    };
+    businessCache.set(subdomain, cachedEntry.business);
   }
   
   return business;

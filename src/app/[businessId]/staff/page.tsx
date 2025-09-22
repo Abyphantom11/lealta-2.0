@@ -72,7 +72,7 @@ export default function BusinessStaffPage() {
   // Business context válido
   if (isValidBusiness) {
     return (
-      <PWALayout promptPosition="bottom">
+      <PWALayout showInstallPrompt={false} promptPosition="bottom">
         <StaffPageContent businessId={businessId} />
       </PWALayout>
     );

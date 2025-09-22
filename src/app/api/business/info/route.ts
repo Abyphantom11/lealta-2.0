@@ -15,7 +15,7 @@ const querySchema = z.object({
  */
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const subdomain = searchParams.get('subdomain');
 
     const validatedQuery = querySchema.parse({ subdomain });

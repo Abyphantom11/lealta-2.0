@@ -25,20 +25,10 @@ export default function ServiceWorkerRegistration() {
       }
     };
 
-    // Escuchar evento de instalación PWA
-    const handleBeforeInstall = (e: Event) => {
-      console.log('📱 PWA se puede instalar');
-      e.preventDefault();
-      
-      // Guardar el evento para uso posterior
-      (window as any).deferredPrompt = e;
-      
-      // Disparar evento personalizado
-      window.dispatchEvent(new CustomEvent('pwa-installable'));
-    };
-
+    // Escuchar solo evento de instalación completada
     const handleAppInstalled = () => {
       console.log('✅ PWA instalada exitosamente');
+      // Limpiar cualquier referencia al prompt
       (window as any).deferredPrompt = null;
     };
 
@@ -49,14 +39,12 @@ export default function ServiceWorkerRegistration() {
       registerSW();
     }
 
-    // Agregar listeners de PWA
-    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    // Solo escuchar instalación completada (el beforeinstallprompt lo maneja PWAManager)
     window.addEventListener('appinstalled', handleAppInstalled);
 
     // Cleanup
     return () => {
       window.removeEventListener('load', registerSW);
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);

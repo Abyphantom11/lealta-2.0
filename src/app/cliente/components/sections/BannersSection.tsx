@@ -28,7 +28,7 @@ export default function BannersSection({ businessId }: BannersProps) {
     enabled: true
   });
 
-  // Obtener banners con filtros aplicados
+  // Obtener banners con filtros aplicados (usa día comercial internamente)
   const banners = useMemo(() => {
     const allBanners = getBanners();
     
@@ -71,10 +71,10 @@ export default function BannersSection({ businessId }: BannersProps) {
         }
         
         // Mostrar confirmación al usuario
-        browserNotifications.showNotification(
-          '🔔 Notificaciones Activadas',
-          'Ahora recibirás alertas de promociones y actualizaciones importantes'
-        );
+        browserNotifications.showNotification({
+          title: '🔔 Notificaciones Activadas',
+          body: 'Ahora recibirás alertas de promociones y actualizaciones importantes'
+        });
       } else {
         console.log('❌ Usuario rechazó las notificaciones del navegador');
         // No ocultar el prompt si fue rechazado, dar otra oportunidad

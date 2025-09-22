@@ -17,10 +17,10 @@ interface Recompensa {
 }
 
 interface RecompensasProps {
-  businessId?: string;
+  readonly businessId?: string;
 }
 
-export default function RecompensasSection({ businessId }: RecompensasProps) {
+export default function RecompensasSection({ businessId }: Readonly<RecompensasProps>) {
   // 🔄 Auto-refresh hook para sincronización admin → cliente
   const { getRecompensas, isLoading } = useAutoRefreshPortalConfig({
     businessId,
@@ -41,7 +41,6 @@ export default function RecompensasSection({ businessId }: RecompensasProps) {
       (a.puntosRequeridos || 0) - (b.puntosRequeridos || 0)
     );
 
-    // console.log('🎁 Recompensas activas encontradas:', sorted.length);
     return sorted;
   }, [getRecompensas]);
 

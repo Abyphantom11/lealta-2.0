@@ -40,6 +40,7 @@ export default function GestionTarjetasOriginal({
       setEditingEmpresa(false);
       showNotification('Título de tarjeta actualizado correctamente', 'success');
     } catch (error) {
+      console.error('Error al actualizar título de tarjeta:', error);
       showNotification('Error al actualizar el título de la tarjeta', 'error');
     } finally {
       setSaving(false);

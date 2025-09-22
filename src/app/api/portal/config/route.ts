@@ -2,11 +2,13 @@ import { NextResponse, NextRequest } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // Obtener businessId del query param para rutas públicas
-    const url = new URL(request.url);
-    const businessId = url.searchParams.get('businessId') || 'default';
+    const searchParams = request.nextUrl.searchParams;
+    const businessId = searchParams.get('businessId') || 'default';
     
     console.log(`📋 Portal config request for business: ${businessId}`);
     
@@ -29,9 +31,12 @@ export async function GET(request: NextRequest) {
     console.log(`✅ Using business-specific portal config for ${businessId}`);
 
     // 🔥 CACHE INVALIDATION: Limpiar cache de Node.js para forzar lectura fresca
+    // Note: No usar require.resolve() para evitar errores de dependencias dinámicas
     try {
-      delete require.cache[require.resolve(configPath)];
-      console.log(`🗑️ Cache cleared for: ${configPath}`);
+      if (require.cache[configPath]) {
+        delete require.cache[configPath];
+        console.log(`🗑️ Cache cleared for: ${configPath}`);
+      }
     } catch (cacheError: any) {
       console.log(`⚠️ Could not clear cache for: ${configPath}`, cacheError?.message || 'Unknown error');
     }

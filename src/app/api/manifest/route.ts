@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
-  const url = new URL(request.url);
-  const searchParams = url.searchParams;
+  const searchParams = request.nextUrl.searchParams;
   
   // Obtener el business slug desde los parámetros de la URL
   const businessSlug = searchParams.get('business') || searchParams.get('slug');

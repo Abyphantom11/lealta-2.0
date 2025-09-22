@@ -12,6 +12,7 @@ import TarjetaCompacta from './TarjetaCompacta';
 import AsignacionTarjetas from './AsignacionTarjetas';
 import TarjetaEditor from './TarjetaEditor';
 import BrandingManager from './BrandingManager';
+import BusinessDayConfig from './BusinessDayConfig';
 import { SharedBrandingConfig } from './shared-branding-types';
 import { Tarjeta } from './types';
 
@@ -29,6 +30,7 @@ interface PortalContentManagerProps {
     value: string | string[]
   ) => Promise<void>;
   showNotification: (message: string, type: NivelTarjeta) => void;
+  businessId?: string | null;
 }
 
 interface GeneralConfig {
@@ -175,6 +177,7 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
   brandingConfig,
   handleBrandingChange,
   showNotification,
+  businessId,
 }) => {
   
   // Función para renderizar contenido de vista previa
@@ -1153,6 +1156,12 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
               setConfig={(newConfig: GeneralConfig) => setConfig(newConfig)}
               showNotification={showNotification}
             />
+          </div>
+        )}
+
+        {activeTab === 'configuracion' && (
+          <div className="max-h-[80vh] overflow-y-auto">
+            <BusinessDayConfig businessId={businessId || undefined} />
           </div>
         )}
       </div>

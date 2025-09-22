@@ -3,10 +3,12 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // Obtener parámetros de búsqueda
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const businessId = searchParams.get('businessId');
     const cedula = searchParams.get('cedula');
     

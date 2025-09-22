@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
   try {
     console.log(`📊 Grafico-ingresos GET by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
 
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const tipo = searchParams.get('tipo') || 'semana';
     const mesEspecifico = searchParams.get('mes');
     const añoEspecifico = searchParams.get('año');

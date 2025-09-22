@@ -22,6 +22,11 @@ export default function MobilePWAPrompt({ businessId }: MobilePWAPromptProps) {
       return;
     }
 
+    // Personalizar prompt según businessId si está disponible
+    if (businessId) {
+      console.log('PWA Prompt para business:', businessId);
+    }
+
     // Verificar si ya está instalado
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
     if (isStandalone) {
@@ -74,7 +79,7 @@ export default function MobilePWAPrompt({ businessId }: MobilePWAPromptProps) {
       window.removeEventListener('appinstalled', handleAppInstalled);
       window.removeEventListener('pwa-installable', handleCustomPWAEvent);
     };
-  }, []);
+  }, [businessId]);
 
   const handleInstall = async () => {
     if (!deferredPrompt || isInstalling) return;

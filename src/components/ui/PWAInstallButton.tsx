@@ -3,16 +3,13 @@
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, X, Smartphone, Monitor, Sparkles } from 'lucide-react';
+import { Download, X } from 'lucide-react';
+import { shouldShowPWAButtonForRoute } from '@/hooks/usePWAConditional';
+import { triggerPWAInstall } from '../PWAManager';
 
 interface PWAInstallButtonProps {
   position?: 'top-right' | 'bottom-right';
   theme?: 'dark' | 'light';
-}
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
 export default function PWAInstallButton({ 
@@ -20,20 +17,14 @@ export default function PWAInstallButton({
   theme = 'dark' 
 }: Readonly<PWAInstallButtonProps>) {
   const pathname = usePathname();
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showButton, setShowButton] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
   const [showPreIndicator, setShowPreIndicator] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Solo mostrar en rutas de la aplicación, no en el landing page
-  const isAppRoute = isMounted && pathname && (
-    pathname.startsWith('/login') || 
-    pathname.includes('/admin') || 
-    pathname.includes('/staff') || 
-    pathname.includes('/superadmin')
-  );
+  // Usar el control específico para botones (más restrictivo - solo login)
+  const shouldShow = shouldShowPWAButtonForRoute(pathname);
 
   // Arreglar hidratación
   useEffect(() => {
@@ -41,76 +32,126 @@ export default function PWAInstallButton({
   }, []);
 
   useEffect(() => {
-    // No mostrar si no estamos en una ruta de la aplicación
-    if (!isAppRoute) {
+    // Si no debe mostrarse en esta ruta, limpiar estado y salir
+    if (!shouldShow) {
+      console.log(`🔧 PWAInstallButton: Bloqueado en ruta ${pathname}`);
       setShowButton(false);
       setShowNotification(false);
       setShowPreIndicator(false);
       return;
     }
+
     // Verificar si la PWA ya está instalada
     if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) {
       setIsInstalled(true);
       return;
     }
 
-    // Verificar si ya se mostró el prompt antes
+    // Verificar localStorage para persistencia
     const installPromptShown = localStorage.getItem('lealta-pwa-prompt-shown');
     
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    // 🎯 MOSTRAR BOTÓN DIRECTAMENTE si estamos en login y hay PWA disponible
+    const checkPWAAvailability = () => {
+      // Verificar si hay deferredPrompt disponible
+      if ((window as any).deferredPrompt) {
+        console.log('🔧 PWAInstallButton: deferredPrompt disponible - mostrando botón');
+        setShowButton(true);
+        localStorage.setItem('lealta-pwa-button-available', 'true');
+        return true;
+      }
+      
+      // Verificar disponibilidad por ruta (login siempre permite PWA)
+      if (pathname === '/login') {
+        console.log('🔧 PWAInstallButton: En login - preparando para PWA');
+        // Mostrar botón después de un tiempo para dar chance a deferredPrompt
+        setTimeout(() => {
+          if ((window as any).deferredPrompt) {
+            setShowButton(true);
+            localStorage.setItem('lealta-pwa-button-available', 'true');
+          }
+        }, 2000);
+      }
+      
+      return false;
+    };
+    
+    // Escuchar eventos del PWAManager centralizado
+    const handlePWAInstallable = () => {
+      console.log('🔧 PWAInstallButton: PWA disponible desde manager centralizado');
       
       if (!installPromptShown) {
-        // Mostrar indicador después de 4 segundos
+        // Primera vez: Mostrar indicador después de 4 segundos
         setTimeout(() => {
           setShowPreIndicator(true);
         }, 4000);
 
-        // Mostrar botón después de 5 segundos
+        // Primera vez: Mostrar botón después de 5 segundos
         setTimeout(() => {
           setShowPreIndicator(false);
           setShowButton(true);
+          localStorage.setItem('lealta-pwa-button-available', 'true');
         }, 5000);
       } else {
-        // Si ya se mostró antes, mostrar solo el botón discreto
+        // Ya se mostró antes: Mostrar botón inmediatamente
         setShowButton(true);
+        localStorage.setItem('lealta-pwa-button-available', 'true');
       }
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    const handlePWAInstalled = () => {
+      console.log('✅ PWAInstallButton: PWA instalada');
+      setIsInstalled(true);
+      setShowNotification(false);
+      setShowButton(false);
+      localStorage.removeItem('lealta-pwa-prompt-shown');
+      localStorage.removeItem('lealta-pwa-button-available');
+    };
+
+    // Verificar disponibilidad inmediata
+    checkPWAAvailability();
+
+    // Escuchar eventos del PWAManager (no beforeinstallprompt directamente)
+    window.addEventListener('pwa-installable', handlePWAInstallable);
+    window.addEventListener('pwa-installed', handlePWAInstalled);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('pwa-installable', handlePWAInstallable);
+      window.removeEventListener('pwa-installed', handlePWAInstalled);
     };
-  }, [isAppRoute, isMounted]);
+  }, [shouldShow, pathname]);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-
     setShowButton(false);
     setShowNotification(true);
     localStorage.setItem('lealta-pwa-prompt-shown', 'true');
+    localStorage.setItem('lealta-pwa-button-available', 'true');
   };
 
   const handleInstallConfirm = async () => {
-    if (!deferredPrompt) return;
-
-    deferredPrompt.prompt();
-    const choiceResult = await deferredPrompt.userChoice;
+    const success = await triggerPWAInstall();
     
-    if (choiceResult.outcome === 'accepted') {
+    if (success) {
       setIsInstalled(true);
+      localStorage.removeItem('lealta-pwa-prompt-shown');
+      localStorage.removeItem('lealta-pwa-button-available');
+      console.log('✅ PWA instalada exitosamente desde botón');
+      setShowNotification(false);
+    } else {
+      // 🎯 Si falla la instalación, mantener botón disponible
+      console.log('❌ Instalación PWA cancelada/fallida - botón permanece disponible');
+      setShowNotification(false);
+      setShowButton(true);
+      localStorage.setItem('lealta-pwa-button-available', 'true');
     }
-    
-    setDeferredPrompt(null);
-    setShowNotification(false);
   };
 
   const handleDismiss = () => {
     setShowNotification(false);
-    setShowButton(false);
+    // 🎯 MANTENER el botón visible después del rechazo
+    setShowButton(true);
     localStorage.setItem('lealta-pwa-prompt-shown', 'true');
+    // Mantener disponibilidad del botón
+    localStorage.setItem('lealta-pwa-button-available', 'true');
   };
 
   const getPositionClasses = () => {
@@ -127,8 +168,10 @@ export default function PWAInstallButton({
     ? 'bg-gray-900/95 border-gray-700 text-white' 
     : 'bg-white/95 border-gray-200 text-gray-900';
 
-  // No renderizar si no estamos en una ruta de la aplicación o si ya está instalado
-  if (isInstalled || !isAppRoute || !isMounted) return null;
+  // No renderizar si no debe mostrarse, ya está instalado, o no está montado
+  if (!shouldShow || isInstalled || !isMounted) {
+    return null;
+  }
 
   return (
     <AnimatePresence>

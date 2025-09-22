@@ -11,7 +11,7 @@ interface LealtaLogoProps {
 
 export function LealtaLogo({ size = 64, className = "", animated = false }: LealtaLogoProps) {
   const MotionSvg = animated ? motion.svg : 'svg';
-  const MotionDiv = animated ? motion.div : 'div';
+  // const MotionDiv = animated ? motion.div : 'div';
   const MotionRect = animated ? motion.rect : 'rect';
 
   return (

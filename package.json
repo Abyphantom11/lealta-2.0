@@ -44,7 +44,14 @@
     "analyze:server": "ANALYZE=true npm run build",
     "analyze:browser": "ANALYZE=true npm run build && npx webpack-bundle-analyzer .next/static/chunks/*.js",
     "lighthouse": "npx lighthouse http://localhost:3001 --output=html --output-path=./lighthouse-report.html --chrome-flags=\"--headless\"",
-    "perf-audit": "npm run build && npm run lighthouse"
+    "perf-audit": "npm run build && npm run lighthouse",
+    "optimize": "node scripts/performance-optimizer.js",
+    "build:prod": "cross-env NODE_ENV=production npm run build",
+    "start:prod": "cross-env NODE_ENV=production npm run start",
+    "cache:clear": "rimraf .next node_modules/.cache .cache",
+    "performance:full-audit": "npm run cache:clear && npm run build:prod && npm run lighthouse",
+    "bundle:size-check": "npm run build && npx bundlesize",
+    "deploy:optimized": "npm run optimize && npm run build:prod && vercel --prod"
   },
   "dependencies": {
     "@auth/prisma-adapter": "latest",
@@ -57,6 +64,7 @@
     "@types/uuid": "^10.0.0",
     "@upstash/ratelimit": "^2.0.6",
     "@upstash/redis": "^1.35.4",
+    "autoprefixer": "^10.4.21",
     "bcryptjs": "latest",
     "dotenv": "^17.2.2",
     "framer-motion": "^11.0.0",
@@ -64,19 +72,18 @@
     "multer": "^2.0.2",
     "next": "^14.2.5",
     "next-auth": "latest",
+    "postcss": "^8.5.6",
     "prisma": "^6.15.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-is": "^19.1.1",
     "recharts": "^3.1.2",
     "sharp": "^0.34.3",
+    "tailwindcss": "^3.4.17",
     "tesseract.js": "latest",
     "uuid": "^13.0.0",
     "zod": "latest",
-    "zod-to-json-schema": "^3.24.6",
-    "tailwindcss": "^3.4.17",
-    "postcss": "^8.5.6",
-    "autoprefixer": "^10.4.21"
+    "zod-to-json-schema": "^3.24.6"
   },
   "devDependencies": {
     "@babel/generator": "^7.28.3",

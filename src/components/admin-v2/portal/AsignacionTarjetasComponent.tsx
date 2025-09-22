@@ -46,7 +46,6 @@ interface AsignacionTarjetasComponentProps {
   setClients: (clients: Cliente[]) => void;
   loading: boolean;
   setLoading: (loading: boolean) => void;
-  calculateClientLevel: (client: Cliente) => string;
 }
 
 // Componente para asignación de tarjetas
@@ -57,7 +56,6 @@ export default function AsignacionTarjetasComponent({
   setClients,
   loading,
   setLoading,
-  calculateClientLevel,
 }: Readonly<AsignacionTarjetasComponentProps>) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState<Cliente | null>(null);
@@ -233,8 +231,6 @@ export default function AsignacionTarjetasComponent({
             {!loading && clients.length > 0 && (
               <div className="divide-y divide-gray-200">
                 {clients.map((client) => {
-                  const nivelAutomatico = calculateClientLevel(client);
-                  
                   return (
                     <button
                       key={client.id}

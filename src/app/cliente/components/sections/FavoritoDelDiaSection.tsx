@@ -1,8 +1,9 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Star, X } from 'lucide-react';
 import { useAutoRefreshPortalConfig } from '@/hooks/useAutoRefreshPortalConfig';
+import { getCurrentBusinessDay, type DayOfWeek } from '@/lib/business-day-utils';
 
 interface FavoritoDelDia {
   id: string;
@@ -15,10 +16,10 @@ interface FavoritoDelDia {
 }
 
 interface FavoritoProps {
-  businessId?: string;
+  readonly businessId?: string;
 }
 
-export default function FavoritoDelDiaSection({ businessId }: FavoritoProps) {
+export default function FavoritoDelDiaSection({ businessId }: Readonly<FavoritoProps>) {
   // 🔄 Auto-refresh hook para sincronización admin → cliente  
   const { getFavoritoDelDia, isLoading } = useAutoRefreshPortalConfig({
     businessId,
@@ -26,23 +27,53 @@ export default function FavoritoDelDiaSection({ businessId }: FavoritoProps) {
     enabled: true
   });
 
-  // Obtener día actual
-  const diaActual = useMemo(() => {
-    const diasSemana = [
-      'domingo', 'lunes', 'martes', 'miercoles', 
-      'jueves', 'viernes', 'sabado'
-    ];
-    return diasSemana[new Date().getDay()];
-  }, []);
+  // ✅ SOLUCIÓN: Obtener día comercial con hora de reseteo configurable
+  const [diaActual, setDiaActual] = useState<DayOfWeek>('domingo');
+  
+  useEffect(() => {
+    const updateBusinessDay = async () => {
+      try {
+        const businessDay = await getCurrentBusinessDay(businessId);
+        setDiaActual(businessDay);
+      } catch (error) {
+        console.error('Error obteniendo día comercial:', error);
+        // Fallback a día natural si falla
+        const diasSemana: DayOfWeek[] = [
+          'domingo', 'lunes', 'martes', 'miercoles', 
+          'jueves', 'viernes', 'sabado'
+        ];
+        setDiaActual(diasSemana[new Date().getDay()]);
+      }
+    };
 
-  // Obtener favorito del día actual
-  const favorito = useMemo(() => {
-    const favoritoData = getFavoritoDelDia(diaActual);
-    // console.log('⭐ Favorito del día encontrado:', favoritoData);
-    return favoritoData;
-  }, [getFavoritoDelDia, diaActual]);
+    updateBusinessDay();
+    
+    // Actualizar cada minuto para detectar cambios de día comercial
+    const interval = setInterval(updateBusinessDay, 60000);
+    
+    return () => clearInterval(interval);
+  }, [businessId]);
 
+  // Estados para favorito del día
+  const [favorito, setFavorito] = useState<FavoritoDelDia | null>(null);
   const [selectedFavorito, setSelectedFavorito] = useState<FavoritoDelDia | null>(null);
+
+  // Cargar favorito del día cuando cambia el día actual
+  useEffect(() => {
+    const loadFavorito = async () => {
+      try {
+        const favoritoData = await getFavoritoDelDia(diaActual);
+        setFavorito(favoritoData);
+      } catch (error) {
+        console.error('Error cargando favorito del día:', error);
+        setFavorito(null);
+      }
+    };
+
+    if (diaActual) {
+      loadFavorito();
+    }
+  }, [getFavoritoDelDia, diaActual]);
 
   // Si no hay favorito del día, no renderizar nada
   if (isLoading || !favorito?.imagenUrl) return null;

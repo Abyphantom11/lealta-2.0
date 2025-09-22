@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 
 /**
@@ -10,7 +10,7 @@ export async function POST() {
     console.log('🔧 Configurando routing de negocios...');
 
     // Verificar si business_1 existe
-    let mainBusiness = await prisma.business.findUnique({
+    const mainBusiness = await prisma.business.findUnique({
       where: { id: 'business_1' }
     });
 
@@ -18,7 +18,7 @@ export async function POST() {
       // Crear el negocio principal
       console.log('🏪 Creando negocio principal...');
       
-      mainBusiness = await prisma.business.create({
+      await prisma.business.create({
         data: {
           id: 'business_1',
           name: 'Café Central Demo',
@@ -37,7 +37,7 @@ export async function POST() {
       // Actualizar negocio existente con subdomain
       console.log('🔧 Agregando subdomain a business_1...');
       
-      mainBusiness = await prisma.business.update({
+      await prisma.business.update({
         where: { id: 'business_1' },
         data: {
           subdomain: 'demo',

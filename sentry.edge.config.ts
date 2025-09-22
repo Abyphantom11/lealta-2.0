@@ -8,12 +8,37 @@ import * as Sentry from "@sentry/nextjs";
 Sentry.init({
   dsn: "https://279dffa541feca85b97b3d15fa4ec6f4@o4509716657405953.ingest.us.sentry.io/4510057803546624",
 
-  // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
-  tracesSampleRate: 1,
+  // 🚀 OPTIMIZADO PARA PRODUCCIÓN: Solo 10% de traces para reducir costos
+  tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1,
+
+  // 🎯 SAMPLING INTELIGENTE: Más traces para errores críticos
+  tracesSampler: (samplingContext: any) => {
+    // Siempre tracear errores críticos
+    if (samplingContext.request?.url?.includes('/api/auth/') || 
+        samplingContext.request?.url?.includes('/api/business/')) {
+      return 0.5; // 50% para rutas críticas
+    }
+    
+    // Menos traces para assets estáticos
+    if (samplingContext.request?.url?.includes('/_next/static/')) {
+      return 0.01; // 1% para assets
+    }
+    
+    return process.env.NODE_ENV === 'production' ? 0.1 : 1;
+  },
+
+  // 🎛️ LOGS OPTIMIZADOS: Solo errores en producción
+  beforeSend: (event: any) => {
+    // Filtrar logs innecesarios en producción
+    if (process.env.NODE_ENV === 'production' && event.level === 'info') {
+      return null;
+    }
+    return event;
+  },
 
   // Enable logs to be sent to Sentry
-  enableLogs: true,
+  enableLogs: process.env.NODE_ENV !== 'production',
 
   // Setting this option to true will print useful information to the console while you're setting up Sentry.
-  debug: false,
+  debug: false, // Deshabilitado para evitar problemas con bundles optimizados
 });

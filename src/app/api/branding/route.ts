@@ -9,8 +9,7 @@ export async function GET(request: NextRequest) {
     // console.log('🎨 GET /api/branding - Request received');
     
     // 🔥 CRÍTICO: Obtener businessId del query param (para rutas públicas) o headers (para rutas autenticadas)
-    const url = new URL(request.url);
-    const queryBusinessId = url.searchParams.get('businessId');
+    const queryBusinessId = request.nextUrl.searchParams.get('businessId');
     const headerBusinessId = getBusinessIdFromRequest(request);
     
     const businessId = queryBusinessId || headerBusinessId;
@@ -115,8 +114,7 @@ export async function POST(request: NextRequest) {
     });
     
     // 🔥 CRÍTICO: Obtener businessId de múltiples fuentes
-    const url = new URL(request.url);
-    const queryBusinessId = url.searchParams.get('businessId');
+    const queryBusinessId = request.nextUrl.searchParams.get('businessId');
     const headerBusinessId = getBusinessIdFromRequest(request);
     const bodyBusinessId = branding?.businessId;
     

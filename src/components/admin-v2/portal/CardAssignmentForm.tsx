@@ -49,10 +49,10 @@ export default function CardAssignmentForm({
               onChange={e => setSelectedLevel(e.target.value)}
               className="w-full px-3 py-2 bg-dark-600 border border-dark-500 rounded-lg text-white focus:border-primary-500 focus:outline-none"
             >
-              {Object.entries(nivelesConfig).map(([nivel, conf]: [string, any]) => {
+              {Object.entries(nivelesConfig).map(([nivel, config]: [string, any]) => {
                 return (
                   <option key={nivel} value={nivel}>
-                    {nivel}
+                    {nivel} {config.descripcion ? `- ${config.descripcion}` : ''}
                   </option>
                 );
               })}

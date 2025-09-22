@@ -22,7 +22,7 @@ interface PromocionesProps {
   businessId?: string;
 }
 
-export default function PromocionesSection({ businessId }: PromocionesProps) {
+export default function PromocionesSection({ businessId }: Readonly<PromocionesProps>) {
   // 🔄 Auto-refresh hook para sincronización admin → cliente
   const { getPromociones, isLoading } = useAutoRefreshPortalConfig({
     businessId,
@@ -30,86 +30,34 @@ export default function PromocionesSection({ businessId }: PromocionesProps) {
     enabled: true
   });
 
-  // Obtener promociones para el día actual con filtros
+  // Obtener promociones para el día comercial actual con filtros (usa día comercial internamente)
   const promociones = useMemo(() => {
-    // Obtener el día actual
-    const diasSemana = [
-      'domingo',
-      'lunes',
-      'martes',
-      'miercoles',
-      'jueves',
-      'viernes',
-      'sabado',
-    ];
+    const allPromociones = getPromociones(); // Ya incluye lógica de día comercial
+    
+    if (!allPromociones || allPromociones.length === 0) {
+      return [];
+    }
+
+    // Obtener hora actual para validaciones
     const ahora = new Date();
-    const diaActual = diasSemana[ahora.getDay()];
     const horaActual = ahora.getHours() * 60 + ahora.getMinutes();
 
-    // console.log(`🗓️ Día actual: ${diaActual}, Hora: ${Math.floor(horaActual/60)}:${horaActual%60}`);
+    // Filtrar promociones activas y validar horarios
+    const promocionesActivas = allPromociones.filter((p: any) => {
+      // Verificar estado activo
+      if (!p.activo) return false;
 
-    // Obtener todas las promociones activas
-    const todasActivas = getPromociones();
-
-    // Filtrar promociones del día actual que no hayan terminado
-    const promocionesDelDia = todasActivas.filter((p: any) => {
-      // console.log(`🔍 Evaluando promoción: ${p.titulo}, día: ${p.dia}, diaActual: ${diaActual}`);
-
-      // Verificar si es el día de la promoción O si estamos en las primeras horas del día siguiente
-      let esDiaValido = false;
-
-      // Si no tiene día específico configurado, mostrar siempre
-      if (!p.dia || p.dia === undefined || p.dia === null || p.dia === '') {
-        esDiaValido = true;
-        // console.log(`✅ Promoción sin día específico - mostrar siempre`);
-      } else if (p.dia === diaActual) {
-        // Es el día de la promoción
-        esDiaValido = true;
-        // console.log(`✅ Es el día de la promoción: ${p.dia}`);
-      } else if (p.horaTermino) {
-        // Verificar si estamos en las primeras horas del día siguiente
+      // Si tiene hora de término, verificar que no haya terminado
+      if (p.horaTermino) {
         const [horas, minutos] = p.horaTermino.split(':').map(Number);
         const horaTermino = horas * 60 + minutos;
-
-        // Si la hora de término es temprana (ej: 4:00 AM) y estamos en el día siguiente antes de esa hora
-        if (horaTermino < 12 * 60) { // Menos de 12 PM
-          const indiceDiaAnterior = (ahora.getDay() - 1 + 7) % 7; // Día anterior con manejo circular
-          const diaAnterior = diasSemana[indiceDiaAnterior];
-
-          if (p.dia === diaAnterior && horaActual < horaTermino) {
-            esDiaValido = true;
-            // console.log(`✅ Promoción del día anterior (${diaAnterior}) aún válida hasta las ${p.horaTermino}`);
-          }
-        }
+        return horaActual < horaTermino;
       }
 
-      if (!esDiaValido) {
-        // console.log(`❌ Promoción ${p.titulo} no es válida para hoy (${p.dia} != ${diaActual})`);
-        return false;
-      }
-
-      // Si tiene hora de término y es el día de la promoción, la promoción dura el día completo hasta la hora de término del día siguiente
-      if (p.horaTermino && p.dia === diaActual) {
-        // console.log(`✅ Promoción ${p.titulo} válida el día completo hasta las ${p.horaTermino} de mañana`);
-        return true;
-      }
-
-      // Si tiene hora de término y estamos en el día siguiente, verificar la hora
-      if (p.horaTermino && p.dia !== diaActual) {
-        const [horas, minutos] = p.horaTermino.split(':').map(Number);
-        const horaTermino = horas * 60 + minutos;
-        const valida = horaActual < horaTermino;
-        // console.log(`⏰ Promoción ${p.titulo} - horaActual: ${Math.floor(horaActual/60)}:${horaActual%60}, horaTermino: ${Math.floor(horaTermino/60)}:${horaTermino%60}, válida: ${valida}`);
-        return valida;
-      }
-
-      // Promoción válida sin restricción de horario
-      // console.log(`✅ Promoción ${p.titulo} sin restricción de horario`);
       return true;
     });
 
-    // console.log(`🎉 Promociones filtradas para mostrar (${promocionesDelDia.length}):`, promocionesDelDia);
-    return promocionesDelDia;
+    return promocionesActivas;
   }, [getPromociones]);
 
   if (isLoading || promociones.length === 0) return null;

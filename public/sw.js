@@ -93,11 +93,16 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(event.request)
         .then(response => {
-          // Cache respuesta para uso futuro
-          const clonedResponse = response.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, clonedResponse);
-          });
+          // Solo cachear requests HTTP/HTTPS, no chrome-extension
+          if (event.request.url.startsWith('http')) {
+            // Cache respuesta para uso futuro
+            const clonedResponse = response.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, clonedResponse).catch(err => {
+                console.warn('⚠️ No se pudo cachear:', event.request.url, err);
+              });
+            });
+          }
           return response;
         })
         .catch(() => {
@@ -148,11 +153,16 @@ self.addEventListener('fetch', (event) => {
         
         return fetch(event.request)
           .then(response => {
-            // Cache respuesta para uso futuro
-            const clonedResponse = response.clone();
-            caches.open(CACHE_NAME).then(cache => {
-              cache.put(event.request, clonedResponse);
-            });
+            // Solo cachear requests HTTP/HTTPS, no chrome-extension
+            if (event.request.url.startsWith('http')) {
+              // Cache respuesta para uso futuro
+              const clonedResponse = response.clone();
+              caches.open(CACHE_NAME).then(cache => {
+                cache.put(event.request, clonedResponse).catch(err => {
+                  console.warn('⚠️ No se pudo cachear:', event.request.url, err);
+                });
+              });
+            }
             return response;
           })
           .catch(error => {

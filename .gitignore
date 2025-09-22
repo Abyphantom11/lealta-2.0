@@ -43,8 +43,13 @@ lerna-debug.log*
 .env.neon
 .env.development
 .env.staging
+.env.optimization
+.env.free-hosting
 !.env.example
 !.env.production.template
+!.env.postgres.template
+!.env.optimization.template
+!.env.free-hosting.template
 
 # Vercel
 .vercel
