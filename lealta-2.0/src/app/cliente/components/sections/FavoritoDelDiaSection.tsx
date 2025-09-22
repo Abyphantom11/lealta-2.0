@@ -1,5 +1,5 @@
 'use client';
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Star } from 'lucide-react';
 import { useAutoRefreshPortalConfig } from '@/hooks/useAutoRefreshPortalConfig';
@@ -27,31 +27,42 @@ export default function FavoritoDelDiaSection({ businessId }: FavoritoProps) {
     enabled: true
   });
 
-  // Obtener favorito del día actual
-  const favorito = useMemo(() => {
-    const diasSemana = [
-      'domingo',
-      'lunes',
-      'martes',
-      'miercoles',
-      'jueves',
-      'viernes',
-      'sabado',
-    ];
-    const ahora = new Date();
-    const diaActual = diasSemana[ahora.getDay()];
+  const [favorito, setFavorito] = useState<FavoritoDelDia | null>(null);
 
-    console.log(`🌟 Buscando favorito del día para: ${diaActual}`);
-    
-    const favoritoActual = getFavoritoDelDia(diaActual);
-    
-    if (favoritoActual) {
-      console.log(`✅ Favorito encontrado: ${favoritoActual.nombre}`);
-    } else {
-      console.log(`❌ No hay favorito para ${diaActual}`);
-    }
-    
-    return favoritoActual;
+  // Obtener favorito del día actual
+  useEffect(() => {
+    const loadFavorito = async () => {
+      const diasSemana = [
+        'domingo',
+        'lunes',
+        'martes',
+        'miercoles',
+        'jueves',
+        'viernes',
+        'sabado',
+      ];
+      const ahora = new Date();
+      const diaActual = diasSemana[ahora.getDay()];
+
+      console.log(`🌟 Buscando favorito del día para: ${diaActual}`);
+      
+      try {
+        const favoritoActual = await getFavoritoDelDia(diaActual);
+        
+        if (favoritoActual) {
+          console.log(`✅ Favorito encontrado: ${favoritoActual.nombre}`);
+          setFavorito(favoritoActual);
+        } else {
+          console.log(`❌ No hay favorito para ${diaActual}`);
+          setFavorito(null);
+        }
+      } catch (error) {
+        console.error('Error cargando favorito:', error);
+        setFavorito(null);
+      }
+    };
+
+    loadFavorito();
   }, [getFavoritoDelDia]);
 
   if (isLoading || !favorito) return null;

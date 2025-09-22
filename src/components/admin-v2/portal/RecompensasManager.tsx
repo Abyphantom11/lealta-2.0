@@ -173,24 +173,6 @@ const RecompensasManager: React.FC<RecompensasManagerProps> = ({
                 />
               </div>
 
-              <div>
-                <label
-                  htmlFor="rewardStock"
-                  className="block text-sm font-medium text-dark-300 mb-2"
-                >
-                  Stock Disponible (Opcional)
-                </label>
-                <input
-                  id="rewardStock"
-                  type="number"
-                  placeholder="Dejar vacío para ilimitado"
-                  value={formData.stock}
-                  onChange={e =>
-                    setFormData({ ...formData, stock: e.target.value })
-                  }
-                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded text-white placeholder-dark-400"
-                />
-              </div>
             </div>
 
             <div className="flex space-x-3">

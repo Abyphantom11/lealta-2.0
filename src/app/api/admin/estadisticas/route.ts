@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { TopCliente, ProductosConsumo, ProductoConsumo, GoalsConfig, ProductVentasData, EmpleadoStats } from '../../../../types/api-routes';
-import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
+import { withAuth } from '../../../../middleware/requireAuth';
 
 const prisma = new PrismaClient();
 
@@ -10,9 +10,23 @@ export const dynamic = 'force-dynamic';
 
 // 🔒 GET - Estadísticas administrativas (PROTEGIDO)
 export async function GET(request: NextRequest) {
+  // Configuración específica para SuperAdmin
+  const authConfig = {
+    requiredPermission: 'read',
+    allowedRoles: ['superadmin', 'admin', 'staff'] as const,
+    requireBusinessOwnership: false, // SuperAdmin puede acceder a cualquier business
+    logAccess: true
+  };
+
   return withAuth(request, async (session) => {
     try {
       console.log(`📊 Estadísticas request by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
+      
+      // SuperAdmin: Si no tiene businessId, mostrar todas las estadísticas
+      // Admins normales: Solo su business
+      const targetBusinessId = session.role === 'superadmin' 
+        ? (request.nextUrl.searchParams.get('businessId') || session.businessId)
+        : session.businessId;
       
       const searchParams = request.nextUrl.searchParams;
     const periodo = searchParams.get('periodo') || 'today'; // today, week, month, all
@@ -68,7 +82,7 @@ export async function GET(request: NextRequest) {
     // Obtener consumos del período
     const consumos = await prisma.consumo.findMany({
       where: {
-        businessId: session.businessId, // ✅ FILTRO POR BUSINESS
+        businessId: targetBusinessId, // ✅ FILTRO POR BUSINESS (SuperAdmin flexible)
         registeredAt: {
           gte: fechaInicio,
         },
@@ -121,7 +135,7 @@ export async function GET(request: NextRequest) {
     const fechaInicioPrevio = new Date(fechaInicio.getTime() - (fechaActual.getTime() - fechaInicio.getTime()));
     const consumosPrevios = await prisma.consumo.findMany({
       where: {
-        businessId: session.businessId, // ✅ FILTRO POR BUSINESS
+        businessId: targetBusinessId, // ✅ FILTRO POR BUSINESS (SuperAdmin flexible)
         registeredAt: {
           gte: fechaInicioPrevio,
           lt: fechaInicio,
@@ -142,7 +156,7 @@ export async function GET(request: NextRequest) {
     try {
       topClientes = await prisma.cliente.findMany({
         where: {
-          businessId: session.businessId, // ✅ FILTRO POR BUSINESS
+          businessId: targetBusinessId, // ✅ FILTRO POR BUSINESS (SuperAdmin flexible)
           consumos: {
             some: {
               registeredAt: {
@@ -199,7 +213,7 @@ export async function GET(request: NextRequest) {
       // Obtener todos los clientes que compraron en el período
       const clientesDelPeriodo = await prisma.cliente.findMany({
         where: {
-          businessId: session.businessId, // ✅ FILTRO POR BUSINESS
+          businessId: targetBusinessId, // ✅ FILTRO POR BUSINESS (SuperAdmin flexible)
           consumos: {
             some: {
               registeredAt: {
@@ -240,13 +254,13 @@ export async function GET(request: NextRequest) {
     let businessGoals = null;
     try {
       businessGoals = await prisma.businessGoals.findUnique({
-        where: { businessId: session.businessId }
+        where: { businessId: targetBusinessId }
       });
       
       // Si no existen metas, crear las predeterminadas
       businessGoals ??= await prisma.businessGoals.create({
         data: {
-          businessId: session.businessId,
+          businessId: targetBusinessId,
           // Los valores por defecto ya están definidos en el schema
         }
       });
@@ -261,28 +275,47 @@ export async function GET(request: NextRequest) {
       return 'monthly';
     };
 
+    // Helper functions para reducir complejidad cognitiva
+    const getRevenueTarget = (goals: GoalsConfig, periodType: string): number => {
+      switch (periodType) {
+        case 'daily': return goals.dailyRevenue;
+        case 'weekly': return goals.weeklyRevenue;
+        default: return goals.monthlyRevenue;
+      }
+    };
+
+    const getClientsTarget = (goals: GoalsConfig, periodType: string): number => {
+      switch (periodType) {
+        case 'daily': return goals.dailyClients;
+        case 'weekly': return goals.weeklyClients;
+        default: return goals.monthlyClients;
+      }
+    };
+
+    const getTransactionsTarget = (goals: GoalsConfig, periodType: string): number => {
+      switch (periodType) {
+        case 'daily': return goals.dailyTransactions;
+        case 'weekly': return goals.weeklyTransactions;
+        default: return goals.monthlyTransactions;
+      }
+    };
+
     // Determinar la meta apropiada según el período
     const getTargetForPeriod = (goals: GoalsConfig | null, metric: string): number => {
       if (!goals) return 0;
       
       const periodType = getPeriodType(periodo);
       
-      if (metric === 'Revenue') {
-        if (periodType === 'daily') return goals.dailyRevenue;
-        if (periodType === 'weekly') return goals.weeklyRevenue;
-        return goals.monthlyRevenue;
+      switch (metric) {
+        case 'Revenue':
+          return getRevenueTarget(goals, periodType);
+        case 'Clients':
+          return getClientsTarget(goals, periodType);
+        case 'Transactions':
+          return getTransactionsTarget(goals, periodType);
+        default:
+          return 0;
       }
-      if (metric === 'Clients') {
-        if (periodType === 'daily') return goals.dailyClients;
-        if (periodType === 'weekly') return goals.weeklyClients;
-        return goals.monthlyClients;
-      }
-      if (metric === 'Transactions') {
-        if (periodType === 'daily') return goals.dailyTransactions;
-        if (periodType === 'weekly') return goals.weeklyTransactions;
-        return goals.monthlyTransactions;
-      }
-      return 0;
     };
 
     // Calcular metas dinámicas
@@ -559,5 +592,5 @@ export async function GET(request: NextRequest) {
   } finally {
     await prisma.$disconnect();
   }
-  }, AuthConfigs.READ_ONLY);
+  }, authConfig);
 }

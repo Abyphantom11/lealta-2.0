@@ -522,22 +522,6 @@ export default function TarjetaEditorUnified({
                   />
                 </div>
 
-                {/* Descuento */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Descuento (%)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={editedNivel?.descuento || 0}
-                    onChange={e => handleNivelFieldChange('descuento', parseInt(e.target.value) || 0)}
-                    disabled={!isEditing}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-                </div>
-
                 {/* Puntos requeridos */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">

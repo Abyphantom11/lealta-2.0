@@ -44,7 +44,7 @@ export default function AuthHeader({ showBackButton = true, className = '' }: Re
             transition={{ duration: 0.6, delay: 0.2 }}
             className="relative"
           >
-            <SimplePWAButton position="top-right" theme="dark" />
+            <SimplePWAButton position="top-right" />
           </motion.div>
         </div>
       </div>

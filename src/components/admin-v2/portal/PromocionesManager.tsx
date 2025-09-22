@@ -334,41 +334,6 @@ const PromocionesManager: React.FC<PromocionesManagerProps> = ({
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            {/* Descuento */}
-            <div>
-              <label
-                htmlFor="promoDiscount"
-                className="block text-sm font-medium text-dark-300 mb-2"
-              >
-                <Tag className="w-4 h-4 inline mr-1" />
-                Descuento (%)
-              </label>
-              <input
-                id="promoDiscount"
-                type="number"
-                value={formData.descuento}
-                min="0"
-                max="100"
-                onChange={e => {
-                  // Permitir campo vacío para representar sin descuento
-                  const inputValue = e.target.value;
-
-                  // Si está vacío o es un número entre 0 y 100
-                  if (
-                    inputValue === '' ||
-                    (Number(inputValue) >= 0 && Number(inputValue) <= 100)
-                  ) {
-                    setFormData({
-                      ...formData,
-                      descuento: inputValue,
-                    });
-                  }
-                }}
-                className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded text-white focus:ring-2 focus:ring-primary-500"
-                required
-              />
-            </div>
-
             {/* Hora de Término */}
             <div>
               <label

@@ -107,7 +107,10 @@ async function main() {
   const clientes = await Promise.all([
     prisma.cliente.upsert({
       where: {
-        cedula: '12345678',
+        businessId_cedula: {
+          businessId: demoBusiness.id,
+          cedula: '12345678'
+        }
       },
       update: {},
       create: {
@@ -123,7 +126,10 @@ async function main() {
     }),
     prisma.cliente.upsert({
       where: {
-        cedula: '87654321',
+        businessId_cedula: {
+          businessId: demoBusiness.id,
+          cedula: '87654321'
+        }
       },
       update: {},
       create: {

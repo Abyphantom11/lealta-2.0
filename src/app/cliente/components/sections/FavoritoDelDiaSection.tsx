@@ -114,10 +114,6 @@ export default function FavoritoDelDiaSection({ businessId }: Readonly<FavoritoP
                     <Star className="w-3 h-3" />
                     Especial de hoy
                   </span>
-
-                  <span className="text-xs text-gray-300">
-                    Desde las {favorito.horaPublicacion}
-                  </span>
                 </div>
               </div>
             </div>
@@ -167,9 +163,6 @@ export default function FavoritoDelDiaSection({ businessId }: Readonly<FavoritoP
 
               <div className="flex items-center justify-between text-sm text-gray-400">
                 <span>⭐ Especial del {selectedFavorito.dia}</span>
-                {selectedFavorito.horaPublicacion && (
-                  <span>🕐 Desde las {selectedFavorito.horaPublicacion}</span>
-                )}
               </div>
 
               <button

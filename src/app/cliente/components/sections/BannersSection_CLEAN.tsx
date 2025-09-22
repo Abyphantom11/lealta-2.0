@@ -177,10 +177,7 @@ export default function BannersSection({ businessId }: Readonly<BannersProps>) {
               )}
 
               <div className="flex items-center justify-between text-sm text-gray-400">
-                <span>📅 Evento del {selectedBanner.dia}</span>
-                {selectedBanner.horaPublicacion && (
-                  <span>🕐 Desde las {selectedBanner.horaPublicacion}</span>
-                )}
+                <span>📅 {selectedBanner.dia ? `Evento del ${selectedBanner.dia}` : 'Evento especial'}</span>
               </div>
 
               <button

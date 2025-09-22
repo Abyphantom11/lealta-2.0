@@ -27,10 +27,10 @@ import { useClientNotifications } from '@/services/clientNotificationService';
 import PWANotificationTrigger from '@/components/pwa/PWANotificationTrigger';
 
 interface AuthHandlerProps {
-  businessId?: string;
+  readonly businessId?: string;
 }
 
-export default function AuthHandler({ businessId }: AuthHandlerProps) {
+export default function AuthHandler({ businessId }: Readonly<AuthHandlerProps>) {
   const { brandingConfig, isLoading: brandingLoading } = useBranding();
   const { notifyLevelUpManual } = useClientNotifications();
 
@@ -234,15 +234,8 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
           const lastNotifiedLevel = localStorage.getItem(`lastNotifiedLevel_${clienteNuevo.cedula}`);
           
           if (lastNotifiedLevel !== nivelNuevo) {
-            // Determinar el tipo de notificación basado en la asignación
-            const esAsignacionManual = clienteNuevo?.tarjetaLealtad?.asignacionManual;
-            
-            if (esAsignacionManual) {
-              notifyLevelUpManual(nivelAnterior, nivelNuevo, clienteNuevo.id);
-            } else {
-              // Para ascensos automáticos, también podemos usar la misma notificación
-              notifyLevelUpManual(nivelAnterior, nivelNuevo, clienteNuevo.id);
-            }
+            // Notificar ascenso de nivel (manual o automático)
+            notifyLevelUpManual(nivelAnterior, nivelNuevo, clienteNuevo.id);
 
             // Marcar como notificado
             localStorage.setItem(`lastNotifiedLevel_${clienteNuevo.cedula}`, nivelNuevo);
@@ -364,14 +357,6 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
                 '🎉 Sesión restaurada exitosamente para:',
                 savedCedula
               );
-              // console.log(
-              //   '🐛 AuthHandler - Datos del cliente restaurado:',
-              //   data.cliente
-              // );
-              // console.log(
-              //   '🐛 AuthHandler - TarjetaLealtad:',
-              //   data.cliente?.tarjetaLealtad
-              // );
               setClienteData(data.cliente);
               setCedula(savedCedula);
               setStep('dashboard');
@@ -646,19 +631,12 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
   // Función extraída para manejar actualizaciones de nivel y reducir complejidad cognitiva
   const handleLevelUpdateInEffect = useCallback((evaluacionData: any) => {
     if (evaluacionData.actualizado && evaluacionData.mostrarAnimacion) {
-      if (process.env.NODE_ENV === 'development') {
-        // console.log(`🆙 Cliente subió de ${evaluacionData.nivelAnterior} a ${evaluacionData.nivelNuevo}!`);
-      }
-
       setOldLevel(evaluacionData.nivelAnterior);
       setNewLevel(evaluacionData.nivelNuevo);
       setShowLevelUpAnimation(true);
 
       localStorage.setItem(`lastLevel_${clienteData?.cedula}`, evaluacionData.nivelNuevo);
     } else if (evaluacionData.actualizado && evaluacionData.esBajada) {
-      if (process.env.NODE_ENV === 'development') {
-        // console.log(`📉 Cliente bajó de ${evaluacionData.nivelAnterior} a ${evaluacionData.nivelNuevo} (sin animación)`);
-      }
       localStorage.setItem(`lastLevel_${clienteData?.cedula}`, evaluacionData.nivelNuevo);
     }
   }, [clienteData?.cedula, setOldLevel, setNewLevel, setShowLevelUpAnimation]);
@@ -669,7 +647,6 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
       const fetchClienteActualizado = async () => {
         try {
           // ✅ CAMBIO: Permitir evaluación automática para ascensos, incluso en tarjetas manuales
-          // console.log('🤖 Ejecutando evaluación automática (permitiendo ascensos automáticos)');
           const evaluacionData = await evaluateClientLevel(clienteData.cedula);
           
           if (evaluacionData) {
@@ -694,9 +671,6 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
           if (response.ok) {
             const data = await response.json();
             if (data.existe) {
-              // console.log('🐛 AuthHandler - Actualización periódica:', data.cliente);
-              // console.log('🐛 AuthHandler - TarjetaLealtad actualizada:', data.cliente?.tarjetaLealtad);
-
               setClienteData(data.cliente);
               checkStoredLevelChange(data.cliente);
             }
@@ -709,7 +683,6 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
       // Actualizar inmediatamente al entrar
       fetchClienteActualizado();
 
-      // Actualizar cada 15 segundos
       // Polling optimizado: cada 30 segundos para datos del cliente
       const updateInterval = setInterval(fetchClienteActualizado, 30000);
 

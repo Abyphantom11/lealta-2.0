@@ -38,7 +38,7 @@ const authOptions = {
   callbacks: {
     async jwt({ token, user }: { token: JWT; user?: User & { role?: string } }) {
       if (user) {
-        token.role = user.role;
+        (token as any).role = user.role;
       }
       return token;
     },

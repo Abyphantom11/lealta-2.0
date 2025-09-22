@@ -6,7 +6,6 @@ import { Mail, Lock, Eye, EyeOff, UserPlus, Sparkles, ArrowRight } from 'lucide-
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import AuthHeader from '../../components/ui/AuthHeader';
-import PWADownloadButton from '@/components/pwa/PWADownloadButton';
 
 function LoginContent() {
   const [formData, setFormData] = useState({
@@ -151,8 +150,8 @@ function LoginContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black">
-      {/* PWA Download Button - discreto en esquina superior derecha */}
-      <PWADownloadButton />
+      {/* PWA Download Button - desactivado, usando el del AuthHeader */}
+      {/* <PWADownloadButton /> */}
       
       {/* Header con navegación optimizada */}
       <AuthHeader showBackButton={true} />
