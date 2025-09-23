@@ -297,41 +297,87 @@ export async function GET(request: NextRequest) {
         updatedAt: favoritoDelDia.updatedAt.toISOString()
       }] : [],
 
-      // CONFIGURACIÓN DE TARJETAS - ✅ PRIORIZAR ADMIN CONFIG
+      // CONFIGURACIÓN DE TARJETAS - ✅ PRIORIZAR ADMIN CONFIG CON SINCRONIZACIÓN MEJORADA
       tarjetas: await (async () => {
+        console.log(`🔍 Loading tarjetas config for business: ${businessId}`);
+        
+        // 1. Intentar obtener configuración desde admin (JSON files)
         const adminConfig = await getAdminTarjetas(businessId);
+        console.log(`📊 Admin config status:`, {
+          found: !!adminConfig,
+          hasTarjetas: !!(adminConfig?.tarjetas?.length),
+          tarjetasCount: adminConfig?.tarjetas?.length || 0,
+          nombreEmpresa: adminConfig?.nombreEmpresa
+        });
+        
         if (adminConfig && adminConfig.tarjetas && adminConfig.tarjetas.length > 0) {
-          // ✅ CORRECCIÓN: Usar la estructura correcta de tarjetas
-          const tarjetas = adminConfig.tarjetas;
-          if (tarjetas && Array.isArray(tarjetas)) {
-            return tarjetas.map((tarjeta: any) => ({
-              id: `tarjeta-${tarjeta.nivel?.toLowerCase()}`,
-              nivel: tarjeta.nivel,
-              nombrePersonalizado: `Tarjeta ${tarjeta.nivel}`,
-              textoCalidad: tarjeta.beneficio || `Cliente ${tarjeta.nivel}`,
-              colores: {
-                gradiente: tarjeta.colores || ['#666666', '#999999'],
-                texto: '#FFFFFF',
-                nivel: tarjeta.colores?.[0] || '#666666'
-              },
-              condiciones: {
-                puntosMinimos: tarjeta.puntosRequeridos || 0,
-                visitasMinimas: tarjeta.visitasRequeridas || 0
-              },
-              beneficio: `${tarjeta.descuento || 0}% de descuento en compras`,
-              activo: true
-            }));
-          }
+          // ✅ USAR CONFIGURACIÓN CENTRAL DE TARJETAS DIRECTAMENTE
+          console.log(`✅ Using admin config with ${adminConfig.tarjetas.length} tarjetas`);
+          return adminConfig.tarjetas.map((tarjeta: any) => ({
+            id: tarjeta.id || `tarjeta-${tarjeta.nivel?.toLowerCase()}`,
+            nivel: tarjeta.nivel,
+            nombrePersonalizado: tarjeta.nombrePersonalizado || `Tarjeta ${tarjeta.nivel}`,
+            textoCalidad: tarjeta.textoCalidad || tarjeta.beneficio || `Cliente ${tarjeta.nivel}`,
+            colores: {
+              gradiente: tarjeta.colores?.gradiente || ['#666666', '#999999'],
+              texto: tarjeta.colores?.texto || '#FFFFFF',
+              nivel: tarjeta.colores?.nivel || tarjeta.colores?.gradiente?.[0] || '#666666'
+            },
+            condiciones: {
+              puntosMinimos: tarjeta.condiciones?.puntosMinimos || 0,
+              visitasMinimas: tarjeta.condiciones?.visitasMinimas || 0,
+              gastosMinimos: tarjeta.condiciones?.gastosMinimos || 0
+            },
+            beneficio: tarjeta.beneficio || `Cliente ${tarjeta.nivel}`,
+            activo: tarjeta.activo !== undefined ? tarjeta.activo : true
+          }));
         }
-        // Fallback: usar BD como antes
-        return [{
-          id: 'tarjeta-default',
-          nombre: `Tarjeta ${business.name}`,
-          descripcion: 'Sistema de lealtad personalizado',
-          activa: true,
-          condicional: 'OR',
-          niveles: generateNiveles(tarjetasConfig)
-        }];
+        
+        // 2. Si no hay admin config, usar PostgreSQL config
+        console.log(`⚠️ No admin config found, using PostgreSQL fallback`);
+        if (tarjetasConfig?.levelsConfig) {
+          const levels = Object.entries(tarjetasConfig.levelsConfig).map(([levelName, config]: [string, any]) => ({
+            id: `tarjeta-${levelName}`,
+            nivel: levelName.charAt(0).toUpperCase() + levelName.slice(1),
+            nombrePersonalizado: `Tarjeta ${levelName.charAt(0).toUpperCase() + levelName.slice(1)}`,
+            textoCalidad: config.benefits?.[0] || `Cliente ${levelName}`,
+            colores: {
+              gradiente: config.colors || ['#666666', '#999999'],
+              texto: '#FFFFFF',
+              nivel: config.colors?.[0] || '#666666'
+            },
+            condiciones: {
+              puntosMinimos: config.minPoints || 0,
+              visitasMinimas: config.minVisits || 0,
+              gastosMinimos: config.minSpent || 0
+            },
+            beneficio: config.benefits?.join(', ') || `Cliente ${levelName}`,
+            activo: true
+          }));
+          console.log(`✅ Using PostgreSQL config with ${levels.length} niveles`);
+          return levels;
+        }
+        
+        // 3. Fallback final: configuración por defecto
+        console.log(`⚠️ Using default fallback config`);
+        return generateNiveles(null).map((nivel: any) => ({
+          id: `tarjeta-${nivel.nombre?.toLowerCase()}`,
+          nivel: nivel.nombre,
+          nombrePersonalizado: `Tarjeta ${nivel.nombre}`,
+          textoCalidad: nivel.beneficio,
+          colores: {
+            gradiente: nivel.colores || ['#666666', '#999999'],
+            texto: '#FFFFFF',
+            nivel: nivel.colores?.[0] || '#666666'
+          },
+          condiciones: {
+            puntosMinimos: nivel.puntosRequeridos || 0,
+            visitasMinimas: nivel.visitasRequeridas || 0,
+            gastosMinimos: 0
+          },
+          beneficio: nivel.beneficio,
+          activo: true
+        }));
       })(),
 
       // EVENTOS - Por ahora vacío (se puede agregar después)
