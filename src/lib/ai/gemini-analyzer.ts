@@ -16,8 +16,13 @@ export class GeminiPOSAnalyzer {
     mimeType: string
   ): Promise<GeminiAnalysisResult> {
     if (!this.model) {
+      console.error('❌ Google Gemini no está configurado');
       throw new Error('Google Gemini no está configurado. Verifica tu API key.');
     }
+    
+    console.log('🤖 [GEMINI] Iniciando análisis de imagen...');
+    console.log('🤖 [GEMINI] Buffer size:', imageBuffer.length, 'bytes');
+    console.log('🤖 [GEMINI] MIME type:', mimeType);
     
     try {
       const prompt = `
@@ -70,11 +75,13 @@ export class GeminiPOSAnalyzer {
         },
       };
 
+      console.log('🤖 [GEMINI] Enviando prompt a Gemini AI...');
       const result = await this.model.generateContent([prompt, imagePart]);
       const response = result.response;
       const text = response.text();
 
-      console.log('📥 Respuesta raw de Gemini:', text);
+      console.log('📥 [GEMINI] Respuesta raw de Gemini (primeros 200 chars):', text.substring(0, 200));
+      console.log('📥 [GEMINI] Longitud total de respuesta:', text.length);
 
       // Limpiar la respuesta de markdown y extraer JSON
       const cleanedText = text

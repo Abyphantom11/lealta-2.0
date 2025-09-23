@@ -70,17 +70,26 @@ async function processImageWithGemini(imageUrl: string): Promise<{
 }> {
   try {
     // Descargar imagen desde Vercel Blob
-    console.log('📥 Descargando imagen desde Vercel Blob:', imageUrl);
+    console.log('📥 [GEMINI] Descargando imagen desde Vercel Blob:', imageUrl);
     const response = await fetch(imageUrl);
+    console.log('📥 [GEMINI] Response status:', response.status, response.statusText);
+    
+    if (!response.ok) {
+      throw new Error(`Error descargando imagen: ${response.status} ${response.statusText}`);
+    }
+    
     const imageBuffer = Buffer.from(await response.arrayBuffer());
-    const mimeType = 'image/png';
+    console.log('📥 [GEMINI] Buffer descargado, size:', imageBuffer.length, 'bytes');
+    
+    const mimeType = response.headers.get('content-type') || 'image/png';
+    console.log('📥 [GEMINI] MIME type detectado:', mimeType);
 
-    console.log('🤖 Procesando imagen con Gemini AI...');
+    console.log('🤖 [GEMINI] Procesando imagen con Gemini AI...');
     
     // Analizar con Gemini
     const analysis = await geminiAnalyzer.analyzeImage(imageBuffer, mimeType);
     
-    console.log('✅ Análisis completado:', {
+    console.log('✅ [GEMINI] Análisis completado:', {
       total: analysis.total,
       productos: analysis.productos.length,
       confianza: analysis.confianza,
@@ -127,6 +136,11 @@ async function processImageWithGemini(imageUrl: string): Promise<{
 export async function POST(request: NextRequest) {
   try {
     console.log('🧪 [ANALYZE] Iniciando análisis de ticket...');
+    console.log('🧪 [ANALYZE] Environment check:', {
+      NODE_ENV: process.env.NODE_ENV,
+      BLOB_TOKEN: !!process.env.BLOB_READ_WRITE_TOKEN,
+      GEMINI_KEY: !!process.env.GOOGLE_GEMINI_API_KEY
+    });
     
     const formData = await request.formData();
     console.log('🧪 [ANALYZE] FormData recibido');
@@ -138,10 +152,12 @@ export async function POST(request: NextRequest) {
     console.log('🧪 [ANALYZE] Imagen recibida:', {
       name: image?.name,
       size: image?.size,
-      type: image?.type
+      type: image?.type,
+      hasContent: !!image
     });
 
     if (!image) {
+      console.log('❌ [ANALYZE] No se recibió imagen en FormData');
       return NextResponse.json(
         { success: false, error: 'No se recibió ninguna imagen' },
         { status: 400 }
@@ -186,11 +202,13 @@ export async function POST(request: NextRequest) {
     console.log('✅ Cliente encontrado:', cliente.nombre);
 
     // Guardar imagen temporalmente
+    console.log('💾 [ANALYZE] Guardando imagen en Vercel Blob...');
     const { filepath, publicUrl } = await saveImageFile(image);
-    console.log('💾 Imagen guardada temporalmente:', publicUrl);
+    console.log('✅ [ANALYZE] Imagen guardada:', { filepath, publicUrl });
 
     // Procesar imagen con Gemini AI
-    console.log('🤖 Iniciando análisis con IA...');
+    console.log('🤖 [ANALYZE] Iniciando análisis con IA...');
+    console.log('🤖 [ANALYZE] URL de imagen para Gemini:', publicUrl);
     const analysis = await processImageWithGemini(filepath);
 
     // Responder con datos para confirmación (SIN GUARDAR AÚN)
