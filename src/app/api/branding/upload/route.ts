@@ -51,10 +51,10 @@ export async function POST(request: NextRequest) {
     const timestamp = Date.now();
     const fileName = `${businessId}_${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
     
-    // 🔥 UPLOAD A VERCEL BLOB STORAGE
+    // 🔥 UPLOAD A VERCEL BLOB STORAGE - CON TOKEN CORRECTO
     const blob = await put(`branding/${fileName}`, file, {
       access: 'public',
-      token: process.env.BLOB_READ_WRITE_TOKEN,
+      token: process.env.BLOB_READ_WRITE_TOKEN || process.env.LEALTA_READ_WRITE_TOKEN || "vercel_blob_rw_QSQoErcPWIoMxvo2_DYdNIDEA6Q1yeI3T0BHuwbTnC0grwT",
     });
     
     logger.debug(`🎨 Branding image upload for business ${businessId}:`, {

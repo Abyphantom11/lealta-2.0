@@ -70,10 +70,10 @@ async function saveImageFile(image: File): Promise<{ filepath: string; publicUrl
   const randomString = Math.random().toString(36).substring(2, 8);
   const filename = `consumos/${timestamp}-${randomString}.jpg`;
 
-  // 🔥 UPLOAD A VERCEL BLOB STORAGE
+  // 🔥 UPLOAD A VERCEL BLOB STORAGE - CON TOKEN CORRECTO
   const blob = await put(filename, image, {
     access: 'public',
-    token: process.env.BLOB_READ_WRITE_TOKEN,
+    token: process.env.BLOB_READ_WRITE_TOKEN || process.env.LEALTA_READ_WRITE_TOKEN || "vercel_blob_rw_QSQoErcPWIoMxvo2_DYdNIDEA6Q1yeI3T0BHuwbTnC0grwT",
   });
 
   return { 
