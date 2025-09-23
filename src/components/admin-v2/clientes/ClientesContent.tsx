@@ -134,18 +134,13 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '', busin
   useEffect(() => {
     const fetchClientes = async () => {
       try {
-        // 🔥 BUSINESS CONTEXT: Incluir businessId en la petición
-        const url = businessId ? `/api/cliente/lista?businessId=${businessId}` : '/api/cliente/lista';
+        // ✅ USAR ENDPOINT ADMIN CON AUTENTICACIÓN ROBUSTA
+        const url = '/api/admin/clients/lista';
         const headers: HeadersInit = {
           'Content-Type': 'application/json',
         };
         
-        // Agregar businessId en header también para mayor compatibilidad
-        if (businessId) {
-          headers['x-business-id'] = businessId;
-        }
-
-        console.log('🔍 CLIENTES: Fetching con businessId:', businessId);
+        console.log('🔍 CLIENTES: Fetching desde endpoint admin autenticado');
         
         const response = await fetch(url, { 
           headers,
@@ -156,14 +151,20 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '', busin
         console.log('📊 CLIENTES: Respuesta recibida:', {
           success: data.success,
           count: data.clientes?.length || 0,
-          businessId
+          businessId: data.businessId,
+          userRole: data.userRole,
+          totalCount: data.totalCount
         });
         
-        if (data.success) {
+        if (data.success && data.clientes) {
+          console.log('✅ CLIENTES: Datos cargados exitosamente', data.clientes);
           setClientes(data.clientes);
           setFilteredClientes(data.clientes);
         } else {
-          console.error('❌ CLIENTES: Error en respuesta:', data.error);
+          console.error('❌ CLIENTES: Error en respuesta:', data.error || 'Respuesta inválida');
+          if (response.status === 401) {
+            console.error('🔐 CLIENTES: Usuario no autenticado');
+          }
         }
       } catch (error) {
         console.error('❌ CLIENTES: Error cargando clientes:', error);

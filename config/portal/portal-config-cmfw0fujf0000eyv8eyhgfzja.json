@@ -62,121 +62,86 @@
     }
   ],
   "favoritoDelDia": [],
-  "tarjetas": [
-    {
-      "id": "tarjeta-bronce",
-      "nivel": "Bronce",
-      "nombrePersonalizado": "Tarjeta Bronce",
-      "textoCalidad": "Cliente Inicial",
-      "colores": {
-        "gradiente": [
-          "#CD7F32",
-          "#8B4513"
-        ],
-        "texto": "#FFFFFF",
-        "nivel": "#CD7F32"
-      },
-      "condiciones": {
-        "puntosMinimos": 0,
-        "gastosMinimos": 0,
-        "visitasMinimas": 0
-      },
-      "beneficio": "Acceso a promociones exclusivas",
-      "activo": true
-    },
-    {
-      "id": "tarjeta-plata",
-      "nivel": "Plata",
-      "nombrePersonalizado": "Tarjeta Plata",
-      "textoCalidad": "Cliente Frecuente",
-      "colores": {
-        "gradiente": [
-          "#C0C0C0",
-          "#808080"
-        ],
-        "texto": "#FFFFFF",
-        "nivel": "#C0C0C0"
-      },
-      "condiciones": {
-        "puntosMinimos": 100,
-        "gastosMinimos": 500,
-        "visitasMinimas": 5
-      },
-      "beneficio": "5% de descuento en compras",
-      "activo": true
-    },
-    {
-      "id": "tarjeta-oro",
-      "nivel": "Oro",
-      "nombrePersonalizado": "Tarjeta Oro",
-      "textoCalidad": "Cliente Premium",
-      "colores": {
-        "gradiente": [
-          "#FFD700",
-          "#FFA500"
-        ],
-        "texto": "#000000",
-        "nivel": "#FFD700"
-      },
-      "condiciones": {
-        "puntosMinimos": 500,
-        "gastosMinimos": 1500,
-        "visitasMinimas": 10
-      },
-      "beneficio": "10% de descuento en compras",
-      "activo": true
-    },
-    {
-      "id": "tarjeta-diamante",
-      "nivel": "Diamante",
-      "nombrePersonalizado": "Tarjeta Diamante",
-      "textoCalidad": "Cliente VIP",
-      "colores": {
-        "gradiente": [
-          "#B9F2FF",
-          "#0891B2"
-        ],
-        "texto": "#FFFFFF",
-        "nivel": "#B9F2FF"
-      },
-      "condiciones": {
-        "puntosMinimos": 1500,
-        "gastosMinimos": 3000,
-        "visitasMinimas": 20
-      },
-      "beneficio": "15% de descuento en compras",
-      "activo": true
-    },
-    {
-      "id": "tarjeta-platino",
-      "nivel": "Platino",
-      "nombrePersonalizado": "Tarjeta Platino",
-      "textoCalidad": "Cliente Elite",
-      "colores": {
-        "gradiente": [
-          "#E5E7EB",
-          "#9CA3AF"
-        ],
-        "texto": "#FFFFFF",
-        "nivel": "#E5E7EB"
-      },
-      "condiciones": {
-        "puntosMinimos": 3000,
-        "gastosMinimos": 5000,
-        "visitasMinimas": 30
-      },
-      "beneficio": "20% de descuento en compras",
-      "activo": true
-    }
-  ],
-  "nombreEmpresa": "arepa@gmail.com",
+  "tarjetas": [],
+  "nombreEmpresa": "Mi Negocio",
   "settings": {
     "lastUpdated": "2025-09-23T03:43:23.592Z",
     "version": "2.0.0",
     "createdBy": "system-central",
     "businessId": "cmfw0fujf0000eyv8eyhgfzja"
   },
-  "nivelesConfig": {},
-  "lastUpdated": "2025-09-23T04:37:33.865Z",
+  "nivelesConfig": {
+    "Bronce": {
+      "colores": {
+        "gradiente": [
+          "#CD7F32",
+          "#8B4513"
+        ]
+      },
+      "textoDefault": "Cliente Inicial",
+      "condiciones": {
+        "puntosMinimos": 0,
+        "gastosMinimos": 0,
+        "visitasMinimas": 0
+      }
+    },
+    "Plata": {
+      "colores": {
+        "gradiente": [
+          "#C0C0C0",
+          "#808080"
+        ]
+      },
+      "textoDefault": "Cliente Frecuente",
+      "condiciones": {
+        "puntosMinimos": 100,
+        "gastosMinimos": 500,
+        "visitasMinimas": 5
+      }
+    },
+    "Oro": {
+      "colores": {
+        "gradiente": [
+          "#FFD700",
+          "#FFA500"
+        ]
+      },
+      "textoDefault": "Cliente VIP",
+      "condiciones": {
+        "puntosMinimos": 500,
+        "gastosMinimos": 1500,
+        "visitasMinimas": 10
+      }
+    },
+    "Diamante": {
+      "colores": {
+        "gradiente": [
+          "#B9F2FF",
+          "#00CED1"
+        ]
+      },
+      "textoDefault": "Cliente Elite",
+      "condiciones": {
+        "puntosMinimos": 1500,
+        "gastosMinimos": 3000,
+        "visitasMinimas": 15
+      }
+    },
+    "Platino": {
+      "colores": {
+        "gradiente": [
+          "#E5E4E2",
+          "#C0C0C0"
+        ]
+      },
+      "textoDefault": "Cliente Exclusivo",
+      "condiciones": {
+        "puntosMinimos": 3000,
+        "gastosMinimos": 5000,
+        "visitasMinimas": 30
+      }
+    }
+  },
+  "lastUpdated": "2025-09-23T21:16:28.582Z",
   "version": "2.0.0"
 }
