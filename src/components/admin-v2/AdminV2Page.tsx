@@ -250,7 +250,7 @@ export default function AdminV2Page({ businessId }: AdminV2PageProps = {}) {
         {/* Content Area - Renderización condicional de componentes modulares */}
         <main className="flex-1 p-6 bg-gradient-to-br from-dark-950 via-dark-900 to-dark-800 overflow-auto">
           {activeSection === 'dashboard' && <DashboardContent />}
-          {activeSection === 'clientes' && <ClientesContent />}
+          {activeSection === 'clientes' && <ClientesContent businessId={currentBusinessId} />}
           {activeSection === 'menu' && <MenuContent />}
           {activeSection === 'portal' && (
             <PortalContent showNotification={showNotification} />

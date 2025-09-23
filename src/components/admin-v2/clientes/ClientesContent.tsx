@@ -9,10 +9,6 @@ import {
 } from 'lucide-react';
 import { Cliente } from '@/types/admin';
 
-interface ClientesContentProps {
-  className?: string;
-}
-
 // ✅ OPTIMIZACIÓN: Componente memoizado para items individuales de clientes
 interface ClienteItemProps {
   cliente: Cliente;
@@ -111,10 +107,15 @@ const ClienteItem = React.memo<ClienteItemProps>(({ cliente, getClientInitials, 
 
 ClienteItem.displayName = 'ClienteItem';
 
+interface ClientesContentProps {
+  className?: string;
+  businessId?: string; // Agregar businessId como prop
+}
+
 /**
  * Componente principal de gestión de clientes
  */
-const ClientesContent: React.FC<ClientesContentProps> = ({ className = '' }) => {
+const ClientesContent: React.FC<ClientesContentProps> = ({ className = '', businessId }) => {
   // Estados principales
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [filteredClientes, setFilteredClientes] = useState<Cliente[]>([]);
@@ -133,21 +134,43 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '' }) => 
   useEffect(() => {
     const fetchClientes = async () => {
       try {
-        const response = await fetch('/api/cliente/lista');
+        // 🔥 BUSINESS CONTEXT: Incluir businessId en la petición
+        const url = businessId ? `/api/cliente/lista?businessId=${businessId}` : '/api/cliente/lista';
+        const headers: HeadersInit = {
+          'Content-Type': 'application/json',
+        };
+        
+        // Agregar businessId en header también para mayor compatibilidad
+        if (businessId) {
+          headers['x-business-id'] = businessId;
+        }
+
+        console.log('🔍 CLIENTES: Fetching con businessId:', businessId);
+        
+        const response = await fetch(url, { headers });
         const data = await response.json();
+        
+        console.log('📊 CLIENTES: Respuesta recibida:', {
+          success: data.success,
+          count: data.clientes?.length || 0,
+          businessId
+        });
+        
         if (data.success) {
           setClientes(data.clientes);
           setFilteredClientes(data.clientes);
+        } else {
+          console.error('❌ CLIENTES: Error en respuesta:', data.error);
         }
       } catch (error) {
-        console.error('Error cargando clientes:', error);
+        console.error('❌ CLIENTES: Error cargando clientes:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchClientes();
-  }, []);
+  }, [businessId]);
 
   // Cargar historial de canjes cuando se active esa pestaña
   useEffect(() => {

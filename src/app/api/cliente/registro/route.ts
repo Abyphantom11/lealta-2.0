@@ -39,7 +39,21 @@ export async function POST(request: NextRequest) {
     // 🔥 CRÍTICO: Obtener businessId con múltiples métodos para business isolation
     const businessId = await determineBusinessId(bodyBusinessId, request);
     
+    // 🔍 DEBUG: Log detallado del businessId determinado
+    console.log('🔍 REGISTRO DEBUG:', {
+      bodyBusinessId,
+      determinedBusinessId: businessId,
+      referer: request.headers.get('referer'),
+      userAgent: request.headers.get('user-agent')?.substring(0, 100),
+      timestamp: new Date().toISOString()
+    });
+    
     if (!businessId) {
+      console.error('❌ REGISTRO ERROR: No se pudo determinar businessId', {
+        bodyBusinessId,
+        referer: request.headers.get('referer'),
+        headers: Object.fromEntries(request.headers.entries())
+      });
       throw new AppError(
         'No se pudo determinar el contexto del negocio',
         ErrorType.BUSINESS_LOGIC,
@@ -72,6 +86,13 @@ export async function POST(request: NextRequest) {
 
     // Crear el cliente nuevo con transacción
     const nuevoCliente = await prisma.$transaction(async (tx) => {
+      console.log('🔄 CREANDO CLIENTE:', {
+        businessId,
+        cedula: cedula.toString(),
+        nombre: nombre.trim(),
+        bonusPorRegistro
+      });
+
       const cliente = await tx.cliente.create({
         data: {
           businessId: businessId,
@@ -85,8 +106,15 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      console.log('✅ CLIENTE CREADO:', {
+        id: cliente.id,
+        businessId: cliente.businessId,
+        cedula: cliente.cedula,
+        nombre: cliente.nombre
+      });
+
       // 🏆 Asignar tarjeta Bronce automáticamente
-      await tx.tarjetaLealtad.create({
+      const tarjeta = await tx.tarjetaLealtad.create({
         data: {
           clienteId: cliente.id,
           nivel: 'Bronce',
@@ -95,6 +123,13 @@ export async function POST(request: NextRequest) {
           fechaAsignacion: new Date(),
           businessId: businessId,
         },
+      });
+
+      console.log('✅ TARJETA CREADA:', {
+        id: tarjeta.id,
+        clienteId: tarjeta.clienteId,
+        businessId: tarjeta.businessId,
+        nivel: tarjeta.nivel
       });
 
       return cliente;
