@@ -39,11 +39,19 @@ async function saveImageFile(image: File): Promise<{ filepath: string; publicUrl
   if (image.size > MAX_FILE_SIZE) {
     throw new Error(`Archivo demasiado grande: ${Math.round(image.size / 1024 / 1024)}MB. Máximo permitido: 10MB`);
   }
+
+  // ⚠️ VALIDACIÓN DE TIPO MIME CRÍTICA - Prevenir corrupción
+  const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+  if (!allowedMimeTypes.includes(image.type)) {
+    throw new Error(`Tipo de archivo no válido: ${image.type}. Tipos permitidos: ${allowedMimeTypes.join(', ')}`);
+  }
   
-  console.log(`📁 Procesando imagen: ${Math.round(image.size / 1024)}KB`);
+  console.log(`📁 Procesando imagen: ${Math.round(image.size / 1024)}KB, type: ${image.type}`);
   
   const timestamp = Date.now();
-  const filename = `analyze/ticket_${timestamp}.png`;
+  // Preservar la extensión original del archivo
+  const fileExtension = image.name.split('.').pop() || 'png';
+  const filename = `analyze/ticket_${timestamp}.${fileExtension}`;
 
   // 🔥 UPLOAD A VERCEL BLOB STORAGE - CON TOKEN CENTRALIZADO
   const token = getBlobStorageToken();

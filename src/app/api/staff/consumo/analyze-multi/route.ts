@@ -78,7 +78,9 @@ async function saveMultipleImages(images: File[]): Promise<ProcessedImage[]> {
       
       const timestamp = Date.now();
       const imageId = `multi_${timestamp}_${i}`;
-      const filename = `multi/${imageId}.png`;
+      // Preservar la extensión original del archivo
+      const fileExtension = image.name.split('.').pop() || 'png';
+      const filename = `multi/${imageId}.${fileExtension}`;
       
       // 🔥 UPLOAD A VERCEL BLOB STORAGE - CON TOKEN CENTRALIZADO
       const token = getBlobStorageToken();

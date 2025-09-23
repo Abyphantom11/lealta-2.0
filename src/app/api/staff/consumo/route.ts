@@ -65,11 +65,19 @@ async function saveImageFile(image: File): Promise<{ filepath: string; publicUrl
     throw new Error(`Archivo demasiado grande: ${Math.round(image.size / 1024 / 1024)}MB. Máximo permitido: 10MB`);
   }
 
-  logger.debug(`📁 Processing consumption image: ${Math.round(image.size / 1024)}KB`);
+  // ⚠️ VALIDACIÓN DE TIPO MIME CRÍTICA - Prevenir corrupción
+  const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+  if (!allowedMimeTypes.includes(image.type)) {
+    throw new Error(`Tipo de archivo no válido: ${image.type}. Tipos permitidos: ${allowedMimeTypes.join(', ')}`);
+  }
+
+  logger.debug(`📁 Processing consumption image: ${Math.round(image.size / 1024)}KB, type: ${image.type}`);
 
   const timestamp = Date.now();
   const randomString = Math.random().toString(36).substring(2, 8);
-  const filename = `consumos/${timestamp}-${randomString}.jpg`;
+  // Preservar la extensión original del archivo
+  const fileExtension = image.name.split('.').pop() || 'jpg';
+  const filename = `consumos/${timestamp}-${randomString}.${fileExtension}`;
 
   // 🔥 UPLOAD A VERCEL BLOB STORAGE - CON TOKEN CENTRALIZADO
   const token = getBlobStorageToken();
