@@ -25,7 +25,8 @@ async function initializeCacheFunctions() {
   
   try {
     const middlewareModule = await import('../../middleware');
-    cachedBusinessFunction = middlewareModule.getCachedBusiness;
+    // Asegurar que las funciones importadas tengan los tipos correctos
+    cachedBusinessFunction = middlewareModule.getCachedBusiness as CachedBusinessFunction;
     setCachedBusinessFunction = middlewareModule.setCachedBusiness;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

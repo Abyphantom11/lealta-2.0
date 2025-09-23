@@ -145,18 +145,7 @@ const MetricCard = ({ title, icon: Icon, data, color, subtitle, delay = 0 }: Met
 };
 
 export default function AdvancedMetrics({ data }: Readonly<AdvancedMetricsProps>) {
-  // 🔍 DEBUG: Log para verificar datos recibidos
-  console.log('📊 AdvancedMetrics - Datos recibidos:', data);
-  console.log('📊 AdvancedMetrics - Targets disponibles:', {
-    totalRevenue: data?.totalRevenue?.target,
-    totalClients: data?.totalClients?.target,
-    avgTicket: data?.avgTicket?.target,
-    totalTransactions: data?.totalTransactions?.target,
-    clientRetention: data?.clientRetention?.target,
-    conversionRate: data?.conversionRate?.target,
-    topClientValue: data?.topClientValue?.target,
-    activeClients: data?.activeClients?.target,
-  });
+  // ✅ Logs removidos para reducir spam en consola
 
   // Si no hay datos de la API, usar datos simulados basados en los logs del terminal
   const simulatedData = data ?? {

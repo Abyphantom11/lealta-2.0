@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
+import { notifyConfigChange } from '../../../../lib/sse-notifications';
 import fs from 'fs';
 import path from 'path';
 
@@ -355,6 +356,9 @@ export async function PUT(request: NextRequest) {
         
         if (saved) {
           console.log(`✅ Updated tarjetas in JSON file for business ${session.businessId}`);
+          
+          // 🔔 NOTIFICAR CAMBIOS: Solo al business específico
+          await notifyConfigChange(session.businessId);
         } else {
           console.warn(`⚠️ Failed to update tarjetas in JSON file for business ${session.businessId}`);
         }

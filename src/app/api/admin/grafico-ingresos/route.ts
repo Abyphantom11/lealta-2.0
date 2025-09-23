@@ -145,18 +145,14 @@ function generatePeriodos(
 export async function GET(request: NextRequest) {
   return withAuth(request, async (session) => {
   try {
-    console.log(`📊 Grafico-ingresos GET by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
+    // ✅ Log removido para evitar spam
 
     const searchParams = request.nextUrl.searchParams;
     const tipo = searchParams.get('tipo') || 'semana';
     const mesEspecifico = searchParams.get('mes');
     const añoEspecifico = searchParams.get('año');
 
-    console.log('📊 Parámetros recibidos:', {
-      tipo,
-      mesEspecifico,
-      añoEspecifico,
-    });
+    // ✅ Log de parámetros removido para evitar spam
 
     const now = new Date();
 
@@ -169,10 +165,7 @@ export async function GET(request: NextRequest) {
     const fechaFin =
       periodos.length > 0 ? periodos[periodos.length - 1].fin : new Date(now);
 
-    console.log(
-      `📊 Período: ${fechaInicio.toISOString()} - ${fechaFin.toISOString()}`
-    );
-    console.log(`📊 Periodos generados: ${periodos.length}`);
+    // ✅ Logs de período removidos para evitar spam
 
     // Obtener consumos en el rango SOLO del business del usuario
     const consumos = await prisma.consumo.findMany({
@@ -192,7 +185,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    console.log(`📊 Encontrados ${consumos.length} consumos para el gráfico`);
+    // ✅ Log de consumos encontrados removido para evitar spam
 
     // Calcular datos por período
     const datosGrafico = periodos.map(periodo => {
@@ -222,11 +215,7 @@ export async function GET(request: NextRequest) {
     const totalTransacciones = consumos.length;
     const promedio = periodos.length > 0 ? totalIngresos / periodos.length : 0;
 
-    console.log('📊 Estadísticas calculadas:', {
-      totalIngresos: Math.round(totalIngresos * 100) / 100,
-      totalTransacciones,
-      promedio: Math.round(promedio * 100) / 100,
-    });
+    // ✅ Log de estadísticas calculadas removido para evitar spam
 
     return NextResponse.json({
       success: true,

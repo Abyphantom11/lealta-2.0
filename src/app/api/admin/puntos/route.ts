@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
+import { notifyConfigChange } from '../../../../lib/sse-notifications';
 
 // 🔒 BUSINESS ISOLATION: Configuración por business
 function getPortalConfigPath(businessId: string): string {
@@ -97,6 +98,9 @@ export async function POST(request: NextRequest) {
 
     // Guardar archivo POR BUSINESS
     await fs.writeFile(configPath, JSON.stringify(config, null, 2));
+
+    // 🔔 NOTIFICAR CAMBIOS: Solo al business específico
+    await notifyConfigChange(session.businessId);
 
     return NextResponse.json({
       success: true,

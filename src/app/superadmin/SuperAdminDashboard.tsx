@@ -130,6 +130,10 @@ interface SuperAdminDashboardProps {
 // ========================================
 // 🏗️ SECCIÓN: COMPONENTE PRINCIPAL Y ESTADOS (126-195)
 // ========================================
+
+// 🎛️ Control de logging para development
+const DEBUG_MODE = process.env.NODE_ENV === 'development' && false; // Cambiar a true para logs detallados
+
 export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps = {}) {
   // 🚫 BLOQUEO DE BUSINESS CONTEXT - SECURITY ENFORCEMENT
   useEffect(() => {
@@ -211,13 +215,15 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
   // Estado para el selector de fechas
   const [selectedDateRange, setSelectedDateRange] = useState('7days');
 
-  // Definir las funciones con useCallback primero
+  // 🔄 FUNCIÓN OPTIMIZADA: Cargar estadísticas con debouncing
   const fetchEstadisticas = useCallback(async () => {
     if (!isAuthenticated) return;
     
+    // Evitar llamadas duplicadas si ya está cargando
+    if (isLoadingStats) return;
+    
     setIsLoadingStats(true);
     try {
-      console.log('🔄 Cargando estadísticas con período:', selectedDateRange);
       const response = await fetch(`/api/admin/estadisticas?periodo=${selectedDateRange}`, {
         method: 'GET',
         headers: {
@@ -226,19 +232,23 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
           'Expires': '0'
         }
       });
+      
       if (response.ok) {
         const data = await response.json();
-        console.log('📊 Estadísticas cargadas:', data);
         setStatsData(data);
+        // Solo log en modo debug
+        if (DEBUG_MODE) console.log('✅ Estadísticas cargadas');
       } else {
-        console.error('Error cargando estadísticas:', response.status);
+        console.error('❌ Error cargando estadísticas:', response.status);
+        // No establecer datos null para mantener datos anteriores
       }
     } catch (error) {
-      console.error('Error fetching estadísticas:', error);
+      console.error('💥 Error de red cargando estadísticas:', error);
+      // No establecer datos null para mantener datos anteriores
     } finally {
       setIsLoadingStats(false);
     }
-  }, [isAuthenticated, selectedDateRange]);
+  }, [isAuthenticated, selectedDateRange, isLoadingStats]);
 
 // ========================================
 // 📊 SECCIÓN: FUNCIONES DE DATOS Y API (196-350)
@@ -255,13 +265,13 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
         url += `&año=${filtroAño}`;
       }
 
-      console.log('🔍 Solicitando datos del gráfico:', url);
+      // Solo log en modo debug
+      if (DEBUG_MODE) console.log('📈 Gráfico cargado');
       const response = await fetch(url);
       const data = await response.json();
 
       if (data.success) {
         setDatosGrafico(data);
-        console.log('📈 Datos gráfico cargados:', data);
       }
     } catch (error) {
       console.error('Error loading gráfico datos:', error);
@@ -270,45 +280,37 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
     }
   }, [tipoGrafico, filtroMes, filtroAño]);
 
-  // Cargar datos cuando se monta el componente o cambia la pestaña
+  // 🚀 EFFECT PRINCIPAL - Cargar datos cuando se monta el componente o cambia la pestaña
   useEffect(() => {
-    if (isAuthenticated) {
-      if (activeTab === 'overview' || activeTab === 'analytics') {
-        fetchAnalytics();
-        fetchGraficoDatos();
-        fetchEstadisticas(); // Agregar esta línea para cargar las estadísticas del período
-      } else if (activeTab === 'users') {
-        fetchUsers();
-      } else if (activeTab === 'historial') {
-        fetchClientesConTransacciones();
-      }
+    if (!isAuthenticated) return;
+    
+    // ⚡ Cargando datos para tab: ${activeTab} (log reducido)
+    
+    if (activeTab === 'overview' || activeTab === 'analytics') {
+      fetchAnalytics();
+      fetchGraficoDatos();
+      fetchEstadisticas();
+    } else if (activeTab === 'users') {
+      fetchUsers();
+    } else if (activeTab === 'historial') {
+      fetchClientesConTransacciones();
     }
   }, [activeTab, isAuthenticated, tipoGrafico, fetchGraficoDatos, fetchEstadisticas]);
 
-  // Effect separado para recargar cuando cambien los filtros específicos
+  // 📊 EFFECT GRÁFICO - Solo para cambios de filtros de fecha específicos
   useEffect(() => {
-    if (
-      isAuthenticated &&
-      (activeTab === 'overview' || activeTab === 'analytics')
-    ) {
+    if (isAuthenticated && (activeTab === 'overview' || activeTab === 'analytics')) {
       fetchGraficoDatos();
     }
   }, [filtroMes, filtroAño, isAuthenticated, activeTab, fetchGraficoDatos]);
 
-  // Cargar estadísticas cuando cambie el período o tab analytics
+  // 📈 EFFECT ESTADÍSTICAS - Solo para cambios de período de estadísticas
   useEffect(() => {
     if (activeTab === 'analytics' && isAuthenticated) {
+      // 📊 Actualizando estadísticas (log reducido)
       fetchEstadisticas();
     }
   }, [selectedDateRange, activeTab, isAuthenticated, fetchEstadisticas]);
-
-  // Cargar datos inmediatamente al montar el componente
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchEstadisticas();
-      fetchAnalytics();
-    }
-  }, [isAuthenticated, fetchEstadisticas]);
 
   // Listener para eventos de actualización de metas
   useEffect(() => {
@@ -343,7 +345,10 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
       if (data.success) {
         const stats = data.estadisticas;
 
-        console.log('📊 Datos recibidos del API:', stats);
+        // 🎯 LOG REDUCIDO: Solo en modo debug
+        if (DEBUG_MODE) {
+          console.log('📊 Analytics cargado:', `${stats.resumen.totalClientes} clientes, $${stats.resumen.totalMonto}`);
+        }
 
         // Mapear a la estructura esperada
         setAnalytics({
@@ -371,11 +376,7 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
               : [], // Sin productos fallback, mostrar array vacío
         });
 
-        console.log('📊 Analytics actualizado:', {
-          totalClientes: stats.resumen.totalClientes,
-          totalConsumos: stats.resumen.totalConsumos,
-          totalMonto: stats.resumen.totalMonto,
-        });
+        // ✅ Analytics cargado, log removido para reducir spam
       }
     } catch (error) {
       console.error('Error loading analytics:', error);
@@ -1549,12 +1550,7 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
                         <div className="space-y-3 max-h-64 overflow-y-auto">
                           {clienteHistorial.historial?.map(
                             (consumo: any, index: number) => {
-                              // 🔍 Debug temporal para ver los datos del consumo
-                              console.log('🔍 Consumo data:', {
-                                id: consumo.id,
-                                productos: consumo.productos,
-                                tieneProductos: consumo.productos && consumo.productos.length > 0
-                              });
+                              // ✅ Debug removido para reducir spam en consola
                               
                               return (
                                 <div

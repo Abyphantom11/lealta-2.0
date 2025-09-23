@@ -3,7 +3,7 @@ import { prisma } from '../../../../lib/prisma';
 import { hash } from 'bcryptjs';
 import { z } from 'zod';
 import { logger } from '@/utils/production-logger';
-// import { sendEmail } from '@/lib/emailService'; // 🚫 TEMPORALMENTE DESACTIVADO - REACTIVAR POST-LANZAMIENTO
+
 
 // Forzar renderizado dinámico para esta ruta que usa headers
 export const dynamic = 'force-dynamic';

@@ -4,7 +4,11 @@ import fs from 'fs/promises';
 import path from 'path';
 
 const prisma = new PrismaClient();
-const PORTAL_CONFIG_PATH = path.join(process.cwd(), 'portal-config.json');
+
+// 🔒 BUSINESS ISOLATION: Configuración por business
+function getPortalConfigPath(businessId: string): string {
+  return path.join(process.cwd(), 'config', 'portal', `portal-config-${businessId}.json`);
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -88,13 +92,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 🔧 Obtener configuración de puntos dinámica
+    // 🔧 Obtener configuración de puntos dinámica POR BUSINESS
     let bonusPorRegistro = 100; // Valor por defecto
     try {
-      const configContent = await fs.readFile(PORTAL_CONFIG_PATH, 'utf-8');
+      const configPath = getPortalConfigPath(businessId);
+      const configContent = await fs.readFile(configPath, 'utf-8');
       const config = JSON.parse(configContent);
       bonusPorRegistro = config.configuracionPuntos?.bonusPorRegistro || 100;
-      console.log(`💰 Bonus por registro configurado: ${bonusPorRegistro}`);
+      console.log(`💰 Bonus por registro configurado para business ${businessId}: ${bonusPorRegistro}`);
     } catch (error) {
       console.warn('⚠️ No se pudo cargar configuración de puntos, usando valor por defecto:', error);
     }

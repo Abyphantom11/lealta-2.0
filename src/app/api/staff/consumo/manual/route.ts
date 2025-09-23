@@ -3,7 +3,10 @@ import { PrismaClient } from '@prisma/client';
 import fs from 'fs/promises';
 import { join } from 'path';
 
-const PORTAL_CONFIG_PATH = join(process.cwd(), 'portal-config.json');
+// 🔒 BUSINESS ISOLATION: Configuración por business
+function getPortalConfigPath(businessId: string): string {
+  return join(process.cwd(), 'config', 'portal', `portal-config-${businessId}.json`);
+}
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
@@ -155,15 +158,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 🔧 Obtener configuración de puntos dinámica
+    // 🔧 Obtener configuración de puntos dinámica POR BUSINESS
     let puntosPorDolar = 4; // Valor por defecto actualizado para coincidir con config actual
     try {
-      const configContent = await fs.readFile(PORTAL_CONFIG_PATH, 'utf-8');
+      const configPath = getPortalConfigPath(user.businessId);
+      const configContent = await fs.readFile(configPath, 'utf-8');
       const config = JSON.parse(configContent);
       puntosPorDolar = config.configuracionPuntos?.puntosPorDolar || 4;
-      console.log('✅ Configuración de puntos cargada:', {
+      console.log('✅ Configuración de puntos cargada para business:', {
+        businessId: user.businessId,
         puntosPorDolar,
-        configPath: PORTAL_CONFIG_PATH,
+        configPath,
         fullConfig: config.configuracionPuntos
       });
     } catch (error) {

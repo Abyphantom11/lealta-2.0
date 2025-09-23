@@ -152,7 +152,7 @@ export default function BusinessSuperAdminPage() {
   }
 
   return (
-    <PWALayout showInstallPrompt={false} promptPosition="bottom">
+    <PWALayout>
       <SuperAdminPage businessId={businessId} />
     </PWALayout>
   );

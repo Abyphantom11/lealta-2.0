@@ -236,26 +236,25 @@ export function useAuth(requiredRole?: UserRole) {
 export function useRequireAuth(requiredRole?: UserRole) {
   const auth = useAuth(requiredRole);
 
-  console.log('🔒 useRequireAuth: Estado actual:', {
-    loading: auth.loading,
-    hasUser: !!auth.user,
-    userRole: auth.user?.role,
-    requiredRole,
-    error: auth.error
-  });
+  // 🎯 LOG REDUCIDO: Solo mostrar en cambios críticos, no en cada render
+  const shouldLog = !auth.loading && (!!auth.error || !auth.user);
+  if (shouldLog) {
+    console.log('🔒 useRequireAuth:', { 
+      hasUser: !!auth.user, 
+      role: auth.user?.role,
+      error: auth.error 
+    });
+  }
 
   // Mostrar loading mientras se verifica
   if (auth.loading) {
-    console.log('⏳ useRequireAuth: Mostrando loading');
     return {
       ...auth,
       isAuthenticated: false,
     };
   }
 
-  console.log('🔓 useRequireAuth: Autenticación completada:', {
-    isAuthenticated: !!auth.user
-  });
+  // ✅ Autenticación completada, log removido para reducir spam
 
   // Si no hay usuario, el hook ya redirigió
   return {

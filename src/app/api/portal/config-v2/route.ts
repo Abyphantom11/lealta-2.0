@@ -301,24 +301,24 @@ export async function GET(request: NextRequest) {
       tarjetas: await (async () => {
         const adminConfig = await getAdminTarjetas(businessId);
         if (adminConfig && adminConfig.tarjetas && adminConfig.tarjetas.length > 0) {
-          // ✅ CORRECCIÓN: Transformar correctamente la estructura de niveles
-          const tarjetaBase = adminConfig.tarjetas[0]; // Primera tarjeta con niveles
-          if (tarjetaBase && tarjetaBase.niveles && Array.isArray(tarjetaBase.niveles)) {
-            return tarjetaBase.niveles.map((nivel: any) => ({
-              id: `tarjeta-${nivel.nombre?.toLowerCase()}`,
-              nivel: nivel.nombre,
-              nombrePersonalizado: `Tarjeta ${nivel.nombre}`,
-              textoCalidad: nivel.beneficio || `Cliente ${nivel.nombre}`,
+          // ✅ CORRECCIÓN: Usar la estructura correcta de tarjetas
+          const tarjetas = adminConfig.tarjetas;
+          if (tarjetas && Array.isArray(tarjetas)) {
+            return tarjetas.map((tarjeta: any) => ({
+              id: `tarjeta-${tarjeta.nivel?.toLowerCase()}`,
+              nivel: tarjeta.nivel,
+              nombrePersonalizado: `Tarjeta ${tarjeta.nivel}`,
+              textoCalidad: tarjeta.beneficio || `Cliente ${tarjeta.nivel}`,
               colores: {
-                gradiente: nivel.colores || ['#666666', '#999999'],
+                gradiente: tarjeta.colores || ['#666666', '#999999'],
                 texto: '#FFFFFF',
-                nivel: nivel.colores?.[0] || '#666666'
+                nivel: tarjeta.colores?.[0] || '#666666'
               },
               condiciones: {
-                puntosMinimos: nivel.puntosRequeridos || 0,
-                visitasMinimas: nivel.visitasRequeridas || 0
+                puntosMinimos: tarjeta.puntosRequeridos || 0,
+                visitasMinimas: tarjeta.visitasRequeridas || 0
               },
-              beneficio: `${nivel.descuento || 0}% de descuento en compras`,
+              beneficio: `${tarjeta.descuento || 0}% de descuento en compras`,
               activo: true
             }));
           }

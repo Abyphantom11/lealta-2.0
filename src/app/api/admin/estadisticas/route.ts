@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { TopCliente, ProductosConsumo, ProductoConsumo, GoalsConfig, ProductVentasData, EmpleadoStats } from '../../../../types/api-routes';
 import { withAuth } from '../../../../middleware/requireAuth';
-
-const prisma = new PrismaClient();
+import { prisma } from '../../../../lib/prisma';
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
@@ -19,14 +17,32 @@ export async function GET(request: NextRequest) {
   };
 
   return withAuth(request, async (session) => {
-    try {
-      console.log(`📊 Estadísticas request by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
+    try {      
+      // Solo log en development para debugging
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`📊 Stats: ${session.role} - ${session.businessId}`);
+      }
       
       // SuperAdmin: Si no tiene businessId, mostrar todas las estadísticas
       // Admins normales: Solo su business
       const targetBusinessId = session.role === 'superadmin' 
         ? (request.nextUrl.searchParams.get('businessId') || session.businessId)
         : session.businessId;
+      
+      // Validar que tengamos un businessId válido
+      if (!targetBusinessId) {
+        console.error('❌ No se pudo determinar businessId para estadísticas');
+        return NextResponse.json({
+          success: false,
+          error: 'BusinessId no encontrado',
+          message: 'No se pudo determinar el negocio para las estadísticas'
+        }, { status: 400 });
+      }
+      
+      // Log optimizado solo en development
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`📊 BusinessId: ${targetBusinessId}`);
+      }
       
       const searchParams = request.nextUrl.searchParams;
     const periodo = searchParams.get('periodo') || 'today'; // today, week, month, all
@@ -107,20 +123,12 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    console.log(
-      `📊 Debug - Período: ${periodo}, Fecha inicio: ${fechaInicio.toISOString()}`
-    );
-    console.log(`📊 Debug - Consumos encontrados: ${consumos.length}`);
+    // ✅ Log completamente desactivado para evitar spam
+    // if (process.env.NODE_ENV === 'development') {
+    //   console.log(`📊 Stats: ${consumos.length} consumos`);
+    // }
 
-    if (consumos.length > 0) {
-      console.log('📊 Debug - Primer consumo:', {
-        id: consumos[0].id,
-        fecha: consumos[0].registeredAt,
-        total: consumos[0].total,
-        cliente: consumos[0].cliente.nombre,
-        cedula: consumos[0].cliente.cedula,
-      });
-    }
+    // ✅ Debug de primer consumo removido para reducir spam
 
     // Calcular estadísticas avanzadas
     const totalConsumos = consumos.length;
@@ -169,6 +177,7 @@ export async function GET(request: NextRequest) {
         include: {
           consumos: {
             where: {
+              businessId: targetBusinessId, // ✅ FILTRO POR BUSINESS AGREGADO
               registeredAt: {
                 gte: fechaInicio,
                 lte: fechaActual,
@@ -194,8 +203,10 @@ export async function GET(request: NextRequest) {
     try {
       clientesActivos = await prisma.cliente.count({
         where: {
+          businessId: targetBusinessId, // ✅ FILTRO POR BUSINESS AGREGADO
           consumos: {
             some: {
+              businessId: targetBusinessId, // ✅ DOBLE FILTRO por seguridad
               registeredAt: {
                 gte: new Date(fechaActual.getTime() - 30 * 24 * 60 * 60 * 1000), // Últimos 30 días
               },
@@ -226,6 +237,7 @@ export async function GET(request: NextRequest) {
         include: {
           consumos: {
             where: {
+              businessId: targetBusinessId, // ✅ FILTRO POR BUSINESS AGREGADO
               registeredAt: {
                 gte: fechaInicio,
                 lte: fechaActual,
@@ -319,7 +331,7 @@ export async function GET(request: NextRequest) {
     };
 
     // Calcular metas dinámicas
-    console.log('📊 BusinessGoals cargadas:', businessGoals);
+    // ✅ BusinessGoals log removido para reducir spam
     const targetRevenue = getTargetForPeriod(businessGoals, 'Revenue');
     const targetClients = getTargetForPeriod(businessGoals, 'Clients');
     const targetTransactions = getTargetForPeriod(businessGoals, 'Transactions');
@@ -344,21 +356,16 @@ export async function GET(request: NextRequest) {
     const clienteTop = topClientes[0];
     const valorClienteTop = clienteTop ? clienteTop.totalGastado : 0;
 
-    console.log(`📊 Debug - Estadísticas calculadas:`, {
-      totalConsumos,
-      totalMonto,
-      totalPuntos,
-      clientesUnicos,
-      ticketPromedio,
-      tasaRetencion,
-      clientesActivos,
-      clientesRecurrentes,
-    });
+    // ✅ Debug de estadísticas calculadas removido para reducir spam
 
     // Obtener estadísticas de clientes totales con manejo de errores
     let totalClientes = 0;
     try {
-      totalClientes = await prisma.cliente.count();
+      totalClientes = await prisma.cliente.count({
+        where: {
+          businessId: targetBusinessId // ✅ FILTRO POR BUSINESS AGREGADO
+        }
+      });
     } catch (error) {
       console.error('🚨 Error obteniendo total de clientes:', error);
       totalClientes = clientesUnicos; // Fallback conservador
@@ -371,11 +378,7 @@ export async function GET(request: NextRequest) {
     const visitasEstimadas = Math.round(totalConsumos * 1.2);
     const tasaConversionVisitas = visitasEstimadas > 0 ? (totalConsumos / visitasEstimadas) * 100 : 0;
 
-    console.log(`👥 Debug - Clientes:`, {
-      totalClientes,
-      clientesActivos,
-      clientesUnicos,
-    });
+    // ✅ Debug de clientes removido para reducir spam
 
     // Formatear top clientes para el dashboard
     const topClientesFormatted = topClientes.map((cliente, index) => {
@@ -482,7 +485,7 @@ export async function GET(request: NextRequest) {
         trend: '+0%' // Por ahora sin cálculo de tendencia
       }));
 
-    console.log(`🛍️ Top productos reales encontrados:`, topProducts.map(p => `${p.name} (${p.sales} unidades)`));
+    // ✅ Top productos log removido para reducir spam
 
     return NextResponse.json({
       success: true,
@@ -556,41 +559,12 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('❌ Error al obtener estadísticas:', error);
-
-    // En lugar de datos fallback ficticios, devolver estructura vacía pero real
+    
     return NextResponse.json({
       success: false,
-      error: 'Error temporal de conexión - reintentar',
-      periodo: 'today',
-      fechaInicio: new Date(),
-      estadisticas: {
-        resumen: {
-          totalConsumos: 0,
-          totalMonto: 0,
-          totalPuntos: 0,
-          clientesUnicos: 0,
-          totalClientes: 0,
-          clientesActivos: 0,
-          promedioVenta: 0,
-        },
-        metricas: {
-          totalRevenue: { current: 0, previous: 0, target: 100, format: 'currency' as const },
-          totalClients: { current: 0, previous: 0, target: 5, format: 'number' as const },
-          avgTicket: { current: 0, previous: 0, target: 20, format: 'currency' as const },
-          totalTransactions: { current: 0, previous: 0, target: 8, format: 'number' as const },
-          clientRetention: { current: 0, previous: 0, target: 70, format: 'percentage' as const },
-          conversionRate: { current: 0, previous: 0, target: 80, format: 'percentage' as const },
-          topClientValue: { current: 0, previous: 0, target: 150, format: 'currency' as const },
-          activeClients: { current: 0, previous: 0, target: 50, format: 'number' as const },
-        },
-        topClientes: [],
-        consumosRecientes: [],
-        empleadosStats: [],
-        topProducts: [],
-      },
-    });
-  } finally {
-    await prisma.$disconnect();
+      error: error instanceof Error ? error.message : 'Error interno del servidor',
+      message: 'Error temporal al cargar estadísticas'
+    }, { status: 500 });
   }
   }, authConfig);
 }

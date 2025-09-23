@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { withAuth, AuthConfigs } from '../../../../../middleware/requireAuth';
+import { withAuth, AuthConfig } from '../../../../../middleware/requireAuth';
 
 const prisma = new PrismaClient();
 
-// 🔒 POST - Búsqueda de clientes (PROTEGIDO - READ_ONLY)
+// Configuración específica para búsqueda de clientes
+const CLIENTS_SEARCH_CONFIG: AuthConfig = {
+  requiredPermission: 'clients.read', // Usar permiso específico que STAFF tiene
+  allowedRoles: ['superadmin', 'admin', 'staff'] as const,
+  requireBusinessOwnership: true,
+  logAccess: true
+};
+
+// 🔒 POST - Búsqueda de clientes (PROTEGIDO - STAFF puede leer clientes)
 export async function POST(request: NextRequest) {
   return withAuth(request, async (session) => {
     try {
@@ -86,5 +94,5 @@ export async function POST(request: NextRequest) {
   } finally {
     await prisma.$disconnect();
   }
-  }, AuthConfigs.READ_ONLY);
+  }, CLIENTS_SEARCH_CONFIG);
 }
