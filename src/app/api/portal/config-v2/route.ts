@@ -297,11 +297,40 @@ export async function GET(request: NextRequest) {
         updatedAt: favoritoDelDia.updatedAt.toISOString()
       }] : [],
 
-      // CONFIGURACIÓN DE TARJETAS - ✅ PRIORIZAR ADMIN CONFIG CON SINCRONIZACIÓN MEJORADA
+      // CONFIGURACIÓN DE TARJETAS - ✅ PRIORIZAR BD EN PRODUCCIÓN, JSON EN DESARROLLO
       tarjetas: await (async () => {
         console.log(`🔍 Loading tarjetas config for business: ${businessId}`);
         
-        // 1. Intentar obtener configuración desde admin (JSON files)
+        // 🚀 PRIORIDAD 1: Intentar PostgreSQL primero (especialmente en producción)
+        console.log(`�️ Checking PostgreSQL config first...`);
+        if (tarjetasConfig?.levelsConfig) {
+          console.log(`✅ Found PostgreSQL config, using database data`);
+          
+          const levels = Object.entries(tarjetasConfig.levelsConfig).map(([levelName, config]: [string, any]) => ({
+            id: `tarjeta-${levelName}`,
+            nivel: levelName.charAt(0).toUpperCase() + levelName.slice(1),
+            nombrePersonalizado: config.nombrePersonalizado || `Tarjeta ${levelName.charAt(0).toUpperCase() + levelName.slice(1)}`,
+            textoCalidad: config.textoCalidad || config.benefits?.[0] || `Cliente ${levelName}`,
+            colores: {
+              gradiente: config.colors || ['#666666', '#999999'],
+              texto: '#FFFFFF',
+              nivel: config.colors?.[0] || '#666666'
+            },
+            condiciones: {
+              puntosMinimos: config.minPoints || 0,
+              visitasMinimas: config.minVisits || 0,
+              gastosMinimos: config.minSpent || 0
+            },
+            beneficio: config.benefits?.[0] || config.beneficio || `Cliente ${levelName}`,
+            activo: config.active !== false
+          }));
+          
+          console.log(`✅ Using PostgreSQL config with ${levels.length} tarjetas`);
+          return levels;
+        }
+        
+        // 🚀 PRIORIDAD 2: Intentar admin config (JSON files) como fallback
+        console.log(`📁 PostgreSQL config not found, trying admin JSON config...`);
         const adminConfig = await getAdminTarjetas(businessId);
         console.log(`📊 Admin config status:`, {
           found: !!adminConfig,
@@ -312,7 +341,7 @@ export async function GET(request: NextRequest) {
         
         if (adminConfig && adminConfig.tarjetas && adminConfig.tarjetas.length > 0) {
           // ✅ USAR CONFIGURACIÓN CENTRAL DE TARJETAS DIRECTAMENTE
-          console.log(`✅ Using admin config with ${adminConfig.tarjetas.length} tarjetas`);
+          console.log(`✅ Using admin JSON config with ${adminConfig.tarjetas.length} tarjetas`);
           return adminConfig.tarjetas.map((tarjeta: any) => ({
             id: tarjeta.id || `tarjeta-${tarjeta.nivel?.toLowerCase()}`,
             nivel: tarjeta.nivel,
@@ -333,33 +362,8 @@ export async function GET(request: NextRequest) {
           }));
         }
         
-        // 2. Si no hay admin config, usar PostgreSQL config
-        console.log(`⚠️ No admin config found, using PostgreSQL fallback`);
-        if (tarjetasConfig?.levelsConfig) {
-          const levels = Object.entries(tarjetasConfig.levelsConfig).map(([levelName, config]: [string, any]) => ({
-            id: `tarjeta-${levelName}`,
-            nivel: levelName.charAt(0).toUpperCase() + levelName.slice(1),
-            nombrePersonalizado: `Tarjeta ${levelName.charAt(0).toUpperCase() + levelName.slice(1)}`,
-            textoCalidad: config.benefits?.[0] || `Cliente ${levelName}`,
-            colores: {
-              gradiente: config.colors || ['#666666', '#999999'],
-              texto: '#FFFFFF',
-              nivel: config.colors?.[0] || '#666666'
-            },
-            condiciones: {
-              puntosMinimos: config.minPoints || 0,
-              visitasMinimas: config.minVisits || 0,
-              gastosMinimos: config.minSpent || 0
-            },
-            beneficio: config.benefits?.join(', ') || `Cliente ${levelName}`,
-            activo: true
-          }));
-          console.log(`✅ Using PostgreSQL config with ${levels.length} niveles`);
-          return levels;
-        }
-        
-        // 3. Fallback final: configuración por defecto
-        console.log(`⚠️ Using default fallback config`);
+        // 🚀 PRIORIDAD 3: Fallback final con configuración por defecto
+        console.log(`⚠️ No config found, using default fallback`);
         return generateNiveles(null).map((nivel: any) => ({
           id: `tarjeta-${nivel.nombre?.toLowerCase()}`,
           nivel: nivel.nombre,

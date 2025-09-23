@@ -14,25 +14,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`🔧 MIGRACIÓN: API desactivada - Schema actual requiere businessId obligatorio`);
+    console.log(`🔧 MIGRACIÓN: Asignando clientes sin businessId al business: ${businessId} (${targetBusinessSubdomain})`);
 
-    // NOTA: Esta API está desactivada porque el schema actual (Cliente.businessId: String)
-    // ya requiere businessId como campo obligatorio. No pueden existir registros con businessId null.
-    
-    return NextResponse.json({
-      success: true,
-      message: 'Migración no necesaria - Schema actual requiere businessId obligatorio',
-      migrated: 0,
-      note: 'Todos los registros nuevos ya tienen businessId requerido'
-    });
-
-    /* CÓDIGO LEGACY COMENTADO - NO FUNCIONA CON SCHEMA ACTUAL
     // 1. Encontrar clientes sin businessId
     const clientesSinBusiness = await prisma.cliente.findMany({
       where: {
-        businessId: {
-          equals: null
-        }
+        businessId: null
       },
       select: {
         id: true,
@@ -126,7 +113,6 @@ export async function POST(request: NextRequest) {
         nombre: c.nombre
       }))
     });
-    */
 
   } catch (error) {
     console.error('❌ Error en migración de clientes:', error);

@@ -134,37 +134,33 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '', busin
   useEffect(() => {
     const fetchClientes = async () => {
       try {
-        // ✅ USAR ENDPOINT ADMIN CON AUTENTICACIÓN ROBUSTA
-        const url = '/api/admin/clients/lista';
+        // 🔥 BUSINESS CONTEXT: Incluir businessId en la petición
+        const url = businessId ? `/api/cliente/lista?businessId=${businessId}` : '/api/cliente/lista';
         const headers: HeadersInit = {
           'Content-Type': 'application/json',
         };
         
-        console.log('🔍 CLIENTES: Fetching desde endpoint admin autenticado');
+        // Agregar businessId en header también para mayor compatibilidad
+        if (businessId) {
+          headers['x-business-id'] = businessId;
+        }
+
+        console.log('🔍 CLIENTES: Fetching con businessId:', businessId);
         
-        const response = await fetch(url, { 
-          headers,
-          credentials: 'include' // ✅ CRITICAL: Include auth cookies
-        });
+        const response = await fetch(url, { headers });
         const data = await response.json();
         
         console.log('📊 CLIENTES: Respuesta recibida:', {
           success: data.success,
           count: data.clientes?.length || 0,
-          businessId: data.businessId,
-          userRole: data.userRole,
-          totalCount: data.totalCount
+          businessId
         });
         
-        if (data.success && data.clientes) {
-          console.log('✅ CLIENTES: Datos cargados exitosamente', data.clientes);
+        if (data.success) {
           setClientes(data.clientes);
           setFilteredClientes(data.clientes);
         } else {
-          console.error('❌ CLIENTES: Error en respuesta:', data.error || 'Respuesta inválida');
-          if (response.status === 401) {
-            console.error('🔐 CLIENTES: Usuario no autenticado');
-          }
+          console.error('❌ CLIENTES: Error en respuesta:', data.error);
         }
       } catch (error) {
         console.error('❌ CLIENTES: Error cargando clientes:', error);
@@ -183,9 +179,7 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '', busin
       
       setLoadingHistorial(true);
       try {
-        const response = await fetch('/api/admin/canjes', {
-          credentials: 'include' // ✅ CRITICAL: Include auth cookies
-        });
+        const response = await fetch('/api/admin/canjes');
         const data = await response.json();
         if (data.success) {
           setHistorialCanjes(data.canjes);
@@ -229,8 +223,7 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '', busin
     setIsSearching(true);
     try {
       const response = await fetch(
-        `/api/clientes/search?q=${encodeURIComponent(query)}`,
-        { credentials: 'include' } // ✅ CRITICAL: Include auth cookies
+        `/api/clientes/search?q=${encodeURIComponent(query)}`
       );
       const data = await response.json();
 

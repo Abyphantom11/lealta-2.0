@@ -338,14 +338,50 @@ export default function TarjetaEditorUnified({
     });
   };
 
-  // Función para futuras mejoras de edición de tarjetas
-  // const handleTarjetaFieldChange = (field: keyof TarjetaConfig, value: any) => {
-  //   if (!editedTarjeta) return;
-  //   setEditedTarjeta({
-  //     ...editedTarjeta,
-  //     [field]: value,
-  //   });
-  // };
+  const handleTarjetaFieldChange = (field: keyof TarjetaConfig, value: any) => {
+    if (!editedTarjeta) return;
+
+    setEditedTarjeta({
+      ...editedTarjeta,
+      [field]: value,
+    });
+  };
+
+  // 🔧 AUTO-CORRECCIÓN JERÁRQUICA AL CARGAR DATOS
+  const autoCorrectHierarchy = (niveles: NivelTarjetaData[]): NivelTarjetaData[] => {
+    const corrected = [...niveles];
+    
+    // Ordenar por jerarquía para aplicar correcciones
+    corrected.sort((a, b) => {
+      const indexA = JERARQUIA_NIVELES.indexOf(a.nombre as any);
+      const indexB = JERARQUIA_NIVELES.indexOf(b.nombre as any);
+      return indexA - indexB;
+    });
+
+    // Auto-corregir para mantener progresión lógica
+    for (let i = 1; i < corrected.length; i++) {
+      const current = corrected[i];
+      const previous = corrected[i - 1];
+
+      // Asegurar que cada nivel tenga valores progresivamente mayores
+      if (current.puntosRequeridos <= previous.puntosRequeridos) {
+        current.puntosRequeridos = previous.puntosRequeridos + 500;
+        console.warn(`🔧 Auto-corregido: ${current.nombre} puntos ${current.puntosRequeridos}`);
+      }
+
+      if (current.visitasRequeridas <= previous.visitasRequeridas) {
+        current.visitasRequeridas = previous.visitasRequeridas + 5;
+        console.warn(`🔧 Auto-corregido: ${current.nombre} visitas ${current.visitasRequeridas}`);
+      }
+
+      if (current.descuento <= previous.descuento) {
+        current.descuento = previous.descuento + 5;
+        console.warn(`🔧 Auto-corregido: ${current.nombre} descuento ${current.descuento}%`);
+      }
+    }
+
+    return corrected;
+  };
 
   if (!currentTarjeta || !currentNivel) {
     return (

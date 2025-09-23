@@ -62,7 +62,113 @@
     }
   ],
   "favoritoDelDia": [],
-  "tarjetas": [],
+  "tarjetas": [
+    {
+      "id": "tarjeta-bronce",
+      "nivel": "Bronce",
+      "nombrePersonalizado": "Tarjeta Bronce",
+      "textoCalidad": "Cliente Inicial",
+      "colores": {
+        "gradiente": [
+          "#CD7F32",
+          "#8B4513"
+        ],
+        "texto": "#FFFFFF",
+        "nivel": "#CD7F32"
+      },
+      "condiciones": {
+        "puntosMinimos": 0,
+        "gastosMinimos": 0,
+        "visitasMinimas": 0
+      },
+      "beneficio": "Acceso a beneficios Bronce",
+      "activo": true
+    },
+    {
+      "id": "tarjeta-plata",
+      "nivel": "Plata",
+      "nombrePersonalizado": "Tarjeta Plata",
+      "textoCalidad": "Cliente Frecuente",
+      "colores": {
+        "gradiente": [
+          "#C0C0C0",
+          "#808080"
+        ],
+        "texto": "#FFFFFF",
+        "nivel": "#C0C0C0"
+      },
+      "condiciones": {
+        "puntosMinimos": 100,
+        "gastosMinimos": 500,
+        "visitasMinimas": 5
+      },
+      "beneficio": "9 dadadasd",
+      "activo": true
+    },
+    {
+      "id": "tarjeta-oro",
+      "nivel": "Oro",
+      "nombrePersonalizado": "Tarjeta Oro",
+      "textoCalidad": "Cliente VIP",
+      "colores": {
+        "gradiente": [
+          "#FFD700",
+          "#FFA500"
+        ],
+        "texto": "#FFFFFF",
+        "nivel": "#FFD700"
+      },
+      "condiciones": {
+        "puntosMinimos": 500,
+        "gastosMinimos": 1500,
+        "visitasMinimas": 10
+      },
+      "beneficio": "Acceso a beneficios Oro",
+      "activo": true
+    },
+    {
+      "id": "tarjeta-diamante",
+      "nivel": "Diamante",
+      "nombrePersonalizado": "Tarjeta Diamante",
+      "textoCalidad": "Cliente Elite",
+      "colores": {
+        "gradiente": [
+          "#B9F2FF",
+          "#00CED1"
+        ],
+        "texto": "#FFFFFF",
+        "nivel": "#B9F2FF"
+      },
+      "condiciones": {
+        "puntosMinimos": 1500,
+        "gastosMinimos": 3000,
+        "visitasMinimas": 15
+      },
+      "beneficio": "Acceso a beneficios Diamante",
+      "activo": true
+    },
+    {
+      "id": "tarjeta-platino",
+      "nivel": "Platino",
+      "nombrePersonalizado": "Tarjeta Platino",
+      "textoCalidad": "Cliente Exclusivo",
+      "colores": {
+        "gradiente": [
+          "#E5E4E2",
+          "#C0C0C0"
+        ],
+        "texto": "#FFFFFF",
+        "nivel": "#E5E4E2"
+      },
+      "condiciones": {
+        "puntosMinimos": 3000,
+        "gastosMinimos": 5000,
+        "visitasMinimas": 30
+      },
+      "beneficio": "Acceso a beneficios Platino",
+      "activo": true
+    }
+  ],
   "nombreEmpresa": "Mi Negocio",
   "settings": {
     "lastUpdated": "2025-09-23T03:43:23.592Z",
@@ -142,6 +248,6 @@
       }
     }
   },
-  "lastUpdated": "2025-09-23T21:16:28.582Z",
+  "lastUpdated": "2025-09-23T22:35:30.017Z",
   "version": "2.0.0"
 }

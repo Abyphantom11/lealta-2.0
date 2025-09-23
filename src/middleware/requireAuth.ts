@@ -32,11 +32,11 @@ export async function requireAuth(
   } = config;
 
   const pathname = request.nextUrl.pathname;
-  // const method = request.method; // Para futuro logging detallado
+  const method = request.method;
 
   // Log de seguridad
   if (logAccess) {
-    // ✅ Auth protecting log removido para evitar spam
+    console.log(`🔒 AUTH: Protecting ${method} ${pathname}`);
   }
 
   // 1. EXTRAER COOKIE DE SESIÓN
@@ -145,10 +145,7 @@ export async function requireAuth(
 
   // ✅ AUTENTICACIÓN EXITOSA
   if (logAccess) {
-    // ✅ Auth success log solo en development
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`✅ AUTH: ${sessionData.role} - ${pathname}`);
-    }
+    console.log(`✅ AUTH SUCCESS: ${sessionData.role} (${sessionData.userId}) - ${pathname}`);
   }
 
   return {
