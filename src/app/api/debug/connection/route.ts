@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Test de conexión a base de datos
     console.log('🔍 Testing database connection...');
@@ -18,13 +18,27 @@ export async function GET(request: NextRequest) {
     
     // Test simple de Prisma
     const userCount = await prisma.user.count();
-    console.log('✅ Database connected, users count:', userCount);
+    const businessCount = await prisma.business.count();
+    const demoUser = await prisma.user.findFirst({ where: { email: 'arepa@gmail.com' } });
+    
+    console.log('✅ Database connected');
+    console.log('- Users count:', userCount);
+    console.log('- Business count:', businessCount);
+    console.log('- Demo user exists:', !!demoUser);
     
     return NextResponse.json({
       status: 'success',
       message: 'Database connection working',
       environment: envCheck,
       userCount,
+      businessCount,
+      demoUserExists: !!demoUser,
+      demoUser: demoUser ? { 
+        id: demoUser.id, 
+        email: demoUser.email, 
+        role: demoUser.role,
+        businessId: demoUser.businessId 
+      } : null,
       timestamp: new Date().toISOString()
     });
     
