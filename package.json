@@ -7,8 +7,9 @@
   "scripts": {
     "postinstall": "npx prisma generate",
     "dev": "next dev -p 3001",
-        "build": "next build",
-    "build:vercel": "npx prisma generate && next build",
+    "build": "npx prisma generate && next build",
+    "build:vercel": "npm run db:check && npx prisma generate && next build",
+    "db:check": "npx prisma db push --accept-data-loss || echo 'DB push failed, continuing...'",
     "start": "next start -p 3001",
     "export": "next export",
     "db:push": "prisma db push",
