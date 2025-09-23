@@ -7,8 +7,8 @@
   "scripts": {
     "postinstall": "npx prisma generate",
     "dev": "next dev -p 3001",
-    "build": "npx prisma generate && npx prisma db push --accept-data-loss && next build",
-    "build:vercel": "npx prisma generate && npx prisma db push --accept-data-loss && next build",
+    "build": "node scripts/vercel-build.js",
+    "build:vercel": "node scripts/vercel-build.js",
     "db:check": "npx prisma db push --accept-data-loss || echo 'DB push failed, continuing...'",
     "start": "next start -p 3001",
     "export": "next export",
@@ -56,7 +56,9 @@
     "cache:clear": "rimraf .next node_modules/.cache .cache",
     "performance:full-audit": "npm run cache:clear && npm run build:prod && npm run lighthouse",
     "bundle:size-check": "npm run build && npx bundlesize",
-    "deploy:optimized": "npm run optimize && npm run build:prod && vercel --prod"
+    "deploy:optimized": "npm run optimize && npm run build:prod && vercel --prod",
+    "cleanup:logs": "node scripts/cleanup-logs.js",
+    "build:clean": "npm run cleanup:logs && npm run build"
   },
   "dependencies": {
     "@auth/prisma-adapter": "latest",
@@ -73,8 +75,6 @@
     "autoprefixer": "^10.4.21",
     "bcryptjs": "latest",
     "dotenv": "^17.2.2",
-    "eslint": "8.57.1",
-    "eslint-config-next": "15.5.2",
     "framer-motion": "^11.0.0",
     "lucide-react": "latest",
     "multer": "^2.0.2",

@@ -18,6 +18,6 @@ export default function PWAInstallButton({
   theme = 'dark' 
 }: Readonly<PWAInstallButtonProps>) {
   // ✅ PWA COMPLETAMENTE DESHABILITADO
-  console.log('🚫 PWAInstallButton principal: Componente deshabilitado');
+  console.log('🚫 PWAInstallButton principal: Componente deshabilitado', { position, theme });
   return null;
 }

@@ -1,54 +1,83 @@
 // utils/business.ts
 /**
  * Utilidades para manejo de Business ID
- * En desarrollo usa un ID hardcodeado, en producción debe venir del contexto de auth
+ * Integrado con NextAuth para obtener el business del usuario autenticado
  */
 
-// TODO: En producción, obtener del contexto de autenticación
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth.config';
+
 const DEVELOPMENT_BUSINESS_ID = 'business_1';
 
 /**
- * Obtiene el Business ID actual
+ * Obtiene el Business ID actual del usuario autenticado
  * En desarrollo: retorna ID hardcodeado
- * En producción: debería obtenerlo del usuario autenticado
+ * En producción: obtiene del usuario autenticado via NextAuth
  */
-export function getCurrentBusinessId(): string {
+export async function getCurrentBusinessId(): Promise<string> {
   // En desarrollo
   if (process.env.NODE_ENV === 'development') {
     return DEVELOPMENT_BUSINESS_ID;
   }
   
-  // TODO: En producción, implementar lógica real
-  // Ejemplo: obtenerlo del contexto de auth, JWT, session, etc.
-  throw new Error('Business ID logic not implemented for production');
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.businessId) {
+      throw new Error('No business ID found in user session');
+    }
+    
+    return session.user.businessId;
+  } catch (error) {
+    throw new Error(`Failed to get business ID: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 /**
  * Verifica si un business ID es válido para el usuario actual
- * En desarrollo: siempre retorna true
- * En producción: debería verificar permisos
+ * En desarrollo: siempre retorna true para el business de desarrollo
+ * En producción: verifica que el usuario tenga acceso al business
  */
-export function canAccessBusiness(businessId: string): boolean {
+export async function canAccessBusiness(businessId: string): Promise<boolean> {
   // En desarrollo
   if (process.env.NODE_ENV === 'development') {
     return businessId === DEVELOPMENT_BUSINESS_ID;
   }
   
-  // TODO: En producción, verificar permisos del usuario
-  return false;
+  try {
+    const userBusinessId = await getCurrentBusinessId();
+    return userBusinessId === businessId;
+  } catch {
+    return false;
+  }
 }
 
 /**
  * Middleware helper para APIs que necesitan business ID
+ * Valida acceso y retorna el business ID verificado
  */
-export function validateBusinessAccess(businessId: string) {
+export async function validateBusinessAccess(businessId: string): Promise<string> {
   if (!businessId) {
     throw new Error('Business ID is required');
   }
   
-  if (!canAccessBusiness(businessId)) {
+  const hasAccess = await canAccessBusiness(businessId);
+  if (!hasAccess) {
     throw new Error('Access denied to this business');
   }
   
   return businessId;
+}
+
+/**
+ * Versión síncrona para contextos cliente (hooks, componentes)
+ * Solo funciona en desarrollo o cuando el businessId ya está validado
+ */
+export function getCurrentBusinessIdSync(): string {
+  if (process.env.NODE_ENV === 'development') {
+    return DEVELOPMENT_BUSINESS_ID;
+  }
+  
+  // En producción, esto debe usarse solo cuando ya tienes el businessId del contexto
+  throw new Error('Use getCurrentBusinessId() async version in production');
 }

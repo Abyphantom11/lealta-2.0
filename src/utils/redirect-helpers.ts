@@ -39,12 +39,15 @@ export function validateBusinessForRedirect(business: any): business is Business
  * Helper para debugging de redirecciones
  */
 export function logRedirect(from: string, to: string, role: UserRole, business: BusinessInfo) {
-  console.log(`🔄 REDIRECT: ${from} -> ${to}`, {
-    role,
-    businessId: business.id,
-    businessSlug: business.subdomain,
-    timestamp: new Date().toISOString()
-  });
+  // Solo log en desarrollo
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`🔄 REDIRECT: ${from} -> ${to}`, {
+      role,
+      businessId: business.id,
+      businessSlug: business.subdomain,
+      timestamp: new Date().toISOString()
+    });
+  }
 }
 
 /**
@@ -64,7 +67,9 @@ export function handleRoleRedirect(
   currentPath?: string
 ) {
   if (!validateBusinessForRedirect(user.business)) {
-    console.error('❌ Business inválido para redirección:', user.business);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('❌ Business inválido para redirección:', user.business);
+    }
     router.push('/login');
     return;
   }

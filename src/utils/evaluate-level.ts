@@ -5,7 +5,9 @@ const prisma = new PrismaClient();
 
 // Función para obtener la configuración del portal
 async function getPortalConfig(businessId: string) {
-  console.log(`🎯 [EVALUATE] Usando configuración central para ${businessId}`);
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`🎯 [EVALUATE] Usando configuración central para ${businessId}`);
+  }
   
   try {
     // ✅ USAR CONFIGURACIÓN CENTRAL - SINGLE SOURCE OF TRUTH
@@ -31,22 +33,28 @@ async function evaluarNivelCliente(cliente: any, businessId: string) {
   const puntosProgreso = cliente.tarjetaLealtad?.puntosProgreso || cliente.puntosAcumulados || cliente.puntos || 0;
   const visitas = cliente.totalVisitas || 0;
 
-  console.log(`🤖 [EVALUATE] Evaluando nivel para cliente ${cliente.id}:`);
-  console.log(`   • PuntosProgreso: ${puntosProgreso}`);
-  console.log(`   • Puntos canjeables: ${cliente.puntos || 0}`);
-  console.log(`   • Visitas: ${visitas}`);
-  console.log(`   • Nivel actual: ${cliente.tarjetaLealtad?.nivel || 'Sin tarjeta'}`);
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`🤖 [EVALUATE] Evaluando nivel para cliente ${cliente.id}:`);
+    console.log(`   • PuntosProgreso: ${puntosProgreso}`);
+    console.log(`   • Puntos canjeables: ${cliente.puntos || 0}`);
+    console.log(`   • Visitas: ${visitas}`);
+    console.log(`   • Nivel actual: ${cliente.tarjetaLealtad?.nivel || 'Sin tarjeta'}`);
+  }
 
   // ✅ USAR CONFIGURACIÓN CENTRAL - ELIMINANDO HARDCODING
   const nivelCorrespondiente = await evaluarNivelCorrespondiente(businessId, puntosProgreso, visitas);
   
-  console.log(`✅ [EVALUATE] Nivel correspondiente calculado: ${nivelCorrespondiente}`);
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`✅ [EVALUATE] Nivel correspondiente calculado: ${nivelCorrespondiente}`);
+  }
   return nivelCorrespondiente;
 }
 
 // Función para crear una nueva tarjeta cuando el cliente no tiene una
 async function createNewCard(cliente: any, nivelCorrespondiente: string, businessId: string) {
-  console.log(`🎴 Creando nueva tarjeta ${nivelCorrespondiente} para cliente ${cliente.id}`);
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`🎴 Creando nueva tarjeta ${nivelCorrespondiente} para cliente ${cliente.id}`);
+  }
   
   return await prisma.tarjetaLealtad.create({
     data: {
@@ -111,7 +119,9 @@ export async function evaluateAndUpdateLevel(clienteId: string, businessId: stri
     const esDegradacion = indexCorrespondiente < indexActual;
 
     if (esAsignacionManual && esDegradacion) {
-      console.log(`🚫 Tarjeta asignada manualmente (${nivelActual}), bloqueando solo degradación automática`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🚫 Tarjeta asignada manualmente (${nivelActual}), bloqueando solo degradación automática`);
+      }
       return {
         message: 'Tarjeta asignada manualmente, no se permite degradación automática',
         nivelActual,
@@ -124,7 +134,9 @@ export async function evaluateAndUpdateLevel(clienteId: string, businessId: stri
     }
 
     if (esAsignacionManual && esAscenso) {
-      console.log(`🆙 Tarjeta asignada manualmente (${nivelActual}), pero permitiendo ascenso automático a ${nivelCorrespondiente}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🆙 Tarjeta asignada manualmente (${nivelActual}), pero permitiendo ascenso automático a ${nivelCorrespondiente}`);
+      }
     }
 
     if (nivelActual === nivelCorrespondiente) {
@@ -171,7 +183,9 @@ export async function evaluateAndUpdateLevel(clienteId: string, businessId: stri
         }
       });
       
-      console.log(`🎉 ASCENSO AUTOMÁTICO: ${nivelActual} → ${nivelCorrespondiente} (puntos: ${nuevoPuntosProgreso})`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🎉 ASCENSO AUTOMÁTICO: ${nivelActual} → ${nivelCorrespondiente} (puntos: ${nuevoPuntosProgreso})`);
+      }
       
       return {
         message: `Tarjeta actualizada de ${nivelActual} a ${nivelCorrespondiente}`,

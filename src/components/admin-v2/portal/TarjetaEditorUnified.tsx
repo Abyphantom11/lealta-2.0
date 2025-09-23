@@ -338,14 +338,14 @@ export default function TarjetaEditorUnified({
     });
   };
 
-  const handleTarjetaFieldChange = (field: keyof TarjetaConfig, value: any) => {
-    if (!editedTarjeta) return;
-
-    setEditedTarjeta({
-      ...editedTarjeta,
-      [field]: value,
-    });
-  };
+  // Función para futuras mejoras de edición de tarjetas
+  // const handleTarjetaFieldChange = (field: keyof TarjetaConfig, value: any) => {
+  //   if (!editedTarjeta) return;
+  //   setEditedTarjeta({
+  //     ...editedTarjeta,
+  //     [field]: value,
+  //   });
+  // };
 
   if (!currentTarjeta || !currentNivel) {
     return (

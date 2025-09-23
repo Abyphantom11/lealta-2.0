@@ -83,17 +83,23 @@ export class PWAController {
    */
   async initialize(pathname: string = '/'): Promise<void> {
     if (this.isInitialized) {
-      console.log('🔄 PWAController ya inicializado');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔄 PWAController ya inicializado');
+      }
       return;
     }
 
     if (typeof window === 'undefined') {
-      console.log('⚠️ PWAController: Entorno servidor, saltando inicialización');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('⚠️ PWAController: Entorno servidor, saltando inicialización');
+      }
       return;
     }
 
     try {
-      console.log('🎯 PWAController: Inicializando sistema PWA unificado...');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🎯 PWAController: Inicializando sistema PWA unificado...');
+      }
       
       // Cargar estado persistido
       this.loadPersistedState();
@@ -116,7 +122,9 @@ export class PWAController {
       // Marcar como inicializado
       this.isInitialized = true;
       
-      console.log('✅ PWAController inicializado:', this.state);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ PWAController inicializado:', this.state);
+      }
       this.notifyListeners();
       
     } catch (error) {
@@ -132,7 +140,9 @@ export class PWAController {
     this.state.currentRoute = pathname;
     
     if (oldRoute !== pathname) {
-      console.log(`🔧 PWAController: Ruta ${oldRoute} → ${pathname}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🔧 PWAController: Ruta ${oldRoute} → ${pathname}`);
+      }
       this.evaluateRoutePermissions();
       this.notifyListeners();
     }
@@ -151,11 +161,13 @@ export class PWAController {
     // Verificar si botón está permitido
     const isButtonAllowed = this.config.buttonAllowedRoutes.includes(currentRoute);
     
-    console.log(`🎯 PWAController ruta ${currentRoute}:`, {
-      excluida: isExcluded,
-      botónPermitido: isButtonAllowed,
-      instalable: this.state.isInstallable && !isExcluded
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🎯 PWAController ruta ${currentRoute}:`, {
+        excluida: isExcluded,
+        botónPermitido: isButtonAllowed,
+        instalable: this.state.isInstallable && !isExcluded
+      });
+    }
   }
 
   /**
@@ -169,7 +181,9 @@ export class PWAController {
     this.state.isInstalled = isStandalone;
     
     if (isStandalone) {
-      console.log('✅ PWA ya instalada - modo standalone detectado');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ PWA ya instalada - modo standalone detectado');
+      }
     }
   }
 
@@ -210,7 +224,9 @@ export class PWAController {
     // Listener para cuando se instala
     window.addEventListener('appinstalled', this.handleAppInstalled);
     
-    console.log('🎯 PWAController: Listeners únicos registrados');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🎯 PWAController: Listeners únicos registrados');
+    }
   }
 
   /**
@@ -219,7 +235,9 @@ export class PWAController {
   private handleBeforeInstallPrompt = (e: Event) => {
     const event = e as BeforeInstallPromptEvent;
     
-    console.log('🎉 PWAController: beforeinstallprompt capturado');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🎉 PWAController: beforeinstallprompt capturado');
+    }
     
     // Verificar si está permitido en la ruta actual
     const isRouteAllowed = this.isRouteAllowed();
@@ -495,7 +513,9 @@ export class PWAController {
     window.removeEventListener('appinstalled', this.handleAppInstalled);
     this.listeners.length = 0;
     this.isInitialized = false;
-    console.log('🧹 PWAController limpiado');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🧹 PWAController limpiado');
+    }
   }
 }
 

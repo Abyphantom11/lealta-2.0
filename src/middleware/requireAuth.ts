@@ -32,7 +32,7 @@ export async function requireAuth(
   } = config;
 
   const pathname = request.nextUrl.pathname;
-  const method = request.method;
+  // const method = request.method; // Para futuro logging detallado
 
   // Log de seguridad
   if (logAccess) {
