@@ -22,18 +22,18 @@ const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 días en ms
 async function getBusinessFromRequest(request: NextRequest) {
   const host = request.headers.get('host') || '';
 
-  // Extraer subdomain o usar un business por defecto para desarrollo
-  if (host.includes('localhost') || host.includes('127.0.0.1')) {
-    // Para desarrollo local, usar el primer business o crear uno de demo
+  // Para desarrollo local y dominio principal de producción
+  if (host.includes('localhost') || host.includes('127.0.0.1') || host === 'lealta.app') {
+    // Para desarrollo local y dominio principal, usar el primer business o crear uno de demo
     const business =
       (await prisma.business.findFirst()) ??
       (await prisma.business.create({
         data: {
-          name: 'Demo Business',
-          slug: 'demo-business',
+          name: 'Lealta Demo',
+          slug: 'demo',
           subdomain: 'demo',
           settings: {
-            contactEmail: 'demo@lealta.com',
+            contactEmail: 'demo@lealta.app',
           },
         },
       }));
@@ -41,7 +41,7 @@ async function getBusinessFromRequest(request: NextRequest) {
     return business;
   }
 
-  // Para producción, extraer del subdomain
+  // Para subdominio de producción, extraer del subdomain
   const subdomain = host.split('.')[0];
   const business = await prisma.business.findUnique({
     where: { subdomain },
@@ -56,7 +56,8 @@ async function findUser(email: string, request: NextRequest) {
   const isLocalDevelopment =
     host.includes('localhost') || 
     host.includes('127.0.0.1') ||
-    host.includes('trycloudflare.com'); // 👈 AGREGADO
+    host.includes('trycloudflare.com') ||
+    host === 'lealta.app'; // ✅ AGREGADO: Dominio principal de producción
 
   if (isLocalDevelopment) {
     // En desarrollo local, buscar usuario por email sin restricción de business
@@ -136,7 +137,8 @@ function validateUser(user: UserWithBusiness | null, request: NextRequest): asse
   const isLocalDevelopment =
     host.includes('localhost') || 
     host.includes('127.0.0.1') ||
-    host.includes('trycloudflare.com'); // 👈 AGREGADO
+    host.includes('trycloudflare.com') ||
+    host === 'lealta.app'; // ✅ AGREGADO: Dominio principal de producción
 
   if (!isLocalDevelopment && !user.business.isActive) {
     throw new Error('Business inactivo');
