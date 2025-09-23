@@ -147,7 +147,10 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '', busin
 
         console.log('🔍 CLIENTES: Fetching con businessId:', businessId);
         
-        const response = await fetch(url, { headers });
+        const response = await fetch(url, { 
+          headers,
+          credentials: 'include' // ✅ CRITICAL: Include auth cookies
+        });
         const data = await response.json();
         
         console.log('📊 CLIENTES: Respuesta recibida:', {
@@ -179,7 +182,9 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '', busin
       
       setLoadingHistorial(true);
       try {
-        const response = await fetch('/api/admin/canjes');
+        const response = await fetch('/api/admin/canjes', {
+          credentials: 'include' // ✅ CRITICAL: Include auth cookies
+        });
         const data = await response.json();
         if (data.success) {
           setHistorialCanjes(data.canjes);
@@ -223,7 +228,8 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '', busin
     setIsSearching(true);
     try {
       const response = await fetch(
-        `/api/clientes/search?q=${encodeURIComponent(query)}`
+        `/api/clientes/search?q=${encodeURIComponent(query)}`,
+        { credentials: 'include' } // ✅ CRITICAL: Include auth cookies
       );
       const data = await response.json();
 
