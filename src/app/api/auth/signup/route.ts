@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { hash } from 'bcryptjs';
 import { z } from 'zod';
+import { logger } from '@/utils/production-logger';
 // import { sendEmail } from '@/lib/emailService'; // 🚫 TEMPORALMENTE DESACTIVADO - REACTIVAR POST-LANZAMIENTO
 
 // Forzar renderizado dinámico para esta ruta que usa headers
@@ -139,9 +140,9 @@ export async function POST(request: NextRequest) {
     try {
       const { createDefaultPortalConfig } = await import('../../../../lib/portal-config-utils');
       await createDefaultPortalConfig(result.business.id, result.business.name);
-      console.log(`🎨 Portal config created for new business: ${result.business.name} (${result.business.id})`);
+      logger.debug(`🎨 Portal config created for new business: ${result.business.name} (${result.business.id})`);
     } catch (portalConfigError) {
-      console.warn('⚠️ Could not create initial portal config:', portalConfigError);
+      logger.warn('⚠️ Could not create initial portal config:', portalConfigError);
       // No fallar el signup por esto - se creará lazy cuando se acceda por primera vez
     }
 
@@ -188,7 +189,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Signup error:', error);
+    logger.error('❌ Signup error:', error);
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(

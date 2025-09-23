@@ -3,6 +3,7 @@ import { prisma } from '../../../../lib/prisma';
 import { z } from 'zod';
 import { put } from '@vercel/blob';
 import { geminiAnalyzer } from '../../../../lib/ai/gemini-analyzer';
+import { logger } from '@/utils/production-logger';
 
 // Forzar renderizado dinámico para esta ruta que usa autenticación
 export const dynamic = 'force-dynamic';
@@ -63,7 +64,7 @@ async function saveImageFile(image: File): Promise<{ filepath: string; publicUrl
     throw new Error(`Archivo demasiado grande: ${Math.round(image.size / 1024 / 1024)}MB. Máximo permitido: 10MB`);
   }
 
-  console.log(`📁 Procesando imagen: ${Math.round(image.size / 1024)}KB`);
+  logger.debug(`📁 Processing consumption image: ${Math.round(image.size / 1024)}KB`);
 
   const timestamp = Date.now();
   const randomString = Math.random().toString(36).substring(2, 8);
@@ -91,17 +92,17 @@ async function processImageWithGemini(imageUrl: string): Promise<{
 }> {
   try {
     // Descargar imagen desde Vercel Blob
-    console.log('📥 Descargando imagen desde Vercel Blob:', imageUrl);
+    logger.debug('📥 Downloading image from Vercel Blob:', imageUrl);
     const response = await fetch(imageUrl);
     const imageBuffer = Buffer.from(await response.arrayBuffer());
     const mimeType = 'image/jpeg';
 
-    console.log('🤖 Procesando imagen con Gemini AI...');
+    logger.debug('🤖 Processing image with Gemini AI...');
 
     // Analizar con Gemini
     const analysis = await geminiAnalyzer.analyzeImage(imageBuffer, mimeType);
 
-    console.log('✅ Análisis completado:', {
+    logger.info('✅ Gemini analysis completed:', {
       total: analysis.total,
       productos: analysis.productos.length,
       confianza: analysis.confianza,
@@ -124,7 +125,7 @@ async function processImageWithGemini(imageUrl: string): Promise<{
     };
 
   } catch (error) {
-    console.error('❌ Error en procesamiento con Gemini:', error);
+    logger.error('❌ Error in Gemini AI processing:', error);
 
     // Fallback values si falla el análisis
     return {
@@ -147,7 +148,7 @@ async function processImageWithGemini(imageUrl: string): Promise<{
 async function loadPuntosConfiguration(): Promise<number> {
   // Usar valor por defecto - la configuración se maneja desde la BD
   const puntosPorDolar = 4;
-  console.log('✅ Configuración de puntos (valor por defecto):', { puntosPorDolar });
+  logger.debug('✅ Points configuration (default value):', { puntosPorDolar });
   return puntosPorDolar;
 }
 
@@ -210,7 +211,7 @@ async function syncTarjetaPuntos(clienteActualizado: any) {
       data: { puntosProgreso: nuevoPuntosProgreso }
     });
     
-    console.log(`📊 PuntosProgreso actualizados: ${puntosProgresoActual} → ${nuevoPuntosProgreso} (manual: ${esAsignacionManual}, acumulados: ${puntosAcumulados})`);
+    logger.debug(`📊 Points progress updated: ${puntosProgresoActual} → ${nuevoPuntosProgreso} (manual: ${esAsignacionManual}, accumulated: ${puntosAcumulados})`);
   }
 }
 
@@ -227,7 +228,7 @@ async function triggerLevelEvaluation(cliente: any) {
       return evaluacionData;
     }
   } catch (error) {
-    console.warn('⚠️ Error disparando evaluación automática:', error);
+    logger.warn('⚠️ Error triggering automatic level evaluation:', error);
   }
   return null;
 }
@@ -268,7 +269,7 @@ export async function POST(request: NextRequest) {
     const analysis = await processImageWithGemini(filepath);
 
     if (analysis.confianza < 0.3) {
-      console.log('⚠️ Confianza baja en el análisis:', analysis.confianza);
+      logger.warn('⚠️ Low confidence in analysis:', analysis.confianza);
     }
 
     const puntosPorDolar = await loadPuntosConfiguration();
@@ -282,10 +283,10 @@ export async function POST(request: NextRequest) {
     const evaluacionData = await triggerLevelEvaluation(cliente);
 
     if (evaluacionData?.actualizado) {
-      console.log(`🆙 ¡Cliente ascendió automáticamente de ${evaluacionData.nivelAnterior} a ${evaluacionData.nivelNuevo}!`);
+      logger.info(`🆙 Client automatically promoted from ${evaluacionData.nivelAnterior} to ${evaluacionData.nivelNuevo}!`);
     }
 
-    console.log('✅ Consumo registrado exitosamente:', {
+    logger.info('✅ Consumption registered successfully:', {
       consumoId: consumo.id,
       cliente: cliente.cedula,
       puntos: puntosGenerados,
@@ -314,7 +315,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: unknown) {
-    console.error('Error en registro de consumo:', error);
+    logger.error('❌ Error in consumption registration:', error);
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(

@@ -16,10 +16,10 @@ interface FavoritoDelDia {
 }
 
 interface FavoritoProps {
-  businessId?: string;
+  readonly businessId?: string;
 }
 
-export default function FavoritoDelDiaSection({ businessId }: FavoritoProps) {
+export default function FavoritoDelDiaSection({ businessId }: Readonly<FavoritoProps>) {
   // 🔄 Auto-refresh hook para sincronización admin → cliente
   const { getFavoritoDelDia, isLoading } = useAutoRefreshPortalConfig({
     businessId,

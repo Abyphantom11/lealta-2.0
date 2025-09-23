@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { logger } from '@/utils/production-logger';
 
 // 📊 API PARA REGISTRAR VISITAS AL PORTAL CLIENTE
 // Este endpoint registra cada visita al portal para analytics del admin
@@ -32,7 +33,7 @@ async function checkDuplicateVisit(sessionId: string, businessId: string): Promi
     });
     return !!existingVisit;
   } catch (dbError) {
-    console.warn('⚠️ Error verificando visita existente:', dbError);
+    console.warn('⚠️ Error checking existing visit:', dbError);
     return false;
   }
 }
@@ -125,10 +126,10 @@ async function handleVisitCreation(visitData: {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('📊 POST /api/cliente/visitas - Nueva visita recibida');
+    logger.debug('📊 POST /api/cliente/visitas - New visit received');
     
     const visitData = await processVisitPost(request);
-    console.log('📊 Usando businessId:', visitData.resolvedBusinessId);
+    logger.debug('📊 Using businessId:', visitData.resolvedBusinessId);
 
     const result = await handleVisitCreation({
       sessionId: visitData.sessionId,
@@ -141,14 +142,14 @@ export async function POST(request: NextRequest) {
     });
 
     if (result.duplicate) {
-      console.log('📊 Visita duplicada ignorada:', visitData.sessionId);
+      logger.debug('📊 Duplicate visit ignored:', visitData.sessionId);
       return NextResponse.json(
         { success: true, message: 'Visita ya registrada recientemente', duplicate: true },
         { status: 200 }
       );
     }
 
-    console.log('📊 Visita registrada exitosamente:', {
+    logger.debug('📊 Visit successfully registered:', {
       id: result.visita!.id,
       sessionId: visitData.sessionId,
       clienteId: visitData.clienteId || 'anónimo',
@@ -163,8 +164,8 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('❌ Error completo registrando visita:', error);
-    console.error('❌ Stack trace:', error.stack);
+    logger.error('❌ Complete error registering visit:', error);
+    logger.error('❌ Stack trace:', error.stack);
     return NextResponse.json(
       { error: 'Error interno del servidor', details: error.message },
       { status: 500 }
@@ -217,13 +218,13 @@ function calculateMetrics(visitas: any[]) {
 // 📊 GET: OBTENER ESTADÍSTICAS DE VISITAS PARA EL ADMIN
 export async function GET(request: NextRequest) {
   try {
-    console.log('📊 GET /api/cliente/visitas - Solicitando estadísticas');
+    logger.debug('📊 GET /api/cliente/visitas - Requesting statistics');
     
     const searchParams = request.nextUrl.searchParams;
     const businessId = searchParams.get('businessId');
     const periodo = searchParams.get('periodo') || 'hoy';
 
-    console.log('📊 Parámetros:', { businessId, periodo });
+    logger.debug('📊 Parameters:', { businessId, periodo });
 
     if (!businessId) {
       return NextResponse.json(
@@ -265,7 +266,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('❌ Error obteniendo estadísticas de visitas:', error);
+    logger.error('❌ Error getting visit statistics:', error);
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

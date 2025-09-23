@@ -4,6 +4,7 @@ import { compare } from 'bcryptjs';
 import { z } from 'zod';
 import { randomBytes } from 'crypto';
 import { UserWithBusiness, SessionData } from '../../../../types/api-routes';
+import { logger } from '@/utils/production-logger';
 
 // Forzar renderizado dinámico para esta ruta que usa headers y cookies
 export const dynamic = 'force-dynamic';
@@ -283,7 +284,7 @@ export async function POST(request: NextRequest) {
     const { sessionToken } = await createUserSession(user);
     return createResponse(user, sessionToken);
   } catch (error) {
-    console.error('Sign in error:', error);
+    logger.error('❌ Sign in error:', error);
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(

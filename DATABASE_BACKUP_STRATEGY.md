@@ -4,7 +4,7 @@
 
 ### Base de Datos Actual:
 - **Provider**: Neon PostgreSQL (Serverless)
-- **Entorno**: `postgresql://neondb_owner:npg_XcL6eWBCMz9b@ep-floral-morning-ad47ojau-pooler.c-2.us-east-1.aws.neon.tech/neondb`
+- **Entorno**: 
 - **ORM**: Prisma
 - **Deployment**: Vercel
 

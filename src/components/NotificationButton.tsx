@@ -177,11 +177,11 @@ export function useNotifications() {
     // Establecer estado inicial
     setStatus(browserNotifications.getStatus());
     
-    // Actualizar estado cuando cambie
+    // Actualizar estado con polling optimizado (10s en lugar de 1s)
     const interval = setInterval(() => {
       const newStatus = browserNotifications.getStatus();
       setStatus(newStatus);
-    }, 1000);
+    }, 10000); // ✅ OPTIMIZADO: 10s en lugar de 1s para reducir CPU
 
     return () => clearInterval(interval);
   }, []);

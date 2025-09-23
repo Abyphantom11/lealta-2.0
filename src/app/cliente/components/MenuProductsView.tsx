@@ -1,9 +1,61 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from '../../../components/motion';
 import { Sparkles, ArrowRight } from 'lucide-react';
 import { MenuProductsViewProps, MenuItem } from './types';
+
+// ✅ OPTIMIZACIÓN: Componente memoizado para cada producto
+interface ProductItemProps {
+  product: MenuItem;
+  onSelect: (product: MenuItem) => void;
+}
+
+const ProductItem = React.memo<ProductItemProps>(({ product, onSelect }) => {
+  return (
+    <motion.div
+      key={product.id}
+      className="bg-gray-900 rounded-lg p-3 cursor-pointer hover:bg-gray-800 transition-colors"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      onClick={() => onSelect(product)}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3 flex-1">
+          <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full flex items-center justify-center">
+            <Sparkles className="w-5 h-5 text-white" />
+          </div>
+          <div className="flex-1">
+            <div className="text-white font-medium text-sm">{product.nombre}</div>
+          </div>
+        </div>
+        <div className="flex items-center">
+          {(product.tipoProducto === 'bebida' || product.tipoProducto === 'botella') && product.precioVaso && product.precioBotella ? (
+            <div className="text-right">
+              <div className="text-white font-bold text-xs">
+                Vaso: {product.precioVaso.toFixed(2)}
+              </div>
+              <div className="text-white font-bold text-xs">
+                Bot: {product.precioBotella.toFixed(2)}
+              </div>
+            </div>
+          ) : (
+            <div className="text-white font-bold text-sm">
+              {(() => {
+                if (product.precio) return product.precio.toFixed(2);
+                if (product.precioVaso) return product.precioVaso.toFixed(2);
+                return '0.00';
+              })()} USD
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+});
+
+ProductItem.displayName = 'ProductItem';
 
 const MenuProductsView: React.FC<MenuProductsViewProps> = ({
   products,
@@ -12,6 +64,17 @@ const MenuProductsView: React.FC<MenuProductsViewProps> = ({
 }) => {
   const skeletonIds = ['prod-1', 'prod-2', 'prod-3', 'prod-4'];
   const [selectedProduct, setSelectedProduct] = useState<MenuItem | null>(null);
+  
+  // ✅ OPTIMIZACIÓN: Memoizar la lista de productos para evitar re-renders innecesarios
+  const productItems = useMemo(() => {
+    return products.map((product: MenuItem) => (
+      <ProductItem
+        key={product.id}
+        product={product}
+        onSelect={setSelectedProduct}
+      />
+    ));
+  }, [products]);
   
   // Renderizar estado de carga
   if (isLoading) {
@@ -57,47 +120,8 @@ const MenuProductsView: React.FC<MenuProductsViewProps> = ({
         {searchQuery ? `Resultados para "${searchQuery}"` : 'Productos'}
       </h2>
       <div className="space-y-3">
-        {products.map((product: MenuItem) => (
-          <motion.div
-            key={product.id}
-            className="bg-gray-900 rounded-lg p-3 cursor-pointer hover:bg-gray-800 transition-colors"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            onClick={() => setSelectedProduct(product)}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3 flex-1">
-                <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 text-white" />
-                </div>
-                <div className="flex-1">
-                  <div className="text-white font-medium text-sm">{product.nombre}</div>
-                </div>
-              </div>
-              <div className="flex items-center">
-                {(product.tipoProducto === 'bebida' || product.tipoProducto === 'botella') && product.precioVaso && product.precioBotella ? (
-                  <div className="text-right">
-                    <div className="text-white font-bold text-xs">
-                      Vaso: {product.precioVaso.toFixed(2)}
-                    </div>
-                    <div className="text-white font-bold text-xs">
-                      Bot: {product.precioBotella.toFixed(2)}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-white font-bold text-sm">
-                    {(() => {
-                      if (product.precio) return product.precio.toFixed(2);
-                      if (product.precioVaso) return product.precioVaso.toFixed(2);
-                      return '0.00';
-                    })()} USD
-                  </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        ))}
+        {/* ✅ OPTIMIZACIÓN: Usar productos memoizados */}
+        {productItems}
       </div>
       
       {/* Modal para mostrar imagen y descripción del producto */}

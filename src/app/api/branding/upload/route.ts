@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 import { getBusinessIdFromRequest } from '@/lib/business-utils';
+import { logger } from '@/utils/production-logger';
 
 /**
  * API para subir imágenes del carrusel de branding
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
       token: process.env.BLOB_READ_WRITE_TOKEN,
     });
     
-    console.log(`✅ Imagen subida exitosamente para business ${businessId}:`, {
+    logger.debug(`🎨 Branding image upload for business ${businessId}:`, {
       fileName,
       size: file.size,
       type: file.type,
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error subiendo imagen:', error);
+    logger.error('❌ Error uploading branding image:', error);
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

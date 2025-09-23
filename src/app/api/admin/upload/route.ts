@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
+import { logger } from '../../../../utils/production-logger';
 
 // 🔒 POST - Upload de archivos (PROTEGIDO - ADMIN ONLY)
 export async function POST(request: NextRequest) {
   return withAuth(request, async (session) => {
     try {
-      console.log(`📁 File upload request by: ${session.role} (${session.userId})`);
+      logger.debug(`📁 File upload request by: ${session.role} (${session.userId})`);
       
       const data = await request.formData();
       const file: File | null = data.get('file') as unknown as File;
@@ -24,14 +25,14 @@ export async function POST(request: NextRequest) {
       // 🔒 VALIDACIÓN DE TIPO DE ARCHIVO
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
       if (!allowedTypes.includes(file.type)) {
-        console.log(`❌ Upload denied: Invalid file type ${file.type} by ${session.userId}`);
+        logger.warn(`Upload denied: Invalid file type ${file.type} by ${session.userId}`);
         return NextResponse.json({ 
           error: 'Tipo de archivo no permitido', 
           message: 'Solo se permiten imágenes (JPG, PNG, GIF, WebP)' 
         }, { status: 400 });
       }
       
-      console.log(`📁 Processing image upload: ${Math.round(file.size / 1024)}KB by ${session.role}`);
+      logger.debug(`📁 Processing image upload: ${Math.round(file.size / 1024)}KB by ${session.role}`);
       
       // Crear nombre único para el archivo con metadata de usuario
       const timestamp = Date.now();
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
       // Agregar metadata de auditoría al nombre del archivo
       const auditedFileName = `${session.businessId}_${fileName}`;
 
-      console.log(`📁 File uploaded by: ${session.role} (${session.userId}) - ${auditedFileName}`);
+      logger.debug(`📁 File uploaded by: ${session.role} (${session.userId}) - ${auditedFileName}`);
 
       // 🔥 UPLOAD A VERCEL BLOB STORAGE
       const blob = await put(auditedFileName, file, {
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
         token: process.env.BLOB_READ_WRITE_TOKEN,
       });
 
-      console.log(`✅ File upload successful to Vercel Blob: ${blob.url}`);
+      logger.info(`✅ File upload successful to Vercel Blob: ${blob.url}`);
       return NextResponse.json({
         success: true,
         fileUrl: blob.url, // URL completa de Vercel Blob
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
         businessId: session.businessId
       });
     } catch (error) {
-      console.error('❌ Error uploading file:', error);
+      logger.error('❌ Error uploading file:', error);
       return NextResponse.json(
         { error: 'Failed to upload file' },
         { status: 500 }
