@@ -211,60 +211,57 @@ export async function getTarjetasConfigCentral(businessId: string): Promise<Conf
       const configData = fs.readFileSync(configPath, 'utf8');
       const config = JSON.parse(configData);
       
-      // 🔧 TRANSFORMAR TARJETAS DEL JSON A ESTRUCTURA CENTRAL
+      // 🔧 LEER TARJETAS DIRECTAMENTE DEL JSON (NUEVA ESTRUCTURA)
       if (config.tarjetas && Array.isArray(config.tarjetas)) {
-        // ✅ NUEVA LÓGICA: Manejar estructura directa de tarjetas
-        if (config.tarjetas.length > 0 && config.tarjetas[0].nivel) {
-          // Estructura directa: [{ nivel: "Bronce", ... }, { nivel: "Plata", ... }]
-          tarjetas = config.tarjetas.map((tarjeta: any) => ({
-            id: tarjeta.id || `tarjeta-${tarjeta.nivel.toLowerCase()}`,
-            nivel: tarjeta.nivel,
-            nombrePersonalizado: tarjeta.nombrePersonalizado || `Tarjeta ${tarjeta.nivel}`,
-            textoCalidad: tarjeta.textoCalidad || tarjeta.beneficio || `Cliente ${tarjeta.nivel}`,
-            colores: {
-              gradiente: tarjeta.colores?.gradiente || ['#000000', '#333333'],
-              texto: tarjeta.colores?.texto || '#FFFFFF',
-              nivel: tarjeta.colores?.nivel || tarjeta.colores?.gradiente?.[0] || '#000000'
-            },
-            condiciones: {
-              puntosMinimos: tarjeta.condiciones?.puntosMinimos || 0,
-              gastosMinimos: tarjeta.condiciones?.gastosMinimos || 0,
-              visitasMinimas: tarjeta.condiciones?.visitasMinimas || 0
-            },
-            beneficio: tarjeta.beneficio || `${tarjeta.descuento || 0}% de descuento`,
-            activo: tarjeta.activo !== false
-          }));
-          
-          console.log(`✅ [CENTRAL] Transformadas ${tarjetas.length} tarjetas desde JSON directo`);
-        } else if (config.tarjetas[0] && config.tarjetas[0].niveles) {
-          // Estructura anidada (legacy): [{ niveles: [{ nombre: "Bronce", ... }] }]
-          const nivelesJson = config.tarjetas[0].niveles;
-          
-          tarjetas = nivelesJson.map((nivel: any) => ({
-            id: `tarjeta-${nivel.nombre.toLowerCase()}`,
-            nivel: nivel.nombre,
-            nombrePersonalizado: `Tarjeta ${nivel.nombre}`,
-            textoCalidad: nivel.beneficio || `Cliente ${nivel.nombre}`,
-            colores: {
-              gradiente: nivel.colores || ['#000000', '#333333'],
-              texto: '#FFFFFF',
-              nivel: nivel.colores?.[0] || '#000000'
-            },
-            condiciones: {
-              puntosMinimos: nivel.puntosRequeridos || 0,
-              visitasMinimas: nivel.visitasRequeridas || 0
-            },
-            beneficio: nivel.beneficio || `${nivel.descuento || 0}% de descuento`,
-            activo: true
-          }));
-          
-          console.log(`✅ [CENTRAL] Transformados ${tarjetas.length} niveles desde JSON anidado (legacy)`);
-        } else {
-          console.log(`⚠️ [CENTRAL] Estructura de tarjetas no reconocida, usando defaults`);
-          tarjetas = TARJETAS_DEFAULT;
-        }
+        console.log(`✅ [CENTRAL] Estructura nueva detectada: ${config.tarjetas.length} tarjetas directas`);
+        
+        tarjetas = config.tarjetas.map((tarjeta: any) => ({
+          id: tarjeta.id || `tarjeta-${tarjeta.nivel.toLowerCase()}`,
+          nivel: tarjeta.nivel,
+          nombrePersonalizado: tarjeta.nombrePersonalizado || `Tarjeta ${tarjeta.nivel}`,
+          textoCalidad: tarjeta.textoCalidad || tarjeta.beneficio || `Cliente ${tarjeta.nivel}`,
+          colores: {
+            gradiente: tarjeta.colores?.gradiente || ['#666666', '#999999'],
+            texto: tarjeta.colores?.texto || '#FFFFFF',
+            nivel: tarjeta.colores?.nivel || tarjeta.colores?.gradiente?.[0] || '#666666'
+          },
+          condiciones: {
+            puntosMinimos: tarjeta.condiciones?.puntosMinimos || 0,
+            gastosMinimos: tarjeta.condiciones?.gastosMinimos || 0,
+            visitasMinimas: tarjeta.condiciones?.visitasMinimas || 0
+          },
+          beneficio: tarjeta.beneficio || `Cliente ${tarjeta.nivel}`,
+          activo: tarjeta.activo !== undefined ? tarjeta.activo : true
+        }));
+        
+        console.log(`✅ [CENTRAL] Transformadas ${tarjetas.length} tarjetas desde JSON nuevo`);
+      } 
+      // 🔧 FALLBACK: ESTRUCTURA ANTIGUA (compatibilidad)
+      else if (config.tarjetas && config.tarjetas[0] && config.tarjetas[0].niveles) {
+        console.log(`⚠️ [CENTRAL] Estructura antigua detectada, transformando...`);
+        const nivelesJson = config.tarjetas[0].niveles;
+        
+        tarjetas = nivelesJson.map((nivel: any) => ({
+          id: `tarjeta-${nivel.nombre.toLowerCase()}`,
+          nivel: nivel.nombre, // ✅ Mapear 'nombre' a 'nivel'
+          nombrePersonalizado: `Tarjeta ${nivel.nombre}`,
+          textoCalidad: nivel.beneficio || `Cliente ${nivel.nombre}`,
+          colores: {
+            gradiente: nivel.colores || ['#000000', '#333333'],
+            texto: '#FFFFFF',
+            nivel: nivel.colores?.[0] || '#000000'
+          },
+          condiciones: {
+            puntosMinimos: nivel.puntosRequeridos || 0,
+            visitasMinimas: nivel.visitasRequeridas || 0
+          },
+          beneficio: nivel.beneficio || `${nivel.descuento || 0}% de descuento`,
+          activo: true
+        }));
+        
+        console.log(`✅ [CENTRAL] Transformados ${tarjetas.length} niveles desde JSON antiguo`);
       } else {
-        console.log(`⚠️ [CENTRAL] No hay array de tarjetas, usando defaults`);
+        console.log(`⚠️ [CENTRAL] No se encontraron tarjetas en el JSON, usando por defecto`);
         tarjetas = TARJETAS_DEFAULT;
       }
       
