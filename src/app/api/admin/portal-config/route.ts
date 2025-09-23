@@ -22,7 +22,7 @@ const getAdminTarjetas = async (businessId: string) => {
         tarjetasExist: !!config.tarjetas,
         tarjetasType: typeof config.tarjetas,
         firstTarjeta: config.tarjetas?.[0]?.nivel,
-        allNiveles: config.tarjetas?.map(t => t.nivel) || [],
+        allNiveles: config.tarjetas?.map((t: any) => t.nivel) || [],
         nombreEmpresa: config.nombreEmpresa,
         nivelesConfigKeys: Object.keys(config.nivelesConfig || {})
       });

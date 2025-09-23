@@ -3,6 +3,7 @@ import { prisma } from '../../../../../lib/prisma';
 import { z } from 'zod';
 import { put } from '@vercel/blob';
 import { geminiAnalyzer } from '../../../../../lib/ai/gemini-analyzer';
+import { getBlobStorageToken } from '@/lib/blob-storage-utils';
 
 // Forzar renderizado dinámico para esta ruta que usa autenticación
 export const dynamic = 'force-dynamic';
@@ -79,10 +80,16 @@ async function saveMultipleImages(images: File[]): Promise<ProcessedImage[]> {
       const imageId = `multi_${timestamp}_${i}`;
       const filename = `multi/${imageId}.png`;
       
-      // 🔥 UPLOAD A VERCEL BLOB STORAGE - CON TOKEN CORRECTO
+      // 🔥 UPLOAD A VERCEL BLOB STORAGE - CON TOKEN CENTRALIZADO
+      const token = getBlobStorageToken();
+      
+      if (!token) {
+        throw new Error('No valid blob storage token available');
+      }
+      
       const blob = await put(filename, image, {
         access: 'public',
-        token: process.env.BLOB_READ_WRITE_TOKEN || process.env.LEALTA_READ_WRITE_TOKEN || "vercel_blob_rw_QSQoErcPWIoMxvo2_DYdNIDEA6Q1yeI3T0BHuwbTnC0grwT",
+        token: token,
       });
       
       results.push({

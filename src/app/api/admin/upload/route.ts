@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
 import { logger } from '../../../../utils/production-logger';
+import { getBlobStorageToken } from '@/lib/blob-storage-utils';
 
 // 🔒 POST - Upload de archivos (PROTEGIDO - ADMIN ONLY)
 export async function POST(request: NextRequest) {
@@ -44,10 +45,20 @@ export async function POST(request: NextRequest) {
 
       logger.debug(`📁 File uploaded by: ${session.role} (${session.userId}) - ${auditedFileName}`);
 
-      // 🔥 UPLOAD A VERCEL BLOB STORAGE - CON TOKEN CORRECTO
+      // 🔥 UPLOAD A VERCEL BLOB STORAGE - CON TOKEN CENTRALIZADO
+      const token = getBlobStorageToken();
+      
+      if (!token) {
+        logger.error('❌ No valid blob storage token available');
+        return NextResponse.json(
+          { error: 'Storage configuration error' },
+          { status: 500 }
+        );
+      }
+      
       const blob = await put(auditedFileName, file, {
         access: 'public',
-        token: process.env.BLOB_READ_WRITE_TOKEN || process.env.LEALTA_READ_WRITE_TOKEN || "vercel_blob_rw_QSQoErcPWIoMxvo2_DYdNIDEA6Q1yeI3T0BHuwbTnC0grwT",
+        token: token,
       });
 
       logger.info(`✅ File upload successful to Vercel Blob: ${blob.url}`);

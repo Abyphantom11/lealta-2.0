@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { put } from '@vercel/blob';
 import { geminiAnalyzer } from '../../../../lib/ai/gemini-analyzer';
 import { logger } from '@/utils/production-logger';
+import { getBlobStorageToken } from '@/lib/blob-storage-utils';
 
 // Forzar renderizado dinámico para esta ruta que usa autenticación
 export const dynamic = 'force-dynamic';
@@ -70,10 +71,16 @@ async function saveImageFile(image: File): Promise<{ filepath: string; publicUrl
   const randomString = Math.random().toString(36).substring(2, 8);
   const filename = `consumos/${timestamp}-${randomString}.jpg`;
 
-  // 🔥 UPLOAD A VERCEL BLOB STORAGE - CON TOKEN CORRECTO
+  // 🔥 UPLOAD A VERCEL BLOB STORAGE - CON TOKEN CENTRALIZADO
+  const token = getBlobStorageToken();
+  
+  if (!token) {
+    throw new Error('No valid blob storage token available');
+  }
+  
   const blob = await put(filename, image, {
     access: 'public',
-    token: process.env.BLOB_READ_WRITE_TOKEN || process.env.LEALTA_READ_WRITE_TOKEN || "vercel_blob_rw_QSQoErcPWIoMxvo2_DYdNIDEA6Q1yeI3T0BHuwbTnC0grwT",
+    token: token,
   });
 
   return { 

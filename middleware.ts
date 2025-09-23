@@ -6,7 +6,6 @@ import {
 import { 
   validateUserSession, 
   hasPermission, 
-  hasBusinessAccess,
   extractBusinessSlugFromPath,
   getRequiredPermissions,
   isClientRoute,
@@ -65,7 +64,7 @@ function cleanupCache() {
   lastCleanup = now;
 }
 
-function getCachedValidation(key: string): any | null {
+function getCachedValidation(key: string): unknown | null {
   cleanupCache(); // Cleanup automático
   const entry = validationCache.get(key);
   if (entry && (Date.now() - entry.timestamp) < CACHE_TTL) {
@@ -76,11 +75,11 @@ function getCachedValidation(key: string): any | null {
   return null;
 }
 
-function setCachedValidation(key: string, data: any): void {
+function setCachedValidation(key: string, data: unknown): void {
   validationCache.set(key, { data, timestamp: Date.now(), hitCount: 1 });
 }
 
-function getCachedBusiness(businessId: string): any | null {
+function getCachedBusiness(businessId: string): unknown | null {
   cleanupCache(); // Cleanup automático
   const entry = businessCache.get(businessId);
   if (entry && (Date.now() - entry.timestamp) < BUSINESS_CACHE_TTL) {

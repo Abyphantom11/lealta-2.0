@@ -3,6 +3,7 @@ import { prisma } from '../../../../../lib/prisma';
 import { z } from 'zod';
 import { put } from '@vercel/blob';
 import { geminiAnalyzer } from '../../../../../lib/ai/gemini-analyzer';
+import { getBlobStorageToken } from '@/lib/blob-storage-utils';
 
 // Forzar renderizado dinámico para esta ruta que usa autenticación
 export const dynamic = 'force-dynamic';
@@ -44,10 +45,16 @@ async function saveImageFile(image: File): Promise<{ filepath: string; publicUrl
   const timestamp = Date.now();
   const filename = `analyze/ticket_${timestamp}.png`;
 
-  // 🔥 UPLOAD A VERCEL BLOB STORAGE - CON TOKEN CORRECTO
+  // 🔥 UPLOAD A VERCEL BLOB STORAGE - CON TOKEN CENTRALIZADO
+  const token = getBlobStorageToken();
+  
+  if (!token) {
+    throw new Error('No valid blob storage token available');
+  }
+  
   const blob = await put(filename, image, {
     access: 'public',
-    token: process.env.BLOB_READ_WRITE_TOKEN || process.env.LEALTA_READ_WRITE_TOKEN || "vercel_blob_rw_QSQoErcPWIoMxvo2_DYdNIDEA6Q1yeI3T0BHuwbTnC0grwT",
+    token: token,
   });
 
   return { 
@@ -138,7 +145,7 @@ export async function POST(request: NextRequest) {
     console.log('🧪 [ANALYZE] Iniciando análisis de ticket...');
     console.log('🧪 [ANALYZE] Environment check:', {
       NODE_ENV: process.env.NODE_ENV,
-      BLOB_TOKEN: !!process.env.BLOB_READ_WRITE_TOKEN,
+      BLOB_TOKEN: !!getBlobStorageToken(),
       GEMINI_KEY: !!process.env.GOOGLE_GEMINI_API_KEY
     });
     
