@@ -51,6 +51,10 @@ lerna-debug.log*
 !.env.optimization.template
 !.env.free-hosting.template
 
+# Security: Files with real credentials
+VERCEL_ENV_VARIABLES.txt
+vercel-build-fix.js
+
 # Vercel
 .vercel
 
