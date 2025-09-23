@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../../lib/prisma';
 import { z } from 'zod';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
+import { put } from '@vercel/blob';
 import { geminiAnalyzer } from '../../../../../lib/ai/gemini-analyzer';
-import fs from 'fs';
 
 // Forzar renderizado dinámico para esta ruta que usa autenticación
 export const dynamic = 'force-dynamic';
@@ -43,24 +41,23 @@ async function saveImageFile(image: File): Promise<{ filepath: string; publicUrl
   
   console.log(`📁 Procesando imagen: ${Math.round(image.size / 1024)}KB`);
   
-  const bytes = await image.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-
   const timestamp = Date.now();
-  const filename = `ticket_${timestamp}.png`;
+  const filename = `analyze/ticket_${timestamp}.png`;
 
-  const uploadDir = join(process.cwd(), 'public', 'uploads');
-  await mkdir(uploadDir, { recursive: true });
+  // 🔥 UPLOAD A VERCEL BLOB STORAGE
+  const blob = await put(filename, image, {
+    access: 'public',
+    token: process.env.BLOB_READ_WRITE_TOKEN,
+  });
 
-  const filepath = join(uploadDir, filename);
-  await writeFile(filepath, buffer);
-
-  const publicUrl = `/uploads/${filename}`;
-  return { filepath, publicUrl };
+  return { 
+    filepath: blob.url, 
+    publicUrl: blob.url 
+  };
 }
 
 // Helper function to process image with Gemini AI
-async function processImageWithGemini(filepath: string): Promise<{
+async function processImageWithGemini(imageUrl: string): Promise<{
   productos: Array<{ nombre: string; cantidad: number; precio: number; categoria?: string }>;
   total: number;
   empleadoDetectado: string | null;
@@ -72,7 +69,10 @@ async function processImageWithGemini(filepath: string): Promise<{
   metodoPago?: string | null;
 }> {
   try {
-    const imageBuffer = fs.readFileSync(filepath);
+    // Descargar imagen desde Vercel Blob
+    console.log('📥 Descargando imagen desde Vercel Blob:', imageUrl);
+    const response = await fetch(imageUrl);
+    const imageBuffer = Buffer.from(await response.arrayBuffer());
     const mimeType = 'image/png';
 
     console.log('🤖 Procesando imagen con Gemini AI...');

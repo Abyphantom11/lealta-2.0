@@ -69,9 +69,12 @@
     "@types/uuid": "^10.0.0",
     "@upstash/ratelimit": "^2.0.6",
     "@upstash/redis": "^1.35.4",
+    "@vercel/blob": "^2.0.0",
     "autoprefixer": "^10.4.21",
     "bcryptjs": "latest",
     "dotenv": "^17.2.2",
+    "eslint": "8.57.1",
+    "eslint-config-next": "15.5.2",
     "framer-motion": "^11.0.0",
     "lucide-react": "latest",
     "multer": "^2.0.2",
@@ -87,9 +90,7 @@
     "tesseract.js": "latest",
     "uuid": "^13.0.0",
     "zod": "latest",
-    "zod-to-json-schema": "^3.24.6",
-    "eslint": "8.57.1",
-    "eslint-config-next": "15.5.2"
+    "zod-to-json-schema": "^3.24.6"
   },
   "devDependencies": {
     "@babel/generator": "^7.28.3",

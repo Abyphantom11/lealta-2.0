@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile } from 'fs/promises';
-import { join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { put } from '@vercel/blob';
 import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
 
 // 🔒 POST - Upload de archivos (PROTEGIDO - ADMIN ONLY)
@@ -35,9 +33,6 @@ export async function POST(request: NextRequest) {
       
       console.log(`📁 Processing image upload: ${Math.round(file.size / 1024)}KB by ${session.role}`);
       
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-
       // Crear nombre único para el archivo con metadata de usuario
       const timestamp = Date.now();
       const fileExtension = file.name.split('.').pop();
@@ -48,24 +43,17 @@ export async function POST(request: NextRequest) {
 
       console.log(`📁 File uploaded by: ${session.role} (${session.userId}) - ${auditedFileName}`);
 
-      // Guardar en la carpeta public/uploads
-      const uploadDir = join(process.cwd(), 'public', 'uploads');
-      const filePath = join(uploadDir, auditedFileName);
+      // 🔥 UPLOAD A VERCEL BLOB STORAGE
+      const blob = await put(auditedFileName, file, {
+        access: 'public',
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      });
 
-      // Crear directorio si no existe
-      if (!existsSync(uploadDir)) {
-        mkdirSync(uploadDir, { recursive: true });
-      }
-
-      await writeFile(filePath, buffer);
-
-      // Retornar la URL pública del archivo
-      const fileUrl = `/uploads/${auditedFileName}`;
-
-      console.log(`✅ File upload successful: ${fileUrl}`);
+      console.log(`✅ File upload successful to Vercel Blob: ${blob.url}`);
       return NextResponse.json({
         success: true,
-        fileUrl: fileUrl,
+        fileUrl: blob.url, // URL completa de Vercel Blob
+        downloadUrl: blob.downloadUrl,
         fileName: auditedFileName,
         uploadedBy: session.userId,
         businessId: session.businessId

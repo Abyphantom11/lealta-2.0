@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile } from 'fs/promises';
-import { join } from 'path';
+import { put } from '@vercel/blob';
 import { getBusinessIdFromRequest } from '@/lib/business-utils';
 
 /**
@@ -51,35 +50,23 @@ export async function POST(request: NextRequest) {
     const timestamp = Date.now();
     const fileName = `${businessId}_${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
     
-    // Crear directorio si no existe
-    const uploadDir = join(process.cwd(), 'public/uploads/branding');
-    
-    try {
-      await writeFile(join(uploadDir, '.gitkeep'), '');
-    } catch {
-      // Directorio ya existe o no se puede crear
-    }
-    
-    // Guardar archivo
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    
-    const filePath = join(uploadDir, fileName);
-    await writeFile(filePath, buffer);
-    
-    // Generar URL pública
-    const imageUrl = `/uploads/branding/${fileName}`;
+    // 🔥 UPLOAD A VERCEL BLOB STORAGE
+    const blob = await put(`branding/${fileName}`, file, {
+      access: 'public',
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    });
     
     console.log(`✅ Imagen subida exitosamente para business ${businessId}:`, {
       fileName,
       size: file.size,
       type: file.type,
-      url: imageUrl
+      url: blob.url
     });
 
     return NextResponse.json({
       success: true,
-      imageUrl,
+      imageUrl: blob.url, // URL completa de Vercel Blob
+      downloadUrl: blob.downloadUrl,
       fileName,
       size: file.size
     });

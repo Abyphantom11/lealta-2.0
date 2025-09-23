@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { z } from 'zod';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
+import { put } from '@vercel/blob';
 import { geminiAnalyzer } from '../../../../lib/ai/gemini-analyzer';
-import fs from 'fs';
-
-const PORTAL_CONFIG_PATH = join(process.cwd(), 'portal-config.json');
 
 // Forzar renderizado dinámico para esta ruta que usa autenticación
 export const dynamic = 'force-dynamic';
@@ -59,7 +55,7 @@ function validateFormData(formData: FormData) {
   });
 }
 
-// Helper function to save image
+// Helper function to save image to Vercel Blob
 async function saveImageFile(image: File): Promise<{ filepath: string; publicUrl: string }> {
   // ⚠️ VALIDACIÓN DE MEMORIA CRÍTICA - Prevenir allocation failed
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB máximo
@@ -69,25 +65,24 @@ async function saveImageFile(image: File): Promise<{ filepath: string; publicUrl
 
   console.log(`📁 Procesando imagen: ${Math.round(image.size / 1024)}KB`);
 
-  const bytes = await image.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-
   const timestamp = Date.now();
   const randomString = Math.random().toString(36).substring(2, 8);
-  const filename = `${timestamp}-${randomString}.jpg`;
+  const filename = `consumos/${timestamp}-${randomString}.jpg`;
 
-  const uploadDir = join(process.cwd(), 'public', 'uploads');
-  await mkdir(uploadDir, { recursive: true });
+  // 🔥 UPLOAD A VERCEL BLOB STORAGE
+  const blob = await put(filename, image, {
+    access: 'public',
+    token: process.env.BLOB_READ_WRITE_TOKEN,
+  });
 
-  const filepath = join(uploadDir, filename);
-  await writeFile(filepath, buffer);
-
-  const publicUrl = `/uploads/${filename}`;
-  return { filepath, publicUrl };
+  return { 
+    filepath: blob.url, // URL de Vercel Blob
+    publicUrl: blob.url 
+  };
 }
 
 // Helper function to process image with Gemini AI
-async function processImageWithGemini(filepath: string): Promise<{
+async function processImageWithGemini(imageUrl: string): Promise<{
   ocrText: string;
   productos: Array<{ name: string; price?: number; line: string }>;
   total: number;
@@ -95,7 +90,10 @@ async function processImageWithGemini(filepath: string): Promise<{
   confianza: number;
 }> {
   try {
-    const imageBuffer = fs.readFileSync(filepath);
+    // Descargar imagen desde Vercel Blob
+    console.log('📥 Descargando imagen desde Vercel Blob:', imageUrl);
+    const response = await fetch(imageUrl);
+    const imageBuffer = Buffer.from(await response.arrayBuffer());
     const mimeType = 'image/jpeg';
 
     console.log('🤖 Procesando imagen con Gemini AI...');
@@ -147,17 +145,9 @@ async function processImageWithGemini(filepath: string): Promise<{
 
 // Helper functions para reducir complejidad cognitiva
 async function loadPuntosConfiguration(): Promise<number> {
-  let puntosPorDolar = 4;
-
-  try {
-    const configContent = await fs.promises.readFile(PORTAL_CONFIG_PATH, 'utf-8');
-    const config = JSON.parse(configContent);
-    puntosPorDolar = config.configuracionPuntos?.puntosPorDolar || 4;
-    console.log('✅ Configuración de puntos cargada (OCR):', { puntosPorDolar });
-  } catch (error) {
-    console.warn('⚠️ No se pudo cargar configuración de puntos, usando valor por defecto:', error);
-  }
-
+  // Usar valor por defecto - la configuración se maneja desde la BD
+  const puntosPorDolar = 4;
+  console.log('✅ Configuración de puntos (valor por defecto):', { puntosPorDolar });
   return puntosPorDolar;
 }
 

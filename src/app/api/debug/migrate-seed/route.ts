@@ -13,7 +13,7 @@ export async function POST() {
       await prisma.user.count();
       tablesExist = true;
       console.log('✅ Tables already exist');
-    } catch (error) {
+    } catch {
       console.log('📋 Tables do not exist, need to create them');
     }
     
@@ -51,10 +51,7 @@ export async function POST() {
           name: 'Lealta Demo',
           slug: 'demo',
           subdomain: 'demo',
-          email: 'demo@lealta.app',
-          phone: '555-0123',
-          address: 'Demo Address',
-          plan: 'PRO',
+          subscriptionPlan: 'PRO',
           isActive: true,
           settings: {
             contactEmail: 'demo@lealta.app'
@@ -73,7 +70,7 @@ export async function POST() {
     
     if (userCount === 0) {
       // Crear usuario admin usando bcryptjs
-      const bcrypt = require('bcryptjs');
+      const bcrypt = await import('bcryptjs');
       const passwordHash = await bcrypt.hash('123456', 12);
       
       user = await prisma.user.create({
