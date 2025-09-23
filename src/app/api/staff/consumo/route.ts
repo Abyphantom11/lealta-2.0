@@ -5,6 +5,8 @@ import { put } from '@vercel/blob';
 import { geminiAnalyzer } from '../../../../lib/ai/gemini-analyzer';
 import { logger } from '@/utils/production-logger';
 import { getBlobStorageToken } from '@/lib/blob-storage-utils';
+import fs from 'fs/promises';
+import path from 'path';
 
 // Forzar renderizado dinámico para esta ruta que usa autenticación
 export const dynamic = 'force-dynamic';
@@ -160,11 +162,26 @@ async function processImageWithGemini(imageUrl: string): Promise<{
 }
 
 // Helper functions para reducir complejidad cognitiva
-async function loadPuntosConfiguration(): Promise<number> {
-  // Usar valor por defecto - la configuración se maneja desde la BD
-  const puntosPorDolar = 4;
-  logger.debug('✅ Points configuration (default value):', { puntosPorDolar });
-  return puntosPorDolar;
+async function loadPuntosConfiguration(businessId?: string): Promise<number> {
+  try {
+    if (!businessId) {
+      logger.warn('⚠️ No businessId provided, using default points configuration');
+      return 4; // Fallback por defecto
+    }
+
+    // Leer configuración específica del business
+    const configPath = path.join(process.cwd(), 'config', 'portal', `portal-config-${businessId}.json`);
+    const configContent = await fs.readFile(configPath, 'utf-8');
+    const config = JSON.parse(configContent);
+    
+    const puntosPorDolar = config.configuracionPuntos?.puntosPorDolar || 4;
+    logger.debug('✅ Points configuration loaded for business:', { businessId, puntosPorDolar });
+    
+    return puntosPorDolar;
+  } catch (error) {
+    logger.warn('⚠️ Error loading points configuration, using default:', error);
+    return 4; // Fallback por defecto
+  }
 }
 
 async function createConsumo(cliente: any, validatedData: any, analysis: any, montoFinal: number, puntosGenerados: number, publicUrl: string) {
@@ -287,7 +304,7 @@ export async function POST(request: NextRequest) {
       logger.warn('⚠️ Low confidence in analysis:', analysis.confianza);
     }
 
-    const puntosPorDolar = await loadPuntosConfiguration();
+    const puntosPorDolar = await loadPuntosConfiguration(validatedData.businessId || 'cmfr2y0ia0000eyvw7ef3k20u');
     const montoFinal = analysis.total > 0 ? analysis.total : parseFloat(validatedData.monto);
     const puntosGenerados = Math.floor(montoFinal * puntosPorDolar);
 

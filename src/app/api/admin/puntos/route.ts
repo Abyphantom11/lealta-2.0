@@ -3,7 +3,10 @@ import fs from 'fs/promises';
 import path from 'path';
 import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
 
-const PORTAL_CONFIG_PATH = path.join(process.cwd(), 'portal-config.json');
+// 🔒 BUSINESS ISOLATION: Configuración por business
+function getPortalConfigPath(businessId: string): string {
+  return path.join(process.cwd(), 'config', 'portal', `portal-config-${businessId}.json`);
+}
 
 interface ConfiguracionPuntos {
   puntosPorDolar: number;
@@ -20,8 +23,10 @@ interface ConfiguracionPuntos {
 export async function GET(request: NextRequest) {
   return withAuth(request, async (session) => {
     try {
-      console.log(`🎯 Points config GET by: ${session.role} (${session.userId})`);
-    const configContent = await fs.readFile(PORTAL_CONFIG_PATH, 'utf-8');
+      console.log(`🎯 Points config GET by: ${session.role} (${session.userId}) for business: ${session.businessId}`);
+      
+      const configPath = getPortalConfigPath(session.businessId);
+      const configContent = await fs.readFile(configPath, 'utf-8');
     const config = JSON.parse(configContent);
     
     const configuracionPuntos = config.configuracionPuntos || {
@@ -54,12 +59,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   return withAuth(request, async (session) => {
     try {
-      console.log(`🔧 Points config UPDATE by: ${session.role} (${session.userId})`);
+      console.log(`🔧 Points config UPDATE by: ${session.role} (${session.userId}) for business: ${session.businessId}`);
       
       const body: Partial<ConfiguracionPuntos> = await request.json();
 
-    // Leer configuración actual
-    const configContent = await fs.readFile(PORTAL_CONFIG_PATH, 'utf-8');
+      // Leer configuración actual POR BUSINESS
+      const configPath = getPortalConfigPath(session.businessId);
+      const configContent = await fs.readFile(configPath, 'utf-8');
     const config = JSON.parse(configContent);
 
     // Validar límites
@@ -89,8 +95,8 @@ export async function POST(request: NextRequest) {
 
     config.configuracionPuntos = nuevaConfiguracion;
 
-    // Guardar archivo
-    await fs.writeFile(PORTAL_CONFIG_PATH, JSON.stringify(config, null, 2));
+    // Guardar archivo POR BUSINESS
+    await fs.writeFile(configPath, JSON.stringify(config, null, 2));
 
     return NextResponse.json({
       success: true,
