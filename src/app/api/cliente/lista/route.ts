@@ -1,12 +1,30 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth.config';
 
 const prisma = new PrismaClient();
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
-    // Obtener todos los clientes registrados
+    // 🔒 SECURITY: Verificar autenticación
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.businessId) {
+      return NextResponse.json(
+        { error: 'No autorizado - Business ID requerido' },
+        { status: 401 }
+      );
+    }
+
+    const businessId = session.user.businessId;
+
+    // 🔒 SECURITY: Obtener SOLO clientes del business del usuario autenticado
     const clientes = await prisma.cliente.findMany({
+      where: {
+        businessId: businessId, // ✅ FILTRO CRÍTICO POR BUSINESS
+      },
       orderBy: {
         registeredAt: 'desc',
       },
