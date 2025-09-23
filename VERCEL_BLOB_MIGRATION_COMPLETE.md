@@ -74,7 +74,8 @@
 
 ```env
 # .env.local
-BLOB_READ_WRITE_TOKEN=vercel_blob_rw_CQfOyFcGRXrrmhqN_T1lhXZUTrWV7kMQiAqIpWGLvHNjJqQ
+# Vercel Blob Storage Configuration
+BLOB_READ_WRITE_TOKEN="your_vercel_blob_token_here"
 ```
 
 ### 📦 Dependencias Instaladas

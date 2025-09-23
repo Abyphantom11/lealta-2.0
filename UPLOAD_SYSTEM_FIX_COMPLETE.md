@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
 #### 3. **Variables de Entorno**
 ```env
 # En Vercel Dashboard → Settings → Environment Variables
-BLOB_READ_WRITE_TOKEN=vercel_blob_token_aqui
+BLOB_READ_WRITE_TOKEN=your_vercel_blob_token_here
 ```
 
 #### 4. **Frontend Update**
