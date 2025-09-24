@@ -59,13 +59,15 @@ const NIVELES_TARJETAS_CONFIG = {
 
 interface TarjetaEditorProps {
   readonly config: GeneralConfig;
-  readonly setConfig: (config: GeneralConfig) => void;
+  readonly onUpdateCard: (nivel: string, updates: Partial<Tarjeta>) => Promise<void>;
+  readonly onUpdateNombreEmpresa: (nombreEmpresa: string) => Promise<void>;
   readonly showNotification: (message: string, type: NivelTarjeta) => void;
 }
 
 export default function TarjetaEditor({
   config,
-  setConfig,
+  onUpdateCard,
+  onUpdateNombreEmpresa,
   showNotification,
 }: TarjetaEditorProps) {
   const [selectedLevel, setSelectedLevel] = useState('Oro');
@@ -74,6 +76,12 @@ export default function TarjetaEditor({
   const [empresaChanged, setEmpresaChanged] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [tempNombreEmpresa, setTempNombreEmpresa] = useState(config.nombreEmpresa || '');
+
+  // Sincronizar estado temporal cuando cambie el config
+  useEffect(() => {
+    setTempNombreEmpresa(config.nombreEmpresa || '');
+  }, [config.nombreEmpresa]);
 
   const currentTarjeta = useMemo(() => {
     // Buscar tarjeta existente en la configuración
@@ -235,61 +243,10 @@ export default function TarjetaEditor({
     };
   };
 
-  // Función auxiliar para actualizar tarjetas localmente
-  const updateLocalCards = (cardToSave: Tarjeta) => {
-    const newTarjetas = [...(config.tarjetas || [])];
-    const existingIndex = newTarjetas.findIndex(
-      (t: Tarjeta) => t.nivel === cardToSave.nivel
-    );
-
-    if (existingIndex >= 0) {
-      newTarjetas[existingIndex] = cardToSave;
-    } else {
-      newTarjetas.push(cardToSave);
-    }
-
-    setConfig({ ...config, tarjetas: newTarjetas });
-    return newTarjetas;
-  };
+  // ✅ ELIMINADO: updateLocalCards - ya no se necesita, se maneja por callback
 
   // Función auxiliar para persistir cambios
-  const persistCardChanges = async (newTarjetas: Tarjeta[]) => {
-    console.log('🔍 Persistiendo tarjetas (businessId desde sesión autenticada)');
-    
-    const response = await fetch('/api/admin/portal-config', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        ...config,
-        tarjetas: newTarjetas,
-        // ❌ NO enviar businessId - el backend usa session.businessId automáticamente
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Error al guardar en el servidor');
-    }
-
-    // ✅ NOTIFICAR A CLIENTES CONECTADOS SOBRE EL CAMBIO DE CONFIGURACIÓN
-    try {
-      await fetch('/api/admin/notify-config-change', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          type: 'tarjetas_config_updated',
-          data: { tarjetas: newTarjetas }
-        }),
-      });
-      console.log('✅ Notificación de cambio de configuración enviada');
-    } catch (error) {
-      console.warn('⚠️ Error enviando notificación de cambio:', error);
-      // No fallar si la notificación falla
-    }
-  };
+  // ✅ ELIMINADO: persistCardChanges - ahora usa callback del padre
 
   const handleSaveCard = async () => {
     if (!editingCard) return;
@@ -311,14 +268,9 @@ export default function TarjetaEditor({
 
     try {
       const cardToSave = normalizeCardConditions(editingCard);
-      const newTarjetas = updateLocalCards(cardToSave);
-      await persistCardChanges(newTarjetas);
-
-      // Actualizar estado local inmediatamente
-      setConfig({
-        ...config,
-        tarjetas: newTarjetas,
-      });
+      
+      // ✅ NUEVO: Usar callback del padre para persistir
+      await onUpdateCard(selectedLevel, cardToSave);
 
       showNotification(
         `✅ Tarjeta ${cardToSave.nivel} guardada correctamente`,
@@ -377,49 +329,16 @@ export default function TarjetaEditor({
     try {
       setSavingEmpresa(true);
 
-      console.log('🔍 Guardando cambios de empresa (business ID se obtiene de sesión autenticada)');
+      console.log('🔍 Guardando cambios de empresa (usando callback del padre)');
 
-      // Persistir en la base de datos - el businessId viene de session.businessId en el backend
-      const response = await fetch('/api/admin/portal-config', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...config,
-          // ❌ NO enviar businessId - el backend usa session.businessId automáticamente
-        }),
-      });
+      // ✅ NUEVO: Usar callback del padre para persistir
+      await onUpdateNombreEmpresa(tempNombreEmpresa);
 
-      if (response.ok) {
-        // Actualizar todas las tarjetas existentes de clientes
-        const syncResponse = await fetch('/api/admin/sync-tarjetas-empresa', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            nombreEmpresa: config.nombreEmpresa,
-          }),
-        });
-
-        if (syncResponse.ok) {
-          const result = await syncResponse.json();
-          showNotification(
-            `✅ Nombre guardado y ${result.updatedCards || 0} tarjetas de clientes actualizadas`,
-            'success'
-          );
-        } else {
-          showNotification(
-            '✅ Nombre guardado (sin sincronización de tarjetas existentes)',
-            'success'
-          );
-        }
-
-        setEmpresaChanged(false);
-      } else {
-        throw new Error('Error al guardar en el servidor');
-      }
+      showNotification(
+        '✅ Nombre de empresa guardado correctamente',
+        'success'
+      );
+      setEmpresaChanged(false);
     } catch (error) {
       console.error('Error guardando nombre empresa:', error);
       showNotification('❌ Error al guardar el nombre de la empresa', 'error');
@@ -446,11 +365,9 @@ export default function TarjetaEditor({
           <div className="flex-1 relative">
             <input
               type="text"
-              value={config.nombreEmpresa || ''}
+              value={tempNombreEmpresa}
               onChange={e => {
-                // ✅ ACTUALIZAR ESTADO LOCAL Y MARCAR COMO CAMBIADO
-                const updatedConfig = { ...config, nombreEmpresa: e.target.value };
-                setConfig(updatedConfig);
+                setTempNombreEmpresa(e.target.value);
                 setHasUnsavedChanges(true);
                 setEmpresaChanged(true); // ✅ ACTIVAR INDICADOR DE CAMBIOS
               }}

@@ -128,31 +128,59 @@ interface SuperAdminDashboardProps {
 }
 
 // ========================================
+// 🏗️ SECCIÓN: FUNCIONES AUXILIARES
+// ========================================
+const checkAndRedirectLegacyRoutes = (businessId?: string) => {
+  const currentPath = window.location.pathname;
+  
+  // Solo bloquear rutas legacy exactas sin contexto de business
+  // Rutas válidas: /[businessSlug]/superadmin
+  // Rutas bloqueadas: /superadmin, /superadmin/, /superadmin/[cualquier-cosa]
+  const isLegacyRoute = currentPath === '/superadmin' || 
+                       currentPath === '/superadmin/' || 
+                       (currentPath.startsWith('/superadmin/') && !businessId);
+  
+  if (isLegacyRoute) {
+    console.log('🚫 SuperAdmin: Ruta legacy detectada, redirigiendo a login');
+    
+    const redirectUrl = new URL('/login', window.location.origin);
+    redirectUrl.searchParams.set('error', 'access-denied');
+    redirectUrl.searchParams.set('message', 'SuperAdmin requiere contexto de business válido');
+    
+    window.location.href = redirectUrl.toString();
+  }
+};
+
+// Funciones auxiliares para simplificar operadores ternarios anidados
+const formatFechaAsignacion = (tarjeta: any): string => {
+  if (!tarjeta?.fechaAsignacion) return 'N/A';
+  return new Date(tarjeta.fechaAsignacion).toLocaleDateString('es-ES');
+};
+
+const getTipoAsignacion = (tarjeta: any): string => {
+  if (!tarjeta) return 'N/A';
+  return tarjeta.asignacionManual ? 'Manual' : 'Automática';
+};
+
+const getEstadoTarjeta = (tarjeta: any): { text: string; className: string } => {
+  if (!tarjeta) {
+    return { text: 'No Asignada', className: 'text-red-400' };
+  }
+  
+  if (tarjeta.activa) {
+    return { text: 'Activa', className: 'text-green-400' };
+  } else {
+    return { text: 'Inactiva', className: 'text-yellow-400' };
+  }
+};
+
+// ========================================
 // 🏗️ SECCIÓN: COMPONENTE PRINCIPAL Y ESTADOS (126-195)
 // ========================================
-
-// 🎛️ Control de logging para development
-const DEBUG_MODE = process.env.NODE_ENV === 'development' && false; // Cambiar a true para logs detallados
-
 export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps = {}) {
   // 🚫 BLOQUEO DE BUSINESS CONTEXT - SECURITY ENFORCEMENT
   useEffect(() => {
-    const currentPath = window.location.pathname;
-    
-    // Solo bloquear rutas legacy exactas sin contexto de business
-    // Rutas válidas: /[businessSlug]/superadmin
-    // Rutas bloqueadas: /superadmin, /superadmin/, /superadmin/[cualquier-cosa]
-    if (currentPath === '/superadmin' || currentPath === '/superadmin/' || 
-        (currentPath.startsWith('/superadmin/') && !businessId)) {
-      console.log('🚫 SuperAdmin: Ruta legacy detectada, redirigiendo a login');
-      
-      const redirectUrl = new URL('/login', window.location.origin);
-      redirectUrl.searchParams.set('error', 'access-denied');
-      redirectUrl.searchParams.set('message', 'SuperAdmin requiere contexto de business válido');
-      
-      window.location.href = redirectUrl.toString();
-      return;
-    }
+    checkAndRedirectLegacyRoutes(businessId);
   }, [businessId]);
 
   const { user, loading, logout, isAuthenticated } =
@@ -215,15 +243,13 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
   // Estado para el selector de fechas
   const [selectedDateRange, setSelectedDateRange] = useState('7days');
 
-  // 🔄 FUNCIÓN OPTIMIZADA: Cargar estadísticas con debouncing
+  // Definir las funciones con useCallback primero
   const fetchEstadisticas = useCallback(async () => {
     if (!isAuthenticated) return;
     
-    // Evitar llamadas duplicadas si ya está cargando
-    if (isLoadingStats) return;
-    
     setIsLoadingStats(true);
     try {
+      console.log('🔄 Cargando estadísticas con período:', selectedDateRange);
       const response = await fetch(`/api/admin/estadisticas?periodo=${selectedDateRange}`, {
         method: 'GET',
         headers: {
@@ -232,23 +258,19 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
           'Expires': '0'
         }
       });
-      
       if (response.ok) {
         const data = await response.json();
+        console.log('📊 Estadísticas cargadas:', data);
         setStatsData(data);
-        // Solo log en modo debug
-        if (DEBUG_MODE) console.log('✅ Estadísticas cargadas');
       } else {
-        console.error('❌ Error cargando estadísticas:', response.status);
-        // No establecer datos null para mantener datos anteriores
+        console.error('Error cargando estadísticas:', response.status);
       }
     } catch (error) {
-      console.error('💥 Error de red cargando estadísticas:', error);
-      // No establecer datos null para mantener datos anteriores
+      console.error('Error fetching estadísticas:', error);
     } finally {
       setIsLoadingStats(false);
     }
-  }, [isAuthenticated, selectedDateRange, isLoadingStats]);
+  }, [isAuthenticated, selectedDateRange]);
 
 // ========================================
 // 📊 SECCIÓN: FUNCIONES DE DATOS Y API (196-350)
@@ -265,13 +287,13 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
         url += `&año=${filtroAño}`;
       }
 
-      // Solo log en modo debug
-      if (DEBUG_MODE) console.log('📈 Gráfico cargado');
+      console.log('🔍 Solicitando datos del gráfico:', url);
       const response = await fetch(url);
       const data = await response.json();
 
       if (data.success) {
         setDatosGrafico(data);
+        console.log('📈 Datos gráfico cargados:', data);
       }
     } catch (error) {
       console.error('Error loading gráfico datos:', error);
@@ -280,37 +302,45 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
     }
   }, [tipoGrafico, filtroMes, filtroAño]);
 
-  // 🚀 EFFECT PRINCIPAL - Cargar datos cuando se monta el componente o cambia la pestaña
+  // Cargar datos cuando se monta el componente o cambia la pestaña
   useEffect(() => {
-    if (!isAuthenticated) return;
-    
-    // ⚡ Cargando datos para tab: ${activeTab} (log reducido)
-    
-    if (activeTab === 'overview' || activeTab === 'analytics') {
-      fetchAnalytics();
-      fetchGraficoDatos();
-      fetchEstadisticas();
-    } else if (activeTab === 'users') {
-      fetchUsers();
-    } else if (activeTab === 'historial') {
-      fetchClientesConTransacciones();
+    if (isAuthenticated) {
+      if (activeTab === 'overview' || activeTab === 'analytics') {
+        fetchAnalytics();
+        fetchGraficoDatos();
+        fetchEstadisticas(); // Agregar esta línea para cargar las estadísticas del período
+      } else if (activeTab === 'users') {
+        fetchUsers();
+      } else if (activeTab === 'historial') {
+        fetchClientesConTransacciones();
+      }
     }
   }, [activeTab, isAuthenticated, tipoGrafico, fetchGraficoDatos, fetchEstadisticas]);
 
-  // 📊 EFFECT GRÁFICO - Solo para cambios de filtros de fecha específicos
+  // Effect separado para recargar cuando cambien los filtros específicos
   useEffect(() => {
-    if (isAuthenticated && (activeTab === 'overview' || activeTab === 'analytics')) {
+    if (
+      isAuthenticated &&
+      (activeTab === 'overview' || activeTab === 'analytics')
+    ) {
       fetchGraficoDatos();
     }
   }, [filtroMes, filtroAño, isAuthenticated, activeTab, fetchGraficoDatos]);
 
-  // 📈 EFFECT ESTADÍSTICAS - Solo para cambios de período de estadísticas
+  // Cargar estadísticas cuando cambie el período o tab analytics
   useEffect(() => {
     if (activeTab === 'analytics' && isAuthenticated) {
-      // 📊 Actualizando estadísticas (log reducido)
       fetchEstadisticas();
     }
   }, [selectedDateRange, activeTab, isAuthenticated, fetchEstadisticas]);
+
+  // Cargar datos inmediatamente al montar el componente
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchEstadisticas();
+      fetchAnalytics();
+    }
+  }, [isAuthenticated, fetchEstadisticas]);
 
   // Listener para eventos de actualización de metas
   useEffect(() => {
@@ -345,10 +375,7 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
       if (data.success) {
         const stats = data.estadisticas;
 
-        // 🎯 LOG REDUCIDO: Solo en modo debug
-        if (DEBUG_MODE) {
-          console.log('📊 Analytics cargado:', `${stats.resumen.totalClientes} clientes, $${stats.resumen.totalMonto}`);
-        }
+        console.log('📊 Datos recibidos del API:', stats);
 
         // Mapear a la estructura esperada
         setAnalytics({
@@ -376,7 +403,11 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
               : [], // Sin productos fallback, mostrar array vacío
         });
 
-        // ✅ Analytics cargado, log removido para reducir spam
+        console.log('📊 Analytics actualizado:', {
+          totalClientes: stats.resumen.totalClientes,
+          totalConsumos: stats.resumen.totalConsumos,
+          totalMonto: stats.resumen.totalMonto,
+        });
       }
     } catch (error) {
       console.error('Error loading analytics:', error);
@@ -1550,7 +1581,12 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
                         <div className="space-y-3 max-h-64 overflow-y-auto">
                           {clienteHistorial.historial?.map(
                             (consumo: any, index: number) => {
-                              // ✅ Debug removido para reducir spam en consola
+                              // 🔍 Debug temporal para ver los datos del consumo
+                              console.log('🔍 Consumo data:', {
+                                id: consumo.id,
+                                productos: consumo.productos,
+                                tieneProductos: consumo.productos && consumo.productos.length > 0
+                              });
                               
                               return (
                                 <div
@@ -1708,11 +1744,7 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
                         Fecha de Asignación
                       </p>
                       <p className="text-white font-semibold">
-                        {clienteDetalles.cliente.tarjetaLealtad?.fechaAsignacion
-                          ? new Date(
-                              clienteDetalles.cliente.tarjetaLealtad.fechaAsignacion
-                            ).toLocaleDateString('es-ES')
-                          : 'N/A'}
+                        {formatFechaAsignacion(clienteDetalles.cliente.tarjetaLealtad)}
                       </p>
                     </div>
                     <div>
@@ -1720,29 +1752,13 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
                         Tipo de Asignación
                       </p>
                       <p className="text-white font-semibold">
-                        {clienteDetalles.cliente.tarjetaLealtad?.asignacionManual
-                          ? 'Manual'
-                          : clienteDetalles.cliente.tarjetaLealtad
-                          ? 'Automática'
-                          : 'N/A'}
+                        {getTipoAsignacion(clienteDetalles.cliente.tarjetaLealtad)}
                       </p>
                     </div>
                     <div>
                       <p className="text-gray-400 text-sm">Estado</p>
-                      <p
-                        className={`font-semibold ${
-                          clienteDetalles.cliente.tarjetaLealtad?.activa
-                            ? 'text-green-400'
-                            : clienteDetalles.cliente.tarjetaLealtad
-                            ? 'text-yellow-400'
-                            : 'text-red-400'
-                        }`}
-                      >
-                        {clienteDetalles.cliente.tarjetaLealtad?.activa
-                          ? 'Activa'
-                          : clienteDetalles.cliente.tarjetaLealtad
-                          ? 'Inactiva'
-                          : 'No Asignada'}
+                      <p className={`font-semibold ${getEstadoTarjeta(clienteDetalles.cliente.tarjetaLealtad).className}`}>
+                        {getEstadoTarjeta(clienteDetalles.cliente.tarjetaLealtad).text}
                       </p>
                     </div>
                   </div>
@@ -1965,14 +1981,14 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
               <div className="mt-6 pt-4 border-t border-gray-600/30">
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-gray-400">
-                    💰 Valor promedio por producto:
-                    <span className="text-white font-medium ml-1">
+                    💰 Valor promedio por producto:{' '}
+                    <span className="text-white font-medium">
                       ${(productosModal.total / Math.max(productosModal.productos.length, 1)).toFixed(2)}
                     </span>
                   </span>
                   <span className="text-gray-400">
-                    🛍️ Total de artículos:
-                    <span className="text-white font-medium ml-1">
+                    🛍️ Total de artículos:{' '}
+                    <span className="text-white font-medium">
                       {productosModal.productos.reduce((sum: number, p: any) => sum + (p.cantidad || 1), 0)}
                     </span>
                   </span>
@@ -2051,7 +2067,7 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
                         <div className="mt-4 pt-3 border-t border-gray-600/30">
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-gray-400">
-                              Contribución al total:
+                              Contribución al total:{' '}
                             </span>
                             <span className="text-white font-medium">
                               {(((producto.precio * (producto.cantidad || 1)) / productosModal.total) * 100).toFixed(1)}%

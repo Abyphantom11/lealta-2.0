@@ -1,15 +1,12 @@
 'use client';
 
 import { useEffect } from 'react';
-// import { initializePWA } from '@/services/pwaService'; // ✅ DESHABILITADO
 
 interface PWALayoutProps {
   readonly children: React.ReactNode;
 }
 
-export default function PWALayout({ 
-  children
-}: PWALayoutProps) {
+export default function PWALayout({ children }: PWALayoutProps) {
   useEffect(() => {
     // ✅ PWA COMPLETAMENTE DESHABILITADO
     console.log('🚫 PWA Layout: Inicialización deshabilitada');
@@ -19,6 +16,7 @@ export default function PWALayout({
   return (
     <>
       {children}
+      {/* PWA Install Prompt deshabilitado - funcionalidad removida temporalmente */}
     </>
   );
 }

@@ -126,7 +126,9 @@ type ConfigurableItemType =
   | 'promociones'
   | 'recompensas'
   | 'favoritoDelDia'
-  | 'eventos';
+  | 'eventos'
+  | 'tarjetas'
+  | 'nombreEmpresa';
 
 // Funciones helper para manejar tipos de datos
 const getPromocionesList = (promociones: any): Promocion[] => {
@@ -421,6 +423,28 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
         };
       }
 
+      // 🎯 NUEVO: Manejo especial para tarjetas (usar nivel como ID)
+      if (type === 'tarjetas') {
+        const currentTarjetas = Array.isArray(prev.tarjetas)
+          ? prev.tarjetas
+          : [];
+
+        return {
+          ...prev,
+          tarjetas: currentTarjetas.map((tarjeta: any) =>
+            tarjeta.nivel === itemId ? { ...tarjeta, ...updates } : tarjeta
+          ),
+        };
+      }
+
+      // 🎯 NUEVO: Manejo para nombre de empresa
+      if (type === 'nombreEmpresa') {
+        return {
+          ...prev,
+          nombreEmpresa: updates.nombreEmpresa || prev.nombreEmpresa,
+        };
+      }
+
       const newConfig = {
         ...prev,
         [type]: (prev[type] || []).map((item: { id?: string }) =>
@@ -452,9 +476,17 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
       favoritoDelDia: 'favorito del día',
       recompensas: 'recompensa',
       eventos: 'evento',
+      tarjetas: 'tarjeta',
+      nombreEmpresa: 'nombre de empresa',
     };
 
     const itemName = itemTypeNames[type] || 'elemento';
+
+    // 🚫 No permitir eliminar tarjetas o nombre de empresa
+    if (type === 'tarjetas' || type === 'nombreEmpresa') {
+      showNotification(`❌ No se puede eliminar ${itemName}`, 'error');
+      return;
+    }
 
     // 🆕 Actualizar estado local primero para UI responsiva
     setConfig((prev: GeneralConfig): GeneralConfig => {
@@ -472,9 +504,11 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
         };
       }
 
+      // Para arrays normales
+      const currentArray = Array.isArray(prev[type]) ? prev[type] as any[] : [];
       const newConfig = {
         ...prev,
-        [type]: (prev[type] || []).filter(
+        [type]: currentArray.filter(
           (item: { id?: string }) => item.id !== itemId
         ),
       };
@@ -495,6 +529,11 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
   };
 
   const toggleActive = async (type: ConfigurableItemType, itemId: string) => {
+    // 🚫 No permitir toggle para tarjetas o nombre de empresa
+    if (type === 'tarjetas' || type === 'nombreEmpresa') {
+      return;
+    }
+    
     // 🆕 Actualizar estado local primero para UI responsiva
     setConfig((prev: GeneralConfig): GeneralConfig => {
       if (type === 'favoritoDelDia') {
@@ -510,9 +549,11 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
         };
       }
 
+      // Para arrays normales
+      const currentArray = Array.isArray(prev[type]) ? prev[type] as any[] : [];
       const newConfig = {
         ...prev,
-        [type]: (prev[type] || []).map(
+        [type]: currentArray.map(
           (item: { id?: string; activo?: boolean }) =>
             item.id === itemId ? { ...item, activo: !item.activo } : item
         ),
@@ -1203,7 +1244,12 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
           <div className="max-h-[80vh] overflow-y-auto">
             <TarjetaEditor
               config={config}
-              setConfig={(newConfig: GeneralConfig) => setConfig(newConfig)}
+              onUpdateCard={(nivel: string, updates: Partial<any>) =>
+                updateItem('tarjetas', nivel, updates)
+              }
+              onUpdateNombreEmpresa={(nombreEmpresa: string) =>
+                updateItem('nombreEmpresa', 'nombreEmpresa', { nombreEmpresa })
+              }
               showNotification={showNotification}
             />
           </div>

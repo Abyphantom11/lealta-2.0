@@ -12,7 +12,7 @@ import {
   requiresAdminAuth
 } from './src/middleware/security';
 import { handleSessionSegregation } from './src/middleware/sessionSegregation';
-import { prisma } from './src/lib/prisma';
+
 import { publicClientAccess } from './src/middleware/publicClientAccess';
 import { createRateLimitResponse } from './src/lib/rate-limiter';
 
@@ -64,22 +64,7 @@ function cleanupCache() {
   lastCleanup = now;
 }
 
-function getCachedValidation(key: string): unknown | null {
-  cleanupCache(); // Cleanup automático
-  const entry = validationCache.get(key);
-  if (entry && (Date.now() - entry.timestamp) < CACHE_TTL) {
-    entry.hitCount++; // Incrementar contador para LRU
-    return entry.data;
-  }
-  validationCache.delete(key);
-  return null;
-}
-
-function setCachedValidation(key: string, data: unknown): void {
-  validationCache.set(key, { data, timestamp: Date.now(), hitCount: 1 });
-}
-
-function getCachedBusiness(businessId: string): unknown | null {
+async function getCachedBusiness(businessId: string): Promise<any> {
   cleanupCache(); // Cleanup automático
   const entry = businessCache.get(businessId);
   if (entry && (Date.now() - entry.timestamp) < BUSINESS_CACHE_TTL) {
@@ -280,49 +265,7 @@ async function handleClientRouteAccess(request: NextRequest, pathname: string): 
   return NextResponse.next();
 }
 
-/**
- * Obtiene el businessId del usuario desde la base de datos
- */
-async function getUserBusinessSlug(sessionCookie: string): Promise<string | null> {
-  try {
-    console.log(`Obteniendo business slug desde DB...`);
-    const sessionData = JSON.parse(sessionCookie);
-    
-    if (!sessionData.userId) {
-      console.log(`No userId en sesion`);
-      return null;
-    }
-    
-    const user = await prisma.user.findUnique({
-      where: {
-        id: sessionData.userId,
-        isActive: true,
-      },
-      include: {
-        business: {
-          select: {
-            slug: true,
-            subdomain: true,
-            isActive: true,
-          },
-        },
-      },
-    });
-    
-    if (!user?.business?.isActive) {
-      console.log(`Usuario o business no encontrado/activo`);
-      return null;
-    }
-    
-    const businessSlug = user.business.slug || user.business.subdomain;
-    console.log(`Business slug obtenido: ${businessSlug}`);
-    return businessSlug;
-    
-  } catch (error) {
-    console.error('Error obteniendo business slug:', error);
-    return null;
-  }
-}
+
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -627,46 +570,7 @@ async function validateUserBusinessAccess(
   }
 }
 
-async function handleAdminApiRoute(request: NextRequest, pathname: string) {
-  try {
-    const sessionCookie = request.cookies.get('session')?.value;
 
-    if (!sessionCookie) {
-      console.log('❌ API Admin: No hay cookie de sesión');
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
-
-    const sessionData = JSON.parse(sessionCookie);
-
-    if (!sessionData.userId || !sessionData.role) {
-      console.log('❌ API Admin: Datos de sesión incompletos');
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
-
-    // Verificar que el usuario tenga permisos de admin o staff
-    if (!['SUPERADMIN', 'ADMIN', 'STAFF'].includes(sessionData.role)) {
-      console.log('❌ API Admin: Rol insuficiente:', sessionData.role);
-      return NextResponse.json({ error: 'Permisos insuficientes' }, { status: 403 });
-    }
-
-    // Pasar headers de autenticación a la API
-    const response = NextResponse.next();
-    response.headers.set('x-user-id', sessionData.userId);
-    response.headers.set('x-user-role', sessionData.role);
-    response.headers.set('x-business-id', sessionData.businessId);
-
-    console.log('✅ API Admin autorizada:', {
-      pathname,
-      role: sessionData.role,
-      userId: sessionData.userId,
-    });
-
-    return response;
-  } catch (error) {
-    console.error('❌ Error en API Admin middleware:', error);
-    return NextResponse.json({ error: 'Error de autenticación' }, { status: 401 });
-  }
-}
 
 async function handleProtectedRoute(request: NextRequest, pathname: string) {
   try {
@@ -748,37 +652,6 @@ function createResponseWithHeaders(sessionData: any, role: string) {
   });
 
   return response;
-}
-
-/**
- * Extrae el businessId de la sesión de manera segura
- */
-function extractBusinessIdFromSession(sessionCookie: string): string | null {
-  try {
-    console.log(`Parsing session cookie...`);
-    const sessionData = JSON.parse(sessionCookie);
-    console.log(`📊 Session data keys:`, Object.keys(sessionData));
-    
-    // Múltiples intentos para obtener el businessId
-    const businessId = sessionData.businessId || 
-                      sessionData.business?.id || 
-                      sessionData.business?.slug ||
-                      sessionData.selectedBusinessId ||
-                      null;
-                      
-    console.log(`🏢 BusinessId extraction attempts:`, {
-      'sessionData.businessId': sessionData.businessId,
-      'sessionData.business?.id': sessionData.business?.id,
-      'sessionData.business?.slug': sessionData.business?.slug,
-      'sessionData.selectedBusinessId': sessionData.selectedBusinessId,
-      'final result': businessId
-    });
-    
-    return businessId;
-  } catch (error) {
-    console.error('❌ Error parseando sesión para businessId:', error);
-    return null;
-  }
 }
 
 // Configuración del middleware - especifica en qué rutas debe ejecutarse

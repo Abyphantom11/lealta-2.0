@@ -301,27 +301,26 @@ export async function GET(request: NextRequest) {
       tarjetas: await (async () => {
         const adminConfig = await getAdminTarjetas(businessId);
         if (adminConfig && adminConfig.tarjetas && adminConfig.tarjetas.length > 0) {
-          // ✅ CORRECCIÓN: Transformar correctamente la estructura de niveles
-          const tarjetaBase = adminConfig.tarjetas[0]; // Primera tarjeta con niveles
-          if (tarjetaBase && tarjetaBase.niveles && Array.isArray(tarjetaBase.niveles)) {
-            return tarjetaBase.niveles.map((nivel: any) => ({
-              id: `tarjeta-${nivel.nombre?.toLowerCase()}`,
-              nivel: nivel.nombre,
-              nombrePersonalizado: `Tarjeta ${nivel.nombre}`,
-              textoCalidad: nivel.beneficio || `Cliente ${nivel.nombre}`,
-              colores: {
-                gradiente: nivel.colores || ['#666666', '#999999'],
-                texto: '#FFFFFF',
-                nivel: nivel.colores?.[0] || '#666666'
-              },
-              condiciones: {
-                puntosMinimos: nivel.puntosRequeridos || 0,
-                visitasMinimas: nivel.visitasRequeridas || 0
-              },
-              beneficio: `${nivel.descuento || 0}% de descuento en compras`,
-              activo: true
-            }));
-          }
+          // ✅ NUEVA ESTRUCTURA: adminConfig.tarjetas es directamente un array de tarjetas
+          console.log(`🎯 [API] Procesando ${adminConfig.tarjetas.length} tarjetas del admin config`);
+          return adminConfig.tarjetas.map((tarjeta: any) => ({
+            id: tarjeta.id || `tarjeta-${tarjeta.nivel?.toLowerCase()}`,
+            nivel: tarjeta.nivel,
+            nombrePersonalizado: tarjeta.nombrePersonalizado || `Tarjeta ${tarjeta.nivel}`,
+            textoCalidad: tarjeta.textoCalidad || tarjeta.beneficio || `Cliente ${tarjeta.nivel}`,
+            colores: {
+              gradiente: tarjeta.colores?.gradiente || ['#666666', '#999999'],
+              texto: tarjeta.colores?.texto || '#FFFFFF',
+              nivel: tarjeta.colores?.nivel || tarjeta.colores?.gradiente?.[0] || '#666666'
+            },
+            condiciones: {
+              puntosMinimos: tarjeta.condiciones?.puntosMinimos || 0,
+              gastosMinimos: tarjeta.condiciones?.gastosMinimos || 0,
+              visitasMinimas: tarjeta.condiciones?.visitasMinimas || 0
+            },
+            beneficio: tarjeta.beneficio || `Cliente ${tarjeta.nivel}`,
+            activo: tarjeta.activo !== undefined ? tarjeta.activo : true
+          }));
         }
         // Fallback: usar BD como antes
         return [{
