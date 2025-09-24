@@ -213,9 +213,15 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
 
         setConfig({
           ...loadedConfig,
-          nombreEmpresa: loadedConfig.nombreEmpresa || 'Mi Negocio',
+          nombreEmpresa: loadedConfig.nombreEmpresa || loadedConfig.empresa?.nombre || 'Mi Negocio',
           tarjetas: finalTarjetas,
           nivelesConfig: loadedConfig.nivelesConfig || defaultNivelesConfig,
+        });
+
+        console.log('✅ Portal config cargado:', {
+          nombreEmpresa: loadedConfig.nombreEmpresa || loadedConfig.empresa?.nombre || 'Mi Negocio',
+          tarjetasCount: finalTarjetas.length,
+          hasNivelesConfig: !!(loadedConfig.nivelesConfig),
         });
       } else {
         // 🎯 GENERAR CONFIGURACIÓN POR DEFECTO CON TARJETAS DESDE NIVELESCONFIG

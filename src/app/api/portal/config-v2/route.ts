@@ -297,91 +297,41 @@ export async function GET(request: NextRequest) {
         updatedAt: favoritoDelDia.updatedAt.toISOString()
       }] : [],
 
-      // CONFIGURACIÓN DE TARJETAS - ✅ PRIORIZAR BD EN PRODUCCIÓN, JSON EN DESARROLLO
+      // CONFIGURACIÓN DE TARJETAS - ✅ PRIORIZAR ADMIN CONFIG
       tarjetas: await (async () => {
-        console.log(`🔍 Loading tarjetas config for business: ${businessId}`);
-        
-        // 🚀 PRIORIDAD 1: Intentar PostgreSQL primero (especialmente en producción)
-        console.log(`�️ Checking PostgreSQL config first...`);
-        if (tarjetasConfig?.levelsConfig) {
-          console.log(`✅ Found PostgreSQL config, using database data`);
-          
-          const levels = Object.entries(tarjetasConfig.levelsConfig).map(([levelName, config]: [string, any]) => ({
-            id: `tarjeta-${levelName}`,
-            nivel: levelName.charAt(0).toUpperCase() + levelName.slice(1),
-            nombrePersonalizado: config.nombrePersonalizado || `Tarjeta ${levelName.charAt(0).toUpperCase() + levelName.slice(1)}`,
-            textoCalidad: config.textoCalidad || config.benefits?.[0] || `Cliente ${levelName}`,
-            colores: {
-              gradiente: config.colors || ['#666666', '#999999'],
-              texto: '#FFFFFF',
-              nivel: config.colors?.[0] || '#666666'
-            },
-            condiciones: {
-              puntosMinimos: config.minPoints || 0,
-              visitasMinimas: config.minVisits || 0,
-              gastosMinimos: config.minSpent || 0
-            },
-            beneficio: config.benefits?.[0] || config.beneficio || `Cliente ${levelName}`,
-            activo: config.active !== false
-          }));
-          
-          console.log(`✅ Using PostgreSQL config with ${levels.length} tarjetas`);
-          return levels;
-        }
-        
-        // 🚀 PRIORIDAD 2: Intentar admin config (JSON files) como fallback
-        console.log(`📁 PostgreSQL config not found, trying admin JSON config...`);
         const adminConfig = await getAdminTarjetas(businessId);
-        console.log(`📊 Admin config status:`, {
-          found: !!adminConfig,
-          hasTarjetas: !!(adminConfig?.tarjetas?.length),
-          tarjetasCount: adminConfig?.tarjetas?.length || 0,
-          nombreEmpresa: adminConfig?.nombreEmpresa
-        });
-        
         if (adminConfig && adminConfig.tarjetas && adminConfig.tarjetas.length > 0) {
-          // ✅ USAR CONFIGURACIÓN CENTRAL DE TARJETAS DIRECTAMENTE
-          console.log(`✅ Using admin JSON config with ${adminConfig.tarjetas.length} tarjetas`);
-          return adminConfig.tarjetas.map((tarjeta: any) => ({
-            id: tarjeta.id || `tarjeta-${tarjeta.nivel?.toLowerCase()}`,
-            nivel: tarjeta.nivel,
-            nombrePersonalizado: tarjeta.nombrePersonalizado || `Tarjeta ${tarjeta.nivel}`,
-            textoCalidad: tarjeta.textoCalidad || tarjeta.beneficio || `Cliente ${tarjeta.nivel}`,
-            colores: {
-              gradiente: tarjeta.colores?.gradiente || ['#666666', '#999999'],
-              texto: tarjeta.colores?.texto || '#FFFFFF',
-              nivel: tarjeta.colores?.nivel || tarjeta.colores?.gradiente?.[0] || '#666666'
-            },
-            condiciones: {
-              puntosMinimos: tarjeta.condiciones?.puntosMinimos || 0,
-              visitasMinimas: tarjeta.condiciones?.visitasMinimas || 0,
-              gastosMinimos: tarjeta.condiciones?.gastosMinimos || 0
-            },
-            beneficio: tarjeta.beneficio || `Cliente ${tarjeta.nivel}`,
-            activo: tarjeta.activo !== undefined ? tarjeta.activo : true
-          }));
+          // ✅ CORRECCIÓN: Transformar correctamente la estructura de niveles
+          const tarjetaBase = adminConfig.tarjetas[0]; // Primera tarjeta con niveles
+          if (tarjetaBase && tarjetaBase.niveles && Array.isArray(tarjetaBase.niveles)) {
+            return tarjetaBase.niveles.map((nivel: any) => ({
+              id: `tarjeta-${nivel.nombre?.toLowerCase()}`,
+              nivel: nivel.nombre,
+              nombrePersonalizado: `Tarjeta ${nivel.nombre}`,
+              textoCalidad: nivel.beneficio || `Cliente ${nivel.nombre}`,
+              colores: {
+                gradiente: nivel.colores || ['#666666', '#999999'],
+                texto: '#FFFFFF',
+                nivel: nivel.colores?.[0] || '#666666'
+              },
+              condiciones: {
+                puntosMinimos: nivel.puntosRequeridos || 0,
+                visitasMinimas: nivel.visitasRequeridas || 0
+              },
+              beneficio: `${nivel.descuento || 0}% de descuento en compras`,
+              activo: true
+            }));
+          }
         }
-        
-        // 🚀 PRIORIDAD 3: Fallback final con configuración por defecto
-        console.log(`⚠️ No config found, using default fallback`);
-        return generateNiveles(null).map((nivel: any) => ({
-          id: `tarjeta-${nivel.nombre?.toLowerCase()}`,
-          nivel: nivel.nombre,
-          nombrePersonalizado: `Tarjeta ${nivel.nombre}`,
-          textoCalidad: nivel.beneficio,
-          colores: {
-            gradiente: nivel.colores || ['#666666', '#999999'],
-            texto: '#FFFFFF',
-            nivel: nivel.colores?.[0] || '#666666'
-          },
-          condiciones: {
-            puntosMinimos: nivel.puntosRequeridos || 0,
-            visitasMinimas: nivel.visitasRequeridas || 0,
-            gastosMinimos: 0
-          },
-          beneficio: nivel.beneficio,
-          activo: true
-        }));
+        // Fallback: usar BD como antes
+        return [{
+          id: 'tarjeta-default',
+          nombre: `Tarjeta ${business.name}`,
+          descripcion: 'Sistema de lealtad personalizado',
+          activa: true,
+          condicional: 'OR',
+          niveles: generateNiveles(tarjetasConfig)
+        }];
       })(),
 
       // EVENTOS - Por ahora vacío (se puede agregar después)

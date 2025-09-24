@@ -357,49 +357,7 @@ export async function PUT(request: NextRequest) {
         if (saved) {
           console.log(`✅ Updated tarjetas in JSON file for business ${session.businessId}`);
           
-          // � SINCRONIZAR CON BASE DE DATOS: Actualizar configuración de tarjetas en PostgreSQL
-          try {
-            // Convertir configuración de tarjetas al formato de la BD
-            if (updatedTarjetas && Array.isArray(updatedTarjetas) && updatedTarjetas.length > 0) {
-              const tarjetaConfig = updatedTarjetas[0]; // Tomar la primera configuración de tarjeta
-              
-              if (tarjetaConfig.niveles && Array.isArray(tarjetaConfig.niveles)) {
-                // Convertir niveles a formato de BD
-                const levelsConfig = {};
-                tarjetaConfig.niveles.forEach((nivel: any) => {
-                  if (nivel.nombre) {
-                    levelsConfig[nivel.nombre.toLowerCase()] = {
-                      minPoints: nivel.puntosRequeridos || 0,
-                      minVisits: nivel.visitasRequeridas || 0,
-                      benefits: [nivel.beneficio || `Cliente ${nivel.nombre}`],
-                      colors: nivel.colores || ['#666666', '#999999']
-                    };
-                  }
-                });
-
-                // Actualizar o crear configuración en PostgreSQL
-                await prisma.portalTarjetasConfig.upsert({
-                  where: { businessId: session.businessId },
-                  update: {
-                    levelsConfig: levelsConfig,
-                    updatedAt: new Date()
-                  },
-                  create: {
-                    businessId: session.businessId,
-                    levelsConfig: levelsConfig,
-                    createdAt: new Date(),
-                    updatedAt: new Date()
-                  }
-                });
-                
-                console.log(`🔄 Synchronized tarjetas config to PostgreSQL for business ${session.businessId}`);
-              }
-            }
-          } catch (syncError) {
-            console.error(`❌ Error synchronizing tarjetas to PostgreSQL for business ${session.businessId}:`, syncError);
-          }
-          
-          // �🔔 NOTIFICAR CAMBIOS: Solo al business específico
+          // 🔔 NOTIFICAR CAMBIOS: Solo al business específico
           await notifyConfigChange(session.businessId);
         } else {
           console.warn(`⚠️ Failed to update tarjetas in JSON file for business ${session.businessId}`);

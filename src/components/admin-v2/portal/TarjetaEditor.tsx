@@ -452,10 +452,11 @@ export default function TarjetaEditor({
               type="text"
               value={config.nombreEmpresa || ''}
               onChange={e => {
-                // ✅ SOLO ACTUALIZAR ESTADO LOCAL, NO AUTO-SAVE
+                // ✅ ACTUALIZAR ESTADO LOCAL Y MARCAR COMO CAMBIADO
                 const updatedConfig = { ...config, nombreEmpresa: e.target.value };
                 setConfig(updatedConfig);
                 setHasUnsavedChanges(true);
+                setEmpresaChanged(true); // ✅ ACTIVAR INDICADOR DE CAMBIOS
               }}
               placeholder="Nombre de tu empresa"
               className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none pr-10"
