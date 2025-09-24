@@ -213,10 +213,18 @@ export async function PUT(request: NextRequest) {
         favoritoDelDia,
         tarjetas,
         nombreEmpresa,
-        nivelesConfig
+        nivelesConfig,
+        businessId: bodyBusinessId // Capturamos pero NO lo usamos
       } = body;
 
+      // 🚨 SEGURIDAD: SIEMPRE usar session.businessId, NUNCA el del body
+      if (bodyBusinessId && bodyBusinessId !== session.businessId) {
+        console.warn(`⚠️ SECURITY: Client sent businessId "${bodyBusinessId}" but session has "${session.businessId}". Using session.`);
+      }
+
       console.log('📦 Data received for update:', {
+        sessionBusinessId: session.businessId, // ✅ Este es el que se usa SIEMPRE
+        bodyBusinessId: bodyBusinessId || 'not-provided', // Solo para debug
         bannersCount: banners?.length || 0,
         promocionesCount: promociones?.length || 0,
         recompensasCount: recompensas?.length || 0,

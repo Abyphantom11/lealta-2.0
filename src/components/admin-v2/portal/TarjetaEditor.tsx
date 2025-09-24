@@ -254,9 +254,7 @@ export default function TarjetaEditor({
 
   // Función auxiliar para persistir cambios
   const persistCardChanges = async (newTarjetas: Tarjeta[]) => {
-    // ✅ USAR BUSINESSID CORRECTO
-    const currentBusinessId = window.location.pathname.split('/')[1] || 'arepa';
-    console.log('🔍 Persistiendo tarjetas para businessId:', currentBusinessId);
+    console.log('🔍 Persistiendo tarjetas (businessId desde sesión autenticada)');
     
     const response = await fetch('/api/admin/portal-config', {
       method: 'PUT',
@@ -266,7 +264,7 @@ export default function TarjetaEditor({
       body: JSON.stringify({
         ...config,
         tarjetas: newTarjetas,
-        businessId: currentBusinessId,  // ✅ CORREGIDO
+        // ❌ NO enviar businessId - el backend usa session.businessId automáticamente
       }),
     });
 
@@ -379,11 +377,9 @@ export default function TarjetaEditor({
     try {
       setSavingEmpresa(true);
 
-      // ✅ USAR BUSINESSID CORRECTO (extraer de URL o props)
-      const currentBusinessId = window.location.pathname.split('/')[1] || 'arepa';
-      console.log('🔍 Guardando para businessId:', currentBusinessId);
+      console.log('🔍 Guardando cambios de empresa (business ID se obtiene de sesión autenticada)');
 
-      // Persistir en la base de datos
+      // Persistir en la base de datos - el businessId viene de session.businessId en el backend
       const response = await fetch('/api/admin/portal-config', {
         method: 'PUT',
         headers: {
@@ -391,7 +387,7 @@ export default function TarjetaEditor({
         },
         body: JSON.stringify({
           ...config,
-          businessId: currentBusinessId,  // ✅ CORREGIDO
+          // ❌ NO enviar businessId - el backend usa session.businessId automáticamente
         }),
       });
 

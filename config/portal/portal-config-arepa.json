@@ -64,20 +64,39 @@
   "favoritoDelDia": [],
   "tarjetas": [
     {
+      "nivel": "bronce",
+      "beneficio": "5% de descuento",
+      "puntos": 50
+    },
+    {
+      "nivel": "plata",
+      "beneficio": "10% de descuento",
+      "puntos": 100
+    },
+    {
       "nivel": "oro",
       "beneficio": "9 dadadasd",
-      "puntos": 100
+      "puntos": 200
+    },
+    {
+      "nivel": "diamante",
+      "beneficio": "20% de descuento + producto gratis",
+      "puntos": 500
+    },
+    {
+      "nivel": "platino",
+      "beneficio": "25% de descuento + 2 productos gratis",
+      "puntos": 1000
     }
   ],
-  "nombreEmpresa": "TEST SAVE VERIFICATION",
+  "nombreEmpresa": "love me sky",
   "settings": {
-    "lastUpdated": "2025-09-23T03:43:23.592Z",
+    "lastUpdated": "2025-09-24T03:20:00.000Z",
     "version": "2.0.0",
-    "createdBy": "system-central",
-    "businessId": "cmfw0fujf0000eyv8eyhgfzja"
+    "createdBy": "admin-fix",
+    "businessId": "arepa"
   },
   "nivelesConfig": {},
-  "lastUpdated": "2025-09-24T03:16:26.783Z",
-  "version": "2.0.0",
-  "testSave": true
+  "lastUpdated": "2025-09-24T03:20:00.000Z",
+  "version": "2.0.0"
 }

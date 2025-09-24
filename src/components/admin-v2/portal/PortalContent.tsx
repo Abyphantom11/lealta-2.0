@@ -126,34 +126,22 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
 
   const fetchConfig = useCallback(async () => {
     try {
-      // 🔥 CRÍTICO: Resolver el businessId real desde el slug/subdomain
+      // 📡 Simplificado: el backend usa session.businessId automáticamente
       const urlBusinessIdentifier = getCurrentBusinessFromUrl();
-      const storedBusinessId = localStorage.getItem('currentBusinessId');
       
-      // Actualizar el slug del business actual
+      // Solo actualizar el slug para construir URLs del portal cliente
       if (urlBusinessIdentifier) {
         setCurrentBusinessSlug(urlBusinessIdentifier);
       }
       
-      // Resolver el ID real del business
-      let finalBusinessId: string;
-      if (urlBusinessIdentifier) {
-        const resolvedId = await resolveBusinessId(urlBusinessIdentifier);
-        finalBusinessId = resolvedId || storedBusinessId || 'cmfr2y0ia0000eyvw7ef3k20u';
-      } else {
-        finalBusinessId = storedBusinessId || 'cmfr2y0ia0000eyvw7ef3k20u';
-      }
-      
-      console.log('🔍 Portal fetchConfig - BusinessId resolution:', {
+      console.log('🔍 Portal fetchConfig - Obteniendo config (businessId desde sesión autenticada):', {
         urlBusinessIdentifier,
-        storedBusinessId,
-        finalBusinessId,
         currentUrl: window.location.pathname
       });
       
-      const response = await fetch(
-        `/api/admin/portal-config?businessId=${finalBusinessId}`
-      );
+      // ✅ CORRECCIÓN: NO enviar businessId - el backend usa session.businessId
+      const response = await fetch('/api/admin/portal-config');
+      
       if (response.ok) {
         const data = await response.json();
         const loadedConfig = data.config || data;
