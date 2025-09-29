@@ -1,36 +1,167 @@
-import { useState, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Input } from "./ui/input";
 import { CustomCalendar } from "./ui/custom-calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-
-import { Edit, Eye, Search, Users, Calendar, User, CalendarDays } from "lucide-react";
+import { Eye, Calendar, User, Search, Plus } from "lucide-react";
 import { Reserva } from "../types/reservation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { ReservationCard } from "./ReservationCard";
 
 interface ReservationTableProps {
   reservas: Reserva[];
   selectedDate: Date;
   onDateSelect: (date: Date) => void;
-  onEditReserva: (id: string) => void;
   onViewReserva: (id: string) => void;
   onEstadoChange: (id: string, nuevoEstado: Reserva['estado']) => void;
+  onMesaChange?: (id: string, mesa: string) => void;
+  onFechaChange?: (id: string, fecha: string) => void;
+  onHoraChange?: (id: string, hora: string) => void;
+  onPersonasChange?: (id: string, personas: number) => void;
+  onRazonVisitaChange?: (id: string, razon: string) => void;
+  onBeneficiosChange?: (id: string, beneficios: string) => void;
+  onPromotorChange?: (id: string, promotor: string) => void;
+  onDetallesChange?: (id: string, detalles: string[]) => void;
 }
 
-export function ReservationTable({ reservas, selectedDate, onDateSelect, onEditReserva, onViewReserva, onEstadoChange }: Readonly<ReservationTableProps>) {
+export function ReservationTable({ 
+  reservas, 
+  selectedDate, 
+  onDateSelect,
+  onViewReserva, 
+  onEstadoChange,
+  onMesaChange,
+  onFechaChange,
+  onHoraChange,
+  onPersonasChange,
+  onRazonVisitaChange,
+  onBeneficiosChange,
+  onPromotorChange,
+  onDetallesChange
+}: Readonly<ReservationTableProps>) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterEstado, setFilterEstado] = useState<string>("all");
-  const [filterByDate, setFilterByDate] = useState(false);
-  const [popoverOpen, setPopoverOpen] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  
-  // Efecto para manejar la apertura del popover
+  const [detallesReservas, setDetallesReservas] = useState<Record<string, string[]>>({});
+  const [reservasEditadas, setReservasEditadas] = useState<Record<string, Partial<Reserva>>>({});
+
+  // Cargar datos editados desde localStorage al inicializar
   useEffect(() => {
-    // No necesitamos hacer nada especial con nuestro nuevo calendario personalizado
-  }, [popoverOpen]);
+    const datosGuardados = localStorage.getItem('reservas-editadas');
+    if (datosGuardados) {
+      try {
+        const datos = JSON.parse(datosGuardados);
+        setReservasEditadas(datos);
+      } catch (error) {
+        console.warn('Error al cargar datos guardados:', error);
+      }
+    }
+  }, []);
+
+  // Función para guardar cambios en localStorage y llamar al handler padre
+  const guardarCambio = (reservaId: string, campo: string, valor: any) => {
+    const nuevasEdiciones = {
+      ...reservasEditadas,
+      [reservaId]: {
+        ...reservasEditadas[reservaId],
+        [campo]: valor
+      }
+    };
+    
+    setReservasEditadas(nuevasEdiciones);
+    localStorage.setItem('reservas-editadas', JSON.stringify(nuevasEdiciones));
+    
+    // Llamar al handler correspondiente
+    const reservaCompleta = { ...reservas.find(r => r.id === reservaId), ...nuevasEdiciones[reservaId] };
+    return reservaCompleta;
+  };
+
+  // Función para obtener el valor actual de un campo (editado o original)
+  const obtenerValorCampo = (reservaId: string, campo: keyof Reserva): any => {
+    const reservaOriginal = reservas.find(r => r.id === reservaId);
+    const edicionesReserva = reservasEditadas[reservaId];
+    
+    if (edicionesReserva && edicionesReserva[campo] !== undefined) {
+      return edicionesReserva[campo];
+    }
+    
+    return reservaOriginal?.[campo];
+  };
+
+  // Función para inicializar detalles de una reserva
+  const getDetallesReserva = (reservaId: string): string[] => {
+    if (!detallesReservas[reservaId]) {
+      // Inicializar sin campos, solo el botón + estará disponible
+      const detallesIniciales: string[] = [];
+      
+      // Guardar en el estado para futuras referencias
+      setDetallesReservas(prev => ({
+        ...prev,
+        [reservaId]: detallesIniciales
+      }));
+      
+      return detallesIniciales;
+    }
+    return detallesReservas[reservaId];
+  };
+
+  // Función para agregar un nuevo campo de detalle
+  const agregarDetalle = (reservaId: string, valor?: string) => {
+    const nuevoValor = valor || '';
+    setDetallesReservas(prev => ({
+      ...prev,
+      [reservaId]: [...getDetallesReserva(reservaId), nuevoValor]
+    }));
+    
+    // Si se proporciona un valor, llamar inmediatamente al handler del padre
+    if (valor && onDetallesChange) {
+      const nuevosDetalles = [...getDetallesReserva(reservaId), nuevoValor];
+      onDetallesChange(reservaId, nuevosDetalles);
+    }
+  };
+
+  // Función para actualizar un detalle específico
+  const actualizarDetalle = (reservaId: string, index: number, valor: string) => {
+    const detalles = getDetallesReserva(reservaId);
+    const nuevosDetalles = [...detalles];
+    nuevosDetalles[index] = valor;
+    
+    setDetallesReservas(prev => ({
+      ...prev,
+      [reservaId]: nuevosDetalles
+    }));
+
+    // Llamar al handler del componente padre si existe
+    if (onDetallesChange) {
+      onDetallesChange(reservaId, nuevosDetalles);
+    }
+
+    // Mantener compatibilidad con handlers específicos por ahora
+    if (onRazonVisitaChange && index === 0) {
+      onRazonVisitaChange(reservaId, valor);
+    } else if (onBeneficiosChange && index === 1) {
+      onBeneficiosChange(reservaId, valor);
+    }
+  };
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const datePickerRef = useRef<HTMLDivElement>(null);
+
+  // Cerrar el calendario cuando se hace clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(event.target as Node)) {
+        setShowDatePicker(false);
+      }
+    };
+
+    if (showDatePicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showDatePicker]);
 
   const filteredReservas = reservas.filter(reserva => {
     const matchesSearch = 
@@ -38,27 +169,28 @@ export function ReservationTable({ reservas, selectedDate, onDateSelect, onEditR
       reserva.promotor.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       reserva.razonVisita.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesFilter = filterEstado === "all" || reserva.estado === filterEstado;
+    // Filtrar por fecha - mostrar solo reservas del día seleccionado
+    const matchesDate = reserva.fecha === format(selectedDate, 'yyyy-MM-dd');
     
-    // Filtro por fecha si está activado - convertir ambas fechas al mismo formato
-    const matchesDate = !filterByDate || reserva.fecha === format(selectedDate, 'yyyy-MM-dd');
-    
-    return matchesSearch && matchesFilter && matchesDate;
+    return matchesSearch && matchesDate;
   });
+
+  // Obtener todas las fechas únicas que tienen reservas
+  const reservedDates = [...new Set(reservas.map(reserva => reserva.fecha))];
 
   const getEstadoSelect = (reserva: Reserva) => {
     const getSelectClassName = (estado: Reserva['estado']) => {
       switch (estado) {
         case 'Activa':
-          return "bg-green-500 text-white border-green-600";
+          return "bg-green-500 border-green-600";
         case 'En Progreso':
-          return "bg-yellow-500 text-white border-yellow-600";
+          return "bg-yellow-500 border-yellow-600";
         case 'Reserva Caída':
-          return "bg-red-500 text-white border-red-600";
+          return "bg-red-500 border-red-600";
         case 'En Camino':
-          return "bg-blue-500 text-white border-blue-600";
+          return "bg-blue-500 border-blue-600";
         default:
-          return "bg-green-500 text-white border-green-600"; // Por defecto verde para "Activa"
+          return "bg-green-500 border-green-600"; // Por defecto verde para "Activa"
       }
     };
 
@@ -66,19 +198,22 @@ export function ReservationTable({ reservas, selectedDate, onDateSelect, onEditR
       <select
         value={reserva.estado}
         onChange={(e) => onEstadoChange(reserva.id, e.target.value as Reserva['estado'])}
-        className={`px-2 py-1 text-xs rounded-md border-2 font-medium min-w-[100px] cursor-pointer hover:opacity-90 transition-opacity ${getSelectClassName(reserva.estado)}`}
+        className={`w-6 h-6 rounded-full border-2 cursor-pointer hover:scale-110 transition-all appearance-none ${getSelectClassName(reserva.estado)}`}
         style={{ 
-          backgroundImage: 'url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'white\' viewBox=\'0 0 16 16\'%3e%3cpath d=\'m7.247 4.86-4.796 5.481c-.566.647-.106 1.659.753 1.659h9.592a1 1 0 0 0 .753-1.659l-4.796-5.48a1 1 0 0 0-1.506 0z\'/%3e%3c/svg%3e")',
-          backgroundRepeat: 'no-repeat',
-          backgroundPosition: 'right 4px center',
-          backgroundSize: '12px',
-          paddingRight: '20px'
+          backgroundImage: 'none',
+          fontSize: '0', // Oculta el texto completamente
+          color: 'transparent',
+          outline: 'none',
+          textAlign: 'center',
+          paddingLeft: '0',
+          paddingRight: '0'
         }}
+        title={reserva.estado} // Tooltip para mostrar el estado completo
       >
-        <option value="Activa" style={{ backgroundColor: 'white', color: 'black' }}>Activa</option>
-        <option value="En Progreso" style={{ backgroundColor: 'white', color: 'black' }}>En Progreso</option>
-        <option value="Reserva Caída" style={{ backgroundColor: 'white', color: 'black' }}>Reserva Caída</option>
-        <option value="En Camino" style={{ backgroundColor: 'white', color: 'black' }}>En Camino</option>
+        <option value="Activa" style={{ fontSize: '14px', color: 'black', backgroundColor: 'white' }}>Activa</option>
+        <option value="En Progreso" style={{ fontSize: '14px', color: 'black', backgroundColor: 'white' }}>En Progreso</option>
+        <option value="Reserva Caída" style={{ fontSize: '14px', color: 'black', backgroundColor: 'white' }}>Caída</option>
+        <option value="En Camino" style={{ fontSize: '14px', color: 'black', backgroundColor: 'white' }}>En Camino</option>
       </select>
     );
   };
@@ -91,288 +226,299 @@ export function ReservationTable({ reservas, selectedDate, onDateSelect, onEditR
   };
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="pb-3 flex-shrink-0">
-        <CardTitle className="flex items-center justify-between text-base font-semibold">
-          <div className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Gestión de Reservas
-          </div>
-          <div className="text-sm font-normal text-muted-foreground">
-            {filteredReservas.length} reserva{filteredReservas.length !== 1 ? 's' : ''}
-            {filterByDate && (
-              <span className="ml-1 text-primary">
-                - {format(selectedDate, "dd/MM/yyyy", { locale: es })}
-              </span>
-            )}
-          </div>
-        </CardTitle>
-        
-        <div className="flex gap-2 items-center mt-2">
-          <div className="relative flex-1 max-w-xs">
-            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+    <Card className="rounded-md border shadow-sm">
+      <CardHeader className="flex flex-row items-center justify-between gap-4 p-4 pb-2">
+        <CardTitle className="text-lg font-semibold">Reservas</CardTitle>
+      </CardHeader>
+      <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
+        {/* Filtros simples */}
+        <div className="flex items-center gap-4 p-4 pb-2 border-b">
+          {/* Buscador */}
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por cliente, promotor o razón..."
+              type="text"
+              placeholder="Buscar por cliente, promotor..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8 h-8 text-xs"
+              className="pl-10"
             />
           </div>
-          
-          <select 
-            value={filterEstado}
-            onChange={(e) => setFilterEstado(e.target.value)}
-            className="px-2 py-1 border rounded bg-background text-xs h-8"
-          >
-            <option value="all">Todos los estados</option>
-            <option value="Activa">Activa</option>
-            <option value="En Progreso">En Progreso</option>  
-            <option value="Reserva Caída">Reserva Caída</option>
-            <option value="En Camino">En Camino</option>
-          </select>
 
-          {/* Filtro de Fecha */}
-          <div className="relative">
-            <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={filterByDate ? "default" : "outline"}
-                  size="sm"
-                  className={`h-8 px-2 text-xs ${filterByDate ? 'bg-primary text-primary-foreground' : ''}`}
-                  onClick={() => {
-                    console.log("Botón fecha clickeado");
-                    setPopoverOpen(!popoverOpen);
-                    setShowDatePicker(!showDatePicker);
-                  }}
-                >
-                  <CalendarDays className="h-3.5 w-3.5 mr-1" />
-                  {filterByDate ? format(selectedDate, "dd/MM", { locale: es }) : "Fecha"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end" sideOffset={5} style={{ minWidth: '280px' }}>
-                <div className="p-3">
-                  <CustomCalendar
-                    selectedDate={selectedDate}
-                    onSelect={(date) => {
-                      if (date) {
-                        onDateSelect(date);
-                        setFilterByDate(true);
-                        setPopoverOpen(false);
-                        setShowDatePicker(false);
-                      }
-                    }}
-                    locale={es}
-                    className="w-full"
-                  />
-                  <div className="flex flex-col gap-2 mt-3 pt-3 border-t">
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const today = new Date();
-                          onDateSelect(today);
-                          setFilterByDate(true);
-                          setPopoverOpen(false);
-                          setShowDatePicker(false);
-                        }}
-                      >
-                        Hoy
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const tomorrow = new Date();
-                          tomorrow.setDate(tomorrow.getDate() + 1);
-                          onDateSelect(tomorrow);
-                          setFilterByDate(true);
-                          setPopoverOpen(false);
-                          setShowDatePicker(false);
-                        }}
-                      >
-                        Mañana
-                      </Button>
-                    </div>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => {
-                        setFilterByDate(false);
-                        setPopoverOpen(false);
-                        setShowDatePicker(false);
-                      }}
-                    >
-                      Mostrar todas
-                    </Button>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+          {/* Selector de fecha */}
+          <div className="relative" ref={datePickerRef}>
+            <button
+              className={`min-h-[44px] px-4 py-2 border border-gray-300 rounded-md cursor-pointer transition-all duration-200 hover:bg-blue-50 hover:border-blue-300 active:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 bg-white text-black font-medium ${showDatePicker ? 'bg-blue-100 border-blue-300' : ''}`}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Calendario toggled:', !showDatePicker);
+                setShowDatePicker(!showDatePicker);
+              }}
+              type="button"
+              style={{ zIndex: 10, position: 'relative' }}
+            >
+              <Calendar className="mr-2 h-4 w-4 inline" />
+              {showDatePicker ? 'Cerrar calendario' : 'Filtrar fecha'}
+            </button>
             
-            {/* Fallback: DatePicker alternativo */}
             {showDatePicker && (
-              <div className="absolute top-full right-0 mt-2 z-50 bg-white border rounded-lg shadow-lg" style={{ minWidth: '280px' }}>
-                <div className="p-3">
-                  <CustomCalendar
-                    selectedDate={selectedDate}
-                    onSelect={(date) => {
-                      if (date) {
-                        onDateSelect(date);
-                        setFilterByDate(true);
-                        setShowDatePicker(false);
-                      }
-                    }}
-                    locale={es}
-                  />
-                  <div className="flex flex-col gap-2 mt-3 pt-3 border-t">
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const today = new Date();
-                          onDateSelect(today);
-                          setFilterByDate(true);
-                          setShowDatePicker(false);
-                        }}
-                      >
-                        Hoy
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const tomorrow = new Date();
-                          tomorrow.setDate(tomorrow.getDate() + 1);
-                          onDateSelect(tomorrow);
-                          setFilterByDate(true);
-                          setShowDatePicker(false);
-                        }}
-                      >
-                        Mañana
-                      </Button>
-                    </div>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => {
-                        setFilterByDate(false);
-                        setShowDatePicker(false);
-                      }}
-                    >
-                      Mostrar todas
-                    </Button>
-                  </div>
-                </div>
+              <div 
+                className="absolute top-full right-0 mt-2 z-[100] bg-white border border-gray-300 rounded-lg shadow-xl"
+                style={{ 
+                  minWidth: '280px',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                }}
+              >
+                <CustomCalendar
+                  selectedDate={selectedDate}
+                  onSelect={(date) => {
+                    if (date) {
+                      console.log('Fecha seleccionada:', date);
+                      onDateSelect(date);
+                      setShowDatePicker(false);
+                    }
+                  }}
+                  locale={es}
+                  reservedDates={reservedDates}
+                />
               </div>
             )}
           </div>
-        </div>
-      </CardHeader>
 
-      <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
-        <div className="overflow-auto flex-1">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-b bg-muted/10 h-8">
-                <TableHead className="font-medium text-foreground text-xs py-2">Cliente</TableHead>
-                <TableHead className="font-medium text-foreground text-xs py-2">Fecha/Hora</TableHead>
-                <TableHead className="font-medium text-foreground text-xs py-2">Personas</TableHead>
-                <TableHead className="font-medium text-foreground text-xs py-2">Asistencia</TableHead>
-                <TableHead className="font-medium text-foreground text-xs py-2">Promotor</TableHead>
-                <TableHead className="font-medium text-foreground text-xs py-2">Estado</TableHead>
-                <TableHead className="font-medium text-foreground text-xs py-2">Razón</TableHead>
-                <TableHead className="font-medium text-foreground text-xs py-2">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredReservas.map((reserva) => (
-                <TableRow key={reserva.id} className="hover:bg-muted/30 h-10">
-                  <TableCell className="py-2">
-                    <div className="flex items-center gap-1">
-                      <User className="h-3 w-3 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium text-xs">{reserva.cliente.nombre}</p>
-                        {reserva.cliente.telefono && (
-                          <p className="text-xs text-muted-foreground">{reserva.cliente.telefono}</p>
+          {/* Mostrar fecha seleccionada */}
+          <div className="text-sm text-muted-foreground">
+            Mostrando: {format(selectedDate, 'dd/MM/yyyy', { locale: es })}
+          </div>
+        </div>
+        {/* Vista de tabla para desktop */}
+        <div className="hidden lg:block">
+          {/* ...tabla actual... */}
+          <div className="border-b bg-muted/10">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-b bg-muted/10 h-10">
+                  <TableHead className="font-medium text-foreground text-xs py-2 text-center align-middle w-20">Mesa</TableHead>
+                  <TableHead className="font-medium text-foreground text-xs py-2 text-center align-middle w-44">Cliente</TableHead>
+                  <TableHead className="font-medium text-foreground text-xs py-2 text-center align-middle w-36">Fecha/Hora</TableHead>
+                  <TableHead className="font-medium text-foreground text-xs py-2 text-center align-middle w-24">Personas</TableHead>
+                  <TableHead className="font-medium text-foreground text-xs py-2 text-center align-middle w-20">Estado</TableHead>
+                  <TableHead className="font-medium text-foreground text-xs py-2 text-center align-middle w-40">Detalles</TableHead>
+                  <TableHead className="font-medium text-foreground text-xs py-2 text-center align-middle w-36">Referencia</TableHead>
+                  <TableHead className="font-medium text-foreground text-xs py-2 text-center align-middle w-20">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+            </Table>
+          </div>
+          
+          {/* Contenido scrolleable con altura fija */}
+          <div className="flex-1 overflow-auto" style={{ minHeight: '600px', maxHeight: '600px' }}>
+            <Table>
+              <TableBody>
+                {filteredReservas.map((reserva) => (
+                  <TableRow key={reserva.id} className="hover:bg-muted/30 h-12">
+                    {/* Mesa - Editable */}
+                    <TableCell className="py-2 text-center align-middle w-20">
+                      <div className="flex justify-center items-center">
+                        <Input 
+                          value={obtenerValorCampo(reserva.id, 'mesa') || ""}
+                          placeholder=""
+                          className="w-16 h-6 text-xs border-2 border-gray-300 bg-gray-50 hover:bg-gray-100 focus:bg-white focus:border-blue-500 text-center px-1 font-medium rounded-md shadow-sm"
+                          onChange={(e) => {
+                            guardarCambio(reserva.id, 'mesa', e.target.value);
+                          }}
+                          onBlur={(e) => {
+                            if (onMesaChange) {
+                              onMesaChange(reserva.id, e.target.value);
+                            }
+                          }}
+                        />
+                      </div>
+                    </TableCell>
+                    
+                    {/* Cliente */}
+                    <TableCell className="py-2 text-center align-middle w-44">
+                      <div className="flex items-center justify-center gap-1">
+                        <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <p className="font-medium text-xs truncate max-w-36">{reserva.cliente.nombre}</p>
+                      </div>
+                    </TableCell>
+                    
+                    {/* Fecha/Hora - Editables */}
+                    <TableCell className="py-2 text-center align-middle w-36">
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <div className="flex items-center justify-center gap-1">
+                          <Calendar className="h-3 w-3 text-muted-foreground" />
+                          <Input
+                            type="date"
+                            value={obtenerValorCampo(reserva.id, 'fecha') || ""}
+                            className="w-28 h-6 text-xs border-2 border-gray-300 bg-gray-50 hover:bg-gray-100 focus:bg-white focus:border-blue-500 text-center px-1 rounded-md shadow-sm"
+                            onChange={(e) => {
+                              guardarCambio(reserva.id, 'fecha', e.target.value);
+                            }}
+                            onBlur={(e) => {
+                              if (onFechaChange) {
+                                onFechaChange(reserva.id, e.target.value);
+                              }
+                            }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-center">
+                          <Input
+                            type="time"
+                            value={obtenerValorCampo(reserva.id, 'hora') || ""}
+                            className="w-20 h-6 text-xs border-2 border-gray-300 bg-gray-50 hover:bg-gray-100 focus:bg-white focus:border-blue-500 text-center px-1 rounded-md shadow-sm"
+                            onChange={(e) => {
+                              guardarCambio(reserva.id, 'hora', e.target.value);
+                            }}
+                            onBlur={(e) => {
+                              if (onHoraChange) {
+                                onHoraChange(reserva.id, e.target.value);
+                              }
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </TableCell>
+                    
+                    {/* Personas - Asistentes/Total (Solo lectura) */}
+                    <TableCell className="py-2 text-center align-middle w-24">
+                      <div className="flex flex-col items-center justify-center">
+                        <span className={`font-medium text-xs ${getAsistenciaColor(reserva.asistenciaActual, reserva.numeroPersonas)}`}>
+                          {reserva.asistenciaActual}/{reserva.numeroPersonas}
+                        </span>
+                        {reserva.asistenciaActual > reserva.numeroPersonas && (
+                          <span className="text-orange-600 dark:text-orange-400 text-xs">
+                            (+{reserva.asistenciaActual - reserva.numeroPersonas})
+                          </span>
                         )}
                       </div>
-                    </div>
-                  </TableCell>
-                  
-                  <TableCell className="py-2">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3 text-muted-foreground" />
-                      <div>
-                        <p className="text-xs">{format(new Date(reserva.fecha + 'T00:00:00'), "dd/MM/yyyy", { locale: es })}</p>
-                        <p className="text-xs text-muted-foreground">{reserva.hora}</p>
+                    </TableCell>
+                    
+                    {/* Estado - Dropdown más pequeño */}
+                    <TableCell className="py-2 text-center align-middle w-20">
+                      <div className="flex justify-center items-center">
+                        <div className="w-16">
+                          {getEstadoSelect(reserva)}
+                        </div>
                       </div>
-                    </div>
-                  </TableCell>
-                  
-                  <TableCell>
-                    <div className="text-center">
-                      <span className="font-medium">{reserva.numeroPersonas}</span>
-                    </div>
-                  </TableCell>
-                  
-                  <TableCell>
-                    <div className="text-center">
-                      <span className={`font-medium ${getAsistenciaColor(reserva.asistenciaActual, reserva.numeroPersonas)}`}>
-                        {reserva.asistenciaActual}/{reserva.numeroPersonas}
-                      </span>
-                      {reserva.asistenciaActual > reserva.numeroPersonas && (
-                        <span className="text-orange-600 dark:text-orange-400 text-sm ml-1">
-                          (+{reserva.asistenciaActual - reserva.numeroPersonas})
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  
-                  <TableCell>{reserva.promotor.nombre}</TableCell>
-                  
-                  <TableCell>{getEstadoSelect(reserva)}</TableCell>
-                  
-                  <TableCell>
-                    <div>
-                      <p className="text-sm">{reserva.razonVisita}</p>
-                      <p className="text-xs text-muted-foreground">{reserva.beneficiosReserva}</p>
-                    </div>
-                  </TableCell>
-                  
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onViewReserva(reserva.id)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onEditReserva(reserva.id)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          
-          {filteredReservas.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              No se encontraron reservas que coincidan con los filtros
-            </div>
-          )}
+                    </TableCell>
+                    
+                    {/* Detalles - Campo siempre visible con botón + */}
+                    <TableCell className="py-2 text-center align-middle w-40">
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        {getDetallesReserva(reserva.id).map((detalle, index) => (
+                          <Input
+                            key={`${reserva.id}-detalle-${index}`}
+                            defaultValue={detalle}
+                            placeholder=""
+                            className="w-36 h-6 text-xs border-2 border-gray-300 bg-gray-50 hover:bg-gray-100 focus:bg-white focus:border-blue-500 text-center px-2 rounded-md shadow-sm"
+                            onBlur={(e) => {
+                              actualizarDetalle(reserva.id, index, e.target.value);
+                            }}
+                          />
+                        ))}
+                        {/* Campo principal siempre visible con botón + al lado */}
+                        <div className="flex items-center justify-center gap-1">
+                          <Input
+                            key={`${reserva.id}-nuevo-detalle`}
+                            defaultValue=""
+                            placeholder="Nuevo detalle"
+                            className="w-28 h-6 text-xs border-2 border-gray-300 bg-gray-50 hover:bg-gray-100 focus:bg-white focus:border-blue-500 text-center px-2 rounded-md shadow-sm"
+                            onBlur={(e) => {
+                              if (e.target.value.trim()) {
+                                agregarDetalle(reserva.id, e.target.value);
+                                e.target.value = '';
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                                agregarDetalle(reserva.id, e.currentTarget.value);
+                                e.currentTarget.value = '';
+                              }
+                            }}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const input = document.querySelector(`input[key="${reserva.id}-nuevo-detalle"]`) as HTMLInputElement;
+                              if (input && input.value.trim()) {
+                                agregarDetalle(reserva.id, input.value);
+                                input.value = '';
+                              }
+                            }}
+                            className="w-6 h-6 p-0 hover:bg-muted/20 rounded-full"
+                            title="Agregar detalle"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </TableCell>
+                    
+                    {/* Referencia (Promotor/Persona que concretó) - Editable */}
+                    <TableCell className="py-2 text-center align-middle w-36">
+                      <div className="flex flex-col items-center justify-center">
+                        <Input
+                          value={obtenerValorCampo(reserva.id, 'promotor')?.nombre || ''}
+                          placeholder="Promotor"
+                          className="w-32 h-6 text-xs border-2 border-gray-300 bg-gray-50 hover:bg-gray-100 focus:bg-white focus:border-blue-500 text-center px-2 font-medium rounded-md shadow-sm"
+                          onChange={(e) => {
+                            guardarCambio(reserva.id, 'promotor', { id: 'temp', nombre: e.target.value });
+                          }}
+                          onBlur={(e) => {
+                            if (onPromotorChange) {
+                              onPromotorChange(reserva.id, e.target.value);
+                            }
+                          }}
+                        />
+                      </div>
+                    </TableCell>
+                    
+                    {/* Acciones */}
+                    <TableCell className="py-2 text-center align-middle w-20">
+                      <div className="flex justify-center items-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onViewReserva(reserva.id)}
+                          title="Ver detalles de la reserva"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                
+                {/* Filas vacías para mantener altura consistente */}
+                {Array.from({ length: Math.max(0, 20 - filteredReservas.length) }).map((_, index) => (
+                  <TableRow key={`empty-row-${filteredReservas.length}-${index}`} className="h-12">
+                    <TableCell colSpan={8} className="text-transparent">.</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            
+
+          </div>
+        </div>
+        
+        {/* Vista de tarjetas para móvil/tablet */}
+        <div className="lg:hidden space-y-3 p-3">
+          {filteredReservas.map((reserva) => (
+            <ReservationCard
+              key={reserva.id}
+              reserva={reserva}
+              onView={() => onViewReserva(reserva.id)}
+            />
+          ))}
+
         </div>
       </CardContent>
     </Card>
   );
 }
+
+export default ReservationTable;

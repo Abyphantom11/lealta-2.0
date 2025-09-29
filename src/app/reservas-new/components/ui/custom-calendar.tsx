@@ -3,15 +3,16 @@
 import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addDays } from "date-fns";
-import { es } from "date-fns/locale";
+import { es, type Locale } from "date-fns/locale";
 import { cn } from "./utils";
 import { Button } from "./button";
 
 export interface CustomCalendarProps {
-  selectedDate?: Date;
-  onSelect?: (date: Date) => void;
-  className?: string;
-  locale?: Locale;
+  readonly selectedDate?: Date;
+  readonly onSelect?: (date: Date) => void;
+  readonly className?: string;
+  readonly locale?: Locale;
+  readonly reservedDates?: string[]; // Array de fechas en formato 'yyyy-MM-dd' que tienen reservas
 }
 
 const DAYS_OF_WEEK = ["lu", "ma", "mi", "ju", "vi", "sá", "do"];
@@ -20,7 +21,8 @@ export function CustomCalendar({
   selectedDate = new Date(),
   onSelect,
   className,
-  locale = es
+  locale = es,
+  reservedDates = []
 }: CustomCalendarProps) {
   const [currentMonth, setCurrentMonth] = React.useState(startOfMonth(selectedDate));
   
@@ -76,24 +78,24 @@ export function CustomCalendar({
   };
 
   return (
-    <div className={cn("w-full p-3", className)}>
+    <div className={cn("w-full min-w-[280px] p-3", className)}>
       {/* Encabezado del calendario */}
       <div className="flex items-center justify-between mb-4">
         <Button
           variant="outline"
           size="icon"
-          className="h-7 w-7"
+          className="h-8 w-8 shrink-0"
           onClick={prevMonth}
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <div className="font-medium text-sm">
+        <div className="font-medium text-sm text-center flex-1 px-2">
           {format(currentMonth, 'MMMM yyyy', { locale })}
         </div>
         <Button
           variant="outline"
           size="icon"
-          className="h-7 w-7"
+          className="h-8 w-8 shrink-0"
           onClick={nextMonth}
         >
           <ChevronRight className="h-4 w-4" />
@@ -111,26 +113,32 @@ export function CustomCalendar({
 
       {/* Calendario */}
       <div className="space-y-1">
-        {weeks.map((week, weekIndex) => (
-          <div key={weekIndex} className="grid grid-cols-7 gap-1">
-            {week.map((day, dayIndex) => {
+        {weeks.map((week) => (
+          <div key={week[0].toISOString()} className="grid grid-cols-7 gap-1">
+            {week.map((day) => {
               const isSelected = selectedDate && isSameDay(day, selectedDate);
               const isCurrentMonth = isSameMonth(day, currentMonth);
+              const dayString = format(day, 'yyyy-MM-dd');
+              const hasReservations = reservedDates.includes(dayString);
               
               return (
                 <Button
-                  key={dayIndex}
+                  key={day.toISOString()}
                   variant={isSelected ? "default" : "ghost"}
                   size="sm"
                   className={cn(
-                    "h-8 w-8 p-0 font-normal",
+                    "h-8 w-8 p-0 font-normal relative",
                     !isCurrentMonth && "text-muted-foreground opacity-50",
-                    isSelected && "bg-primary text-primary-foreground"
+                    isSelected && "bg-primary text-primary-foreground",
+                    hasReservations && isCurrentMonth && !isSelected && "bg-gray-100 border border-gray-300 font-semibold"
                   )}
-                  onClick={() => onSelect && onSelect(day)}
+                  onClick={() => onSelect?.(day)}
                   disabled={!isCurrentMonth}
                 >
                   {format(day, 'd')}
+                  {hasReservations && isCurrentMonth && (
+                    <div className="absolute bottom-0.5 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-gray-600 rounded-full"></div>
+                  )}
                 </Button>
               );
             })}

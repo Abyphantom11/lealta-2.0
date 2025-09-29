@@ -169,27 +169,61 @@ const generateMockReservas = (): Reserva[] => {
 export const useReservations = () => {
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [loading, setLoading] = useState(true);
+
+  // Función para cargar reservas desde la API
+  const loadReservas = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/reservas?businessId=default-business-id');
+      const result = await response.json();
+
+      if (result.success) {
+        setReservas(result.reservas);
+      } else {
+        // Si la API falla, usar datos mock como fallback
+        console.warn('API failed, using mock data:', result.error);
+        setReservas(generateMockReservas());
+      }
+    } catch (error) {
+      console.error('Error loading reservas, using mock data:', error);
+      // Usar datos mock como fallback si hay error de red
+      setReservas(generateMockReservas());
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    setReservas(generateMockReservas());
+    loadReservas();
   }, []);
 
   const addReserva = async (reservaData: Omit<Reserva, 'id' | 'codigoQR' | 'asistenciaActual' | 'estado' | 'fechaCreacion' | 'registroEntradas'>) => {
     try {
-      const newReserva: Reserva = {
-        ...reservaData,
-        id: `res-${Date.now()}`,
-        codigoQR: generateQRCode(),
-        asistenciaActual: 0,
-        estado: 'Activa',
-        fechaCreacion: new Date().toISOString(),
-        registroEntradas: []
-      };
-      
-      setReservas(prev => [...prev, newReserva]);
+      // Llamar a la API para crear la reserva
+      const response = await fetch('/api/reservas', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...reservaData,
+          estado: 'Activa' // Estado por defecto
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Error al crear la reserva');
+      }
+
+      // Actualizar el estado local con la reserva creada
+      setReservas(prev => [...prev, result.reserva]);
       toast.success('Reserva creada exitosamente');
-      return newReserva;
+      return result.reserva;
     } catch (error) {
+      console.error('Error creating reserva:', error);
       toast.error('Error al crear la reserva');
       throw error;
     }
@@ -197,13 +231,31 @@ export const useReservations = () => {
 
   const updateReserva = async (id: string, updates: Partial<Reserva>) => {
     try {
+      // Llamar a la API para actualizar la reserva
+      const response = await fetch(`/api/reservas/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Error al actualizar la reserva');
+      }
+
+      // Actualizar el estado local con la reserva actualizada
       setReservas(prev => 
         prev.map(reserva => 
-          reserva.id === id ? { ...reserva, ...updates, fechaModificacion: new Date().toISOString() } : reserva
+          reserva.id === id ? result.reserva : reserva
         )
       );
-
+      
+      toast.success('Reserva actualizada exitosamente');
     } catch (error) {
+      console.error('Error updating reserva:', error);
       toast.error('Error al actualizar la reserva');
       throw error;
     }
@@ -250,11 +302,13 @@ export const useReservations = () => {
     reservas,
     selectedDate,
     setSelectedDate,
+    loading,
     addReserva,
     updateReserva, 
     deleteReserva,
     getReservasByDate,
     getReservasHoy,
-    getDashboardStats
+    getDashboardStats,
+    loadReservas // Para recargar datos manualmente
   };
 };

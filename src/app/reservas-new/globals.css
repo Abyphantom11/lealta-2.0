@@ -193,3 +193,24 @@
 html {
   font-size: var(--font-size);
 }
+
+/* Popover specific fixes */
+[data-radix-popper-content-wrapper] {
+  z-index: 100 !important;
+}
+
+[data-radix-portal] {
+  z-index: 100 !important;
+}
+
+/* Ensure popover appears above other elements */
+.popover-portal {
+  z-index: 100;
+}
+
+/* Fix for mobile viewport */
+@supports (height: 100dvh) {
+  .mobile-calendar-popover {
+    max-height: 90dvh;
+  }
+}

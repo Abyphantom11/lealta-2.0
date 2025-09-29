@@ -26,6 +26,7 @@ export interface Reserva {
   estado: EstadoReserva;
   fechaCreacion: string;
   fechaModificacion?: string;
+  mesa?: string;
   registroEntradas: {
     timestamp: string;
     cantidad: number;

@@ -27,17 +27,17 @@ const getReservasHoyText = (cantidad: number) => {
 
 export function DashboardStats({ stats }: DashboardStatsProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Reservas</CardTitle>
-          <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <CardTitle className="text-xs sm:text-sm font-medium truncate">Total Reservas</CardTitle>
+          <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-2">
           <div className="space-y-1">
-            <p className="text-2xl font-bold">{stats.totalReservas}</p>
-            <p className="text-xs text-muted-foreground">
-              Reservas registradas en el sistema
+            <p className="text-xl sm:text-2xl font-bold">{stats.totalReservas}</p>
+            <p className="text-xs text-muted-foreground hidden sm:block">
+              Reservas registradas
             </p>
           </div>
         </CardContent>
@@ -45,14 +45,14 @@ export function DashboardStats({ stats }: DashboardStatsProps) {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Asistentes</CardTitle>
-          <Users className="h-4 w-4 text-green-600 dark:text-green-400" />
+          <CardTitle className="text-xs sm:text-sm font-medium truncate">Total Asistentes</CardTitle>
+          <Users className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-2">
           <div className="space-y-1">
-            <p className="text-2xl font-bold">{stats.totalAsistentes}</p>
-            <p className="text-xs text-muted-foreground">
-              Personas que han asistido
+            <p className="text-xl sm:text-2xl font-bold">{stats.totalAsistentes}</p>
+            <p className="text-xs text-muted-foreground hidden sm:block">
+              Personas asistidas
             </p>
           </div>
         </CardContent>
@@ -86,13 +86,13 @@ export function DashboardStats({ stats }: DashboardStatsProps) {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Reservas Hoy</CardTitle>
-          <Clock className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+          <CardTitle className="text-xs sm:text-sm font-medium truncate">Reservas Hoy</CardTitle>
+          <Clock className="h-4 w-4 text-orange-600 dark:text-orange-400 flex-shrink-0" />
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-2">
           <div className="space-y-1">
-            <p className="text-2xl font-bold">{stats.reservasHoy}</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xl sm:text-2xl font-bold">{stats.reservasHoy}</p>
+            <p className="text-xs text-muted-foreground hidden sm:block">
               {getReservasHoyText(stats.reservasHoy)}
             </p>
           </div>

@@ -5,7 +5,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/t
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "../hooks/useTheme";
 
-export function ThemeToggle() {
+interface ThemeToggleProps {
+  className?: string;
+}
+
+export function ThemeToggle({ className }: ThemeToggleProps = {}) {
   const { theme, toggleTheme, isDark, mounted } = useTheme();
 
   if (!mounted) {
@@ -13,7 +17,7 @@ export function ThemeToggle() {
       <Button
         variant="outline"
         size="sm"
-        className="relative"
+        className={`relative ${className || ''}`}
         disabled
       >
         <Sun className="h-4 w-4" />
@@ -30,7 +34,7 @@ export function ThemeToggle() {
             variant="outline"
             size="sm"
             onClick={toggleTheme}
-            className="relative"
+            className={`relative ${className || ''}`}
           >
             <Sun className={`h-4 w-4 transition-all ${isDark ? 'rotate-90 scale-0' : 'rotate-0 scale-100'}`} />
             <Moon className={`absolute h-4 w-4 transition-all ${isDark ? 'rotate-0 scale-100' : '-rotate-90 scale-0'}`} />

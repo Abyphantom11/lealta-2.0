@@ -24,6 +24,7 @@ const mockReservas: Reserva[] = [
     asistenciaActual: 15,
     estado: 'Activa',
     fechaCreacion: '2025-09-15T10:00:00Z',
+    mesa: '',
     registroEntradas: [
       { timestamp: '2025-09-17T09:00:00Z', cantidad: 15, metodo: 'QR' }
     ]
@@ -46,6 +47,7 @@ const mockReservas: Reserva[] = [
     asistenciaActual: 6,
     estado: 'Reserva Caída',
     fechaCreacion: '2025-09-16T14:00:00Z',
+    mesa: '',
     registroEntradas: []
   },
   {
@@ -66,6 +68,7 @@ const mockReservas: Reserva[] = [
     asistenciaActual: 3,
     estado: 'Reserva Caída',
     fechaCreacion: '2025-09-25T16:00:00Z',
+    mesa: '',
     registroEntradas: []
   },
   {
@@ -86,6 +89,7 @@ const mockReservas: Reserva[] = [
     asistenciaActual: 22,
     estado: 'Activa',
     fechaCreacion: '2025-09-23T11:00:00Z',
+    mesa: '',
     registroEntradas: []
   },
   {
@@ -106,6 +110,7 @@ const mockReservas: Reserva[] = [
     asistenciaActual: 18,
     estado: 'Activa',
     fechaCreacion: '2025-09-28T13:00:00Z',
+    mesa: '',
     registroEntradas: [
       { timestamp: '2025-09-30T18:30:00Z', cantidad: 18, metodo: 'QR' }
     ]
@@ -158,22 +163,62 @@ const mockReservas: Reserva[] = [
 
 export function useReservations() {
   const [reservas, setReservas] = useState<Reserva[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date()); // Fecha seleccionada para filtrar
+  const [loading, setLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<Reserva['estado'] | 'Todos'>('Todos'); // Filtro de estado
 
   useEffect(() => {
-    setReservas(mockReservas);
+    loadReservasFromAPI();
   }, []);
 
-  const addReserva = async (reservaData: Omit<Reserva, 'id' | 'codigoQR' | 'asistenciaActual' | 'estado' | 'fechaCreacion' | 'registroEntradas'>) => {
+  // Función para cargar reservas desde la API
+  const loadReservasFromAPI = async () => {
+    setLoading(true);
     try {
-      const newReserva: Reserva = {
-        ...reservaData,
-        id: `res-${Date.now()}`,
-        codigoQR: `QR-${Date.now()}`,
-        asistenciaActual: 0,
-        estado: 'Activa',
-        fechaCreacion: new Date().toISOString(),
-        registroEntradas: []
-      };
+      const response = await fetch('/api/reservas');
+      if (!response.ok) {
+        throw new Error('Error al cargar las reservas');
+      }
+      const data = await response.json();
+      setReservas(data.reservas || []);
+    } catch (error) {
+      console.error('Error loading reservas:', error);
+      toast.error('❌ Error al cargar las reservas');
+      // Fallback a datos mock en caso de error
+      setReservas(mockReservas);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addReserva = async (reservaData: Omit<Reserva, 'id' | 'codigoQR' | 'estado' | 'fechaCreacion' | 'registroEntradas'>) => {
+    try {
+      const response = await fetch('/api/reservas', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          cliente: reservaData.cliente,
+          numeroPersonas: reservaData.numeroPersonas,
+          asistenciaActual: reservaData.asistenciaActual,
+          fecha: reservaData.fecha,
+          hora: reservaData.hora,
+          razonVisita: reservaData.razonVisita,
+          beneficiosReserva: reservaData.beneficiosReserva,
+          promotor: reservaData.promotor
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || errorData.message || `Error ${response.status}: ${response.statusText}`;
+        console.error('Error del servidor:', errorData);
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      const newReserva: Reserva = data.reserva;
       
       setReservas(prev => [...prev, newReserva]);
       toast.success('✨ Reserva creada exitosamente', {
@@ -200,9 +245,22 @@ export function useReservations() {
 
   const updateReserva = async (id: string, updates: Partial<Reserva>) => {
     try {
+      const response = await fetch(`/api/reservas/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al actualizar la reserva');
+      }
+
+      const data = await response.json();
       setReservas(prev => 
         prev.map(reserva => 
-          reserva.id === id ? { ...reserva, ...updates, fechaModificacion: new Date().toISOString() } : reserva
+          reserva.id === id ? data.reserva : reserva
         )
       );
 
@@ -271,13 +329,24 @@ export function useReservations() {
     };
   };
 
+  // Función para recargar reservas desde la API
+  const loadReservas = async () => {
+    await loadReservasFromAPI();
+  };
+
   return {
     reservas,
+    selectedDate,
+    setSelectedDate,
+    statusFilter,
+    setStatusFilter,
+    loading,
     addReserva,
     updateReserva, 
     deleteReserva,
     getReservasByDate,
     getReservasHoy,
-    getDashboardStats
+    getDashboardStats,
+    loadReservas
   };
 }

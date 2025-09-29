@@ -12,7 +12,7 @@ import { Reserva } from "../types/reservation";
 interface ReservationFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (reserva: Omit<Reserva, 'id'>) => void;
+  onSubmit: (reserva: Omit<Reserva, 'id' | 'codigoQR' | 'estado' | 'fechaCreacion' | 'registroEntradas'>) => void;
   selectedDate?: Date;
   selectedTime?: string;
 }
@@ -23,6 +23,7 @@ interface FormData {
   clienteCorreo: string;
   clienteTelefono: string;
   numeroPersonas: string;
+  invitados: string;
   fecha: string;
   hora: string;
   servicio: string;
@@ -43,6 +44,7 @@ export default function ReservationForm({
     clienteCorreo: '',
     clienteTelefono: '',
     numeroPersonas: '1',
+    invitados: '0',
     fecha: selectedDate ? selectedDate.toISOString().split('T')[0] : '',
     hora: selectedTime || '',
     servicio: '',
@@ -63,11 +65,11 @@ export default function ReservationForm({
     setIsSubmitting(true);
     
     try {
-      const reservaData: Omit<Reserva, 'id'> = {
+      const reservaData: Omit<Reserva, 'id' | 'codigoQR' | 'fechaCreacion' | 'registroEntradas'> = {
         cliente: {
           id: `c-${Date.now()}`,
           nombre: formData.clienteNombre,
-          email: formData.clienteCorreo,
+          email: formData.clienteCorreo || undefined, // Permitir undefined para que el backend maneje
           telefono: formData.clienteTelefono
         },
         numeroPersonas: parseInt(formData.numeroPersonas) || 1,
@@ -79,11 +81,8 @@ export default function ReservationForm({
         },
         fecha: formData.fecha,
         hora: formData.hora,
-        codigoQR: '',
-        asistenciaActual: 0,
-        estado: 'Activa',
-        fechaCreacion: new Date().toISOString(),
-        registroEntradas: []
+        estado: 'Activa', // Agregar estado por defecto
+        asistenciaActual: parseInt(formData.invitados) || 0
       };
 
       onSubmit(reservaData);
@@ -95,6 +94,7 @@ export default function ReservationForm({
         clienteCorreo: '',
         clienteTelefono: '',
         numeroPersonas: '1',
+        invitados: '0',
         fecha: '',
         hora: '',
         servicio: '',
@@ -120,13 +120,13 @@ export default function ReservationForm({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
-        <DialogHeader>
-          <DialogTitle>Nueva Reserva</DialogTitle>
+      <DialogContent className="sm:max-w-[500px] w-full max-h-[90vh] overflow-y-auto mx-4 sm:mx-auto bg-white">
+        <DialogHeader className="space-y-3 pb-4">
+          <DialogTitle className="text-lg sm:text-xl">Nueva Reserva</DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="clienteNombre" className="text-sm font-medium text-gray-800">
                 Nombre Completo *
@@ -136,8 +136,8 @@ export default function ReservationForm({
                 type="text"
                 value={formData.clienteNombre}
                 onChange={(e) => handleInputChange('clienteNombre', e.target.value)}
-                placeholder="Ingrese el nombre completo"
-                className="text-gray-900 placeholder:text-gray-500"
+                placeholder="Ej: Juan Pérez"
+                className="min-h-[44px] text-gray-900 placeholder:text-gray-500"
                 required
               />
             </div>
@@ -152,7 +152,7 @@ export default function ReservationForm({
                 value={formData.clienteCedula}
                 onChange={(e) => handleInputChange('clienteCedula', e.target.value)}
                 placeholder="0-0000-0000"
-                className="text-gray-900 placeholder:text-gray-500"
+                className="min-h-[44px] text-gray-900 placeholder:text-gray-500"
                 required
               />
             </div>
@@ -200,7 +200,6 @@ export default function ReservationForm({
                 onChange={(e) => handleInputChange('fecha', e.target.value)}
                 className="text-gray-900 placeholder:text-gray-500"
                 required
-                min={new Date().toISOString().split('T')[0]}
               />
             </div>
             
@@ -220,17 +219,35 @@ export default function ReservationForm({
             </div>
           </div>
           
-          <div className="space-y-2">
-            <Label htmlFor="referencia" className="text-sm font-medium text-gray-800">
-              Referencia
-            </Label>
-            <Input
-              id="referencia"
-              type="text"
-              value={formData.referencia}
-              onChange={(e) => handleInputChange('referencia', e.target.value)}
-              className="text-gray-900 placeholder:text-gray-500"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="invitados" className="text-sm font-medium text-gray-800">
+                Invitados
+              </Label>
+              <Input
+                id="invitados"
+                type="number"
+                value={formData.invitados}
+                onChange={(e) => handleInputChange('invitados', e.target.value)}
+                placeholder="0"
+                min="0"
+                max="100"
+                className="text-gray-900 placeholder:text-gray-500"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="referencia" className="text-sm font-medium text-gray-800">
+                Referencia
+              </Label>
+              <Input
+                id="referencia"
+                type="text"
+                value={formData.referencia}
+                onChange={(e) => handleInputChange('referencia', e.target.value)}
+                className="text-gray-900 placeholder:text-gray-500"
+              />
+            </div>
           </div>
           
           <div className="space-y-2">
@@ -246,19 +263,20 @@ export default function ReservationForm({
             />
           </div>
 
-          <div className="flex justify-end space-x-3 pt-6">
+          {/* Botones de acción optimizados para móvil */}
+          <div className="flex flex-col sm:flex-row gap-3 pt-4">
             <Button 
               type="button" 
               onClick={onClose}
               disabled={isSubmitting}
-              className="bg-gray-600 hover:bg-gray-700 text-white border-0 disabled:bg-gray-400 disabled:text-white"
+              className="order-2 sm:order-1 min-h-[44px] bg-gray-600 hover:bg-gray-700 text-white border-0 disabled:bg-gray-400 disabled:text-white font-medium"
             >
               Cancelar
             </Button>
             <Button 
               type="submit" 
               disabled={isSubmitting}
-              className="bg-black hover:bg-gray-900 text-white border-0 disabled:bg-gray-400 disabled:text-white"
+              className="order-1 sm:order-2 min-h-[44px] bg-black hover:bg-gray-900 text-white border-0 disabled:bg-gray-400 disabled:text-white font-medium"
             >
               {isSubmitting ? (
                 <div className="flex items-center">
