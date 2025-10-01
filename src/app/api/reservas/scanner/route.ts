@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { EstadoReserva } from '../../../reservas-new/types/reservation';
+import { EstadoReserva } from '../../../reservas/types/reservation';
 
 const prisma = new PrismaClient();
 
@@ -31,7 +31,7 @@ interface ScanQRResponse {
 function mapPrismaStatusToReserva(status: string): EstadoReserva {
   switch (status) {
     case 'CONFIRMED': return 'Activa';
-    case 'IN_PROGRESS': return 'En Progreso';
+    case 'IN_PROGRESS': return 'En Espera';
     case 'COMPLETED': return 'En Camino';
     case 'CANCELLED': return 'Reserva Caída';
     default: return 'Activa';

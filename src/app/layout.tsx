@@ -57,6 +57,10 @@ export default function RootLayout({
         <meta name="application-name" content="Lealta" />
         <meta name="msapplication-starturl" content="/" />
         <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+        
+        {/* Permissions Policy para acceso a cámara */}
+        <meta httpEquiv="Permissions-Policy" content="camera=(self), microphone=()" />
+        
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className={inter.className}>

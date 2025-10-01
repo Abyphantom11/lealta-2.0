@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import { Reserva, EstadoReserva } from '../../reservas-new/types/reservation';
+import { prisma } from '../../../lib/prisma';
+import { Reserva, EstadoReserva } from '../../reservas/types/reservation';
 import crypto from 'crypto';
-
-const prisma = new PrismaClient();
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
@@ -13,12 +11,13 @@ function generateQRCode(): string {
   return `QR-${Date.now()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 }
 
+// Función para generar número de reserva único
 // Función para mapear estado de Prisma a nuestro tipo
 function mapPrismaStatusToReserva(status: string): EstadoReserva {
   switch (status) {
     case 'PENDING': return 'Activa';
     case 'CONFIRMED': return 'Activa';
-    case 'CHECKED_IN': return 'En Progreso';
+    case 'CHECKED_IN': return 'En Espera';
     case 'COMPLETED': return 'En Camino';
     case 'CANCELLED': return 'Reserva Caída';
     case 'NO_SHOW': return 'Reserva Caída';
@@ -30,7 +29,7 @@ function mapPrismaStatusToReserva(status: string): EstadoReserva {
 function mapReservaStatusToPrisma(estado: EstadoReserva): 'PENDING' | 'CONFIRMED' | 'CHECKED_IN' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' {
   switch (estado) {
     case 'Activa': return 'CONFIRMED';
-    case 'En Progreso': return 'CHECKED_IN';
+    case 'En Espera': return 'CHECKED_IN';
     case 'En Camino': return 'COMPLETED';
     case 'Reserva Caída': return 'CANCELLED';
     default: return 'CONFIRMED';
@@ -55,36 +54,41 @@ export async function GET(request: NextRequest) {
         qrCodes: true
       },
       orderBy: {
-        createdAt: 'desc'
+        reservedAt: 'asc' // ✅ Ordenar por hora de llegada (ascendente = primero las más tempranas)
       }
     });
 
     // Mapear a nuestro formato de Reserva
-    const reservas: Reserva[] = reservations.map(reservation => ({
-      id: reservation.id,
-      cliente: {
-        id: reservation.cliente?.id || `temp-${Date.now()}`,
-        nombre: reservation.customerName,
-        telefono: reservation.customerPhone || undefined,
-        email: reservation.customerEmail || undefined
-      },
-      numeroPersonas: reservation.guestCount,
-      razonVisita: reservation.specialRequests || 'Reserva general',
-      beneficiosReserva: reservation.notes || 'Sin beneficios especiales',
-      promotor: {
-        id: reservation.serviceId,
-        nombre: reservation.service?.name || 'Servicio General'
-      },
-      fecha: reservation.slot?.date ? new Date(reservation.slot.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-      hora: reservation.slot?.startTime ? 
-        new Date(reservation.slot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '19:00',
-      codigoQR: reservation.qrCodes[0]?.qrToken || generateQRCode(),
-      asistenciaActual: reservation.qrCodes[0]?.scanCount || 0,
-      estado: mapPrismaStatusToReserva(reservation.status),
-      fechaCreacion: reservation.createdAt.toISOString(),
-      fechaModificacion: reservation.updatedAt.toISOString(),
-      registroEntradas: []
-    }));
+    const reservas: Reserva[] = reservations.map(reservation => {
+      const metadata = (reservation.metadata as any) || {};
+      
+      return {
+        id: reservation.id,
+        cliente: {
+          id: reservation.cliente?.id || `temp-${Date.now()}`,
+          nombre: reservation.customerName,
+          telefono: reservation.customerPhone || undefined,
+          email: reservation.customerEmail || undefined
+        },
+        numeroPersonas: reservation.guestCount,
+        razonVisita: reservation.specialRequests || 'Reserva general',
+        beneficiosReserva: reservation.notes || 'Sin beneficios especiales',
+        promotor: {
+          id: reservation.serviceId,
+          nombre: reservation.service?.name || 'Servicio General'
+        },
+        fecha: reservation.slot?.date ? new Date(reservation.slot.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        hora: reservation.slot?.startTime ? 
+          new Date(reservation.slot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '19:00',
+        codigoQR: reservation.qrCodes[0]?.qrToken || generateQRCode(),
+        asistenciaActual: reservation.qrCodes[0]?.scanCount || 0,
+        estado: mapPrismaStatusToReserva(reservation.status),
+        fechaCreacion: reservation.createdAt.toISOString(),
+        fechaModificacion: reservation.updatedAt.toISOString(),
+        mesa: metadata.mesa || '', // ✅ Leer mesa desde metadata JSON
+        registroEntradas: []
+      };
+    });
 
     return NextResponse.json({ 
       success: true, 
@@ -104,7 +108,31 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json() as Omit<Reserva, 'id'>;
-    const businessId = 'default-business-id'; // En producción esto vendría del contexto de autenticación
+    
+    // Obtener businessId del query parameter o usar default
+    const searchParams = request.nextUrl.searchParams;
+    const businessId = searchParams.get('businessId') || 'default-business-id';
+    
+    console.log('🏢 BusinessId para crear reserva:', businessId);
+
+    // Asegurar que el business existe
+    let business = await prisma.business.findUnique({
+      where: { id: businessId }
+    });
+
+    if (!business) {
+      console.log('⚠️ Business no encontrado, creando uno por defecto...');
+      // Crear business por defecto
+      business = await prisma.business.create({
+        data: {
+          id: businessId,
+          name: 'Negocio de Prueba',
+          slug: 'negocio-prueba',
+          subdomain: 'negocio-prueba'
+        }
+      });
+      console.log('✅ Business creado:', business.id);
+    }
 
     // Validaciones básicas
     if (!data.cliente?.nombre) {
@@ -176,15 +204,16 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Crear o buscar el servicio
-    const service = await prisma.reservationService.upsert({
+    let service = await prisma.reservationService.findFirst({
       where: {
-        businessId_name: {
-          businessId: businessId,
-          name: data.promotor.nombre
-        }
-      },
-      update: {},
-      create: {
+        businessId: businessId,
+        name: data.promotor.nombre
+      }
+    });
+    
+    // Usar nullish coalescing operator para simplificar
+    service ??= await prisma.reservationService.create({
+      data: {
         businessId: businessId,
         name: data.promotor.nombre,
         description: 'Servicio de reserva',
@@ -195,9 +224,9 @@ export async function POST(request: NextRequest) {
 
     // 3. Crear slot de tiempo
     const fechaSlot = new Date(data.fecha);
-    const [horas, minutos] = data.hora.split(':').map(Number);
+    const [horasSlot, minutosSlot] = data.hora.split(':').map(Number);
     const startTime = new Date(fechaSlot);
-    startTime.setHours(horas, minutos, 0, 0);
+    startTime.setHours(horasSlot, minutosSlot, 0, 0);
     const endTime = new Date(startTime);
     endTime.setHours(endTime.getHours() + 4); // 4 horas de duración por defecto
 
@@ -215,6 +244,22 @@ export async function POST(request: NextRequest) {
 
     // 4. Crear la reserva
     const reservationNumber = `RES-${Date.now()}`;
+    
+    // Crear fecha/hora de reserva para reservedAt
+    // Importante: Parsear correctamente la fecha en zona horaria local, no UTC
+    const [horasReserva, minutosReserva] = data.hora.split(':').map(Number);
+    
+    // Parsear fecha manualmente para evitar problemas de zona horaria
+    const [year, month, day] = data.fecha.split('-').map(Number);
+    const reservedAtDate = new Date(year, month - 1, day, horasReserva, minutosReserva, 0, 0);
+    
+    console.log('📅 Fecha de reserva creada:', {
+      fechaOriginal: data.fecha,
+      horaOriginal: data.hora,
+      reservedAtDate: reservedAtDate.toISOString(),
+      reservedAtDateLocal: reservedAtDate.toString()
+    });
+    
     const reservation = await prisma.reservation.create({
       data: {
         businessId: businessId,
@@ -222,13 +267,14 @@ export async function POST(request: NextRequest) {
         serviceId: service.id,
         slotId: slot.id,
         reservationNumber: reservationNumber,
-        status: mapReservaStatusToPrisma(data.estado),
+        status: mapReservaStatusToPrisma(data.estado || 'Activa'),
         customerName: data.cliente.nombre,
         customerEmail: data.cliente.email || `temp-${Date.now()}@temp.com`,
         customerPhone: data.cliente.telefono,
         guestCount: data.numeroPersonas,
         specialRequests: data.razonVisita,
-        notes: data.beneficiosReserva
+        notes: data.beneficiosReserva,
+        reservedAt: reservedAtDate
       }
     });
 
@@ -236,10 +282,7 @@ export async function POST(request: NextRequest) {
     const qrToken = data.codigoQR || generateQRCode();
     
     // Calcular fecha de expiración: 12 horas después de la hora específica de la reserva
-    const [horasQR, minutosQR] = data.hora.split(':').map(Number);
-    const reservationDateTime = new Date(data.fecha);
-    reservationDateTime.setHours(horasQR, minutosQR, 0, 0);
-    const qrExpirationDate = new Date(reservationDateTime.getTime() + (12 * 60 * 60 * 1000)); // +12 horas desde la hora de llegada
+    const qrExpirationDate = new Date(reservedAtDate.getTime() + (12 * 60 * 60 * 1000)); // +12 horas desde la hora de llegada
     
     await prisma.reservationQRCode.create({
       data: {
@@ -248,26 +291,18 @@ export async function POST(request: NextRequest) {
         qrToken: qrToken,
         qrData: JSON.stringify({
           reservationId: reservation.id,
-          customerName: data.cliente.nombre,
-          guestCount: data.numeroPersonas,
-          reservationDate: data.fecha,
-          reservationTime: data.hora
+          token: qrToken,
+          timestamp: Date.now(),
+          cliente: data.cliente.nombre,
+          fecha: data.fecha,
+          hora: data.hora
         }),
         expiresAt: qrExpirationDate,
         status: 'ACTIVE'
       }
     });
 
-    // 6. Crear log de auditoría
-    await prisma.reservationAuditLog.create({
-      data: {
-        businessId: businessId,
-        reservationId: reservation.id,
-        action: 'created',
-        userName: 'Sistema',
-        newValues: JSON.stringify(data)
-      }
-    });
+    console.log('✅ Reserva creada exitosamente:', reservation.id);
 
     // Retornar la reserva creada
     const reservaCreada: Reserva = {

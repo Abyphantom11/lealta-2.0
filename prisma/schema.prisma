@@ -48,6 +48,9 @@ model Business {
   portalFavoritos      PortalFavoritoDelDia[] @relation("BusinessPortalFavoritos")
   portalTarjetasConfig PortalTarjetasConfig?  @relation("BusinessPortalTarjetasConfig")
   brandingConfig       BrandingConfig?        @relation("BusinessBranding")
+
+  // Relaciones de Reservas
+  reservationServices ReservationService[] @relation("BusinessReservationServices")
 }
 
 model User {
@@ -114,6 +117,7 @@ model Cliente {
   tarjetaLealtad TarjetaLealtad?
   visitas        Visita[]         @relation("ClienteVisitas")
   canjes         HistorialCanje[]
+  reservations   Reservation[]    @relation("ClienteReservations")
 
   // ✅ AISLAMIENTO: Cédula única por business, no global
   @@unique([businessId, cedula])
@@ -570,19 +574,176 @@ model PortalTarjetasConfig {
 
 // Configuración de branding del negocio
 model BrandingConfig {
-  id               String   @id @default(cuid())
-  businessId       String   @unique // FK a Business (uno por business)
-  businessName     String? // Nombre del negocio para mostrar
-  primaryColor     String? // Color primario del brand
-  secondaryColor   String? // Color secundario del brand
-  accentColor      String? // Color de acento
-  logoUrl          String? // URL del logo
-  carouselImages   String[] // URLs de imágenes del carrusel
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id             String   @id @default(cuid())
+  businessId     String   @unique // FK a Business (uno por business)
+  businessName   String? // Nombre del negocio para mostrar
+  primaryColor   String? // Color primario del brand
+  secondaryColor String? // Color secundario del brand
+  accentColor    String? // Color de acento
+  logoUrl        String? // URL del logo
+  carouselImages String[] // URLs de imágenes del carrusel
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   // Relación con Business
   business Business @relation("BusinessBranding", fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([businessId])
+}
+
+// =================================
+// RESERVATION SYSTEM MODELS
+// =================================
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum SlotStatus {
+  AVAILABLE
+  RESERVED
+  OCCUPIED
+  BLOCKED
+}
+
+enum QRCodeStatus {
+  ACTIVE
+  USED
+  EXPIRED
+  CANCELLED
+}
+
+// Servicios/Espacios reservables
+model ReservationService {
+  id          String   @id @default(cuid())
+  businessId  String
+  name        String
+  description String?
+  capacity    Int      @default(50)
+  duration    Int      @default(120) // minutos
+  price       Decimal? @db.Decimal(10, 2)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  business     Business          @relation("BusinessReservationServices", fields: [businessId], references: [id], onDelete: Cascade)
+  slots        ReservationSlot[]
+  reservations Reservation[]
+
+  @@index([businessId])
+  @@index([isActive])
+}
+
+// Slots de tiempo disponibles
+model ReservationSlot {
+  id            String     @id @default(cuid())
+  businessId    String
+  serviceId     String
+  date          DateTime   @db.Date
+  startTime     DateTime
+  endTime       DateTime
+  capacity      Int
+  reservedCount Int        @default(0)
+  status        SlotStatus @default(AVAILABLE)
+  price         Decimal?   @db.Decimal(10, 2)
+  notes         String?
+  isRecurring   Boolean    @default(false)
+  recurringId   String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  // Relaciones
+  service      ReservationService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  reservations Reservation[]
+
+  @@index([businessId])
+  @@index([serviceId])
+  @@index([date])
+  @@index([status])
+}
+
+// Reservas
+model Reservation {
+  id                String            @id @default(cuid())
+  businessId        String
+  clienteId         String?
+  serviceId         String
+  slotId            String
+  reservationNumber String            @unique
+  status            ReservationStatus @default(PENDING)
+  guestCount        Int
+  customerName      String
+  customerEmail     String
+  customerPhone     String?
+  specialRequests   String?
+  notes             String?
+  totalPrice        Decimal?          @db.Decimal(10, 2)
+  paidAmount        Decimal           @default(0) @db.Decimal(10, 2)
+  isPaid            Boolean           @default(false)
+  paymentReference  String?
+
+  // Fechas
+  reservedAt  DateTime
+  confirmedAt DateTime?
+  checkedInAt DateTime?
+  completedAt DateTime?
+  cancelledAt DateTime?
+
+  // Recordatorios
+  reminderSent   Boolean   @default(false)
+  reminderSentAt DateTime?
+
+  // Metadata
+  source    String   @default("manual")
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  cliente Cliente?            @relation("ClienteReservations", fields: [clienteId], references: [id], onDelete: SetNull)
+  service ReservationService  @relation(fields: [serviceId], references: [id])
+  slot    ReservationSlot     @relation(fields: [slotId], references: [id])
+  qrCodes ReservationQRCode[]
+
+  @@index([businessId])
+  @@index([clienteId])
+  @@index([serviceId])
+  @@index([slotId])
+  @@index([status])
+  @@index([reservedAt])
+}
+
+// Códigos QR para check-in
+model ReservationQRCode {
+  id            String       @id @default(cuid())
+  businessId    String
+  reservationId String
+  qrToken       String       @unique
+  qrData        String
+  status        QRCodeStatus @default(ACTIVE)
+  expiresAt     DateTime
+  usedAt        DateTime?
+  usedBy        String?
+  scanCount     Int          @default(0)
+  lastScannedAt DateTime?
+  metadata      Json?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  // Relaciones
+  reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([reservationId])
+  @@index([qrToken])
+  @@index([status])
+  @@index([expiresAt])
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { EstadoReserva } from '../../../reservas-new/types/reservation';
+import { EstadoReserva } from '../../../reservas/types/reservation';
 
 const prisma = new PrismaClient();
 
