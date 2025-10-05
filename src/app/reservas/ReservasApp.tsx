@@ -15,6 +15,7 @@ import { DashboardStats } from './components/DashboardStats';
 import { Header } from './components/Header';
 import { PromotorManagement } from './components/PromotorManagement';
 import { AIReservationModal } from './components/AIReservationModal';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 // Importar estilos
 import './globals.css';
@@ -30,6 +31,9 @@ type ViewMode = 'dashboard' | 'scanner' | 'reports';
  * Usa TODOS los componentes originales con interfaz completa
  */
 export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) {
+  // Detectar si estamos en móvil
+  const isMobile = useMediaQuery('(max-width: 768px)');
+  
   // Hook principal de reservas adaptado para businessId
   const {
     reservas,
@@ -233,26 +237,32 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
             <QrCode className="h-4 w-4" />
             Scanner QR
           </button>
-          <button
-            onClick={() => setViewMode('reports')}
-            className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors border-b-2 ${
-              viewMode === 'reports'
-                ? 'border-black text-black'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <FileText className="h-4 w-4" />
-            Reportes
-          </button>
           
-          {/* Botón de Gestión de Promotores */}
-          <button
-            onClick={() => setShowPromotorManagement(true)}
-            className="flex items-center gap-2 px-4 py-2 font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-t-lg transition-colors ml-auto"
-          >
-            <Users className="h-4 w-4" />
-            Gestión de Promotores
-          </button>
+          {/* Tab Reportes - Solo en desktop */}
+          {!isMobile && (
+            <button
+              onClick={() => setViewMode('reports')}
+              className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors border-b-2 ${
+                viewMode === 'reports'
+                  ? 'border-black text-black'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <FileText className="h-4 w-4" />
+              Reportes
+            </button>
+          )}
+          
+          {/* Botón de Gestión de Promotores - Solo en desktop */}
+          {!isMobile && (
+            <button
+              onClick={() => setShowPromotorManagement(true)}
+              className="flex items-center gap-2 px-4 py-2 font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-t-lg transition-colors ml-auto"
+            >
+              <Users className="h-4 w-4" />
+              Gestión de Promotores
+            </button>
+          )}
         </div>
 
         {/* Vista Dashboard */}
@@ -298,8 +308,8 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
           </div>
         )}
 
-        {/* Vista Reportes */}
-        {viewMode === 'reports' && (
+        {/* Vista Reportes - Solo en desktop */}
+        {viewMode === 'reports' && !isMobile && (
           <div className="bg-white rounded-lg shadow-sm p-6">
             <ReportsGenerator 
               businessId={businessId || 'default-business-id'}

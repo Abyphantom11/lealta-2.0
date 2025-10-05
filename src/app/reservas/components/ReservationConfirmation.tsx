@@ -4,8 +4,7 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Alert, AlertDescription } from "./ui/alert";
-import { CheckCircle, X } from "lucide-react";
-import { QRGenerator } from "./QRGenerator";
+import { CheckCircle } from "lucide-react";
 import { QRCodeGeneratorEnhanced } from "./QRCodeGeneratorEnhanced";
 import { Reserva } from "../types/reservation";
 
@@ -47,20 +46,10 @@ export function ReservationConfirmation({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md bg-white border border-gray-200 shadow-xl rounded-lg p-6 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-2 text-green-700">
-              <CheckCircle className="h-5 w-5" />
-              ¡Reserva Confirmada!
-            </DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClose}
-              className="h-6 w-6 p-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <DialogTitle className="flex items-center gap-2 text-green-700">
+            <CheckCircle className="h-5 w-5" />
+            ¡Reserva Confirmada!
+          </DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4">

@@ -29,14 +29,14 @@ export function Header({ totalReservas, onCreateReserva, onCreateAIReserva }: Re
           <div className="flex gap-2">
             <Button 
               onClick={onCreateReserva}
-              className="bg-black hover:bg-gray-800 text-white min-h-[44px] flex-1 font-medium"
+              className="bg-black hover:bg-gray-800 text-white h-12 flex-1 font-medium text-base"
             >
               <Plus className="mr-2 h-4 w-4" />
               Nueva Reserva
             </Button>
             <Button 
               onClick={onCreateAIReserva}
-              className="bg-purple-600 hover:bg-purple-700 text-white min-h-[44px] flex-1 font-medium"
+              className="bg-purple-600 hover:bg-purple-700 text-white h-12 flex-1 font-medium text-base"
             >
               <Sparkles className="mr-2 h-4 w-4" />
               IA
@@ -61,17 +61,17 @@ export function Header({ totalReservas, onCreateReserva, onCreateAIReserva }: Re
         <div className="hidden sm:block">
           <ThemeToggle />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 sm:gap-3">
           <Button 
             onClick={onCreateReserva}
-            className="bg-black hover:bg-gray-800 text-white min-h-[44px] flex-1 sm:w-auto font-medium"
+            className="bg-black hover:bg-gray-800 text-white h-12 sm:h-10 flex-1 sm:flex-none sm:w-auto font-medium text-base sm:text-sm"
           >
             <Plus className="mr-2 h-4 w-4" />
             Nueva Reserva
           </Button>
           <Button 
             onClick={onCreateAIReserva}
-            className="bg-purple-600 hover:bg-purple-700 text-white min-h-[44px] flex-1 sm:w-auto font-medium"
+            className="bg-purple-600 hover:bg-purple-700 text-white h-12 sm:h-10 flex-1 sm:flex-none sm:w-auto font-medium text-base sm:text-sm"
           >
             <Sparkles className="mr-2 h-4 w-4" />
             <span className="hidden sm:inline">Reserva</span> IA

@@ -534,12 +534,10 @@ export function AIReservationModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-sm flex items-center gap-2">
-                    <span>Promotor *</span>
-                    <AlertCircle className="h-4 w-4 text-amber-600" />
-                  </Label>
                   <PromotorSearchOnly
                     businessId={businessId}
+                    label="Promotor"
+                    required={true}
                     onSelect={(promotorId, promotorNombre) => {
                       setEditableData({
                         ...editableData,
