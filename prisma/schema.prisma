@@ -19,6 +19,30 @@ enum SubscriptionPlan {
   ENTERPRISE
 }
 
+// Enums para Sistema de Reservas
+enum ReservationStatus {
+  PENDING      // Pendiente de confirmación
+  CONFIRMED    // Confirmada
+  CHECKED_IN   // Cliente llegó
+  COMPLETED    // Completada
+  CANCELLED    // Cancelada
+  NO_SHOW      // No se presentó
+}
+
+enum SlotStatus {
+  AVAILABLE    // Disponible
+  RESERVED     // Reservado
+  FULL         // Lleno
+  BLOCKED      // Bloqueado
+}
+
+enum QRCodeStatus {
+  ACTIVE       // Activo
+  USED         // Usado
+  EXPIRED      // Expirado
+  CANCELLED    // Cancelado
+}
+
 model Business {
   id               String           @id @default(cuid())
   name             String // "Restaurante Plaza"
@@ -51,6 +75,7 @@ model Business {
 
   // Relaciones de Reservas
   reservationServices ReservationService[] @relation("BusinessReservationServices")
+  promotores          Promotor[]           @relation("BusinessPromotores")
 }
 
 model User {
@@ -591,32 +616,36 @@ model BrandingConfig {
   @@index([businessId])
 }
 
-// =================================
-// RESERVATION SYSTEM MODELS
-// =================================
+// ===================================
+// SISTEMA DE PROMOTORES
+// ===================================
 
-enum ReservationStatus {
-  PENDING
-  CONFIRMED
-  CHECKED_IN
-  COMPLETED
-  CANCELLED
-  NO_SHOW
+// Promotores que gestionan reservas
+model Promotor {
+  id         String   @id @default(cuid())
+  businessId String   // Aislamiento por negocio
+  nombre     String   // Nombre del promotor
+  telefono   String?  // Teléfono opcional
+  email      String?  // Email opcional
+  activo     Boolean  @default(true) // Soft delete
+  
+  // Metadata
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  createdBy  String?  // User ID que lo creó
+  
+  // Relaciones
+  business     Business      @relation("BusinessPromotores", fields: [businessId], references: [id], onDelete: Cascade)
+  reservations Reservation[] @relation("PromotorReservations")
+  
+  @@unique([businessId, nombre]) // Nombre único por negocio (no duplicados)
+  @@index([businessId])
+  @@index([activo])
 }
 
-enum SlotStatus {
-  AVAILABLE
-  RESERVED
-  OCCUPIED
-  BLOCKED
-}
-
-enum QRCodeStatus {
-  ACTIVE
-  USED
-  EXPIRED
-  CANCELLED
-}
+// ===================================
+// SISTEMA DE RESERVAS
+// ===================================
 
 // Servicios/Espacios reservables
 model ReservationService {
@@ -702,21 +731,24 @@ model Reservation {
   reminderSentAt DateTime?
 
   // Metadata
-  source    String   @default("manual")
-  metadata  Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  source     String   @default("manual")
+  promotorId String?  @default("whatsapp-default") // ✅ Promotor que gestionó la reserva (default: WhatsApp)
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Relaciones
-  cliente Cliente?            @relation("ClienteReservations", fields: [clienteId], references: [id], onDelete: SetNull)
-  service ReservationService  @relation(fields: [serviceId], references: [id])
-  slot    ReservationSlot     @relation(fields: [slotId], references: [id])
-  qrCodes ReservationQRCode[]
+  cliente  Cliente?            @relation("ClienteReservations", fields: [clienteId], references: [id], onDelete: SetNull)
+  service  ReservationService  @relation(fields: [serviceId], references: [id])
+  slot     ReservationSlot     @relation(fields: [slotId], references: [id])
+  promotor Promotor?           @relation("PromotorReservations", fields: [promotorId], references: [id], onDelete: SetNull)
+  qrCodes  ReservationQRCode[]
 
   @@index([businessId])
   @@index([clienteId])
   @@index([serviceId])
   @@index([slotId])
+  @@index([promotorId])
   @@index([status])
   @@index([reservedAt])
 }

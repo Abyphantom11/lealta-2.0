@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Toaster } from 'sonner';
-import { QrCode, FileText, Calendar as CalendarIcon } from 'lucide-react';
+import { Toaster, toast } from 'sonner';
+import { QrCode, FileText, Calendar as CalendarIcon, Users } from 'lucide-react';
 
 // Importar todos los componentes originales
 import { useReservations } from './hooks/useReservations';
@@ -13,6 +13,8 @@ import { QRScannerClean } from './components/QRScannerClean';
 import ReportsGenerator from './components/ReportsGenerator';
 import { DashboardStats } from './components/DashboardStats';
 import { Header } from './components/Header';
+import { PromotorManagement } from './components/PromotorManagement';
+import { AIReservationModal } from './components/AIReservationModal';
 
 // Importar estilos
 import './globals.css';
@@ -47,9 +49,11 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
 
   // Estados para modales y vistas
   const [showForm, setShowForm] = useState(false);
+  const [showAIForm, setShowAIForm] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedReservaForDetails, setSelectedReservaForDetails] = useState<any>(null);
+  const [showPromotorManagement, setShowPromotorManagement] = useState(false);
 
   // Handlers para la tabla de reservas
   const handleViewReserva = (id: string) => {
@@ -67,61 +71,67 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
   };
 
   const handleUploadComprobante = async (id: string, archivo: File) => {
-    // Implementación pendiente: Subir archivo al servidor
-    console.log('Subir comprobante para reserva:', id, archivo);
-    // Aquí se implementará la lógica de upload cuando se configure el almacenamiento
+    try {
+      const formData = new FormData();
+      formData.append('file', archivo);
+
+      const response = await fetch(`/api/reservas/${id}/comprobante`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Error al subir comprobante');
+      }
+
+      const data = await response.json();
+      
+      // Actualizar la reserva en el estado local
+      await loadReservas();
+      
+      toast.success('✅ Comprobante subido exitosamente');
+      return data.url;
+    } catch (error: any) {
+      console.error('Error al subir comprobante:', error);
+      toast.error(`❌ ${error.message}`);
+      throw error;
+    }
   };
 
   const handleEstadoChange = async (id: string, nuevoEstado: any) => {
-    const reserva = reservas.find(r => r.id === id);
-    if (reserva) {
-      await updateReserva(id, { ...reserva, estado: nuevoEstado });
-    }
+    await updateReserva(id, { estado: nuevoEstado });
   };
 
   const handleMesaChange = async (id: string, mesa: string) => {
-    const reserva = reservas.find(r => r.id === id);
-    if (reserva) {
-      await updateReserva(id, { ...reserva, mesa });
-    }
+    await updateReserva(id, { mesa });
   };
 
   const handleHoraChange = async (id: string, hora: string) => {
-    const reserva = reservas.find(r => r.id === id);
-    if (reserva) {
-      await updateReserva(id, { ...reserva, hora });
-    }
+    await updateReserva(id, { hora });
   };
 
   const handleRazonVisitaChange = async (id: string, razon: string) => {
-    const reserva = reservas.find(r => r.id === id);
-    if (reserva) {
-      await updateReserva(id, { ...reserva, razonVisita: razon });
-    }
+    await updateReserva(id, { razonVisita: razon });
   };
 
   const handleBeneficiosChange = async (id: string, beneficios: string) => {
-    const reserva = reservas.find(r => r.id === id);
-    if (reserva) {
-      await updateReserva(id, { ...reserva, beneficiosReserva: beneficios });
-    }
+    await updateReserva(id, { beneficiosReserva: beneficios });
   };
 
-  const handlePromotorChange = async (id: string, promotor: string) => {
-    const reserva = reservas.find(r => r.id === id);
-    if (reserva) {
+  const handlePromotorChange = async (id: string, promotorId: string, promotorNombre: string) => {
+    try {
       await updateReserva(id, { 
-        ...reserva, 
-        promotor: { id: reserva.promotor.id, nombre: promotor }
+        promotor: { id: promotorId, nombre: promotorNombre }
       });
+    } catch (error) {
+      console.error('❌ Error en handlePromotorChange:', error);
+      throw error;
     }
   };
 
   const handleDetallesChange = async (id: string, detalles: string[]) => {
-    const reserva = reservas.find(r => r.id === id);
-    if (reserva) {
-      await updateReserva(id, { ...reserva, detalles });
-    }
+    await updateReserva(id, { detalles });
   };
 
   const handleQRScan = async (qrCode: string) => {
@@ -153,6 +163,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
         <Header 
           totalReservas={reservas.length}
           onCreateReserva={() => setShowForm(true)}
+          onCreateAIReserva={() => setShowAIForm(true)}
         />
 
         {/* Indicador de sincronización en tiempo real */}
@@ -233,6 +244,15 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
             <FileText className="h-4 w-4" />
             Reportes
           </button>
+          
+          {/* Botón de Gestión de Promotores */}
+          <button
+            onClick={() => setShowPromotorManagement(true)}
+            className="flex items-center gap-2 px-4 py-2 font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-t-lg transition-colors ml-auto"
+          >
+            <Users className="h-4 w-4" />
+            Gestión de Promotores
+          </button>
         </div>
 
         {/* Vista Dashboard */}
@@ -243,7 +263,9 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
 
             {/* Tabla de reservas - Los filtros ya están dentro del componente */}
             <ReservationTable
+              businessId={businessId}
               reservas={reservasFiltradas}
+              allReservas={reservas}
               selectedDate={selectedDate}
               onDateSelect={setSelectedDate}
               onViewReserva={handleViewReserva}
@@ -297,6 +319,21 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
             setShowForm(false);
           }}
           selectedDate={selectedDate}
+          businessId={businessId || 'default'} // ✅ NUEVO: pasar businessId
+        />
+      )}
+
+      {/* Modal de reserva con IA */}
+      {showAIForm && (
+        <AIReservationModal
+          isOpen={showAIForm}
+          onClose={() => setShowAIForm(false)}
+          onSubmit={async (reservaData) => {
+            await addReserva(reservaData);
+            setShowAIForm(false);
+          }}
+          selectedDate={selectedDate}
+          businessId={businessId || 'default'}
         />
       )}
 
@@ -310,6 +347,32 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
           }}
           reserva={selectedReservaForDetails}
         />
+      )}
+
+      {/* Panel de Gestión de Promotores */}
+      {showPromotorManagement && businessId && (
+        <PromotorManagement
+          businessId={businessId}
+          onClose={() => setShowPromotorManagement(false)}
+        />
+      )}
+
+      {/* Debug: Mostrar warning si no hay businessId */}
+      {showPromotorManagement && !businessId && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold text-red-600 mb-4">Error</h3>
+            <p className="text-gray-700">
+              No se puede abrir la gestión de promotores porque no hay un businessId válido.
+            </p>
+            <button
+              onClick={() => setShowPromotorManagement(false)}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

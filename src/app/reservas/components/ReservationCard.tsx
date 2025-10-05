@@ -50,7 +50,7 @@ export const ReservationCard = ({ reserva, onView }: ReservationCardProps) => {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-medium bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                {reserva.mesa || `Mesa ${Math.floor(Math.random() * 50) + 1}`}
+                {reserva.mesa || "Sin mesa"}
               </span>
               <Badge variant={getEstadoVariant(reserva.estado)} className="flex-shrink-0 text-xs">
                 {reserva.estado}
@@ -82,7 +82,7 @@ export const ReservationCard = ({ reserva, onView }: ReservationCardProps) => {
           <div className="flex items-center gap-2">
             <CheckCircle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <span className="text-xs text-muted-foreground">
-              Referencia: {reserva.razonVisita}
+              Promotor: {reserva.razonVisita}
             </span>
           </div>
         </div>

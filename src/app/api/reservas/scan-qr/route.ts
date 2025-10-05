@@ -133,10 +133,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verificar que la reserva esté confirmada
-    if (reserva.status !== 'CONFIRMED') {
+    // Verificar que la reserva esté en un estado válido (PENDING o CONFIRMED)
+    if (reserva.status !== 'CONFIRMED' && reserva.status !== 'PENDING') {
       return NextResponse.json(
-        { success: false, message: 'La reserva no está confirmada' },
+        { success: false, message: 'La reserva no está en un estado válido para escaneo' },
         { status: 400 }
       );
     }
@@ -161,12 +161,19 @@ export async function POST(request: NextRequest) {
     });
 
     // Actualizar la reserva
+    // Si es la primera persona que llega (newAsistencia === 1) y el estado es PENDING, cambiar a CONFIRMED
+    const shouldActivate = newAsistencia === 1 && reserva.status === 'PENDING';
+    
     const updatedReserva = await prisma.reservation.update({
       where: {
         id: reservaId,
       },
       data: {
         updatedAt: new Date(),
+        ...(shouldActivate && { 
+          status: 'CONFIRMED',
+          confirmedAt: new Date()
+        })
       },
       include: {
         cliente: true,

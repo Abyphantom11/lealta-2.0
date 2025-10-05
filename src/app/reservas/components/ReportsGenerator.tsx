@@ -26,15 +26,23 @@ export default function ReportsGenerator({ businessId, businessName }: Readonly<
     setIsGenerating(true);
     
     try {
-      const response = await fetch(
-        `/api/reservas/reportes?businessId=${businessId}&mes=${selectedMonth}&año=${selectedYear}`
-      );
+      const url = `/api/reservas/reportes?businessId=${businessId}&mes=${selectedMonth}&año=${selectedYear}`;
+      console.log('🔍 Llamando a:', url);
+      
+      const response = await fetch(url);
+
+      console.log('📡 Response status:', response.status);
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Error response:', errorText);
         throw new Error('Error al obtener datos del reporte');
       }
 
       const data = await response.json();
+      console.log('✅ Datos recibidos:', data);
+      console.log('Total reservas:', data?.metricas?.generales?.totalReservas);
+      
       setPreview(data);
       
       toast.success('✅ Preview generado correctamente');
@@ -188,7 +196,7 @@ export default function ReportsGenerator({ businessId, businessName }: Readonly<
           {/* Análisis por Asistencia */}
           <div className="bg-gray-50 p-4 rounded-lg">
             <h4 className="font-semibold text-gray-800 mb-3">✅ Análisis por Asistencia</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
               <div className="flex items-center justify-between">
                 <span className="text-gray-600">Completadas:</span>
                 <span className="font-bold text-green-600">
@@ -213,8 +221,90 @@ export default function ReportsGenerator({ businessId, businessName }: Readonly<
                   {preview.metricas.porAsistencia.caidas}
                 </span>
               </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Canceladas:</span>
+                <span className="font-bold text-orange-600">
+                  {preview.metricas.porAsistencia.canceladas || 0}
+                </span>
+              </div>
             </div>
           </div>
+
+          {/* 🎯 NUEVO: Top 5 Promotores por Asistencia */}
+          {preview.rankings.top5Promotores && preview.rankings.top5Promotores.length > 0 && (
+            <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-5 rounded-lg border-2 border-orange-200">
+              <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                🏆 Top 5 Promotores (Mayor Asistencia)
+              </h4>
+              <div className="space-y-2">
+                {preview.rankings.top5Promotores.map((promotor: any, idx: number) => (
+                  <div key={promotor.id} className="flex items-center justify-between bg-white p-3 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl font-bold text-orange-500">#{idx + 1}</span>
+                      <div>
+                        <p className="font-semibold text-gray-800">{promotor.nombre}</p>
+                        <p className="text-xs text-gray-500">{promotor.cantidad} reservas</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-orange-600">{promotor.cumplimiento.toFixed(1)}%</p>
+                      <p className="text-xs text-gray-500">cumplimiento</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 👥 NUEVO: Análisis Detallado por Promotor */}
+          {preview.metricas.porPromotor && preview.metricas.porPromotor.length > 0 && (
+            <div className="bg-white border-2 border-indigo-200 p-5 rounded-lg">
+              <h4 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                👥 Análisis por Promotor
+                <span className="text-xs text-gray-500 font-normal">
+                  (Esperados vs Asistieron)
+                </span>
+              </h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b-2 border-gray-200">
+                      <th className="text-left py-2 px-3 text-gray-700">Promotor</th>
+                      <th className="text-center py-2 px-3 text-gray-700">Reservas</th>
+                      <th className="text-center py-2 px-3 text-gray-700">Esperados</th>
+                      <th className="text-center py-2 px-3 text-gray-700">Asistieron</th>
+                      <th className="text-center py-2 px-3 text-gray-700">Cumplimiento</th>
+                      <th className="text-center py-2 px-3 text-gray-700">Caídas</th>
+                      <th className="text-center py-2 px-3 text-gray-700">Canceladas</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {preview.metricas.porPromotor
+                      .sort((a: any, b: any) => b.personasAsistieron - a.personasAsistieron)
+                      .map((promotor: any) => (
+                        <tr key={promotor.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-2 px-3 font-medium text-gray-800">{promotor.nombre}</td>
+                          <td className="py-2 px-3 text-center text-blue-600 font-semibold">{promotor.totalReservas}</td>
+                          <td className="py-2 px-3 text-center text-purple-600">{promotor.personasEsperadas}</td>
+                          <td className="py-2 px-3 text-center text-green-600 font-bold">{promotor.personasAsistieron}</td>
+                          <td className="py-2 px-3 text-center">
+                            <span className={`font-bold ${
+                              promotor.porcentajeCumplimiento >= 90 ? 'text-green-600' :
+                              promotor.porcentajeCumplimiento >= 70 ? 'text-yellow-600' :
+                              'text-red-600'
+                            }`}>
+                              {promotor.porcentajeCumplimiento.toFixed(1)}%
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-center text-red-600">{promotor.reservasCaidas}</td>
+                          <td className="py-2 px-3 text-center text-orange-600">{promotor.reservasCanceladas || 0}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Top 3 Rankings (Preview compacto) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

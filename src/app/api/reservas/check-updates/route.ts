@@ -20,15 +20,41 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const businessId = searchParams.get('businessId');
+    const businessIdOrSlug = searchParams.get('businessId');
     const since = searchParams.get('since');
 
-    if (!businessId) {
+    if (!businessIdOrSlug) {
       return NextResponse.json(
         { error: 'businessId es requerido' },
         { status: 400 }
       );
     }
+
+    // Intentar buscar el business por ID o por slug
+    let business;
+    try {
+      business = await prisma.business.findFirst({
+        where: {
+          OR: [
+            { id: businessIdOrSlug },
+            { slug: businessIdOrSlug }
+          ]
+        }
+      });
+    } catch (e) {
+      business = await prisma.business.findUnique({
+        where: { slug: businessIdOrSlug }
+      });
+    }
+
+    if (!business) {
+      return NextResponse.json(
+        { error: 'Business no encontrado' },
+        { status: 404 }
+      );
+    }
+    
+    const businessId = business.id;
 
     // Obtener la última fecha de actualización de las reservas del negocio
     const latestReservation = await prisma.reservation.findFirst({

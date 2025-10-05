@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Textarea } from "./ui/textarea";
+import { PromotorSearchOnly } from "./PromotorSearchOnly";
+import { CedulaSearch } from "./CedulaSearch";
 
 import { Reserva } from "../types/reservation";
 
@@ -15,6 +17,7 @@ interface ReservationFormProps {
   onSubmit: (reserva: Omit<Reserva, 'id' | 'codigoQR' | 'estado' | 'fechaCreacion' | 'registroEntradas'>) => void;
   selectedDate?: Date;
   selectedTime?: string;
+  businessId: string; // ✅ NUEVO: businessId para cargar promotores
 }
 
 interface FormData {
@@ -26,7 +29,8 @@ interface FormData {
   fecha: string;
   hora: string;
   servicio: string;
-  referencia: string;
+  promotorId: string; // ✅ Cambiado de "referencia" a "promotorId"
+  promotorNombre: string; // ✅ Para mostrar el nombre seleccionado
 }
 
 export default function ReservationForm({ 
@@ -34,7 +38,8 @@ export default function ReservationForm({
   onClose, 
   onSubmit, 
   selectedDate, 
-  selectedTime 
+  selectedTime,
+  businessId // ✅ NUEVO
 }: Readonly<ReservationFormProps>) {
   const [formData, setFormData] = useState<FormData>({
     clienteNombre: '',
@@ -45,16 +50,68 @@ export default function ReservationForm({
     fecha: selectedDate ? selectedDate.toISOString().split('T')[0] : '',
     hora: selectedTime || '',
     servicio: '',
-    referencia: ''
+    promotorId: '', // ✅ Vacío por defecto, el usuario debe seleccionar
+    promotorNombre: '', // ✅ Nombre del promotor seleccionado
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [clienteExistente, setClienteExistente] = useState<boolean>(false);
+
+  // ✅ Manejar cuando se encuentra un cliente existente
+  const handleClienteFound = (cliente: { id: string; cedula: string; nombre: string; email: string; telefono: string } | null) => {
+    if (cliente) {
+      // Cliente encontrado - Auto-llenar campos
+      setClienteExistente(true);
+      setFormData(prev => ({
+        ...prev,
+        clienteNombre: cliente.nombre,
+        clienteCorreo: cliente.email,
+        clienteTelefono: cliente.telefono,
+      }));
+    } else {
+      // Cliente nuevo - Limpiar campos para permitir registro
+      setClienteExistente(false);
+      setFormData(prev => ({
+        ...prev,
+        clienteNombre: '',
+        clienteCorreo: '',
+        clienteTelefono: '',
+      }));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.clienteNombre || !formData.clienteCedula || !formData.fecha || !formData.hora) {
-      alert('Por favor complete los campos obligatorios');
+    // ✅ Validación completa de campos obligatorios
+    if (!formData.clienteNombre || 
+        !formData.clienteCedula || 
+        !formData.clienteCorreo || 
+        !formData.clienteTelefono ||
+        !formData.fecha || 
+        !formData.hora || 
+        !formData.promotorId) {
+      toast.error('❌ Campos incompletos', {
+        description: 'Complete todos los campos: Nombre, Cédula, Email, Teléfono, Fecha, Hora y Promotor'
+      });
+      return;
+    }
+
+    // ✅ Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.clienteCorreo)) {
+      toast.error('❌ Email inválido', {
+        description: 'Por favor ingrese un email válido'
+      });
+      return;
+    }
+
+    // ✅ Validar que teléfono tenga al menos 8 dígitos
+    const digitosEnTelefono = formData.clienteTelefono.replace(/\D/g, '').length;
+    if (digitosEnTelefono < 8) {
+      toast.error('❌ Teléfono inválido', {
+        description: 'El teléfono debe tener al menos 8 dígitos'
+      });
       return;
     }
 
@@ -63,21 +120,22 @@ export default function ReservationForm({
     try {
       const reservaData: Omit<Reserva, 'id' | 'codigoQR' | 'fechaCreacion' | 'registroEntradas'> = {
         cliente: {
-          id: `c-${Date.now()}`,
+          id: formData.clienteCedula, // ✅ Usar cédula real del formulario
           nombre: formData.clienteNombre,
-          email: formData.clienteCorreo || undefined, // Permitir undefined para que el backend maneje
-          telefono: formData.clienteTelefono
+          email: formData.clienteCorreo, // ✅ Obligatorio ahora
+          telefono: formData.clienteTelefono // ✅ Obligatorio ahora
         },
         numeroPersonas: parseInt(formData.invitados) || 1, // El campo "invitados" es realmente el total de personas
         razonVisita: formData.servicio || "Reserva general",
         beneficiosReserva: "Sin observaciones", // Eliminar campo de observaciones
         promotor: {
-          id: formData.referencia ? `p-${Date.now()}` : "p-default",
-          nombre: formData.referencia || "Sistema" // Usar la referencia del formulario o "Sistema" por defecto
+          id: formData.promotorId, // ✅ Usar el ID del promotor seleccionado
+          nombre: formData.promotorNombre // ✅ Usar el nombre del promotor seleccionado
         },
+        promotorId: formData.promotorId, // ✅ NUEVO: Guardar el ID para la base de datos
         fecha: formData.fecha,
         hora: formData.hora,
-        estado: 'En Espera', // Estado amarillo por defecto
+        estado: 'En Progreso', // Estado amarillo por defecto
         asistenciaActual: 0 // Iniciar en 0 porque nadie ha asistido aún
       };
 
@@ -93,7 +151,8 @@ export default function ReservationForm({
         fecha: '',
         hora: '',
         servicio: '',
-        referencia: ''
+        promotorId: '', // ✅ Reset promotorId
+        promotorNombre: '', // ✅ Reset promotorNombre
       });
       
       onClose();
@@ -132,30 +191,28 @@ export default function ReservationForm({
                 onChange={(e) => handleInputChange('clienteNombre', e.target.value)}
                 placeholder="Ej: Juan Pérez"
                 className="min-h-[44px] text-gray-900 placeholder:text-gray-500"
+                disabled={clienteExistente}
                 required
               />
+              {clienteExistente && (
+                <p className="text-xs text-green-600">
+                  ✓ Datos del cliente registrado
+                </p>
+              )}
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="clienteCedula" className="text-sm font-medium text-gray-800">
-                Cédula *
-              </Label>
-              <Input
-                id="clienteCedula"
-                type="text"
-                value={formData.clienteCedula}
-                onChange={(e) => handleInputChange('clienteCedula', e.target.value)}
-                placeholder="0-0000-0000"
-                className="min-h-[44px] text-gray-900 placeholder:text-gray-500"
-                required
-              />
-            </div>
+            <CedulaSearch
+              businessId={businessId}
+              value={formData.clienteCedula}
+              onChange={(cedula) => handleInputChange('clienteCedula', cedula)}
+              onClienteFound={handleClienteFound}
+            />
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="clienteCorreo" className="text-sm font-medium text-gray-800">
-                Correo Electrónico
+                Correo Electrónico *
               </Label>
               <Input
                 id="clienteCorreo"
@@ -163,21 +220,31 @@ export default function ReservationForm({
                 value={formData.clienteCorreo}
                 onChange={(e) => handleInputChange('clienteCorreo', e.target.value)}
                 placeholder="ejemplo@correo.com"
-                className="text-gray-900 placeholder:text-gray-500"
+                className="min-h-[44px] text-gray-900 placeholder:text-gray-500"
+                disabled={clienteExistente}
+                required
               />
             </div>
             
             <div className="space-y-2">
               <Label htmlFor="clienteTelefono" className="text-sm font-medium text-gray-800">
-                Teléfono
+                Teléfono *
               </Label>
               <Input
                 id="clienteTelefono"
                 type="tel"
                 value={formData.clienteTelefono}
-                onChange={(e) => handleInputChange('clienteTelefono', e.target.value)}
-                placeholder="+506 8888-8888"
-                className="text-gray-900 placeholder:text-gray-500"
+                onChange={(e) => {
+                  // ✅ Solo permitir números, guiones, espacios y símbolo + (para código de país)
+                  const valor = e.target.value.replace(/[^\d\s\-+]/g, '');
+                  handleInputChange('clienteTelefono', valor);
+                }}
+                placeholder="+507 6000-0000"
+                className="min-h-[44px] text-gray-900 placeholder:text-gray-500"
+                disabled={clienteExistente}
+                required
+                pattern="[\d\s\-+]+"
+                title="Solo se permiten números, espacios, guiones y símbolo +"
               />
             </div>
           </div>
@@ -231,16 +298,21 @@ export default function ReservationForm({
               />
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="referencia" className="text-sm font-medium text-gray-800">
-                Referencia
-              </Label>
-              <Input
-                id="referencia"
-                type="text"
-                value={formData.referencia}
-                onChange={(e) => handleInputChange('referencia', e.target.value)}
-                className="text-gray-900 placeholder:text-gray-500"
+            {/* ✅ Buscador de Promotores */}
+            <div className="col-span-2">
+              <PromotorSearchOnly
+                businessId={businessId}
+                value={formData.promotorId}
+                onSelect={(promotorId, promotorNombre) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    promotorId,
+                    promotorNombre,
+                  }));
+                }}
+                label="Promotor"
+                placeholder="Buscar promotor..."
+                required={true}
               />
             </div>
           </div>

@@ -38,11 +38,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'año inválido' }, { status: 400 });
     }
 
-    // Calcular inicio y fin del mes
-    const fechaInicio = new Date(año, mes - 1, 1); // mes - 1 porque Date usa índice 0
-    const fechaFin = new Date(año, mes, 0, 23, 59, 59, 999); // día 0 = último día del mes anterior
+    // Calcular inicio y fin del mes (en UTC para evitar problemas de zona horaria)
+    // Mes 9 (septiembre) = índice 8 en JavaScript (0-based)
+    const fechaInicio = new Date(Date.UTC(año, mes - 1, 1, 0, 0, 0, 0));
+    const fechaFin = new Date(Date.UTC(año, mes, 1, 0, 0, 0, 0)); // Primer día del siguiente mes
 
-    console.log(`📊 Generando reporte para businessId=${businessId}, período: ${fechaInicio.toISOString()} - ${fechaFin.toISOString()}`);
+    console.log(`📊 Generando reporte para businessId=${businessId}`);
+    console.log(`   Mes: ${mes}/${año}`);
+    console.log(`   Período: ${fechaInicio.toISOString()} - ${fechaFin.toISOString()}`);
 
     // Query principal: todas las reservas del período
     const reservations = await prisma.reservation.findMany({
@@ -50,7 +53,7 @@ export async function GET(request: NextRequest) {
         businessId,
         reservedAt: {
           gte: fechaInicio,
-          lte: fechaFin,
+          lt: fechaFin, // lt (less than) en lugar de lte para excluir el primer día del siguiente mes
         },
       },
       include: {
@@ -65,6 +68,14 @@ export async function GET(request: NextRequest) {
           select: {
             scanCount: true,
             lastScannedAt: true,
+          },
+        },
+        promotor: {
+          select: {
+            id: true,
+            nombre: true,
+            telefono: true,
+            email: true,
           },
         },
       },
@@ -91,21 +102,28 @@ export async function GET(request: NextRequest) {
       totalPersonasEsperadas > 0
         ? ((totalAsistentesReales / totalPersonasEsperadas) * 100).toFixed(1)
         : '0';
-    const promedioPersonasPorReserva =
-      totalReservas > 0 ? (totalPersonasEsperadas / totalReservas).toFixed(1) : '0';
 
     // ==========================================
     // 2. ANÁLISIS POR ASISTENCIA
     // ==========================================
     let completadas = 0; // asistentes == esperadas
     let sobreaforo = 0; // asistentes > esperadas
-    let caidas = 0; // asistentes == 0
+    let caidas = 0; // NO_SHOW o no asistieron (sin cancelar)
     let parciales = 0; // 0 < asistentes < esperadas
+    let canceladas = 0; // ✅ NUEVO: Cliente canceló con aviso
 
     reservations.forEach((r) => {
       const scanCount = r.qrCodes[0]?.scanCount || 0;
+      
+      // Primero verificar si fue cancelada explícitamente
+      if (r.status === 'CANCELLED') {
+        canceladas++;
+        return; // No contar en otras categorías
+      }
+      
+      // Luego analizar asistencia
       if (scanCount === 0) {
-        caidas++;
+        caidas++; // Caída real: no vino sin avisar
       } else if (scanCount === r.guestCount) {
         completadas++;
       } else if (scanCount > r.guestCount) {
@@ -127,18 +145,101 @@ export async function GET(request: NextRequest) {
     // ==========================================
     // 4. ANÁLISIS POR ESTADO
     // ==========================================
-    // Estados del enum: PENDING, CONFIRMED, CHECKED_IN, COMPLETED, CANCELLED, NO_SHOW
+    // Estados del enum: PENDING, CONFIRMED, CHECKED_IN, COMPLETED, CANCELLED
     const porEstado = {
       pending: reservations.filter((r) => r.status === 'PENDING').length,
       confirmed: reservations.filter((r) => r.status === 'CONFIRMED').length,
       checkedIn: reservations.filter((r) => r.status === 'CHECKED_IN').length,
       completed: reservations.filter((r) => r.status === 'COMPLETED').length,
       cancelled: reservations.filter((r) => r.status === 'CANCELLED').length,
-      noShow: reservations.filter((r) => r.status === 'NO_SHOW').length,
     };
 
     // ==========================================
-    // 5. TOP RANKINGS
+    // 5. ANÁLISIS POR PROMOTOR
+    // ==========================================
+    const reservasPorPromotor = reservations.reduce((acc, r) => {
+      const promotorId = r.promotorId || 'sin-promotor';
+      const promotorNombre = r.promotor?.nombre || 'Sin asignar';
+      const scanCount = r.qrCodes[0]?.scanCount || 0;
+      
+      if (!acc[promotorId]) {
+        acc[promotorId] = {
+          id: promotorId,
+          nombre: promotorNombre,
+          totalReservas: 0,
+          personasEsperadas: 0,
+          personasAsistieron: 0,
+          reservasCompletadas: 0, // asistieron == esperadas
+          reservasParciales: 0, // 0 < asistieron < esperadas
+          reservasCaidas: 0, // no asistieron (sin cancelar)
+          reservasSobreaforo: 0, // asistieron > esperadas
+          reservasCanceladas: 0, // ✅ NUEVO: cliente canceló
+          porcentajeCumplimiento: 0,
+        };
+      }
+      
+      acc[promotorId].totalReservas++;
+      
+      // Verificar si fue cancelada
+      if (r.status === 'CANCELLED') {
+        acc[promotorId].reservasCanceladas++;
+        // No contar esperadas/asistieron en canceladas
+        return acc;
+      }
+      
+      // Solo contar esperadas/asistieron si no fue cancelada
+      acc[promotorId].personasEsperadas += r.guestCount;
+      acc[promotorId].personasAsistieron += scanCount;
+      
+      // Clasificar según asistencia
+      if (scanCount === 0) {
+        acc[promotorId].reservasCaidas++;
+      } else if (scanCount === r.guestCount) {
+        acc[promotorId].reservasCompletadas++;
+      } else if (scanCount > r.guestCount) {
+        acc[promotorId].reservasSobreaforo++;
+      } else {
+        acc[promotorId].reservasParciales++;
+      }
+      
+      return acc;
+    }, {} as Record<string, {
+      id: string;
+      nombre: string;
+      totalReservas: number;
+      personasEsperadas: number;
+      personasAsistieron: number;
+      reservasCompletadas: number;
+      reservasParciales: number;
+      reservasCaidas: number;
+      reservasSobreaforo: number;
+      reservasCanceladas: number;
+      porcentajeCumplimiento: number;
+    }>);
+
+    // Calcular porcentaje de cumplimiento para cada promotor
+    Object.values(reservasPorPromotor).forEach((stats) => {
+      stats.porcentajeCumplimiento =
+        stats.personasEsperadas > 0
+          ? parseFloat(((stats.personasAsistieron / stats.personasEsperadas) * 100).toFixed(1))
+          : 0;
+    });
+
+    const statsPromotores = Object.values(reservasPorPromotor);
+
+    // Top 5 promotores por cantidad de reservas
+    const top5Promotores = [...statsPromotores]
+      .sort((a, b) => b.totalReservas - a.totalReservas)
+      .slice(0, 5)
+      .map(p => ({
+        id: p.id,
+        nombre: p.nombre,
+        cantidad: p.totalReservas,
+        cumplimiento: p.porcentajeCumplimiento
+      }));
+
+    // ==========================================
+    // 6. TOP RANKINGS
     // ==========================================
 
     // Top 5 días con más reservas
@@ -193,7 +294,7 @@ export async function GET(request: NextRequest) {
       .map(([horario, cantidad]) => ({ horario, cantidad }));
 
     // ==========================================
-    // 6. DATOS DETALLADOS PARA TABLA
+    // 8. DATOS DETALLADOS PARA TABLA
     // ==========================================
     const detalleReservas = reservations.map((r) => {
       const metadata = (r.metadata as any) || {};
@@ -213,6 +314,8 @@ export async function GET(request: NextRequest) {
         asistentes: scanCount,
         estado: r.status,
         comprobante: (r.isPaid || r.paymentReference) ? 'Sí' : 'No',
+        promotor: r.promotor?.nombre || 'Sin asignar',
+        promotorId: r.promotorId || null,
       };
     });
 
@@ -233,13 +336,13 @@ export async function GET(request: NextRequest) {
           totalPersonasEsperadas,
           totalAsistentesReales,
           porcentajeCumplimiento: parseFloat(porcentajeCumplimiento),
-          promedioPersonasPorReserva: parseFloat(promedioPersonasPorReserva),
         },
         porAsistencia: {
           completadas,
           sobreaforo,
           caidas,
           parciales,
+          canceladas, // ✅ NUEVO: Reservas canceladas por el cliente
         },
         porPago: {
           conComprobante,
@@ -247,11 +350,13 @@ export async function GET(request: NextRequest) {
           porcentajeConComprobante: parseFloat(porcentajeConComprobante),
         },
         porEstado,
+        porPromotor: statsPromotores, // ✅ Estadísticas detalladas por promotor
       },
       rankings: {
         top5Dias,
         top5Clientes,
         top5Horarios,
+        top5Promotores, // ✅ Top 5 promotores por cantidad de reservas
       },
       detalleReservas,
     };

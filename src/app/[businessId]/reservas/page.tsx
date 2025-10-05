@@ -18,7 +18,8 @@ import { saveSessionBackup, clearSessionBackup } from '@/utils/session-persisten
  */
 export default function BusinessReservasPage() {
   const params = useParams();
-  const businessId = params.businessId as string;
+  const businessSlug = params.businessId as string; // El parámetro de la URL es el slug
+  const [businessId, setBusinessId] = useState<string | null>(null); // El ID real del negocio
   const [isValidBusiness, setIsValidBusiness] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -29,24 +30,28 @@ export default function BusinessReservasPage() {
     // Esperar a que termine la autenticación antes de validar el negocio
     if (authLoading) return;
 
-    // Guardar businessId en localStorage para persistencia
-    if (businessId) {
-      saveSessionBackup({ businessId: businessId });
-      console.log('💾 BusinessId guardado en localStorage:', businessId);
-    }
-
-    // Validar que el businessId existe y es válido
+    // Validar que el businessSlug existe y obtener el ID real
     const validateBusiness = async () => {
       try {
-        console.log(`🔍 Validating business for reservas: ${businessId}`);
+        console.log(`🔍 Validating business for reservas: ${businessSlug}`);
         
-        const response = await fetch(`/api/businesses/${businessId}/validate`);
+        const response = await fetch(`/api/businesses/${businessSlug}/validate`);
         if (response.ok) {
           const businessData = await response.json();
           console.log(`✅ Business validated for reservas:`, businessData);
+          
+          // Guardar el ID real (no el slug) para usar en las APIs
+          setBusinessId(businessData.id);
           setIsValidBusiness(true);
+          
+          // Guardar en localStorage para persistencia
+          saveSessionBackup({ 
+            businessId: businessData.id,
+            businessSlug: businessSlug 
+          });
+          console.log('💾 BusinessId guardado en localStorage:', businessData.id);
         } else {
-          console.log(`❌ Business validation failed for reservas: ${businessId}`);
+          console.log(`❌ Business validation failed for reservas: ${businessSlug}`);
           // Limpiar localStorage si el business no es válido
           clearSessionBackup();
           window.location.href = `/login?error=invalid-business&message=El negocio no es válido o no existe`;
@@ -60,12 +65,12 @@ export default function BusinessReservasPage() {
       }
     };
 
-    if (businessId) {
+    if (businessSlug) {
       validateBusiness();
     } else {
       setIsLoading(false);
     }
-  }, [businessId, authLoading]);
+  }, [businessSlug, authLoading]);
 
   // Loading state (tanto para auth como para validación de business)
   if (authLoading || isLoading) {
@@ -74,15 +79,15 @@ export default function BusinessReservasPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
           <p className="text-white">
-            {authLoading ? 'Verificando autenticación...' : `Validando acceso a reservas de ${businessId}...`}
+            {authLoading ? 'Verificando autenticación...' : `Validando acceso a reservas de ${businessSlug}...`}
           </p>
         </div>
       </div>
     );
   }
 
-  // Business context válido - usar el mismo componente ReservasApp
-  if (isValidBusiness) {
+  // Business context válido - usar el mismo componente ReservasApp con el ID real
+  if (isValidBusiness && businessId) {
     return (
       <PWALayout>
         <ReservasApp businessId={businessId} />
@@ -96,7 +101,7 @@ export default function BusinessReservasPage() {
       <div className="text-center p-8">
         <h1 className="text-2xl font-bold text-red-600 mb-4">Acceso Denegado</h1>
         <p className="text-gray-600 mb-6">
-          No tienes acceso al módulo de reservas del negocio &quot;{businessId}&quot;.
+          No tienes acceso al módulo de reservas del negocio &quot;{businessSlug}&quot;.
         </p>
         <button
           onClick={() => (window.location.href = '/login?error=access-denied&message=No tienes acceso al módulo de reservas de este negocio')}

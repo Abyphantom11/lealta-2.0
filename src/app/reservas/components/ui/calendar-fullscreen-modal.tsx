@@ -10,13 +10,15 @@ interface CalendarFullscreenModalProps {
   onClose: () => void;
   selectedDate: Date;
   onDateSelect: (date: Date) => void;
+  reservedDates?: string[]; // Array de fechas en formato 'yyyy-MM-dd' que tienen reservas
 }
 
 export const CalendarFullscreenModal = ({
   isOpen,
   onClose,
   selectedDate,
-  onDateSelect
+  onDateSelect,
+  reservedDates = []
 }: CalendarFullscreenModalProps) => {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -78,6 +80,7 @@ export const CalendarFullscreenModal = ({
             onSelect={handleDateSelect}
             locale={es}
             className="mobile-calendar-fullscreen"
+            reservedDates={reservedDates}
           />
         </div>
       </div>

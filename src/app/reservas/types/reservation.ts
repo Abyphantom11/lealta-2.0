@@ -10,7 +10,7 @@ export interface Promotor {
   nombre: string;
 }
 
-export type EstadoReserva = 'Activa' | 'En Espera' | 'Reserva Caída' | 'En Camino';
+export type EstadoReserva = 'En Progreso' | 'Activa' | 'Reserva Caída' | 'En Camino';
 
 export interface Reserva {
   id: string;
@@ -19,6 +19,7 @@ export interface Reserva {
   razonVisita: string;
   beneficiosReserva: string;
   promotor: Promotor;
+  promotorId?: string; // ✅ NUEVO: ID del promotor en base de datos
   fecha: string;
   hora: string;
   codigoQR: string;
@@ -29,6 +30,7 @@ export interface Reserva {
   mesa?: string;
   detalles?: string[]; // ✅ Agregar campo para detalles adicionales
   comprobanteSubido?: boolean; // ✅ Campo para indicar si se subió comprobante de pago
+  comprobanteUrl?: string; // ✅ URL del comprobante de pago en Blob Storage
   registroEntradas: {
     timestamp: string;
     cantidad: number;

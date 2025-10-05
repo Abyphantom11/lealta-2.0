@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
@@ -11,9 +12,12 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { ReservationCard } from "./ReservationCard";
 import ComprobanteUploadModal from "./ComprobanteUploadModal";
+import { PromotorTableAutocomplete } from "./PromotorTableAutocomplete";
 
 interface ReservationTableProps {
+  businessId?: string;
   reservas: Reserva[];
+  allReservas?: Reserva[]; // Todas las reservas sin filtrar (para calcular fechas con reservas)
   selectedDate: Date;
   onDateSelect: (date: Date) => void;
   onViewReserva: (id: string) => void;
@@ -25,12 +29,14 @@ interface ReservationTableProps {
   onHoraChange?: (id: string, hora: string) => void;
   onRazonVisitaChange?: (id: string, razon: string) => void;
   onBeneficiosChange?: (id: string, beneficios: string) => void;
-  onPromotorChange?: (id: string, promotor: string) => void;
+  onPromotorChange?: (id: string, promotorId: string, promotorNombre: string) => Promise<void>;
   onDetallesChange?: (id: string, detalles: string[]) => void;
 }
 
 export function ReservationTable({ 
+  businessId = 'golom',
   reservas, 
+  allReservas,
   selectedDate, 
   onDateSelect,
   onViewReserva,
@@ -160,27 +166,18 @@ export function ReservationTable({
   const handleUploadComprobante = async (file: File) => {
     if (!selectedReservaId || !file) return;
     
-    setIsUploading(true);
-    
     try {
       // Llamar a la función del componente padre
       await onUploadComprobante(selectedReservaId, file);
       
-      // Crear URL para previsualización y almacenarla
-      const fileUrl = URL.createObjectURL(file);
-      setComprobantesUrls(prev => ({
-        ...prev,
-        [selectedReservaId]: fileUrl
-      }));
-      
-      // Marcar la reserva con comprobante subido
-      guardarCambio(selectedReservaId, 'comprobanteSubido', true);
+      // Cerrar el modal
+      setShowUploadDialog(false);
+      toast.success('✅ Comprobante subido exitosamente');
       
     } catch (error) {
       console.error('Error al subir comprobante:', error);
+      toast.error('❌ Error al subir comprobante');
       throw error; // Re-throw para que el modal lo maneje
-    } finally {
-      setIsUploading(false);
     }
   };
   
@@ -189,26 +186,25 @@ export function ReservationTable({
     if (!selectedReservaId) return;
     
     try {
-      // Quitar la marca de comprobante subido
-      guardarCambio(selectedReservaId, 'comprobanteSubido', false);
-      
-      // Limpiar la URL del comprobante
-      if (comprobantesUrls[selectedReservaId]) {
-        URL.revokeObjectURL(comprobantesUrls[selectedReservaId]);
-        setComprobantesUrls(prev => {
-          const { [selectedReservaId]: _, ...rest } = prev;
-          return rest;
-        });
+      // Llamar al endpoint DELETE para eliminar el comprobante
+      const response = await fetch(`/api/reservas/${selectedReservaId}/comprobante`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al eliminar comprobante');
       }
-      
-      // Llamar a la función del componente padre si existe
+
+      // Recargar reservas para actualizar el estado
       if (onRemoveComprobante) {
-        onRemoveComprobante(selectedReservaId);
+        await onRemoveComprobante(selectedReservaId);
       }
-      
-    } catch (error) {
-      console.error('Error al quitar comprobante:', error);
-      throw error;
+
+      toast.success('✅ Comprobante eliminado');
+      setShowUploadDialog(false);
+    } catch (error: any) {
+      console.error('Error al eliminar comprobante:', error);
+      toast.error('❌ Error al eliminar comprobante');
     }
   };
   
@@ -232,34 +228,44 @@ export function ReservationTable({
     };
   }, [showDatePicker]);
 
-  const filteredReservas = (Array.isArray(reservas) ? reservas : []).filter(reserva => {
-    const matchesSearch = 
-      reserva.cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      reserva.promotor.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      reserva.razonVisita.toLowerCase().includes(searchTerm.toLowerCase());
+  // Usar allReservas para búsqueda (todas las reservas sin filtro de fecha)
+  // y reservas para el filtro por fecha cuando no hay búsqueda
+  const baseReservas = allReservas || reservas;
+
+  const filteredReservas = (Array.isArray(baseReservas) ? baseReservas : []).filter(reserva => {
+    // Si hay término de búsqueda, buscar en nombre de cliente o promotor
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase().trim();
+      const matchesCliente = reserva.cliente.nombre.toLowerCase().includes(searchLower);
+      const matchesPromotor = (reserva.promotor?.nombre || '').toLowerCase().includes(searchLower);
+      
+      // Cuando hay búsqueda, mostrar TODAS las fechas que coincidan
+      return matchesCliente || matchesPromotor;
+    }
     
-    // Filtrar por fecha - mostrar solo reservas del día seleccionado
+    // Sin búsqueda, filtrar solo por fecha seleccionada
     const matchesDate = reserva.fecha === format(selectedDate, 'yyyy-MM-dd');
-    
-    return matchesSearch && matchesDate;
+    return matchesDate;
   });
 
   // Obtener todas las fechas únicas que tienen reservas
-  const reservedDates = [...new Set((Array.isArray(reservas) ? reservas : []).map(reserva => reserva.fecha))];
+  // Usar allReservas si está disponible, sino usar reservas (fallback para compatibilidad)
+  const reservasParaFechas = allReservas || reservas;
+  const reservedDates = [...new Set((Array.isArray(reservasParaFechas) ? reservasParaFechas : []).map(reserva => reserva.fecha))];
 
   const getEstadoSelect = (reserva: Reserva) => {
     const getSelectClassName = (estado: Reserva['estado']) => {
       switch (estado) {
+        case 'En Progreso':
+          return "bg-amber-500 border-amber-600";
         case 'Activa':
           return "bg-green-500 border-green-600";
-        case 'En Espera':
-          return "bg-yellow-500 border-yellow-600";
         case 'Reserva Caída':
           return "bg-red-500 border-red-600";
         case 'En Camino':
           return "bg-blue-500 border-blue-600";
         default:
-          return "bg-green-500 border-green-600"; // Por defecto verde para "Activa"
+          return "bg-amber-500 border-amber-600";
       }
     };
 
@@ -267,20 +273,20 @@ export function ReservationTable({
       <select
         value={reserva.estado}
         onChange={(e) => onEstadoChange(reserva.id, e.target.value as Reserva['estado'])}
-        className={`w-6 h-6 rounded-full border-2 cursor-pointer hover:scale-110 transition-all appearance-none ${getSelectClassName(reserva.estado)}`}
+        className={`w-6 h-6 rounded-full border-2 cursor-pointer hover:scale-110 appearance-none ${getSelectClassName(reserva.estado)}`}
         style={{ 
           backgroundImage: 'none',
-          fontSize: '0', // Oculta el texto completamente
+          fontSize: '0',
           color: 'transparent',
           outline: 'none',
           textAlign: 'center',
           paddingLeft: '0',
           paddingRight: '0'
         }}
-        title={reserva.estado} // Tooltip para mostrar el estado completo
+        title={reserva.estado}
       >
+        <option value="En Progreso" style={{ fontSize: '14px', color: 'black', backgroundColor: 'white' }}>En Progreso</option>
         <option value="Activa" style={{ fontSize: '14px', color: 'black', backgroundColor: 'white' }}>Activa</option>
-        <option value="En Espera" style={{ fontSize: '14px', color: 'black', backgroundColor: 'white' }}>En Espera</option>
         <option value="Reserva Caída" style={{ fontSize: '14px', color: 'black', backgroundColor: 'white' }}>Caída</option>
         <option value="En Camino" style={{ fontSize: '14px', color: 'black', backgroundColor: 'white' }}>En Camino</option>
       </select>
@@ -318,7 +324,7 @@ export function ReservationTable({
           {/* Selector de fecha */}
           <div className="relative" ref={datePickerRef}>
             <button
-              className={`min-h-[44px] px-4 py-2 border border-gray-300 rounded-md cursor-pointer transition-all duration-200 hover:bg-blue-50 hover:border-blue-300 active:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 bg-white text-black font-medium ${showDatePicker ? 'bg-blue-100 border-blue-300' : ''}`}
+              className={`min-h-[44px] md:min-h-[36px] px-3 md:px-3 py-1.5 md:py-1.5 text-xs md:text-sm border border-gray-300 rounded-md cursor-pointer transition-all duration-200 hover:bg-blue-50 hover:border-blue-300 active:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 bg-white text-black font-medium ${showDatePicker ? 'bg-blue-100 border-blue-300' : ''}`}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -328,7 +334,7 @@ export function ReservationTable({
               type="button"
               style={{ zIndex: 10, position: 'relative' }}
             >
-              <Calendar className="mr-2 h-4 w-4 inline" />
+              <Calendar className="mr-1.5 h-3.5 w-3.5 md:h-4 md:w-4 inline" />
               {showDatePicker ? 'Cerrar calendario' : 'Filtrar fecha'}
             </button>
             
@@ -351,7 +357,7 @@ export function ReservationTable({
                     }
                   }}
                   locale={es}
-                  reservedDates={reservas.map(r => r.fecha)}
+                  reservedDates={reservedDates}
                 />
               </div>
             )}
@@ -367,12 +373,17 @@ export function ReservationTable({
                 onDateSelect(date);
                 setShowDatePicker(false);
               }}
+              reservedDates={reservedDates}
             />
           </div>
 
-          {/* Mostrar fecha seleccionada */}
+          {/* Mostrar fecha seleccionada o modo búsqueda */}
           <div className="text-sm text-muted-foreground">
-            Mostrando: {format(selectedDate, 'dd/MM/yyyy', { locale: es })}
+            {searchTerm.trim() ? (
+              <span>Buscando: <strong>{searchTerm}</strong> (mostrando todas las fechas)</span>
+            ) : (
+              <span>Mostrando: {format(selectedDate, 'dd/MM/yyyy', { locale: es })}</span>
+            )}
           </div>
         </div>
         {/* Vista de tabla para desktop */}
@@ -388,19 +399,26 @@ export function ReservationTable({
             <Table>
               <TableHeader>
                 <TableRow className="border-b border-gray-200 bg-white h-10 sticky top-0 z-10">
+                  <TableHead className="font-medium text-gray-900 text-xs py-2 text-center align-middle w-24">Fecha</TableHead>
                   <TableHead className="font-medium text-gray-900 text-xs py-2 text-center align-middle w-20">Mesa</TableHead>
                   <TableHead className="font-medium text-gray-900 text-xs py-2 text-center align-middle w-44">Cliente</TableHead>
-                  <TableHead className="font-medium text-gray-900 text-xs py-2 text-center align-middle w-40">Hora</TableHead>
-                  <TableHead className="font-medium text-gray-900 text-xs py-2 text-center align-middle w-28">Asist/Total</TableHead>
+                  <TableHead className="font-medium text-gray-900 text-xs py-2 text-center align-middle w-32">Hora</TableHead>
+                  <TableHead className="font-medium text-gray-900 text-xs py-2 text-center align-middle w-24">Asist/Total</TableHead>
                   <TableHead className="font-medium text-gray-900 text-xs py-2 text-center align-middle w-20">Estado</TableHead>
-                  <TableHead className="font-medium text-gray-900 text-xs py-2 text-center align-middle w-40">Detalles</TableHead>
-                  <TableHead className="font-medium text-gray-900 text-xs py-2 text-center align-middle w-36">Referencia</TableHead>
+                  <TableHead className="font-medium text-gray-900 text-xs py-2 text-center align-middle w-36">Detalles</TableHead>
+                  <TableHead className="font-medium text-gray-900 text-xs py-2 text-center align-middle w-36">Promotor</TableHead>
                   <TableHead className="font-medium text-gray-900 text-xs py-2 text-center align-middle w-32">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredReservas.map((reserva) => (
                   <TableRow key={reserva.id} className="hover:bg-white h-12 border-gray-200 bg-white">
+                    {/* Fecha - Solo lectura */}
+                    <TableCell className="py-2 text-center align-middle w-24">
+                      <span className="text-xs font-medium text-gray-700">
+                        {format(new Date(reserva.fecha + 'T00:00:00'), 'dd/MM', { locale: es })}
+                      </span>
+                    </TableCell>
                     {/* Mesa - Editable */}
                     <TableCell className="py-2 text-center align-middle w-20">
                       <div className="flex justify-center items-center">
@@ -543,22 +561,22 @@ export function ReservationTable({
                       </div>
                     </TableCell>
                     
-                    {/* Referencia (Promotor/Persona que concretó) - Editable */}
+                    {/* Promotor - Editable con Autocomplete */}
                     <TableCell className="py-2 text-center align-middle w-36">
                       <div className="flex flex-col items-center justify-center">
-                        <Input
-                          value={obtenerValorCampo(reserva.id, 'promotor')?.nombre || ''}
-                          placeholder="Promotor"
-                          className="w-32 h-6 text-xs border-2 border-gray-300 bg-white hover:bg-gray-100 focus:bg-white focus:border-blue-500 text-center px-2 font-medium rounded-md shadow-sm text-gray-900"
-                          onChange={(e) => {
-                            guardarCambio(reserva.id, 'promotor', { id: 'temp', nombre: e.target.value });
-                          }}
-                          onBlur={(e) => {
-                            if (onPromotorChange) {
-                              onPromotorChange(reserva.id, e.target.value);
-                            }
-                          }}
-                        />
+                        {onPromotorChange ? (
+                          <PromotorTableAutocomplete
+                            businessId={businessId}
+                            reservationId={reserva.id}
+                            currentPromotorId={obtenerValorCampo(reserva.id, 'promotor')?.id}
+                            currentPromotorName={obtenerValorCampo(reserva.id, 'promotor')?.nombre || ''}
+                            onUpdate={onPromotorChange}
+                          />
+                        ) : (
+                          <span className="text-xs text-gray-600">
+                            {obtenerValorCampo(reserva.id, 'promotor')?.nombre || '-'}
+                          </span>
+                        )}
                       </div>
                     </TableCell>
                     
@@ -664,7 +682,7 @@ export function ReservationTable({
       }
       comprobanteExistente={
         selectedReservaId 
-          ? comprobantesUrls[selectedReservaId] || null
+          ? (reservas.find(r => r.id === selectedReservaId)?.comprobanteUrl || null)
           : null
       }
     />

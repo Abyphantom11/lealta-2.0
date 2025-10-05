@@ -3,15 +3,16 @@
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { ThemeToggle } from "./ThemeToggle";
-import { Plus } from "lucide-react";
+import { Plus, Sparkles } from "lucide-react";
 import { useIsClient } from "./hooks/useClient";
 
 interface HeaderProps {
   totalReservas: number;
   onCreateReserva: () => void;
+  onCreateAIReserva: () => void;
 }
 
-export function Header({ totalReservas, onCreateReserva }: HeaderProps) {
+export function Header({ totalReservas, onCreateReserva, onCreateAIReserva }: Readonly<HeaderProps>) {
   const isClient = useIsClient();
 
   if (!isClient) {
@@ -25,13 +26,22 @@ export function Header({ totalReservas, onCreateReserva }: HeaderProps) {
           <Badge variant="secondary" className="px-3 py-2 text-center text-sm whitespace-nowrap">
             {totalReservas} reservas
           </Badge>
-          <Button 
-            onClick={onCreateReserva}
-            className="bg-black hover:bg-gray-800 text-white min-h-[44px] w-full font-medium"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Nueva Reserva
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={onCreateReserva}
+              className="bg-black hover:bg-gray-800 text-white min-h-[44px] flex-1 font-medium"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Nueva Reserva
+            </Button>
+            <Button 
+              onClick={onCreateAIReserva}
+              className="bg-purple-600 hover:bg-purple-700 text-white min-h-[44px] flex-1 font-medium"
+            >
+              <Sparkles className="mr-2 h-4 w-4" />
+              IA
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -51,13 +61,22 @@ export function Header({ totalReservas, onCreateReserva }: HeaderProps) {
         <div className="hidden sm:block">
           <ThemeToggle />
         </div>
-        <Button 
-          onClick={onCreateReserva}
-          className="bg-black hover:bg-gray-800 text-white min-h-[44px] w-full sm:w-auto font-medium"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Nueva Reserva
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={onCreateReserva}
+            className="bg-black hover:bg-gray-800 text-white min-h-[44px] flex-1 sm:w-auto font-medium"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Nueva Reserva
+          </Button>
+          <Button 
+            onClick={onCreateAIReserva}
+            className="bg-purple-600 hover:bg-purple-700 text-white min-h-[44px] flex-1 sm:w-auto font-medium"
+          >
+            <Sparkles className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Reserva</span> IA
+          </Button>
+        </div>
       </div>
     </div>
   );

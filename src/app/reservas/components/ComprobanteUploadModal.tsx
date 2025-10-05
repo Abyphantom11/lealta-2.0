@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Upload, X, Image as ImageIcon } from "lucide-react";
@@ -29,6 +29,13 @@ export default function ComprobanteUploadModal({
   const [isUploading, setIsUploading] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false); // Estado para remover
   const [dragOver, setDragOver] = useState(false);
+
+  // Sincronizar previewUrl cuando cambia comprobanteExistente
+  useEffect(() => {
+    if (comprobanteExistente && !selectedFile) {
+      setPreviewUrl(comprobanteExistente);
+    }
+  }, [comprobanteExistente, selectedFile]);
 
   const handleFileSelect = (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -114,7 +121,7 @@ export default function ComprobanteUploadModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md bg-white border border-gray-200 shadow-lg">
+      <DialogContent className="sm:max-w-2xl bg-white border border-gray-200 shadow-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader className="pb-4 border-b border-gray-100">
           <DialogTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <Upload className="h-5 w-5 text-blue-600" />
@@ -142,7 +149,7 @@ export default function ComprobanteUploadModal({
                   <img
                     src={previewUrl}
                     alt="Comprobante de pago"
-                    className="w-full h-48 object-contain"
+                    className="w-full max-h-96 object-contain"
                   />
                 </div>
                 <button

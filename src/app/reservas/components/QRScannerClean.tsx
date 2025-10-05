@@ -5,7 +5,7 @@ import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
-import { Camera, CameraOff, RotateCcw, CheckCircle, AlertTriangle, Users, Plus, Minus } from "lucide-react";
+import { Camera, CameraOff, RotateCcw, CheckCircle, AlertTriangle, Users } from "lucide-react";
 import jsQR from "jsqr";
 import { useIsClient } from "./hooks/useClient";
 
@@ -43,7 +43,7 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
   // Estados para el diálogo de incremento
   const [showDialog, setShowDialog] = useState(false);
   const [reservaDetectada, setReservaDetectada] = useState<ReservaDetectada | null>(null);
-  const [incrementoTemporal, setIncrementoTemporal] = useState(1);
+  // ✅ Ya no usamos incrementoTemporal - siempre será +1
   
   // Referencias
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -140,7 +140,7 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
               };
               
               setReservaDetectada(reservaInfo);
-              setIncrementoTemporal(1);
+              // ✅ Ya no inicializamos incrementoTemporal - siempre será +1
               setShowDialog(true);
               
               await onScan(code.data);
@@ -275,17 +275,9 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
     }
   }, [facingMode, isScanning, stopCamera, scanQRCode]);
 
-  // Función para incrementar asistencia
-  const incrementarAsistencia = useCallback(() => {
-    setIncrementoTemporal(prev => prev + 1);
-  }, []);
+  // ✅ Funciones de incremento/decremento eliminadas - ya no son necesarias
 
-  // Función para decrementar asistencia
-  const decrementarAsistencia = useCallback(() => {
-    setIncrementoTemporal(prev => Math.max(1, prev - 1));
-  }, []);
-
-  // Función para confirmar el incremento
+  // Función para confirmar el incremento (siempre +1)
   const confirmarIncremento = useCallback(async () => {
     if (!reservaDetectada) return;
     
@@ -301,7 +293,7 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
         body: JSON.stringify({ 
           qrCode: `res-${reservaDetectada.reservaId}`, // Usar formato simple
           action: 'increment',
-          increment: incrementoTemporal,
+          increment: 1, // ✅ Siempre incrementar en 1
           businessId
         }),
       });
@@ -328,7 +320,7 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
       // Cerrar diálogo y reiniciar escaneo
       setShowDialog(false);
       setReservaDetectada(null);
-      setIncrementoTemporal(1);
+      // ✅ Ya no reseteamos incrementoTemporal
       
       setTimeout(() => {
         if (isScanning && scanIntervalRef.current === null) {
@@ -342,13 +334,13 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
     } finally {
       setIsProcessing(false);
     }
-  }, [reservaDetectada, incrementoTemporal, isScanning, scanQRCode, businessId, onRefreshNeeded]);
+  }, [reservaDetectada, isScanning, scanQRCode, businessId, onRefreshNeeded]); // ✅ incrementoTemporal eliminado de dependencies
 
   // Función para cancelar y continuar
   const cancelarYContinuar = useCallback(() => {
     setShowDialog(false);
     setReservaDetectada(null);
-    setIncrementoTemporal(1);
+    // ✅ Ya no reseteamos incrementoTemporal
     
     if (isScanning && scanIntervalRef.current === null) {
       scanIntervalRef.current = setInterval(scanQRCode, 200);
@@ -481,46 +473,20 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
                 </div>
               </div>
               
-              {/* Contador de incremento */}
-              <div className="bg-gray-50 p-4 rounded-lg border">
-                <p className="text-sm font-medium text-gray-700 mb-3 text-center">
-                  ¿Cuántas personas agregar?
-                </p>
-                <div className="flex items-center justify-center gap-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={decrementarAsistencia}
-                    disabled={incrementoTemporal <= 1}
-                    className="w-10 h-10 rounded-full border-2 border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    <Minus className="h-5 w-5 text-gray-600" />
-                  </Button>
-                  
-                  <div className="bg-white border-2 border-blue-500 rounded-lg px-6 py-3 min-w-[80px]">
-                    <div className="text-3xl font-bold text-center text-blue-600">
-                      +{incrementoTemporal}
-                    </div>
-                    <div className="text-xs text-gray-500 text-center mt-1">
-                      persona{incrementoTemporal > 1 ? 's' : ''}
-                    </div>
-                  </div>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={incrementarAsistencia}
-                    className="w-10 h-10 rounded-full border-2 border-gray-300 bg-white hover:bg-gray-50"
-                  >
-                    <Plus className="h-5 w-5 text-gray-600" />
-                  </Button>
+              {/* Mensaje de registro */}
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <div className="flex items-center justify-center gap-2">
+                  <CheckCircle className="h-6 w-6 text-green-600" />
+                  <p className="text-lg font-semibold text-green-800">
+                    ✓ Registrado
+                  </p>
                 </div>
               </div>
               
               {/* Preview del resultado */}
               <div className="text-center text-sm text-gray-600">
                 {(() => {
-                  const nuevoTotal = reservaDetectada.actual + incrementoTemporal;
+                  const nuevoTotal = reservaDetectada.actual + 1; // ✅ Siempre +1
                   const exceso = Math.max(0, nuevoTotal - reservaDetectada.total);
                   return (
                     <span>
@@ -554,7 +520,7 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
                 borderColor: '#111827' 
               }}
             >
-              {isProcessing ? "Procesando..." : `Confirmar +${incrementoTemporal}`}
+              {isProcessing ? "Procesando..." : "Confirmar Asistencia"}
             </Button>
           </DialogFooter>
         </DialogContent>

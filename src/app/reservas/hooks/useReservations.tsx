@@ -216,7 +216,6 @@ export function useReservations(businessId?: string) {
       const data = await response.json();
       
       if (data.hasChanges) {
-        console.log(`🔄 Cambios detectados: ${data.changedCount || 0} reserva(s) actualizada(s)`);
         setSyncStatus('updating');
         setIsSyncing(true);
         
@@ -325,8 +324,22 @@ export function useReservations(businessId?: string) {
 
   const updateReserva = async (id: string, updates: Partial<Reserva>) => {
     try {
+      // 🎯 Actualización optimista para cambios de estado (para UI instantánea)
+      if (updates.estado) {
+        setReservas(prev => 
+          prev.map(reserva => 
+            reserva.id === id ? { ...reserva, estado: updates.estado! } : reserva
+          )
+        );
+      }
+
       const queryString = businessId ? `?businessId=${businessId}` : '';
       const apiUrl = `/api/reservas/${id}${queryString}`;
+      console.log('📤 Enviando actualización:', {
+        url: apiUrl,
+        updates: JSON.stringify(updates, null, 2)
+      });
+      
       const response = await fetch(apiUrl, {
         method: 'PUT',
         headers: {
@@ -336,10 +349,29 @@ export function useReservations(businessId?: string) {
       });
 
       if (!response.ok) {
-        throw new Error('Error al actualizar la reserva');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Error del servidor:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        
+        // 🔄 Revertir actualización optimista en caso de error
+        if (updates.estado) {
+          setReservas(prev => 
+            prev.map(reserva => 
+              reserva.id === id ? { ...reserva, estado: reserva.estado } : reserva
+            )
+          );
+        }
+        
+        throw new Error(errorData.error || `Error ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
+      console.log('✅ Respuesta exitosa:', data);
+      
+      // Actualizar con datos completos del servidor
       setReservas(prev => 
         prev.map(reserva => 
           reserva.id === id ? data.reserva : reserva
@@ -347,7 +379,8 @@ export function useReservations(businessId?: string) {
       );
 
     } catch (error) {
-      toast.error('❌ Error al actualizar la reserva', {
+      console.error('❌ Error en updateReserva:', error);
+      toast.error(`❌ Error al actualizar: ${error instanceof Error ? error.message : 'Error desconocido'}`, {
         className: 'bg-red-600 text-white border-0',
         style: {
           backgroundColor: '#dc2626 !important',
@@ -409,17 +442,27 @@ export function useReservations(businessId?: string) {
   };
 
   const getDashboardStats = (): DashboardStats => {
-    const hoy = new Date().toISOString().split('T')[0];
-    const reservasHoy = reservas.filter(r => r.fecha === hoy);
+    const hoy = new Date();
+    const hoyStr = hoy.toISOString().split('T')[0];
+    const mesActual = hoy.getMonth(); // 0-11
+    const añoActual = hoy.getFullYear();
     
-    // Calcular totales
-    const totalAsistentes = reservas.reduce((acc, r) => acc + r.asistenciaActual, 0);
-    const reservasCompletadas = reservas.filter(r => r.estado === 'Activa' || r.estado === 'Reserva Caída');
+    // Filtrar solo reservas del mes actual
+    const reservasDelMes = reservas.filter(r => {
+      const fechaReserva = new Date(r.fecha + 'T00:00:00');
+      return fechaReserva.getMonth() === mesActual && fechaReserva.getFullYear() === añoActual;
+    });
+    
+    const reservasHoy = reservasDelMes.filter(r => r.fecha === hoyStr);
+    
+    // Calcular totales SOLO del mes actual
+    const totalAsistentes = reservasDelMes.reduce((acc, r) => acc + r.asistenciaActual, 0);
+    const reservasCompletadas = reservasDelMes.filter(r => r.estado === 'Activa' || r.estado === 'Reserva Caída');
     const totalReservados = reservasCompletadas.reduce((acc, r) => acc + r.numeroPersonas, 0);
     const promedioAsistencia = totalReservados > 0 ? (totalAsistentes / totalReservados) * 100 : 0;
     
     return {
-      totalReservas: reservas.length,
+      totalReservas: reservasDelMes.length,
       totalAsistentes,
       promedioAsistencia: Math.round(promedioAsistencia),
       reservasHoy: reservasHoy.length

@@ -16,13 +16,13 @@ interface ReportData {
       totalPersonasEsperadas: number;
       totalAsistentesReales: number;
       porcentajeCumplimiento: number;
-      promedioPersonasPorReserva: number;
     };
     porAsistencia: {
       completadas: number;
       sobreaforo: number;
       caidas: number;
       parciales: number;
+      canceladas: number;
     };
     porPago: {
       conComprobante: number;
@@ -35,13 +35,26 @@ interface ReportData {
       checkedIn: number;
       completed: number;
       cancelled: number;
-      noShow: number;
     };
+    porPromotor?: Array<{
+      id: string;
+      nombre: string;
+      totalReservas: number;
+      personasEsperadas: number;
+      personasAsistieron: number;
+      reservasCompletadas: number;
+      reservasParciales: number;
+      reservasCaidas: number;
+      reservasSobreaforo: number;
+      reservasCanceladas: number;
+      porcentajeCumplimiento: number;
+    }>;
   };
   rankings: {
     top5Dias: Array<{ fecha: string; cantidad: number }>;
     top5Clientes: Array<{ id: string; nombre: string; cantidad: number }>;
     top5Horarios: Array<{ horario: string; cantidad: number }>;
+    top5Promotores?: Array<{ id: string; nombre: string; cantidad: number; cumplimiento: number }>;
   };
   detalleReservas: Array<{
     id: string;
@@ -54,6 +67,7 @@ interface ReportData {
     asistentes: number;
     estado: string;
     comprobante: string;
+    promotor?: string;
   }>;
 }
 
@@ -127,7 +141,6 @@ export function generateReservationReport(
     ['Personas Esperadas', data.metricas.generales.totalPersonasEsperadas.toString()],
     ['Asistentes Reales', data.metricas.generales.totalAsistentesReales.toString()],
     ['Cumplimiento', `${data.metricas.generales.porcentajeCumplimiento.toFixed(1)}%`],
-    ['Promedio por Reserva', `${data.metricas.generales.promedioPersonasPorReserva.toFixed(1)} personas`],
   ];
 
   autoTable(doc, {
@@ -157,7 +170,8 @@ export function generateReservationReport(
     ['Completadas (100%)', data.metricas.porAsistencia.completadas.toString()],
     ['Sobreaforo (>100%)', data.metricas.porAsistencia.sobreaforo.toString()],
     ['Parciales (<100%)', data.metricas.porAsistencia.parciales.toString()],
-    ['Caídas (0%)', data.metricas.porAsistencia.caidas.toString()],
+    ['Caidas (No asistieron)', data.metricas.porAsistencia.caidas.toString()],
+    ['Canceladas (Con aviso)', data.metricas.porAsistencia.canceladas.toString()],
   ];
 
   autoTable(doc, {
@@ -214,7 +228,6 @@ export function generateReservationReport(
     ['Checked-In', data.metricas.porEstado.checkedIn.toString()],
     ['Completadas', data.metricas.porEstado.completed.toString()],
     ['Canceladas', data.metricas.porEstado.cancelled.toString()],
-    ['No Show', data.metricas.porEstado.noShow.toString()],
   ];
 
   autoTable(doc, {
@@ -321,6 +334,127 @@ export function generateReservationReport(
     },
   });
 
+  yPosition = (doc as any).lastAutoTable.finalY + 12;
+
+  // ==========================================
+  // 🎯 NUEVO: TOP 5 PROMOTORES
+  // ==========================================
+  if (data.rankings.top5Promotores && data.rankings.top5Promotores.length > 0) {
+    // Verificar si necesitamos nueva página
+    if (yPosition > 220) {
+      doc.addPage();
+      yPosition = 20;
+      
+      // Header
+      doc.setFillColor(...primaryColor);
+      doc.rect(0, 0, 210, 25, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Analisis de Promotores', 105, 15, { align: 'center' });
+      
+      yPosition = 35;
+      doc.setTextColor(0, 0, 0);
+    }
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Top 5 Promotores (Mayor Asistencia)', 20, yPosition);
+    yPosition += 8;
+
+    const top5PromotoresData = data.rankings.top5Promotores.map((p) => [
+      p.nombre,
+      p.cantidad.toString(),
+      `${p.cumplimiento.toFixed(1)}%`,
+    ]);
+
+    autoTable(doc, {
+      startY: yPosition,
+      head: [['Promotor', 'Reservas', 'Cumplimiento']],
+      body: top5PromotoresData,
+      theme: 'grid',
+      headStyles: { fillColor: [243, 156, 18] }, // Color naranja para promotores
+      margin: { left: 20, right: 20 },
+      columnStyles: {
+        0: { cellWidth: 80 },
+        1: { cellWidth: 45, halign: 'center', fontStyle: 'bold' },
+        2: { cellWidth: 45, halign: 'center', fontStyle: 'bold' },
+      },
+    });
+
+    yPosition = (doc as any).lastAutoTable.finalY + 12;
+  }
+
+  // ==========================================
+  // 👥 NUEVO: ANÁLISIS DETALLADO POR PROMOTOR
+  // ==========================================
+  if (data.metricas.porPromotor && data.metricas.porPromotor.length > 0) {
+    // Verificar si necesitamos nueva página
+    if (yPosition > 200) {
+      doc.addPage();
+      yPosition = 20;
+      
+      // Header
+      doc.setFillColor(...primaryColor);
+      doc.rect(0, 0, 210, 25, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Analisis de Promotores', 105, 15, { align: 'center' });
+      
+      yPosition = 35;
+      doc.setTextColor(0, 0, 0);
+    }
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Analisis Completo por Promotor', 20, yPosition);
+    yPosition += 5;
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...grayColor);
+    doc.text('(Esperados vs Asistieron)', 20, yPosition);
+    yPosition += 5;
+    doc.setTextColor(0, 0, 0);
+
+    // Ordenar por asistentes (mayor a menor)
+    const promotoresOrdenados = [...data.metricas.porPromotor].sort(
+      (a, b) => b.personasAsistieron - a.personasAsistieron
+    );
+
+    const promotoresData = promotoresOrdenados.map((p) => [
+      p.nombre,
+      p.totalReservas.toString(),
+      p.personasEsperadas.toString(),
+      p.personasAsistieron.toString(),
+      `${p.porcentajeCumplimiento.toFixed(1)}%`,
+      p.reservasCaidas.toString(),
+      p.reservasCanceladas.toString(),
+    ]);
+
+    autoTable(doc, {
+      startY: yPosition,
+      head: [['Promotor', 'Reservas', 'Esperados', 'Asistieron', 'Cumpl.', 'Caídas', 'Cancel.']],
+      body: promotoresData,
+      theme: 'grid',
+      headStyles: { fillColor: [155, 89, 182], fontSize: 8 }, // Color morado
+      margin: { left: 20, right: 20 },
+      styles: { fontSize: 8 },
+      columnStyles: {
+        0: { cellWidth: 45 },
+        1: { cellWidth: 22, halign: 'center' },
+        2: { cellWidth: 22, halign: 'center' },
+        3: { cellWidth: 22, halign: 'center', fontStyle: 'bold' },
+        4: { cellWidth: 22, halign: 'center', fontStyle: 'bold' },
+        5: { cellWidth: 20, halign: 'center' },
+        6: { cellWidth: 20, halign: 'center' },
+      },
+    });
+
+    yPosition = (doc as any).lastAutoTable.finalY + 12;
+  }
+
   // ==========================================
   // PÁGINA 3: TABLA DETALLADA
   // ==========================================
@@ -338,26 +472,49 @@ export function generateReservationReport(
   yPosition = 35;
   doc.setTextColor(0, 0, 0);
 
-  // Tabla completa de reservas
-  const detalleData = data.detalleReservas.map((r) => [
-    r.fecha,
-    r.hora,
-    r.cliente,
-    r.mesa || '-',
-    r.esperadas.toString(),
-    r.asistentes.toString(),
-    r.comprobante,
-  ]);
+  // Tabla completa de reservas (con promotor si está disponible)
+  const tienePromotores = data.detalleReservas.some(r => r.promotor);
+  
+  let detalleData: any[];
+  let headers: string[];
+  let columnStyles: any;
 
-  autoTable(doc, {
-    startY: yPosition,
-    head: [['Fecha', 'Hora', 'Cliente', 'Mesa', 'Esp.', 'Asist.', 'Pago']],
-    body: detalleData.length > 0 ? detalleData : [['Sin reservas en este período', '-', '-', '-', '-', '-', '-']],
-    theme: 'striped',
-    headStyles: { fillColor: primaryColor, fontSize: 9 },
-    bodyStyles: { fontSize: 8 },
-    margin: { left: 10, right: 10 },
-    columnStyles: {
+  if (tienePromotores) {
+    // Versión con promotor
+    detalleData = data.detalleReservas.map((r) => [
+      r.fecha,
+      r.hora,
+      r.cliente,
+      r.promotor || 'Sin asignar',
+      r.esperadas.toString(),
+      r.asistentes.toString(),
+    ]);
+    
+    headers = ['Fecha', 'Hora', 'Cliente', 'Promotor', 'Esp.', 'Asist.'];
+    
+    columnStyles = {
+      0: { cellWidth: 22 },
+      1: { cellWidth: 18 },
+      2: { cellWidth: 50 },
+      3: { cellWidth: 45 },
+      4: { cellWidth: 15, halign: 'center' },
+      5: { cellWidth: 15, halign: 'center', fontStyle: 'bold' },
+    };
+  } else {
+    // Versión original sin promotor
+    detalleData = data.detalleReservas.map((r) => [
+      r.fecha,
+      r.hora,
+      r.cliente,
+      r.mesa || '-',
+      r.esperadas.toString(),
+      r.asistentes.toString(),
+      r.comprobante,
+    ]);
+    
+    headers = ['Fecha', 'Hora', 'Cliente', 'Mesa', 'Esp.', 'Asist.', 'Pago'];
+    
+    columnStyles = {
       0: { cellWidth: 22 },
       1: { cellWidth: 18 },
       2: { cellWidth: 50 },
@@ -365,7 +522,18 @@ export function generateReservationReport(
       4: { cellWidth: 15, halign: 'center' },
       5: { cellWidth: 15, halign: 'center' },
       6: { cellWidth: 15, halign: 'center' },
-    },
+    };
+  }
+
+  autoTable(doc, {
+    startY: yPosition,
+    head: [headers],
+    body: detalleData.length > 0 ? detalleData : [['Sin reservas en este período', '-', '-', '-', '-', '-']],
+    theme: 'striped',
+    headStyles: { fillColor: primaryColor, fontSize: 9 },
+    bodyStyles: { fontSize: 8 },
+    margin: { left: 10, right: 10 },
+    columnStyles: columnStyles,
     didDrawPage: () => {
       // Footer en cada página
       const pageCount = doc.getNumberOfPages();

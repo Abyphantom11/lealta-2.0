@@ -64,11 +64,16 @@ export async function POST(
     }
 
     // Si es la primera vez que registra asistencia, actualizar el estado de la reserva
-    if (reservation.status === 'CONFIRMED' && metodo === 'QR') {
+    // PENDING → CONFIRMED cuando llega la primera persona
+    const newScanCount = (updatedQrCode?.scanCount || 0);
+    const shouldActivate = newScanCount === 1 && reservation.status === 'PENDING';
+    
+    if (shouldActivate) {
       updatedReservation = await prisma.reservation.update({
         where: { id: reservationId },
         data: {
-          status: 'CHECKED_IN',
+          status: 'CONFIRMED',
+          confirmedAt: new Date(),
           checkedInAt: new Date()
         },
         include: {

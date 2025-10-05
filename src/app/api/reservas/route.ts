@@ -15,24 +15,24 @@ function generateQRCode(): string {
 // Función para mapear estado de Prisma a nuestro tipo
 function mapPrismaStatusToReserva(status: string): EstadoReserva {
   switch (status) {
-    case 'PENDING': return 'Activa';
+    case 'PENDING': return 'En Progreso';
     case 'CONFIRMED': return 'Activa';
-    case 'CHECKED_IN': return 'En Espera';
+    case 'CHECKED_IN': return 'Activa'; // ✅ CHECKED_IN también se muestra como Activa
     case 'COMPLETED': return 'En Camino';
     case 'CANCELLED': return 'Reserva Caída';
     case 'NO_SHOW': return 'Reserva Caída';
-    default: return 'Activa';
+    default: return 'En Progreso';
   }
 }
 
 // Función para mapear nuestro estado a Prisma
 function mapReservaStatusToPrisma(estado: EstadoReserva): 'PENDING' | 'CONFIRMED' | 'CHECKED_IN' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' {
   switch (estado) {
+    case 'En Progreso': return 'PENDING';
     case 'Activa': return 'CONFIRMED';
-    case 'En Espera': return 'CHECKED_IN';
     case 'En Camino': return 'COMPLETED';
     case 'Reserva Caída': return 'CANCELLED';
-    default: return 'CONFIRMED';
+    default: return 'PENDING';
   }
 }
 
@@ -40,18 +40,49 @@ function mapReservaStatusToPrisma(estado: EstadoReserva): 'PENDING' | 'CONFIRMED
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const businessId = searchParams.get('businessId') || 'default-business-id';
+    const businessIdOrSlug = searchParams.get('businessId') || 'default-business-id';
     
-    // Buscar reservas en la base de datos
+    console.log('📥 GET /api/reservas - businessId recibido:', businessIdOrSlug);
+    
+    // Intentar buscar el business por ID o por slug
+    let business;
+    try {
+      business = await prisma.business.findFirst({
+        where: {
+          OR: [
+            { id: businessIdOrSlug },
+            { slug: businessIdOrSlug }
+          ]
+        }
+      });
+    } catch (e) {
+      console.log('⚠️ Error buscando business, intentando solo por slug');
+      business = await prisma.business.findUnique({
+        where: { slug: businessIdOrSlug }
+      });
+    }
+    
+    if (!business) {
+      console.error('❌ Business no encontrado:', businessIdOrSlug);
+      return NextResponse.json(
+        { error: 'Business no encontrado' },
+        { status: 404 }
+      );
+    }
+    
+    console.log('✅ Business encontrado:', business.name, '(ID:', business.id + ')');
+    
+    // Buscar reservas en la base de datos usando el ID real
     const reservations = await prisma.reservation.findMany({
       where: {
-        businessId: businessId
+        businessId: business.id
       },
       include: {
         cliente: true,
         service: true,
         slot: true,
-        qrCodes: true
+        qrCodes: true,
+        promotor: true
       },
       orderBy: {
         reservedAt: 'asc' // ✅ Ordenar por hora de llegada (ascendente = primero las más tempranas)
@@ -74,8 +105,8 @@ export async function GET(request: NextRequest) {
         razonVisita: reservation.specialRequests || 'Reserva general',
         beneficiosReserva: reservation.notes || 'Sin beneficios especiales',
         promotor: {
-          id: reservation.serviceId,
-          nombre: reservation.service?.name || 'Servicio General'
+          id: reservation.promotorId || reservation.serviceId,
+          nombre: reservation.promotor?.nombre || reservation.service?.name || 'Sistema'
         },
         fecha: reservation.slot?.date ? new Date(reservation.slot.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         hora: reservation.slot?.startTime ? 
@@ -85,7 +116,10 @@ export async function GET(request: NextRequest) {
         estado: mapPrismaStatusToReserva(reservation.status),
         fechaCreacion: reservation.createdAt.toISOString(),
         fechaModificacion: reservation.updatedAt.toISOString(),
-        mesa: metadata.mesa || '', // ✅ Leer mesa desde metadata JSON
+        mesa: metadata.mesa || '',
+        detalles: metadata.detalles || [],
+        comprobanteSubido: !!metadata.comprobanteUrl,
+        comprobanteUrl: metadata.comprobanteUrl || undefined,
         registroEntradas: []
       };
     });
@@ -111,33 +145,77 @@ export async function POST(request: NextRequest) {
     
     // Obtener businessId del query parameter o usar default
     const searchParams = request.nextUrl.searchParams;
-    const businessId = searchParams.get('businessId') || 'default-business-id';
+    const businessIdOrSlug = searchParams.get('businessId') || 'default-business-id';
     
-    console.log('🏢 BusinessId para crear reserva:', businessId);
+    console.log('📥 POST /api/reservas - businessId recibido:', businessIdOrSlug);
 
-    // Asegurar que el business existe
-    let business = await prisma.business.findUnique({
-      where: { id: businessId }
-    });
-
-    if (!business) {
-      console.log('⚠️ Business no encontrado, creando uno por defecto...');
-      // Crear business por defecto
-      business = await prisma.business.create({
-        data: {
-          id: businessId,
-          name: 'Negocio de Prueba',
-          slug: 'negocio-prueba',
-          subdomain: 'negocio-prueba'
+    // Intentar buscar el business por ID o por slug
+    let business;
+    try {
+      business = await prisma.business.findFirst({
+        where: {
+          OR: [
+            { id: businessIdOrSlug },
+            { slug: businessIdOrSlug }
+          ]
         }
       });
-      console.log('✅ Business creado:', business.id);
+    } catch (e) {
+      console.log('⚠️ Error buscando business, intentando solo por slug');
+      business = await prisma.business.findUnique({
+        where: { slug: businessIdOrSlug }
+      });
     }
+
+    if (!business) {
+      console.error('❌ Business no encontrado:', businessIdOrSlug);
+      return NextResponse.json(
+        { error: 'Business no encontrado' },
+        { status: 404 }
+      );
+    }
+    
+    console.log('✅ Business encontrado:', business.name, '(ID:', business.id + ')');
+    const businessId = business.id;
 
     // Validaciones básicas
     if (!data.cliente?.nombre) {
       return NextResponse.json(
         { success: false, error: 'El nombre del cliente es obligatorio' },
+        { status: 400 }
+      );
+    }
+
+    // ✅ Validar email obligatorio
+    if (!data.cliente?.email || data.cliente.email.trim() === '') {
+      return NextResponse.json(
+        { success: false, error: 'El email del cliente es obligatorio' },
+        { status: 400 }
+      );
+    }
+
+    // ✅ Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(data.cliente.email)) {
+      return NextResponse.json(
+        { success: false, error: 'El email del cliente no tiene un formato válido' },
+        { status: 400 }
+      );
+    }
+
+    // ✅ Validar teléfono obligatorio
+    if (!data.cliente?.telefono || data.cliente.telefono.trim() === '') {
+      return NextResponse.json(
+        { success: false, error: 'El teléfono del cliente es obligatorio' },
+        { status: 400 }
+      );
+    }
+
+    // ✅ Validar que teléfono tenga al menos 8 dígitos
+    const digitosEnTelefono = data.cliente.telefono.replace(/\D/g, '').length;
+    if (digitosEnTelefono < 8) {
+      return NextResponse.json(
+        { success: false, error: 'El teléfono debe tener al menos 8 dígitos' },
         { status: 400 }
       );
     }
@@ -158,49 +236,72 @@ export async function POST(request: NextRequest) {
 
     // 1. Crear o buscar el cliente
     let cliente;
+    
+    // ✅ MEJORADO: Buscar cliente por múltiples criterios para evitar duplicados
+    // Prioridad: 1) Email, 2) Cédula, 3) Teléfono
     if (data.cliente.email) {
-      // Buscar cliente existente por correo
+      // Buscar por email primero
       cliente = await prisma.cliente.findFirst({
         where: {
           businessId: businessId,
           correo: data.cliente.email
         }
       });
+    }
+    
+    // Si no se encontró por email y hay cédula, buscar por cédula
+    if (!cliente && data.cliente.id && data.cliente.id !== `c-${Date.now()}`) {
+      cliente = await prisma.cliente.findFirst({
+        where: {
+          businessId: businessId,
+          cedula: data.cliente.id
+        }
+      });
+    }
+    
+    // Si no se encontró y hay teléfono, buscar por teléfono (última opción)
+    if (!cliente && data.cliente.telefono) {
+      cliente = await prisma.cliente.findFirst({
+        where: {
+          businessId: businessId,
+          telefono: data.cliente.telefono
+        }
+      });
+    }
+    
+    if (!cliente) {
+      // ✅ MEJORADO: Crear nuevo cliente usando cédula real si está disponible
+      const cedulaReal = data.cliente.id && data.cliente.id !== `c-${Date.now()}` 
+        ? data.cliente.id 
+        : `temp-${Date.now()}`;
       
-      if (!cliente) {
-        // Crear nuevo cliente
-        cliente = await prisma.cliente.create({
-          data: {
-            businessId: businessId,
-            cedula: `temp-${Date.now()}`, // Temporal hasta que tengamos el campo correcto
-            nombre: data.cliente.nombre,
-            telefono: data.cliente.telefono || '',
-            correo: data.cliente.email,
-            puntos: 0
-          }
-        });
-      } else {
-        // Actualizar cliente existente
-        cliente = await prisma.cliente.update({
-          where: { id: cliente.id },
-          data: {
-            nombre: data.cliente.nombre,
-            telefono: data.cliente.telefono || ''
-          }
-        });
-      }
-    } else {
-      // Cliente temporal sin email
       cliente = await prisma.cliente.create({
         data: {
           businessId: businessId,
-          cedula: `temp-${Date.now()}`,
+          cedula: cedulaReal, // ✅ Usar cédula real del formulario
           nombre: data.cliente.nombre,
           telefono: data.cliente.telefono || '',
-          correo: `temp-${Date.now()}@temp.com`,
+          correo: data.cliente.email || `temp-${Date.now()}@temp.com`,
           puntos: 0
         }
       });
+      console.log('✅ Cliente nuevo creado:', { id: cliente.id, cedula: cedulaReal, nombre: cliente.nombre });
+    } else {
+      // ✅ MEJORADO: Actualizar todos los datos del cliente existente
+      cliente = await prisma.cliente.update({
+        where: { id: cliente.id },
+        data: {
+          nombre: data.cliente.nombre,
+          telefono: data.cliente.telefono || cliente.telefono,
+          correo: data.cliente.email || cliente.correo,
+          // Actualizar cédula si ahora tenemos una real y antes era temporal
+          ...(data.cliente.id && 
+              data.cliente.id !== `c-${Date.now()}` && 
+              cliente.cedula.startsWith('temp-') && 
+              { cedula: data.cliente.id })
+        }
+      });
+      console.log('✅ Cliente existente actualizado:', { id: cliente.id, nombre: cliente.nombre });
     }
 
     // 2. Crear o buscar el servicio
@@ -242,7 +343,23 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // 4. Crear la reserva
+    // 4. Verificar/validar promotor si se proporciona
+    let promotorId: string | null = null;
+    if (data.promotor?.id) {
+      const promotorExists = await prisma.promotor.findUnique({
+        where: { id: data.promotor.id }
+      });
+      
+      if (!promotorExists) {
+        console.warn('⚠️ Promotor ID proporcionado no existe:', data.promotor.id);
+        // No fallar, simplemente no asignar promotor
+      } else {
+        promotorId = data.promotor.id;
+        console.log('✅ Promotor asignado:', promotorExists.nombre);
+      }
+    }
+    
+    // 5. Crear la reserva
     const reservationNumber = `RES-${Date.now()}`;
     
     // Crear fecha/hora de reserva para reservedAt
@@ -257,7 +374,8 @@ export async function POST(request: NextRequest) {
       fechaOriginal: data.fecha,
       horaOriginal: data.hora,
       reservedAtDate: reservedAtDate.toISOString(),
-      reservedAtDateLocal: reservedAtDate.toString()
+      reservedAtDateLocal: reservedAtDate.toString(),
+      promotorId: promotorId
     });
     
     const reservation = await prisma.reservation.create({
@@ -267,18 +385,19 @@ export async function POST(request: NextRequest) {
         serviceId: service.id,
         slotId: slot.id,
         reservationNumber: reservationNumber,
-        status: mapReservaStatusToPrisma(data.estado || 'Activa'),
+        status: mapReservaStatusToPrisma(data.estado || 'En Progreso'),
         customerName: data.cliente.nombre,
         customerEmail: data.cliente.email || `temp-${Date.now()}@temp.com`,
         customerPhone: data.cliente.telefono,
         guestCount: data.numeroPersonas,
         specialRequests: data.razonVisita,
         notes: data.beneficiosReserva,
-        reservedAt: reservedAtDate
+        reservedAt: reservedAtDate,
+        promotorId: promotorId
       }
     });
 
-    // 5. Crear código QR con expiración de 12 horas después de la hora de llegada de la reserva
+    // 6. Crear código QR con expiración de 12 horas después de la hora de llegada de la reserva
     const qrToken = data.codigoQR || generateQRCode();
     
     // Calcular fecha de expiración: 12 horas después de la hora específica de la reserva
