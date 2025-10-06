@@ -7,6 +7,7 @@ import { logger } from '@/utils/production-logger';
 import { getBlobStorageToken } from '@/lib/blob-storage-utils';
 import fs from 'fs/promises';
 import path from 'path';
+import { withAuth } from '@/middleware/requireAuth';
 
 // Forzar renderizado dinámico para esta ruta que usa autenticación
 export const dynamic = 'force-dynamic';
@@ -265,18 +266,33 @@ async function triggerLevelEvaluation(cliente: any) {
   return null;
 }
 
+/**
+ * 🔒 POST /api/staff/consumo - Registrar consumo con análisis de imagen AI
+ * Requiere autenticación: ADMIN, STAFF o SUPERADMIN
+ */
 export async function POST(request: NextRequest) {
-  try {
-    const formData = await request.formData();
-    const validatedData = validateFormData(formData);
-    const image = formData.get('image') as File;
+  return withAuth(request, async (session) => {
+    try {
+      const formData = await request.formData();
+      const validatedData = validateFormData(formData);
+      const image = formData.get('image') as File;
 
-    if (!image) {
-      return NextResponse.json({ success: false, error: 'No se recibió ninguna imagen' }, { status: 400 });
-    }
+      // 🔐 SECURITY: Validar business ownership
+      const businessId = validatedData.businessId || 'cmfr2y0ia0000eyvw7ef3k20u';
+      if (session.businessId !== businessId && session.role !== 'superadmin') {
+        logger.warn(`❌ AUTH DENIED: User ${session.userId} (${session.role}) tried to register consumption for different business`);
+        return NextResponse.json(
+          { success: false, error: 'No tiene permiso para registrar consumos en este negocio' },
+          { status: 403 }
+        );
+      }
 
-    if (!image.type.startsWith('image/')) {
-      return NextResponse.json({ success: false, error: 'El archivo debe ser una imagen' }, { status: 400 });
+      if (!image) {
+        return NextResponse.json({ success: false, error: 'No se recibió ninguna imagen' }, { status: 400 });
+      }
+
+      if (!image.type.startsWith('image/')) {
+        return NextResponse.json({ success: false, error: 'El archivo debe ser una imagen' }, { status: 400 });
     }
 
     if (image.size > 10 * 1024 * 1024) {
@@ -326,6 +342,9 @@ export async function POST(request: NextRequest) {
       confianza: analysis.confianza
     });
 
+    // 📊 LOG DE AUDITORÍA
+    logger.info(`💰 Consumo registrado por: ${session.role} (${session.userId}) - Cliente: ${cliente.cedula} - Monto: $${montoFinal} - Puntos: ${puntosGenerados}`);
+
     return NextResponse.json({
       success: true,
       message: 'Consumo registrado exitosamente con análisis AI',
@@ -361,4 +380,9 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+  }, {
+    allowedRoles: ['admin', 'staff', 'superadmin'], // Staff puede registrar consumos
+    requireBusinessOwnership: true,
+    logAccess: true
+  });
 }

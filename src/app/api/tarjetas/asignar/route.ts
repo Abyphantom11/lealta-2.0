@@ -5,6 +5,7 @@ import {
   enviarNotificacionClientes,
   TipoNotificacion,
 } from '@/lib/notificaciones';
+import { withAuth, AuthConfigs } from '@/middleware/requireAuth';
 
 // Type assertion temporal mientras se resuelve la compatibilidad JSON
 const extendedPrisma = prisma as any;
@@ -178,66 +179,88 @@ async function createNewCard(cliente: any, nivel: string, asignacionManual: bool
   return nuevaTarjeta;
 }
 
+/**
+ * 🔒 POST /api/tarjetas/asignar - Asignar o actualizar tarjeta de fidelidad
+ * Requiere autenticación: ADMIN o SUPERADMIN
+ */
 export async function POST(request: NextRequest) {
-  try {
-    const { clienteId, nivel, asignacionManual = false, fastUpdate = false } = await request.json();
+  return withAuth(request, async (session) => {
+    try {
+      const { clienteId, nivel, asignacionManual = false, fastUpdate = false } = await request.json();
 
-    if (!clienteId || !nivel) {
-      return NextResponse.json(
-        { error: 'Cliente ID y nivel son requeridos' },
-        { status: 400 }
-      );
-    }
-
-    if (fastUpdate) {
-      request.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-    }
-
-    const cliente = await prisma.cliente.findUnique({
-      where: { id: clienteId },
-      include: { tarjetaLealtad: true, consumos: true },
-    });
-
-    if (!cliente) {
-      return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 });
-    }
-
-    if (cliente.tarjetaLealtad) {
-      const { tarjetaActualizada, changeAnalysis, tipoOperacion } = await updateExistingCard(
-        cliente,
-        nivel,
-        asignacionManual
-      );
-
-      const responseData: any = {
-        success: true,
-        message: `Tarjeta ${asignacionManual ? 'asignada manualmente' : 'actualizada automáticamente'} exitosamente`,
-        tarjeta: tarjetaActualizada,
-        operacion: tipoOperacion,
-      };
-
-      if (asignacionManual && changeAnalysis.esAscenso) {
-        Object.assign(responseData, {
-          nivelAnterior: cliente.tarjetaLealtad.nivel,
-          nivelNuevo: nivel,
-          actualizado: true,
-          esSubida: true,
-          mostrarAnimacion: true,
-          ascensoManual: true
-        });
+      if (!clienteId || !nivel) {
+        return NextResponse.json(
+          { error: 'Cliente ID y nivel son requeridos' },
+          { status: 400 }
+        );
       }
 
-      return NextResponse.json(responseData);
-    } else {
-      const nuevaTarjeta = await createNewCard(cliente, nivel, asignacionManual);
-      return NextResponse.json({
-        success: true,
-        message: 'Tarjeta creada exitosamente',
-        tarjeta: nuevaTarjeta,
+      if (fastUpdate) {
+        request.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      }
+
+      const cliente = await prisma.cliente.findUnique({
+        where: { id: clienteId },
+        include: { tarjetaLealtad: true, consumos: true },
       });
+
+      if (!cliente) {
+        return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 });
+      }
+
+      // 🔐 SECURITY: Validar business ownership
+      if (cliente.businessId !== session.businessId && session.role !== 'superadmin') {
+        console.log(`❌ AUTH DENIED: User ${session.userId} tried to assign card for client from different business`);
+        return NextResponse.json(
+          { error: 'No tiene permiso para modificar tarjetas de este cliente' },
+          { status: 403 }
+        );
+      }
+
+      if (cliente.tarjetaLealtad) {
+        const { tarjetaActualizada, changeAnalysis, tipoOperacion } = await updateExistingCard(
+          cliente,
+          nivel,
+          asignacionManual
+        );
+
+        const responseData: any = {
+          success: true,
+          message: `Tarjeta ${asignacionManual ? 'asignada manualmente' : 'actualizada automáticamente'} exitosamente`,
+          tarjeta: tarjetaActualizada,
+          operacion: tipoOperacion,
+        };
+
+        if (asignacionManual && changeAnalysis.esAscenso) {
+          Object.assign(responseData, {
+            nivelAnterior: cliente.tarjetaLealtad.nivel,
+            nivelNuevo: nivel,
+            actualizado: true,
+            esSubida: true,
+            mostrarAnimacion: true,
+            ascensoManual: true
+          });
+        }
+
+        // 📊 LOG DE AUDITORÍA
+        console.log(`🎫 Tarjeta asignada por: ${session.role} (${session.userId}) - Cliente: ${clienteId} - Nivel: ${nivel}`);
+
+        return NextResponse.json(responseData);
+      } else {
+        const nuevaTarjeta = await createNewCard(cliente, nivel, asignacionManual);
+        
+        // 📊 LOG DE AUDITORÍA
+        console.log(`🎫 Nueva tarjeta creada por: ${session.role} (${session.userId}) - Cliente: ${clienteId} - Nivel: ${nivel}`);
+        
+        return NextResponse.json({
+          success: true,
+          message: 'Tarjeta creada exitosamente',
+          tarjeta: nuevaTarjeta,
+        });
+      }
+    } catch (error) {
+      console.error('Error en asignación de tarjeta:', error);
+      return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
     }
-  } catch (error) {
-    console.error('Error en asignación de tarjeta:', error);
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
-  }
+  }, AuthConfigs.WRITE); // Solo ADMIN y SUPERADMIN pueden asignar tarjetas
 }
