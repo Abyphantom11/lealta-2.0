@@ -1,14 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth.config';
+import { withAuth, AuthConfigs } from '@/middleware/requireAuth';
 
 // GET /api/reservas/qr/[token] - Buscar una reserva por código QR
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { token: string } }
 ) {
-  try {
+  return withAuth(request, async (session) => {
     const token = params.token;
     const { searchParams } = new URL(request.url);
     const businessId = searchParams.get('businessId');
@@ -17,9 +16,8 @@ export async function GET(
       return NextResponse.json({ error: 'Token QR y businessId son requeridos' }, { status: 400 });
     }
 
-    // Verificar autenticación
-    const session = await getServerSession(authOptions);
-    if (!session || session.user.businessId !== businessId) {
+    // Verificar business ownership
+    if (session.businessId !== businessId && session.role !== 'superadmin') {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
@@ -84,8 +82,5 @@ export async function GET(
     };
 
     return NextResponse.json(response);
-  } catch (error) {
-    console.error('Error en GET /api/reservas/qr/[token]:', error);
-    return NextResponse.json({ error: 'Error al buscar reserva por QR' }, { status: 500 });
-  }
+  }, AuthConfigs.READ_ONLY);
 }

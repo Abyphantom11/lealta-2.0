@@ -1,19 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth.config';
+import { withAuth, AuthConfigs } from '@/middleware/requireAuth';
 import { DashboardStats } from '@/types/reservas';
 
 // GET /api/reservas/stats - Obtener estadísticas del dashboard
-export async function GET() {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.businessId) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
-
-    const businessId = session.user.businessId;
+export async function GET(request: NextRequest) {
+  return withAuth(request, async (session) => {
+    const businessId = session.businessId;
     const today = new Date().toISOString().split('T')[0];
 
     // Obtener estadísticas básicas
@@ -85,12 +78,5 @@ export async function GET() {
     };
 
     return NextResponse.json(stats);
-
-  } catch (error) {
-    console.error('Error obteniendo estadísticas:', error);
-    return NextResponse.json(
-      { error: 'Error interno del servidor' },
-      { status: 500 }
-    );
-  }
+  }, AuthConfigs.READ_ONLY);
 }

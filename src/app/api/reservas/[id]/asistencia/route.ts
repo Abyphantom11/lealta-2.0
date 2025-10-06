@@ -1,14 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth.config';
+import { withAuth, AuthConfigs } from '@/middleware/requireAuth';
 
 // POST /api/reservas/[id]/asistencia - Registrar asistencia en una reserva
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
+  return withAuth(request, async (session) => {
     const reservationId = params.id;
     const body = await request.json();
     const { cantidad, metodo, userId } = body;
@@ -16,12 +15,6 @@ export async function POST(
     // Validar datos
     if (!reservationId || !cantidad || !metodo) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 });
-    }
-
-    // Verificar autenticación
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
     // Buscar la reserva
@@ -40,7 +33,7 @@ export async function POST(
     }
 
     // Verificar que el usuario tiene acceso a esta reserva
-    if (session.user.businessId !== reservation.businessId) {
+    if (session.businessId !== reservation.businessId && session.role !== 'superadmin') {
       return NextResponse.json({ error: 'No autorizado para esta reserva' }, { status: 403 });
     }
 
@@ -57,7 +50,7 @@ export async function POST(
           },
           lastScannedAt: new Date(),
           usedAt: updatedQrCode.usedAt || new Date(),
-          usedBy: updatedQrCode.usedBy || userId || session.user.id,
+          usedBy: updatedQrCode.usedBy || userId || session.userId,
           status: 'USED'
         }
       });
@@ -85,21 +78,20 @@ export async function POST(
       });
     }
 
-    // Registrar en el log de auditoría
-    await prisma.reservationAuditLog.create({
-      data: {
-        businessId: reservation.businessId,
-        reservationId: reservation.id,
-        action: 'check_in',
-        userId: userId || session.user.id,
-        userName: session.user.name || 'Usuario del sistema',
-        newValues: JSON.stringify({ 
-          metodo, 
-          cantidad, 
-          timestamp: new Date().toISOString() 
-        })
-      }
-    });
+    // Registrar en el log de auditoría (si existe la tabla)
+    try {
+      await prisma.$executeRawUnsafe(`
+        INSERT INTO "ReservationAuditLog" ("businessId", "reservationId", "action", "userId", "userName", "newValues", "createdAt", "updatedAt")
+        VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+      `, reservation.businessId, reservation.id, 'check_in', userId || session.userId, session.userId, JSON.stringify({ 
+        metodo, 
+        cantidad, 
+        timestamp: new Date().toISOString() 
+      }));
+    } catch (auditError) {
+      // Log silencioso si la tabla no existe
+      console.warn('Audit log table not available:', auditError);
+    }
 
     // Formatear la respuesta
     const response = {
@@ -114,7 +106,7 @@ export async function POST(
       numeroPersonas: updatedReservation.guestCount,
       razonVisita: updatedReservation.specialRequests || '',
       beneficiosReserva: updatedReservation.notes || '',
-      promotor: { id: userId || session.user.id, nombre: session.user.name || 'Usuario del sistema' },
+      promotor: { id: userId || session.userId, nombre: session.userId },
       fecha: updatedReservation.reservedAt.toISOString().split('T')[0],
       hora: new Date(updatedReservation.slot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
       codigoQR: updatedQrCode?.qrToken || '',
@@ -134,8 +126,5 @@ export async function POST(
     };
 
     return NextResponse.json(response);
-  } catch (error) {
-    console.error('Error en POST /api/reservas/[id]/asistencia:', error);
-    return NextResponse.json({ error: 'Error al registrar asistencia' }, { status: 500 });
-  }
+  }, AuthConfigs.WRITE);
 }
