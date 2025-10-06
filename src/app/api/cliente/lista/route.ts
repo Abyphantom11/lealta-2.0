@@ -1,18 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth.config';
 
 const prisma = new PrismaClient();
 
 export const dynamic = 'force-dynamic';
 
+// Función para obtener sesión desde cookie
+function getSessionFromCookie(request: NextRequest) {
+  try {
+    const cookieHeader = request.headers.get('cookie');
+    if (!cookieHeader) return null;
+    
+    // Parsear cookies manualmente
+    const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
+      const [key, value] = cookie.trim().split('=');
+      acc[key] = value;
+      return acc;
+    }, {} as Record<string, string>);
+    
+    const sessionCookie = cookies['session'];
+    if (!sessionCookie) return null;
+    
+    // Decodificar y parsear la sesión
+    const decoded = decodeURIComponent(sessionCookie);
+    return JSON.parse(decoded);
+  } catch (error) {
+    console.error('Error parsing session cookie:', error);
+    return null;
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
-    // 🔒 SECURITY: Verificar autenticación
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      console.error('❌ LISTA CLIENTES: Usuario no autenticado');
+    // 🔒 SECURITY: Verificar autenticación desde cookie de sesión
+    const session = getSessionFromCookie(request);
+    
+    console.log('🔍 LISTA CLIENTES: Session check:', {
+      hasSession: !!session,
+      userId: session?.userId,
+      userEmail: session?.email,
+      userBusinessId: session?.businessId,
+      userRole: session?.role
+    });
+    
+    if (!session?.userId) {
+      console.error('❌ LISTA CLIENTES: Usuario no autenticado - No valid session found');
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }
@@ -20,7 +52,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 🔥 BUSINESS CONTEXT: Determinar businessId desde múltiples fuentes
-    let businessId = session.user.businessId;
+    let businessId = session.businessId; // Desde la sesión
     
     // Método 1: Desde query parameter (para compatibilidad con rutas dinámicas)
     const url = new URL(request.url);
@@ -49,14 +81,23 @@ export async function GET(request: NextRequest) {
     else if (headerBusinessId) businessId = headerBusinessId;
     else if (refererBusinessId) businessId = refererBusinessId;
 
+    console.log('🔍 LISTA CLIENTES: BusinessId resolution:', {
+      final: businessId,
+      sessionBusinessId: session.businessId,
+      queryBusinessId,
+      headerBusinessId,
+      refererBusinessId,
+      match: businessId === session.businessId
+    });
+
     // 🔒 SECURITY: Verificar que el usuario tiene acceso al business solicitado
-    if (businessId !== session.user.businessId) {
+    if (businessId !== session.businessId) {
       // Solo SUPERADMIN puede acceder a otros businesses
-      if (session.user.role !== 'SUPERADMIN') {
+      if (session.role !== 'SUPERADMIN') {
         console.error('❌ LISTA CLIENTES: Usuario no tiene acceso al business', {
-          userBusinessId: session.user.businessId,
+          userBusinessId: session.businessId,
           requestedBusinessId: businessId,
-          userRole: session.user.role
+          userRole: session.role
         });
         return NextResponse.json(
           { error: 'No autorizado - Sin acceso al business solicitado' },
@@ -67,7 +108,7 @@ export async function GET(request: NextRequest) {
 
     if (!businessId) {
       console.error('❌ LISTA CLIENTES: No se pudo determinar businessId', {
-        sessionBusinessId: session.user.businessId,
+        sessionBusinessId: session.businessId,
         queryBusinessId,
         headerBusinessId,
         refererBusinessId
@@ -80,7 +121,7 @@ export async function GET(request: NextRequest) {
     
     console.log('🔍 LISTA CLIENTES DEBUG:', {
       adminBusinessId: businessId,
-      adminEmail: session.user.email,
+      adminEmail: session.email,
       timestamp: new Date().toISOString()
     });
 

@@ -147,7 +147,11 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '', busin
 
         console.log('🔍 CLIENTES: Fetching con businessId:', businessId);
         
-        const response = await fetch(url, { headers });
+        const response = await fetch(url, { 
+          headers,
+          credentials: 'include', // ✅ CRÍTICO: Incluir cookies de sesión
+          cache: 'no-store' // ✅ No cachear para obtener datos frescos
+        });
         const data = await response.json();
         
         console.log('📊 CLIENTES: Respuesta recibida:', {

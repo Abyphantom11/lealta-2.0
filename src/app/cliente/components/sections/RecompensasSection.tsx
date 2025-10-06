@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Gift } from 'lucide-react';
 import { useAutoRefreshPortalConfig } from '@/hooks/useAutoRefreshPortalConfig';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface Recompensa {
   id: string;
@@ -21,6 +22,8 @@ interface RecompensasProps {
 }
 
 export default function RecompensasSection({ businessId }: Readonly<RecompensasProps>) {
+  const { theme, themeConfig } = useTheme();
+  
   // 🔄 Auto-refresh hook para sincronización admin → cliente
   const { getRecompensas, isLoading } = useAutoRefreshPortalConfig({
     businessId,
@@ -47,13 +50,45 @@ export default function RecompensasSection({ businessId }: Readonly<RecompensasP
   // Si no hay recompensas, no renderizar nada
   if (isLoading || recompensas.length === 0) return null;
   
+  // 🎨 Estilos según el tema
+  let containerStyles = '';
+  let textColorStyle = {};
+  let descriptionColorStyle = {};
+  let cardBgStyle = {};
+  let textColorClass = '';
+  let descriptionColorClass = '';
+  let cardBgClass = '';
+  
+  if (theme === 'moderno') {
+    containerStyles = 'bg-gradient-to-r from-purple-600 to-pink-600';
+    textColorClass = 'text-white';
+    descriptionColorClass = 'text-white/80';
+    cardBgClass = 'bg-white/20';
+  } else if (theme === 'elegante') {
+    containerStyles = 'bg-gradient-to-r from-zinc-900 to-zinc-800 border-2 border-yellow-500/30';
+    textColorClass = 'text-yellow-400';
+    descriptionColorClass = 'text-zinc-400';
+    cardBgClass = 'bg-yellow-500/10 border border-yellow-500/30';
+  } else {
+    // TEMA SENCILLO - Usar colores personalizados
+    const accentColor = themeConfig.accentColor || '#a855f7';
+    containerStyles = 'bg-white shadow-lg';
+    textColorStyle = { color: accentColor };
+    descriptionColorStyle = { color: '#6b7280' };
+    cardBgStyle = { 
+      backgroundColor: `${accentColor}10`,
+      borderWidth: '1px',
+      borderColor: `${accentColor}33`
+    };
+  }
+  
   return (
     <div className="mx-4 mb-6">
       <h3 className="text-lg font-semibold text-white mb-4">Recompensas</h3>
-      <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl p-4">
+      <div className={`rounded-xl p-4 ${containerStyles}`}>
         <div className="flex items-center space-x-3 mb-3">
-          <Gift className="w-6 h-6 text-white" />
-          <div className="text-white font-semibold">Programa de Puntos</div>
+          <Gift className={`w-6 h-6 ${textColorClass}`} style={textColorStyle} />
+          <div className={`font-semibold ${textColorClass}`} style={textColorStyle}>Programa de Puntos</div>
         </div>
         {/* Contenedor scrollable horizontal para las recompensas */}
         <div className="overflow-x-auto">
@@ -61,7 +96,8 @@ export default function RecompensasSection({ businessId }: Readonly<RecompensasP
             {recompensas.map((recompensa: Recompensa, index: number) => (
               <motion.div
                 key={recompensa.id}
-                className="bg-white/20 rounded-lg p-3 min-w-[200px] max-w-[200px]"
+                className={`rounded-lg p-3 min-w-[200px] max-w-[200px] ${cardBgClass}`}
+                style={cardBgStyle}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
@@ -77,14 +113,14 @@ export default function RecompensasSection({ businessId }: Readonly<RecompensasP
                   </div>
                 )}
                 <div className="flex flex-col">
-                  <div className="text-white font-medium text-sm">{recompensa.nombre}</div>
-                  <div className="text-white/80 text-xs mb-2">{recompensa.descripcion}</div>
+                  <div className={`font-medium text-sm ${textColorClass}`} style={textColorStyle}>{recompensa.nombre}</div>
+                  <div className={`text-xs mb-2 ${descriptionColorClass}`} style={descriptionColorStyle}>{recompensa.descripcion}</div>
                   <div className="flex items-center justify-between">
-                    <div className="text-white font-bold text-sm">
+                    <div className={`font-bold text-sm ${textColorClass}`} style={textColorStyle}>
                       {recompensa.puntosRequeridos} pts
                     </div>
                     {(recompensa.stock && recompensa.stock > 0) && (
-                      <div className="text-white/60 text-xs">
+                      <div className={`text-xs ${descriptionColorClass}`} style={descriptionColorStyle}>
                         Stock: {recompensa.stock}
                       </div>
                     )}

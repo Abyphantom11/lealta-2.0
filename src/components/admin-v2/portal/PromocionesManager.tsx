@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Clock, Tag, Calendar } from 'lucide-react';
+import { Clock, Tag, Calendar, Type } from 'lucide-react';
 
 interface PromocionesManagerProps {
   promociones: Promocion[];
@@ -9,6 +9,7 @@ interface PromocionesManagerProps {
   onUpdate: (id: string, promocion: Partial<Promocion>) => void;
   onDelete: (id: string) => void;
   onToggle: (id: string) => void;
+  businessId?: string; // Para cargar/guardar título de sección
 }
 
 interface Promocion {
@@ -32,6 +33,7 @@ const PromocionesManager: React.FC<PromocionesManagerProps> = ({
   onUpdate,
   onDelete,
   onToggle,
+  businessId,
 }) => {
   const [selectedDay, setSelectedDay] = useState('lunes');
   const [editingPromoId, setEditingPromoId] = useState<string | null>(null);
@@ -43,6 +45,53 @@ const PromocionesManager: React.FC<PromocionesManagerProps> = ({
     horaTermino: '04:00',
   });
   const [isAddMode, setIsAddMode] = useState(true);
+  
+  // 🎯 Estado para título de sección
+  const [sectionTitle, setSectionTitle] = useState('Promociones Especiales');
+  const [isSavingTitle, setIsSavingTitle] = useState(false);
+
+  // 📥 Cargar título de sección al montar
+  useEffect(() => {
+    const loadTitle = async () => {
+      if (!businessId) return;
+      
+      try {
+        const response = await fetch(`/api/portal/section-titles?businessId=${businessId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setSectionTitle(data.promocionesTitle || 'Promociones Especiales');
+        }
+      } catch (error) {
+        console.error('Error cargando título de sección:', error);
+      }
+    };
+    
+    loadTitle();
+  }, [businessId]);
+
+  const handleSaveSectionTitle = async () => {
+    if (!businessId) return;
+    
+    setIsSavingTitle(true);
+    try {
+      const response = await fetch('/api/portal/section-titles', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessId,
+          promocionesTitle: sectionTitle,
+        }),
+      });
+
+      if (response.ok) {
+        console.log('✅ Título guardado:', sectionTitle);
+      }
+    } catch (error) {
+      console.error('Error guardando título:', error);
+    } finally {
+      setIsSavingTitle(false);
+    }
+  };
 
   // Escuchar eventos de cambio de día simulado
   useEffect(() => {
@@ -158,6 +207,35 @@ const PromocionesManager: React.FC<PromocionesManagerProps> = ({
 
   return (
     <div>
+      {/* 🎨 Título de sección editable */}
+      <div className="mb-6 bg-dark-800 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-lg font-semibold text-white flex items-center">
+            <Type className="w-5 h-5 mr-2" />
+            Título de la Sección
+          </h4>
+          <button
+            onClick={handleSaveSectionTitle}
+            disabled={isSavingTitle}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 text-sm font-medium"
+          >
+            {isSavingTitle ? 'Guardando...' : 'Guardar Título'}
+          </button>
+        </div>
+        <p className="text-dark-400 text-sm mb-3">
+          Este texto aparecerá como encabezado de la sección en el portal del cliente
+        </p>
+        <input
+          type="text"
+          value={sectionTitle}
+          onChange={(e) => setSectionTitle(e.target.value)}
+          onBlur={handleSaveSectionTitle}
+          className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2 text-white placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          placeholder="Ej: Promociones Especiales, Ofertas del Día, etc."
+          maxLength={50}
+        />
+      </div>
+      
       <div className="mb-4">
         <h4 className="text-lg font-semibold text-white mb-3">
           Promociones por Día

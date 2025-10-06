@@ -2,14 +2,14 @@
   "banners": [
     {
       "id": "banner-1",
-      "title": "¡Bienvenido a golom!",
+      "title": "¡Bienvenido a momo!",
       "description": "Descubre nuestras increíbles ofertas y recompensas exclusivas",
       "imageUrl": "",
       "linkUrl": "/promociones",
       "isActive": true,
       "order": 1,
-      "createdAt": "2025-10-03T19:12:31.628Z",
-      "updatedAt": "2025-10-03T19:12:31.628Z"
+      "createdAt": "2025-10-06T09:04:28.544Z",
+      "updatedAt": "2025-10-06T09:04:28.544Z"
     }
   ],
   "promotions": [],
@@ -18,16 +18,16 @@
     {
       "id": "event-1",
       "title": "Gran Apertura",
-      "description": "Celebra con nosotros la gran apertura de golom",
+      "description": "Celebra con nosotros la gran apertura de momo",
       "location": "Nuestra ubicación principal",
-      "startDate": "2025-10-10T19:12:31.628Z",
-      "endDate": "2025-10-10T23:12:31.628Z",
+      "startDate": "2025-10-13T09:04:28.544Z",
+      "endDate": "2025-10-13T13:04:28.544Z",
       "imageUrl": "",
       "isActive": true,
       "maxAttendees": 200,
       "currentAttendees": 0,
-      "createdAt": "2025-10-03T19:12:31.628Z",
-      "updatedAt": "2025-10-03T19:12:31.628Z"
+      "createdAt": "2025-10-06T09:04:28.544Z",
+      "updatedAt": "2025-10-06T09:04:28.544Z"
     }
   ],
   "rewards": [
@@ -40,10 +40,10 @@
       "imageUrl": "",
       "isActive": true,
       "stock": 50,
-      "availableFrom": "2025-10-03T19:12:31.628Z",
-      "availableTo": "2026-10-03T19:12:31.628Z",
-      "createdAt": "2025-10-03T19:12:31.628Z",
-      "updatedAt": "2025-10-03T19:12:31.628Z"
+      "availableFrom": "2025-10-06T09:04:28.544Z",
+      "availableTo": "2026-10-06T09:04:28.544Z",
+      "createdAt": "2025-10-06T09:04:28.544Z",
+      "updatedAt": "2025-10-06T09:04:28.544Z"
     }
   ],
   "recompensas": [],
@@ -51,14 +51,14 @@
     {
       "id": "fav-1",
       "title": "Especialidad del Día",
-      "description": "El producto favorito de golom",
+      "description": "El producto favorito de momo",
       "imageUrl": "",
       "category": "destacados",
       "price": 12.99,
       "isActive": true,
       "order": 1,
-      "createdAt": "2025-10-03T19:12:31.628Z",
-      "updatedAt": "2025-10-03T19:12:31.628Z"
+      "createdAt": "2025-10-06T09:04:28.544Z",
+      "updatedAt": "2025-10-06T09:04:28.544Z"
     }
   ],
   "favoritoDelDia": [],
@@ -81,7 +81,7 @@
         "gastosMinimos": 0,
         "visitasMinimas": 0
       },
-      "beneficio": "Acceso a promociones exclusivas",
+      "beneficio": "Acceso a beneficios Bronce",
       "activo": true
     },
     {
@@ -102,20 +102,20 @@
         "gastosMinimos": 500,
         "visitasMinimas": 5
       },
-      "beneficio": "5% de descuento en compras",
+      "beneficio": "Acceso a beneficios Plata",
       "activo": true
     },
     {
       "id": "tarjeta-oro",
       "nivel": "Oro",
       "nombrePersonalizado": "Tarjeta Oro",
-      "textoCalidad": "Cliente Premium",
+      "textoCalidad": "Cliente VIP",
       "colores": {
         "gradiente": [
           "#FFD700",
           "#FFA500"
         ],
-        "texto": "#000000",
+        "texto": "#FFFFFF",
         "nivel": "#FFD700"
       },
       "condiciones": {
@@ -123,18 +123,18 @@
         "gastosMinimos": 1500,
         "visitasMinimas": 10
       },
-      "beneficio": "10% de descuento en compras",
+      "beneficio": "Acceso a beneficios Oro",
       "activo": true
     },
     {
       "id": "tarjeta-diamante",
       "nivel": "Diamante",
       "nombrePersonalizado": "Tarjeta Diamante",
-      "textoCalidad": "Cliente VIP",
+      "textoCalidad": "Cliente Elite",
       "colores": {
         "gradiente": [
           "#B9F2FF",
-          "#0891B2"
+          "#00CED1"
         ],
         "texto": "#FFFFFF",
         "nivel": "#B9F2FF"
@@ -142,41 +142,112 @@
       "condiciones": {
         "puntosMinimos": 1500,
         "gastosMinimos": 3000,
-        "visitasMinimas": 20
+        "visitasMinimas": 15
       },
-      "beneficio": "15% de descuento en compras",
+      "beneficio": "Acceso a beneficios Diamante",
       "activo": true
     },
     {
       "id": "tarjeta-platino",
       "nivel": "Platino",
       "nombrePersonalizado": "Tarjeta Platino",
-      "textoCalidad": "Cliente Elite",
+      "textoCalidad": "Cliente Exclusivo",
       "colores": {
         "gradiente": [
-          "#E5E7EB",
-          "#9CA3AF"
+          "#E5E4E2",
+          "#C0C0C0"
         ],
         "texto": "#FFFFFF",
-        "nivel": "#E5E7EB"
+        "nivel": "#E5E4E2"
       },
       "condiciones": {
         "puntosMinimos": 3000,
         "gastosMinimos": 5000,
         "visitasMinimas": 30
       },
-      "beneficio": "20% de descuento en compras",
+      "beneficio": "Acceso a beneficios Platino",
       "activo": true
     }
   ],
-  "nombreEmpresa": "golom",
+  "nombreEmpresa": "Mi Negocio",
   "settings": {
-    "lastUpdated": "2025-10-03T19:12:31.628Z",
+    "lastUpdated": "2025-10-06T09:04:28.544Z",
     "version": "2.0.0",
     "createdBy": "system-central",
-    "businessId": "cmgb818x70000eyeov4f8lriu"
+    "businessId": "cmgewmtue0000eygwq8taawak"
   },
-  "nivelesConfig": {},
-  "lastUpdated": "2025-10-06T06:40:43.078Z",
+  "nivelesConfig": {
+    "Bronce": {
+      "colores": {
+        "gradiente": [
+          "#CD7F32",
+          "#8B4513"
+        ]
+      },
+      "textoDefault": "Cliente Inicial",
+      "condiciones": {
+        "puntosMinimos": 0,
+        "gastosMinimos": 0,
+        "visitasMinimas": 0
+      }
+    },
+    "Plata": {
+      "colores": {
+        "gradiente": [
+          "#C0C0C0",
+          "#808080"
+        ]
+      },
+      "textoDefault": "Cliente Frecuente",
+      "condiciones": {
+        "puntosMinimos": 100,
+        "gastosMinimos": 500,
+        "visitasMinimas": 5
+      }
+    },
+    "Oro": {
+      "colores": {
+        "gradiente": [
+          "#FFD700",
+          "#FFA500"
+        ]
+      },
+      "textoDefault": "Cliente VIP",
+      "condiciones": {
+        "puntosMinimos": 500,
+        "gastosMinimos": 1500,
+        "visitasMinimas": 10
+      }
+    },
+    "Diamante": {
+      "colores": {
+        "gradiente": [
+          "#B9F2FF",
+          "#00CED1"
+        ]
+      },
+      "textoDefault": "Cliente Elite",
+      "condiciones": {
+        "puntosMinimos": 1500,
+        "gastosMinimos": 3000,
+        "visitasMinimas": 15
+      }
+    },
+    "Platino": {
+      "colores": {
+        "gradiente": [
+          "#E5E4E2",
+          "#C0C0C0"
+        ]
+      },
+      "textoDefault": "Cliente Exclusivo",
+      "condiciones": {
+        "puntosMinimos": 3000,
+        "gastosMinimos": 5000,
+        "visitasMinimas": 30
+      }
+    }
+  },
+  "lastUpdated": "2025-10-06T10:40:55.258Z",
   "version": "2.0.0"
 }

@@ -58,6 +58,10 @@ model Business {
   qrMensajeBienvenida String? @default("¡Te esperamos!")
   qrMostrarLogo       Boolean @default(true)
   
+  // 🎨 Tema del Portal Cliente
+  clientTheme       String? @default("moderno") // 'moderno' | 'elegante' | 'sencillo'
+  clientThemeConfig Json?   @default("{}") // Configuración personalizable del tema
+  
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
@@ -206,6 +210,10 @@ model PortalConfig {
   // Configuración visual
   colores Json? // Theme colors personalizados
   logo    String? // URL del logo del negocio
+  
+  // Títulos personalizables para secciones
+  promocionesTitle String? @default("Promociones Especiales") // Título personalizable para sección de promociones
+  recompensasTitle String? @default("Recompensas") // Título personalizable para sección de recompensas
 
   // Metadatos
   isActive  Boolean  @default(true)

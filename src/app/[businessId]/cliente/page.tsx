@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { BrandingProvider } from '../../cliente/components/branding/BrandingProvider';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import AuthHandler from '../../cliente/components/AuthHandler';
 import DynamicManifest from '@/components/DynamicManifest';
 import IOSInstallWrapper from '@/components/ios/IOSInstallWrapper';
@@ -67,10 +68,12 @@ export default function BusinessClientePage() {
     console.log('✅ Rendering client with business data:', businessData);
     return (
       <BrandingProvider businessId={businessData.id}>
-        <DynamicManifest businessSlug={businessSlug} />
-        {/* ✅ Guía de instalación iOS - solo se muestra después de login */}
-        <IOSInstallWrapper businessName={businessData.name} />
-        <AuthHandler businessId={businessData.id} />
+        <ThemeProvider businessId={businessData.id}>
+          <DynamicManifest businessSlug={businessSlug} />
+          {/* ✅ Guía de instalación iOS - solo se muestra después de login */}
+          <IOSInstallWrapper businessName={businessData.name} />
+          <AuthHandler businessId={businessData.id} />
+        </ThemeProvider>
       </BrandingProvider>
     );
   }

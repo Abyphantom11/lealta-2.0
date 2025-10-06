@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Coffee,
   LogOut,
-  Eye,
   Menu,
   User,
   Trophy,
@@ -14,11 +13,13 @@ import { clientSession } from '@/utils/mobileStorage';
 import { logger } from '@/utils/logger';
 import { calcularProgresoUnificado } from '@/lib/loyalty-progress';
 import { useVisitTracking } from '@/hooks/useVisitTracking';
+import { useTheme } from '@/contexts/ThemeContext';
 import BannersSection from '../sections/BannersSection';
 import PromocionesSection from '../sections/PromocionesSection';
 import RecompensasSection from '../sections/RecompensasSection';
 import FavoritoDelDiaSection from '../sections/FavoritoDelDiaSection';
 import NotificationBox from '@/components/cliente/NotificationBox';
+import { BalanceCard } from './BalanceCard';
 
 interface DashboardProps {
   clienteData: any;
@@ -170,6 +171,9 @@ export const Dashboard = ({
 }: DashboardProps) => {
   // Estado para el drawer de perfil
   const [isProfileDrawerOpen, setIsProfileDrawerOpen] = React.useState(false);
+  
+  // 🎨 Hook de tema para obtener colores personalizados
+  const { themeConfig } = useTheme();
 
   // 📊 Tracking de visitas automático
   useVisitTracking({
@@ -205,9 +209,9 @@ export const Dashboard = ({
       <div className="fixed top-0 left-0 right-0 bg-black/95 backdrop-blur-sm border-b border-gray-800 z-50 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <h1 className="text-xl">
+            <h1 className="text-xl text-white">
               ¡Bienvenido,{' '}
-              <span className="text-pink-500 font-semibold">
+              <span style={{ color: themeConfig.nameColor || '#ec4899' }} className="font-semibold">
                 {clienteData?.nombre?.split(' ')[0] || 'Cliente'}
               </span>!
             </h1>
@@ -220,50 +224,14 @@ export const Dashboard = ({
       
       {/* Contenido principal con padding superior */}
       <div className="pt-16">
-        {/* Balance Card */}
-        <div className="mx-4 mb-6 mt-4">
-          <motion.div
-            className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-2xl p-6 relative overflow-hidden"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            {/* Background pattern */}
-            <div className="absolute top-0 right-0 w-32 h-32 opacity-20">
-              <Coffee className="w-full h-full text-white/30" />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-white/80 text-lg mb-2">
-                  Balance de Puntos
-                </div>
-                <div className="text-4xl font-bold text-white mb-1">
-                  {clienteData?.puntos || 100}
-                </div>
-                <div className="text-white/60 text-sm mb-2">
-                  Tarjeta ****{(clienteData?.cedula || cedula).slice(-4)}
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    console.log('🔍 Botón de tarjeta clickeado!');
-                    setShowTarjeta(!showTarjeta);
-                  }}
-                  onTouchStart={() => {
-                    console.log('📱 Touch start en botón de tarjeta');
-                  }}
-                  className="bg-white/20 backdrop-blur-sm rounded-full p-3 hover:bg-white/30 transition-colors relative z-10"
-                  aria-label="Ver tarjeta de fidelidad"
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  <Eye className="w-6 h-6 text-white pointer-events-none" />
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </div>
+        {/* Balance Card con tema dinámico */}
+        <BalanceCard
+          clienteData={clienteData}
+          cedula={cedula}
+          showTarjeta={showTarjeta}
+          setShowTarjeta={setShowTarjeta}
+        />
+        
         {/* Banners Section - Editable desde Admin */}
         <BannersSection businessId={businessId} />
         {/* Promociones Section - Editable desde Admin */}

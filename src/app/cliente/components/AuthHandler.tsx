@@ -30,9 +30,12 @@ interface AuthHandlerProps {
   readonly businessId?: string;
 }
 
-export default function AuthHandler({ businessId }: Readonly<AuthHandlerProps>) {
-  const { brandingConfig, isLoading: brandingLoading } = useBranding();
+export default function AuthHandler({ businessId: propBusinessId }: Readonly<AuthHandlerProps>) {
+  const { brandingConfig, isLoading: brandingLoading, businessId: contextBusinessId } = useBranding();
   const { notifyLevelUpManual } = useClientNotifications();
+  
+  // 🔥 USAR businessId del contexto o del prop, con fallback
+  const businessId = propBusinessId || contextBusinessId || 'cmfr2y0ia0000eyvw7ef3k20u';
 
   // 🔥 VERIFICAR SI TENEMOS DATOS REALES DE CONFIGURACIÓN
   const hasRealBrandingData = brandingConfig.businessName && 
@@ -181,9 +184,15 @@ export default function AuthHandler({ businessId }: Readonly<AuthHandlerProps>) 
 
   const loadPortalConfig = useCallback(async () => {
     try {
-      // Usar businessId si está disponible, sino usar 'default'
-      const configBusinessId = businessId || 'default';
-      const configResponse = await fetch(`/api/portal/config-v2?businessId=${configBusinessId}`);
+      // 🔥 USAR businessId real (ya no puede ser 'default')
+      if (!businessId || businessId === 'default') {
+        console.warn('⚠️ businessId no válido, usando configuración por defecto');
+        setPortalConfig(getDefaultPortalConfig());
+        setIsPortalConfigLoaded(true);
+        return;
+      }
+      
+      const configResponse = await fetch(`/api/portal/config-v2?businessId=${businessId}`);
 
       if (configResponse.ok) {
         const config = await configResponse.json();

@@ -88,6 +88,7 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [currentBusinessSlug, setCurrentBusinessSlug] = useState<string | null>(null);
+  const [currentBusinessId, setCurrentBusinessId] = useState<string>('cmgewmtue0000eygwq8taawak'); // ID del business actual
 
   // 🔧 Funciones auxiliares reutilizables
   const getCurrentBusinessFromUrl = useCallback((): string | null => {
@@ -586,6 +587,7 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
         brandingConfig={brandingConfig}
         handleBrandingChange={handleBrandingChange}
         showNotification={showNotification}
+        businessId={currentBusinessId}
       />
     </div>
   );

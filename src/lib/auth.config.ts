@@ -6,6 +6,17 @@ import { compare } from 'bcryptjs';
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: 'jwt' },
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production'
+      }
+    }
+  },
   providers: [
     Credentials({
       name: 'Backoffice',
@@ -41,14 +52,28 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.role = (user as any).role;
         token.businessId = (user as any).businessId;
+        console.log('🔐 JWT: Token actualizado con:', { role: token.role, businessId: token.businessId });
       }
       return token;
     },
     async session({ session, token }) {
+      console.log('🔐 SESSION: Construyendo sesión con token:', { 
+        hasToken: !!token,
+        role: token?.role,
+        businessId: token?.businessId 
+      });
+      
       if (token?.role) {
         (session.user as any).role = token.role;
         (session.user as any).businessId = token.businessId;
       }
+      
+      console.log('🔐 SESSION: Sesión final:', {
+        userEmail: session.user?.email,
+        userRole: (session.user as any).role,
+        userBusinessId: (session.user as any).businessId
+      });
+      
       return session;
     },
   },

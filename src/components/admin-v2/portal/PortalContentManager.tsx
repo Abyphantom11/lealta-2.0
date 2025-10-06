@@ -12,6 +12,7 @@ import TarjetaCompacta from './TarjetaCompacta';
 import AsignacionTarjetas from './AsignacionTarjetas';
 import TarjetaEditor from './TarjetaEditor';
 import BrandingManager from './BrandingManager';
+import ThemeEditor from './ThemeEditor';
 import { SharedBrandingConfig } from './shared-branding-types';
 import { Tarjeta } from './types';
 
@@ -29,6 +30,7 @@ interface PortalContentManagerProps {
     value: string | string[]
   ) => Promise<void>;
   showNotification: (message: string, type: NivelTarjeta) => void;
+  businessId?: string; // ID del negocio para el sistema de temas
 }
 
 interface GeneralConfig {
@@ -177,15 +179,56 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
   brandingConfig,
   handleBrandingChange,
   showNotification,
+  businessId = 'cmgewmtue0000eygwq8taawak', // ID del business "momo"
 }) => {
   
   // 🆕 Estado para datos reales de vista previa desde BD
   const [previewData, setPreviewData] = useState<any>(null);
   
+  // 🎨 Estado para gestión de temas
+  const [currentTheme, setCurrentTheme] = useState<'moderno' | 'elegante' | 'sencillo'>('moderno');
+  const [isLoadingTheme, setIsLoadingTheme] = useState(true);
+  
+  // 🎨 Cargar el tema actual del negocio
+  const loadCurrentTheme = useCallback(async () => {
+    if (!businessId || businessId === 'default') {
+      console.warn('⚠️ businessId no válido para cargar tema:', businessId);
+      setIsLoadingTheme(false);
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/business/${businessId}/client-theme`);
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentTheme(data.theme || 'moderno');
+        console.log('🎨 Tema cargado:', data.theme);
+      }
+    } catch (error) {
+      console.error('❌ Error cargando tema:', error);
+    } finally {
+      setIsLoadingTheme(false);
+    }
+  }, [businessId]);
+  
+  // 🎨 Manejar cambio de tema
+  const handleThemeChange = useCallback(async (newTheme: 'moderno' | 'elegante' | 'sencillo') => {
+    setCurrentTheme(newTheme);
+    console.log('🎨 Tema actualizado a:', newTheme);
+    
+    // Forzar recarga de la vista previa con el nuevo tema
+    if (previewMode === 'portal' || previewMode === 'portal-refresh') {
+      setTimeout(() => {
+        setPreviewMode('portal-refresh');
+        setTimeout(() => setPreviewMode('portal'), 100);
+      }, 300);
+    }
+  }, [previewMode, setPreviewMode]);
+  
   // 🆕 Función para cargar datos reales para vista previa
   const loadPreviewData = useCallback(async () => {
     try {
-      const response = await fetch('/api/portal/config-v2', {
+      const response = await fetch(`/api/portal/config-v2?businessId=${businessId}`, {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -199,13 +242,20 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
           banners: data.banners?.length || 0,
           promociones: data.promociones?.length || 0
         });
+      } else {
+        console.error('❌ Error response:', response.status, await response.text());
       }
     } catch (error) {
       console.error('❌ Error loading preview data:', error);
     }
-  }, []);
+  }, [businessId]);
   
-  // 🆕 Efecto para cargar datos cuando cambia el modo de vista previa
+  // � Cargar tema al montar el componente
+  useEffect(() => {
+    loadCurrentTheme();
+  }, [loadCurrentTheme]);
+  
+  // �🆕 Efecto para cargar datos cuando cambia el modo de vista previa
   useEffect(() => {
     if (previewMode === 'portal') {
       loadPreviewData();
@@ -436,20 +486,14 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
           ),
         };
       }
-
-      // 🎯 NUEVO: Manejo para nombre de empresa
-      if (type === 'nombreEmpresa') {
-        return {
-          ...prev,
-          nombreEmpresa: updates.nombreEmpresa || prev.nombreEmpresa,
-        };
-      }
-
+      // Actualizar el item específico según el tipo
       const newConfig = {
         ...prev,
-        [type]: (prev[type] || []).map((item: { id?: string }) =>
-          item.id === itemId ? { ...item, ...updates } : item
-        ),
+        [type]: Array.isArray(prev[type])
+          ? (prev[type] as any[]).map((item: { id?: string }) =>
+              item.id === itemId ? { ...item, ...updates } : item
+            )
+          : prev[type],
       };
 
       console.log('✅ Config actualizado para', type, ':', newConfig[type]);
@@ -525,6 +569,22 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
     } catch (error) {
       console.error('Error sincronizando con cliente:', error);
       showNotification(`❌ Error sincronizando ${itemName}`, 'error');
+    }
+  };
+
+  const updateNombreEmpresa = async (nombreEmpresa: string) => {
+    setConfig((prev: GeneralConfig): GeneralConfig => ({
+      ...prev,
+      nombreEmpresa,
+    }));
+
+    try {
+      await handleSyncToClient();
+      await loadPreviewData();
+      showNotification('✅ Nombre de empresa actualizado', 'success');
+    } catch (error) {
+      console.error('Error actualizando nombre de empresa:', error);
+      showNotification('❌ Error actualizando nombre de empresa', 'error');
     }
   };
 
@@ -1070,53 +1130,23 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
         )}
 
         {activeTab === 'preview' && previewMode === 'portal' && (
-          <div className="text-center py-8">
-            <Eye className="w-12 h-12 mx-auto mb-4 text-primary-500" />
-            <h4 className="text-lg font-semibold text-white mb-2">
-              Vista Previa en Tiempo Real
-            </h4>
-            <p className="text-dark-400 mb-4">
-              Esta vista muestra cómo verán los clientes tu portal. Los cambios
-              se reflejan automáticamente.
-            </p>
-            <div className="bg-dark-800 rounded-lg p-4 text-left">
-              <h5 className="text-white font-medium mb-2">
-                Elementos Activos:
-              </h5>
-              <ul className="space-y-1 text-sm text-dark-300">
-                <li>
-                  •{' '}
-                  {
-                    (config.banners || []).filter((b: Banner) => b.activo)
-                      .length
-                  }{' '}
-                  Banners activos
-                </li>
-                <li>
-                  •{' '}
-                  {
-                    getPromocionesList(config.promociones).filter(
-                      (p: Promocion) => p.activo
-                    ).length
-                  }{' '}
-                  Promociones activas
-                </li>
-                <li>
-                  • {isFavoritoActivo(config.favoritoDelDia) ? '1' : '0'}{' '}
-                  Favorito del día activo
-                </li>
-                <li>
-                  •{' '}
-                  {
-                    getRecompensasList(config.recompensas).filter(
-                      (r: Recompensa) => r.activo
-                    ).length
-                  }{' '}
-                  Recompensas activas
-                </li>
-              </ul>
-            </div>
-          </div>
+          <>
+            {isLoadingTheme ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+                <span className="ml-4 text-dark-400">Cargando configuración de tema...</span>
+              </div>
+            ) : (
+              <ThemeEditor 
+                businessId={businessId}
+                currentTheme={currentTheme}
+                onThemeChange={async (theme) => {
+                  await handleThemeChange(theme);
+                  showNotification(`Vista previa del tema "${theme}" actualizada`, 'info');
+                }}
+              />
+            )}
+          </>
         )}
 
         {activeTab === 'banners' && (
@@ -1165,6 +1195,7 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
               }
               onDelete={(id: string) => deleteItem('promociones', id)}
               onToggle={(id: string) => toggleActive('promociones', id)}
+              businessId={businessId}
             />
           </div>
         )}
@@ -1247,9 +1278,7 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
               onUpdateCard={(nivel: string, updates: Partial<any>) =>
                 updateItem('tarjetas', nivel, updates)
               }
-              onUpdateNombreEmpresa={(nombreEmpresa: string) =>
-                updateItem('nombreEmpresa', 'nombreEmpresa', { nombreEmpresa })
-              }
+              onUpdateNombreEmpresa={updateNombreEmpresa}
               showNotification={showNotification}
             />
           </div>

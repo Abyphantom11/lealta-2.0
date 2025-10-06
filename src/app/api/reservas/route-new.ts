@@ -107,36 +107,45 @@ export async function POST(request: NextRequest) {
     // 1. Crear o buscar el cliente
     let cliente;
     if (data.cliente.email) {
-      cliente = await prisma.cliente.upsert({
+      // Buscar por email primero
+      cliente = await prisma.cliente.findFirst({
         where: {
-          businessId_email: {
-            businessId: businessId,
-            email: data.cliente.email
-          }
-        },
-        update: {
-          nombre: data.cliente.nombre,
-          telefono: data.cliente.telefono || ''
-        },
-        create: {
           businessId: businessId,
-          cedula: `temp-${Date.now()}`, // Temporal hasta que tengamos el campo correcto
-          nombre: data.cliente.nombre,
-          telefono: data.cliente.telefono || '',
-          email: data.cliente.email,
-          puntos: 0
+          correo: data.cliente.email
         }
       });
+
+      if (cliente) {
+        // Actualizar datos si ya existe
+        cliente = await prisma.cliente.update({
+          where: { id: cliente.id },
+          data: {
+            nombre: data.cliente.nombre,
+            telefono: data.cliente.telefono || ''
+          }
+        });
+      } else {
+        // Crear nuevo cliente con cédula generada
+        const cedula = `EMAIL-${Date.now()}`; // Generar cédula temporal
+        cliente = await prisma.cliente.create({
+          data: {
+            businessId: businessId,
+            cedula: cedula,
+            nombre: data.cliente.nombre,
+            correo: data.cliente.email,
+            telefono: data.cliente.telefono || ''
+          }
+        });
+      }
     } else {
       // Cliente temporal sin email
       cliente = await prisma.cliente.create({
         data: {
           businessId: businessId,
-          cedula: `temp-${Date.now()}`,
+          cedula: `TEMP-${Date.now()}`,
           nombre: data.cliente.nombre,
-          telefono: data.cliente.telefono || '',
-          email: `temp-${Date.now()}@temp.com`,
-          puntos: 0
+          correo: `temp-${Date.now()}@temp.com`,
+          telefono: data.cliente.telefono || ''
         }
       });
     }

@@ -113,25 +113,36 @@ export default function AdminV2Page({ businessId }: AdminV2PageProps = {}) {
   const businessNameOrId = businessId || getCurrentBusinessFromUrl();
   const [actualBusinessId, setActualBusinessId] = useState<string | null>(businessNameOrId);
   
+  console.log('🔍 AdminV2Page: businessId inicial:', {
+    fromProps: businessId,
+    fromUrl: getCurrentBusinessFromUrl(),
+    businessNameOrId,
+    actualBusinessId
+  });
+  
   // Convertir nombre a ID si es necesario
   useEffect(() => {
     const resolveBusinessId = async () => {
-      if (!businessNameOrId) return;
+      if (!businessNameOrId) {
+        console.warn('⚠️ AdminV2: No hay businessNameOrId disponible');
+        return;
+      }
       
       // Si parece un ID (empieza con 'cm' y es largo), usarlo directamente
       if (businessNameOrId.startsWith('cm') && businessNameOrId.length > 20) {
+        console.log('✅ AdminV2: Usando businessId directamente:', businessNameOrId);
         setActualBusinessId(businessNameOrId);
         return;
       }
       
       // Si parece un nombre, convertirlo a ID
-      console.log('🔄 Convirtiendo nombre de negocio a ID:', businessNameOrId);
+      console.log('🔄 AdminV2: Convirtiendo nombre de negocio a ID:', businessNameOrId);
       const id = await getBusinessIdFromName(businessNameOrId);
       if (id) {
-        console.log('✅ ID resuelto:', id);
+        console.log('✅ AdminV2: ID resuelto:', id);
         setActualBusinessId(id);
       } else {
-        console.error('❌ No se pudo resolver el ID del negocio');
+        console.error('❌ AdminV2: No se pudo resolver el ID del negocio');
       }
     };
     
@@ -290,7 +301,12 @@ export default function AdminV2Page({ businessId }: AdminV2PageProps = {}) {
         {/* Content Area - Renderización condicional de componentes modulares */}
         <main className="flex-1 p-6 bg-gradient-to-br from-dark-950 via-dark-900 to-dark-800 overflow-auto">
           {activeSection === 'dashboard' && <DashboardContent />}
-          {activeSection === 'clientes' && <ClientesContent businessId={actualBusinessId || undefined} />}
+          {activeSection === 'clientes' && (
+            <>
+              {console.log('🔍 AdminV2: Renderizando ClientesContent con businessId:', actualBusinessId)}
+              <ClientesContent businessId={actualBusinessId || undefined} />
+            </>
+          )}
           {activeSection === 'menu' && <MenuContent />}
           {activeSection === 'portal' && (
             <PortalContent showNotification={showNotification} />
