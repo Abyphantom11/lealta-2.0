@@ -150,7 +150,10 @@ export function AIReservationModal({
           "Content-Type": "application/json",
         },
         credentials: 'include',
-        body: JSON.stringify({ text: inputText }),
+        body: JSON.stringify({ 
+          text: inputText,
+          businessId: businessId // ✅ Agregar businessId al request
+        }),
       });
 
       if (!response.ok) {

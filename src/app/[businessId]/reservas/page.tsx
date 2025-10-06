@@ -33,12 +33,9 @@ export default function BusinessReservasPage() {
     // Validar que el businessSlug existe y obtener el ID real
     const validateBusiness = async () => {
       try {
-        console.log(`🔍 Validating business for reservas: ${businessSlug}`);
-        
         const response = await fetch(`/api/businesses/${businessSlug}/validate`);
         if (response.ok) {
           const businessData = await response.json();
-          console.log(`✅ Business validated for reservas:`, businessData);
           
           // Guardar el ID real (no el slug) para usar en las APIs
           setBusinessId(businessData.id);
@@ -49,9 +46,7 @@ export default function BusinessReservasPage() {
             businessId: businessData.id,
             businessSlug: businessSlug 
           });
-          console.log('💾 BusinessId guardado en localStorage:', businessData.id);
         } else {
-          console.log(`❌ Business validation failed for reservas: ${businessSlug}`);
           // Limpiar localStorage si el business no es válido
           clearSessionBackup();
           window.location.href = `/login?error=invalid-business&message=El negocio no es válido o no existe`;

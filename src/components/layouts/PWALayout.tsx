@@ -9,7 +9,6 @@ interface PWALayoutProps {
 export default function PWALayout({ children }: PWALayoutProps) {
   useEffect(() => {
     // ✅ PWA COMPLETAMENTE DESHABILITADO
-    console.log('🚫 PWA Layout: Inicialización deshabilitada');
     // initializePWA(); // COMENTADO - NO INICIALIZAR PWA
   }, []);
 

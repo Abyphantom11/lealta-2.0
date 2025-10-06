@@ -15,12 +15,12 @@ function generateQRCode(): string {
 // Función para mapear estado de Prisma a nuestro tipo
 function mapPrismaStatusToReserva(status: string): EstadoReserva {
   switch (status) {
-    case 'PENDING': return 'En Progreso';
-    case 'CONFIRMED': return 'Activa';
-    case 'CHECKED_IN': return 'Activa'; // ✅ CHECKED_IN también se muestra como Activa
-    case 'COMPLETED': return 'En Camino';
-    case 'CANCELLED': return 'Reserva Caída';
-    case 'NO_SHOW': return 'Reserva Caída';
+    case 'PENDING': return 'En Progreso';        // Reserva confirmada, esperando llegada
+    case 'CONFIRMED': return 'Activa';           // Usado para reservas manuales
+    case 'CHECKED_IN': return 'Activa';          // ✅ Cliente llegó (primer escaneo QR)
+    case 'COMPLETED': return 'En Camino';        // Reserva finalizada
+    case 'CANCELLED': return 'Reserva Caída';    // Cancelada
+    case 'NO_SHOW': return 'Reserva Caída';      // Cliente no se presentó
     default: return 'En Progreso';
   }
 }
@@ -28,10 +28,10 @@ function mapPrismaStatusToReserva(status: string): EstadoReserva {
 // Función para mapear nuestro estado a Prisma
 function mapReservaStatusToPrisma(estado: EstadoReserva): 'PENDING' | 'CONFIRMED' | 'CHECKED_IN' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' {
   switch (estado) {
-    case 'En Progreso': return 'PENDING';
-    case 'Activa': return 'CONFIRMED';
-    case 'En Camino': return 'COMPLETED';
-    case 'Reserva Caída': return 'CANCELLED';
+    case 'En Progreso': return 'PENDING';      // Estado inicial al crear reserva
+    case 'Activa': return 'CONFIRMED';         // Reserva manual confirmada
+    case 'En Camino': return 'COMPLETED';      // Finalizada
+    case 'Reserva Caída': return 'CANCELLED';  // Cancelada
     default: return 'PENDING';
   }
 }
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
           ]
         }
       });
-    } catch (e) {
+    } catch {
       console.log('⚠️ Error buscando business, intentando solo por slug');
       business = await prisma.business.findUnique({
         where: { slug: businessIdOrSlug }
@@ -108,10 +108,12 @@ export async function GET(request: NextRequest) {
           id: reservation.promotorId || reservation.serviceId,
           nombre: reservation.promotor?.nombre || reservation.service?.name || 'Sistema'
         },
+        promotorId: reservation.promotorId || undefined, // ✅ Incluir promotorId para que se muestre en la tabla
         fecha: reservation.slot?.date ? new Date(reservation.slot.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         hora: reservation.slot?.startTime ? 
           new Date(reservation.slot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '19:00',
-        codigoQR: reservation.qrCodes[0]?.qrToken || generateQRCode(),
+        // ✅ CORREGIDO: Retornar formato correcto res-{id}
+        codigoQR: `res-${reservation.id}`,
         asistenciaActual: reservation.qrCodes[0]?.scanCount || 0,
         estado: mapPrismaStatusToReserva(reservation.status),
         fechaCreacion: reservation.createdAt.toISOString(),
@@ -160,7 +162,7 @@ export async function POST(request: NextRequest) {
           ]
         }
       });
-    } catch (e) {
+    } catch {
       console.log('⚠️ Error buscando business, intentando solo por slug');
       business = await prisma.business.findUnique({
         where: { slug: businessIdOrSlug }
@@ -345,17 +347,43 @@ export async function POST(request: NextRequest) {
 
     // 4. Verificar/validar promotor si se proporciona
     let promotorId: string | null = null;
-    if (data.promotor?.id) {
+    console.log('🔍 Datos del promotor recibidos:', {
+      promotorData: data.promotor,
+      promotorId: data.promotor?.id,
+      promotorNombre: data.promotor?.nombre,
+      dataPromotorId: data.promotorId
+    });
+    
+    if (data.promotor?.id || data.promotorId) {
+      const idToCheck = data.promotor?.id || data.promotorId;
+      console.log('🔍 Buscando promotor con ID:', idToCheck);
+      
       const promotorExists = await prisma.promotor.findUnique({
-        where: { id: data.promotor.id }
+        where: { id: idToCheck }
       });
       
       if (!promotorExists) {
-        console.warn('⚠️ Promotor ID proporcionado no existe:', data.promotor.id);
-        // No fallar, simplemente no asignar promotor
+        console.error('❌ Promotor ID proporcionado NO existe en DB:', idToCheck);
+        console.error('❌ Nombre del promotor recibido:', data.promotor?.nombre);
+        console.error('❌ BusinessId:', businessId);
+        
+        // 🔍 Buscar promotores disponibles para este business
+        const promotoresDisponibles = await prisma.promotor.findMany({
+          where: { businessId: businessId, activo: true },
+          select: { id: true, nombre: true }
+        });
+        console.log('📋 Promotores disponibles para este business:', promotoresDisponibles);
+        
+        // ✅ NUEVO: Si hay promotores disponibles, asignar el primero automáticamente
+        if (promotoresDisponibles.length > 0) {
+          promotorId = promotoresDisponibles[0].id;
+          console.log('⚠️ Asignando primer promotor disponible:', promotoresDisponibles[0].nombre);
+        } else {
+          console.error('❌ No hay promotores disponibles para este business');
+        }
       } else {
-        promotorId = data.promotor.id;
-        console.log('✅ Promotor asignado:', promotorExists.nombre);
+        promotorId = idToCheck || null; // ✅ Convertir undefined a null para TypeScript
+        console.log('✅ Promotor encontrado y asignado:', promotorExists.nombre);
       }
     }
     
@@ -385,6 +413,8 @@ export async function POST(request: NextRequest) {
         serviceId: service.id,
         slotId: slot.id,
         reservationNumber: reservationNumber,
+        // ✅ Estado inicial: PENDING (esperando llegada del cliente)
+        // Al primer escaneo del QR cambiará a CHECKED_IN automáticamente
         status: mapReservaStatusToPrisma(data.estado || 'En Progreso'),
         customerName: data.cliente.nombre,
         customerEmail: data.cliente.email || `temp-${Date.now()}@temp.com`,
@@ -394,6 +424,9 @@ export async function POST(request: NextRequest) {
         notes: data.beneficiosReserva,
         reservedAt: reservedAtDate,
         promotorId: promotorId
+      },
+      include: {
+        promotor: true // ✅ Incluir datos del promotor para devolverlos
       }
     });
 
@@ -435,10 +468,16 @@ export async function POST(request: NextRequest) {
       numeroPersonas: data.numeroPersonas,
       razonVisita: data.razonVisita,
       beneficiosReserva: data.beneficiosReserva,
-      promotor: data.promotor,
+      // ✅ Devolver datos reales del promotor desde la DB
+      promotor: reservation.promotor 
+        ? { id: reservation.promotor.id, nombre: reservation.promotor.nombre }
+        : { id: '', nombre: 'Sistema' },
+      promotorId: reservation.promotorId || undefined, // ✅ Incluir el promotorId que se guardó en la DB
       fecha: data.fecha,
       hora: data.hora,
-      codigoQR: qrToken,
+      // ✅ CORREGIDO: Retornar formato correcto res-{id} en lugar del qrToken
+      // El qrToken se guarda en la DB pero NO se usa para el QR visual
+      codigoQR: `res-${reservation.id}`,
       asistenciaActual: 0,
       estado: data.estado,
       fechaCreacion: reservation.createdAt.toISOString(),

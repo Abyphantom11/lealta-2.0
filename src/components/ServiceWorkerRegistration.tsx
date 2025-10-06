@@ -16,10 +16,9 @@ export default function ServiceWorkerRegistration() {
     // Registrar Service Worker
     const registerSW = async () => {
       try {
-        const registration = await navigator.serviceWorker.register('/sw.js', {
+        await navigator.serviceWorker.register('/sw.js', {
           scope: '/'
         });
-        console.log('✅ Service Worker registrado:', registration.scope);
       } catch (error) {
         console.error('❌ Error registrando Service Worker:', error);
       }
@@ -27,7 +26,6 @@ export default function ServiceWorkerRegistration() {
 
     // Escuchar solo evento de instalación completada
     const handleAppInstalled = () => {
-      console.log('✅ PWA instalada exitosamente');
       // Limpiar cualquier referencia al prompt
       (window as any).deferredPrompt = null;
     };

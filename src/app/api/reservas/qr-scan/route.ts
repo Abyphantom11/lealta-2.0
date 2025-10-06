@@ -173,13 +173,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verificar que la reserva esté confirmada
-    if (reserva.status !== 'CONFIRMED') {
-      return NextResponse.json(
-        { success: false, message: 'La reserva no está confirmada' },
-        { status: 400 }
-      );
-    }
+    // ✅ FLUJO DE ESTADOS CORRECTO:
+    // - PENDING: Reserva confirmada, esperando llegada del cliente
+    // - CHECKED_IN: Cliente llegó (primer escaneo realizado)
+    // - COMPLETED: Reserva finalizada
+    // 
+    // NO rechazamos reservas PENDING, el primer escaneo las activa automáticamente
 
     // ACCIÓN: INFO (obtener información sin incrementar)
     if (action === 'info') {
@@ -223,6 +222,7 @@ export async function POST(request: NextRequest) {
       const currentAsistencia = qrCodeEntry.scanCount || 0;
       const newAsistencia = currentAsistencia + increment;
       const maxAsistencia = reserva.guestCount || 1;
+      const esPrimerEscaneo = currentAsistencia === 0;
 
       // Actualizar el contador de escaneos
       await prisma.reservationQRCode.update({
@@ -233,11 +233,24 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // Actualizar la reserva
-      await prisma.reservation.update({
-        where: { id: reservaId },
-        data: { updatedAt: new Date() }
-      });
+      // ✅ Si es el primer escaneo, cambiar el estado de PENDING a CHECKED_IN
+      // Esto marca que el cliente ya llegó al local
+      if (esPrimerEscaneo) {
+        await prisma.reservation.update({
+          where: { id: reservaId },
+          data: { 
+            status: 'CHECKED_IN',
+            updatedAt: new Date() 
+          }
+        });
+        console.log('✅ Primer escaneo - Estado cambiado de PENDING a CHECKED_IN');
+      } else {
+        // Actualizar solo la fecha de modificación
+        await prisma.reservation.update({
+          where: { id: reservaId },
+          data: { updatedAt: new Date() }
+        });
+      }
 
       const exceso = Math.max(0, newAsistencia - maxAsistencia);
       

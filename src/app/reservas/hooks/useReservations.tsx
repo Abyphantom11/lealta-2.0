@@ -285,7 +285,8 @@ export function useReservations(businessId?: string) {
           hora: reservaData.hora,
           razonVisita: reservaData.razonVisita,
           beneficiosReserva: reservaData.beneficiosReserva,
-          promotor: reservaData.promotor
+          promotor: reservaData.promotor,
+          promotorId: reservaData.promotor?.id // ✅ Enviar explícitamente el promotorId
         }),
       });
 
@@ -299,7 +300,10 @@ export function useReservations(businessId?: string) {
       const data = await response.json();
       const newReserva: Reserva = data.reserva;
       
-      setReservas(prev => [...prev, newReserva]);
+      setReservas(prev => {
+        const nuevasReservas = [...prev, newReserva];
+        return nuevasReservas;
+      });
       toast.success('✨ Reserva creada exitosamente', {
         className: 'bg-green-600 text-white border-0',
         style: {

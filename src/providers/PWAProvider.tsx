@@ -39,18 +39,10 @@ export function PWAProvider({ children, enableDebugLogs = false }: PWAProviderPr
 
     const initialize = async () => {
       try {
-        if (enableDebugLogs) {
-          console.log('🎯 PWAProvider: Inicializando PWA Controller...');
-        }
-
         await initializePWA(pathname);
         
         if (mounted) {
           setIsInitialized(true);
-          
-          if (enableDebugLogs) {
-            console.log('✅ PWAProvider: PWA Controller inicializado');
-          }
         }
       } catch (error) {
         console.error('❌ PWAProvider: Error inicializando PWA:', error);
@@ -68,10 +60,6 @@ export function PWAProvider({ children, enableDebugLogs = false }: PWAProviderPr
   useEffect(() => {
     const unsubscribe = pwaController.subscribe((newState) => {
       setState(newState);
-      
-      if (enableDebugLogs) {
-        console.log('🔄 PWAProvider: Estado actualizado:', newState);
-      }
     });
 
     return unsubscribe;

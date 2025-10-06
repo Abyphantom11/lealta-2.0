@@ -64,6 +64,9 @@ export const CedulaForm = ({
         levelStorage.save(data.cliente.cedula, clientLevel);
         
         setStep('dashboard');
+
+        // Disparar evento de login exitoso para PWA iOS
+        window.dispatchEvent(new CustomEvent('client-logged-in'));
       } else {
         // Cliente no existe, mostrar formulario de registro
         setStep('register');

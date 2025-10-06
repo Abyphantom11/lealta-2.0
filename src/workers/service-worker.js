@@ -11,16 +11,9 @@ const urlsToCache = [
 
 // Instalación del service worker
 self.addEventListener('install', (event) => {
-  // Solo log en desarrollo
-  if (self.location.hostname === 'localhost') {
-    console.log('🔧 Service Worker instalándose');
-  }
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        if (self.location.hostname === 'localhost') {
-          console.log('🚀 Cache abierto');
-        }
         return cache.addAll(urlsToCache);
       })
   );
@@ -30,9 +23,6 @@ self.addEventListener('install', (event) => {
 
 // Activación del service worker
 self.addEventListener('activate', (event) => {
-  if (self.location.hostname === 'localhost') {
-    console.log('🚀 Service Worker activado');
-  }
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -141,9 +131,6 @@ self.addEventListener('fetch', (event) => {
 // Evento de sincronización en background
 self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-consumos') {
-    if (self.location.hostname === 'localhost') {
-      console.log('🔄 Sincronizando consumos pendientes');
-    }
     event.waitUntil(syncPendingConsumptions());
   }
 });
@@ -153,9 +140,6 @@ async function syncPendingConsumptions() {
   try {
     // Aquí iría la lógica para recuperar consumos pendientes
     // del IndexedDB y enviarlos al servidor
-    if (self.location.hostname === 'localhost') {
-      console.log('✅ Sincronización completada');
-    }
   } catch (error) {
     // Solo log de errores críticos en producción
     console.error('❌ Error al sincronizar:', error);

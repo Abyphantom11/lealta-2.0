@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth/unified-middleware';
 import { GeminiReservationParser } from '@/lib/ai/gemini-reservation-parser';
 
 // Forzar renderizado dinámico
@@ -11,26 +10,22 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
   try {
-    // Validar sesión usando el middleware unificado
-    const user = await getCurrentUser(request);
-    
-    console.log('🔐 [AI-PARSE] Session:', {
-      hasUser: !!user,
-      userEmail: user?.email,
-      hasBusinessId: !!user?.businessId,
-      businessId: user?.businessId
-    });
-    
-    if (!user?.businessId) {
-      console.error('❌ [AI-PARSE] No authorized - missing businessId');
+    const body = await request.json();
+    const { text, businessId } = body;
+
+    // Validar que venga businessId
+    if (!businessId) {
+      console.error('❌ [AI-PARSE] Missing businessId in request');
       return NextResponse.json(
-        { success: false, error: 'No autorizado' },
-        { status: 401 }
+        { success: false, error: 'businessId es requerido' },
+        { status: 400 }
       );
     }
 
-    const body = await request.json();
-    const { text } = body;
+    console.log('🤖 [AI-PARSE] Request:', {
+      businessId,
+      textLength: text?.length
+    });
 
     // Validar que venga el texto
     if (!text || typeof text !== 'string' || text.trim().length < 10) {
@@ -54,7 +49,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('🤖 [API] Iniciando análisis IA de reserva para business:', user.businessId);
+    console.log('🤖 [API] Iniciando análisis IA de reserva para business:', businessId);
     console.log('📝 [API] Longitud del texto:', text.length, 'caracteres');
 
     // Analizar con Gemini

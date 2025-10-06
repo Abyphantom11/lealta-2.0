@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { BrandingProvider } from '../../cliente/components/branding/BrandingProvider';
 import AuthHandler from '../../cliente/components/AuthHandler';
 import DynamicManifest from '@/components/DynamicManifest';
+import IOSInstallWrapper from '@/components/ios/IOSInstallWrapper';
 
 /**
  * Página dinámica del portal cliente
@@ -67,6 +68,8 @@ export default function BusinessClientePage() {
     return (
       <BrandingProvider businessId={businessData.id}>
         <DynamicManifest businessSlug={businessSlug} />
+        {/* ✅ Guía de instalación iOS - solo se muestra después de login */}
+        <IOSInstallWrapper businessName={businessData.name} />
         <AuthHandler businessId={businessData.id} />
       </BrandingProvider>
     );

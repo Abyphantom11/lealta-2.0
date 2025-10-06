@@ -52,6 +52,12 @@ model Business {
   subscriptionPlan SubscriptionPlan @default(BASIC)
   isActive         Boolean          @default(true)
   settings         Json? // configuración personalizada
+  
+  // 🎨 Configuración de QR Personalizado
+  qrBrandingConfig    Json?   @default("{}") // QRBrandingConfig
+  qrMensajeBienvenida String? @default("¡Te esperamos!")
+  qrMostrarLogo       Boolean @default(true)
+  
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 

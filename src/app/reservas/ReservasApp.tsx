@@ -126,7 +126,8 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
   const handlePromotorChange = async (id: string, promotorId: string, promotorNombre: string) => {
     try {
       await updateReserva(id, { 
-        promotor: { id: promotorId, nombre: promotorNombre }
+        promotor: { id: promotorId, nombre: promotorNombre },
+        promotorId: promotorId // ✅ Enviar también el promotorId para que se guarde en la DB
       });
     } catch (error) {
       console.error('❌ Error en handlePromotorChange:', error);
@@ -326,6 +327,9 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
           onClose={() => setShowForm(false)}
           onSubmit={async (reservaData) => {
             await addReserva(reservaData);
+            // ✅ Cambiar fecha seleccionada a la fecha de la nueva reserva para que aparezca en la tabla
+            const fechaReserva = new Date(reservaData.fecha + 'T00:00:00');
+            setSelectedDate(fechaReserva);
             setShowForm(false);
           }}
           selectedDate={selectedDate}
@@ -340,6 +344,9 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
           onClose={() => setShowAIForm(false)}
           onSubmit={async (reservaData) => {
             await addReserva(reservaData);
+            // ✅ Cambiar fecha seleccionada a la fecha de la nueva reserva para que aparezca en la tabla
+            const fechaReserva = new Date(reservaData.fecha + 'T00:00:00');
+            setSelectedDate(fechaReserva);
             setShowAIForm(false);
           }}
           selectedDate={selectedDate}

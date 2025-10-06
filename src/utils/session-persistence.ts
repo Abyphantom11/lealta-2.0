@@ -26,7 +26,6 @@ export function saveSessionBackup(data: Omit<SessionBackup, 'timestamp'>): void 
     };
     
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
-    console.log('💾 Sesión guardada en localStorage:', sessionData);
   } catch (error) {
     console.error('Error guardando sesión en localStorage:', error);
   }
@@ -50,12 +49,10 @@ export function getSessionBackup(): SessionBackup | null {
     const isExpired = Date.now() > expiryTime;
     
     if (isExpired) {
-      console.log('⚠️ Sesión en localStorage expirada');
       clearSessionBackup();
       return null;
     }
 
-    console.log('✅ Sesión recuperada desde localStorage:', sessionData);
     return sessionData;
   } catch (error) {
     console.error('Error recuperando sesión desde localStorage:', error);
@@ -69,7 +66,6 @@ export function getSessionBackup(): SessionBackup | null {
 export function clearSessionBackup(): void {
   try {
     localStorage.removeItem(SESSION_STORAGE_KEY);
-    console.log('🗑️ Sesión eliminada de localStorage');
   } catch (error) {
     console.error('Error limpiando sesión de localStorage:', error);
   }

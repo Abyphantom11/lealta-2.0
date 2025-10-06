@@ -12,16 +12,12 @@ const urlsToCache = [
 
 // Instalación del service worker con pre-caching agresivo
 self.addEventListener('install', (event) => {
-  console.log('🔧 Service Worker Android instalándose');
-  
   // Forzar activación inmediata para Android
   self.skipWaiting();
   
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('🚀 Cache abierto - Android PWA');
-        
         // Pre-cachear recursos críticos para PWA
         return Promise.allSettled([
           // Cachear recursos principales
@@ -38,23 +34,16 @@ self.addEventListener('install', (event) => {
           cache.add('/icons/icon-512-maskable.png').catch(() => null)
         ]);
       })
-      .then((results) => {
-        const successful = results.filter(r => r.status === 'fulfilled').length;
-        const failed = results.filter(r => r.status === 'rejected').length;
-        console.log(`✅ Service Worker instalado: ${successful} éxitos, ${failed} fallos`);
-      })
   );
 });
 
 // Activación del service worker
 self.addEventListener('activate', (event) => {
-  console.log('🚀 Service Worker activado');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log('🗑️ Eliminando cache antiguo:', cacheName);
             return caches.delete(cacheName);
           }
           return null;
@@ -198,5 +187,3 @@ self.addEventListener('message', (event) => {
     });
   }
 });
-
-console.log('🚀 Service Worker cargado - versión', CACHE_NAME);

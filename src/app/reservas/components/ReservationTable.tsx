@@ -95,7 +95,8 @@ export function ReservationTable({
 
   // Función para obtener el valor actual de un campo (editado o original)
   const obtenerValorCampo = (reservaId: string, campo: keyof Reserva): any => {
-    const reservaOriginal = reservas.find(r => r.id === reservaId);
+    // ✅ Buscar en allReservas en lugar de reservas filtradas
+    const reservaOriginal = allReservas?.find(r => r.id === reservaId) || reservas.find(r => r.id === reservaId);
     const edicionesReserva = reservasEditadas[reservaId];
     
     if (edicionesReserva && edicionesReserva[campo] !== undefined) {

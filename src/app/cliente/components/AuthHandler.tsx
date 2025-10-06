@@ -361,6 +361,9 @@ export default function AuthHandler({ businessId }: Readonly<AuthHandlerProps>) 
               setCedula(savedCedula);
               setStep('dashboard');
 
+              // Disparar evento de login exitoso para PWA iOS
+              window.dispatchEvent(new CustomEvent('client-logged-in'));
+
               // Las notificaciones se verificarán automáticamente con el useEffect
 
               // No establecer isInitialLoading a false aquí - se hace al final
@@ -553,6 +556,9 @@ export default function AuthHandler({ businessId }: Readonly<AuthHandlerProps>) 
           if (response.ok && data.existe) {
             setClienteData(data.cliente);
             setStep('dashboard');
+
+            // Disparar evento de login exitoso para PWA iOS
+            window.dispatchEvent(new CustomEvent('client-logged-in'));
 
             // Las notificaciones se verificarán automáticamente con el useEffect
           } else {

@@ -57,7 +57,7 @@ export async function GET(
           ]
         }
       });
-    } catch (e) {
+    } catch {
       business = await prisma.business.findUnique({
         where: { slug: businessIdOrSlug }
       });
@@ -82,6 +82,7 @@ export async function GET(
         service: true,
         slot: true,
         qrCodes: true,
+        promotor: true // ✅ Incluir datos del promotor
       }
     });
 
@@ -105,13 +106,17 @@ export async function GET(
       numeroPersonas: reservation.guestCount,
       razonVisita: reservation.specialRequests || '',
       beneficiosReserva: reservation.notes || '',
-      promotor: { id: '', nombre: 'Sistema' },
+      promotor: {
+        id: reservation.promotorId || '',
+        nombre: reservation.promotor?.nombre || 'Sistema'
+      },
+      promotorId: reservation.promotorId || undefined, // ✅ Incluir promotorId
       fecha: reservation.reservedAt.toISOString().split('T')[0],
       hora: reservation.reservedAt.toLocaleTimeString('es-ES', { 
         hour: '2-digit', 
         minute: '2-digit' 
       }),
-      codigoQR: reservation.qrCodes[0]?.qrToken || '',
+      codigoQR: `res-${reservation.id}`,
       asistenciaActual: reservation.qrCodes[0]?.scanCount || 0,
       estado: mapPrismaStatusToReserva(reservation.status),
       fechaCreacion: reservation.createdAt.toISOString(),
@@ -148,7 +153,7 @@ export async function PUT(
       businessIdOrSlug,
       updates: JSON.stringify(updates, null, 2)
     });
-    
+
     if (!businessIdOrSlug) {
       return NextResponse.json(
         { error: 'businessId es requerido' },
@@ -167,7 +172,7 @@ export async function PUT(
           ]
         }
       });
-    } catch (e) {
+    } catch {
       business = await prisma.business.findUnique({
         where: { slug: businessIdOrSlug }
       });
@@ -196,21 +201,24 @@ export async function PUT(
 
     // Validar promotorId si se proporciona
     let promotorId = currentReservation?.promotorId;
-    if (updates.promotor?.id) {
-      console.log('🔍 Validando promotor:', updates.promotor.id);
+    // ✅ Leer promotorId desde ambos lugares para compatibilidad
+    const newPromotorId = updates.promotorId || updates.promotor?.id;
+    
+    if (newPromotorId) {
+      console.log('🔍 Validando promotor:', newPromotorId);
       const promotorExists = await prisma.promotor.findUnique({
-        where: { id: updates.promotor.id }
+        where: { id: newPromotorId }
       });
       
       if (!promotorExists) {
-        console.error('❌ Promotor no encontrado:', updates.promotor.id);
+        console.error('❌ Promotor no encontrado:', newPromotorId);
         return NextResponse.json(
           { error: 'Promotor no encontrado' },
           { status: 400 }
         );
       }
       console.log('✅ Promotor válido:', promotorExists.nombre);
-      promotorId = updates.promotor.id;
+      promotorId = newPromotorId;
     }
 
     console.log('💾 Actualizando reserva con promotorId:', promotorId);

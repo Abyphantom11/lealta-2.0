@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
-import { Button } from "./ui/button";
 import { Alert, AlertDescription } from "./ui/alert";
 import { CheckCircle } from "lucide-react";
-import { QRCodeGeneratorEnhanced } from "./QRCodeGeneratorEnhanced";
+import { QRCardShare } from "./QRCardShare";
 import { Reserva } from "../types/reservation";
+import { useParams } from "next/navigation";
 
 interface ReservationConfirmationProps {
   isOpen: boolean;
@@ -19,9 +19,37 @@ export function ReservationConfirmation({
   isOpen, 
   onClose, 
   reserva,
-  onQRGenerated 
 }: Readonly<ReservationConfirmationProps>) {
   const [showSuccess, setShowSuccess] = useState(false);
+  const params = useParams();
+  const businessNameOrId = params.businessId as string;
+  const [actualBusinessId, setActualBusinessId] = useState<string>(businessNameOrId);
+
+  // Resolver nombre de negocio a ID
+  useEffect(() => {
+    const resolveBusinessId = async () => {
+      if (!businessNameOrId) return;
+      
+      // Si parece un ID (empieza con 'cm' y es largo), usarlo directamente
+      if (businessNameOrId.startsWith('cm') && businessNameOrId.length > 20) {
+        setActualBusinessId(businessNameOrId);
+        return;
+      }
+      
+      // Si parece un nombre, convertirlo a ID
+      try {
+        const response = await fetch(`/api/businesses/by-name/${encodeURIComponent(businessNameOrId)}`);
+        if (response.ok) {
+          const data = await response.json();
+          setActualBusinessId(data.id);
+        }
+      } catch (error) {
+        console.error('Error resolviendo businessId:', error);
+      }
+    };
+    
+    resolveBusinessId();
+  }, [businessNameOrId]);
 
   useEffect(() => {
     if (isOpen && reserva) {
@@ -63,28 +91,33 @@ export function ReservationConfirmation({
             </Alert>
           )}
           
-          {/* Generador de QR */}
-          {/* QRGenerator original */}
-          {/* <QRGenerator
-            reservaId={reserva.id}
-            cliente={reserva.cliente.nombre}
-            fecha={reserva.fecha}
-            hora={reserva.hora}
-            servicio={reserva.promotor.nombre}
-            onQRGenerated={onQRGenerated}
-          /> */}
-          
-          {/* QRCodeGeneratorEnhanced para comparación */}
-          <QRCodeGeneratorEnhanced
-            reserva={reserva}
-            initialValue={`res-${reserva.id}`}
+          {/* QR Card Personalizado */}
+          <QRCardShare
+            reserva={{
+              id: reserva.id,
+              cliente: {
+                id: reserva.cliente.id,
+                nombre: reserva.cliente.nombre,
+                telefono: reserva.cliente.telefono || '',
+                email: reserva.cliente.email || '',
+              },
+              fecha: reserva.fecha,
+              hora: reserva.hora,
+              numeroPersonas: reserva.numeroPersonas,
+              razonVisita: reserva.razonVisita || 'Reserva',
+              qrToken: reserva.codigoQR || `RES-${reserva.id}`,
+            }}
+            businessId={actualBusinessId}
           />
           
           {/* Botón de cierre */}
           <div className="flex justify-center pt-2">
-            <Button onClick={handleClose} className="w-full">
-              Entendido
-            </Button>
+            <button 
+              onClick={handleClose} 
+              className="w-full px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+            >
+              Cerrar
+            </button>
           </div>
         </div>
       </DialogContent>

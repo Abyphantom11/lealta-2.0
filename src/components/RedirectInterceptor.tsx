@@ -7,7 +7,9 @@ import { useEffect } from 'react';
  */
 export default function RedirectInterceptor() {
   useEffect(() => {
-    // console.log('🛡️ RedirectInterceptor activado');
+    if (process.env.NEXT_PUBLIC_REDIRECT_DEBUG !== 'true') {
+      return;
+    }
     
     // Interceptar fetch calls para monitorear APIs (solo errores críticos)
     const originalFetch = window.fetch;
@@ -44,7 +46,6 @@ export default function RedirectInterceptor() {
     return () => {
       window.fetch = originalFetch;
       clearInterval(urlMonitor);
-      console.log('🛡️ RedirectInterceptor desactivado');
     };
   }, []);
 

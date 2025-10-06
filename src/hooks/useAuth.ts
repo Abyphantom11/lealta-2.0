@@ -37,7 +37,6 @@ export function useAuth(requiredRole?: UserRole) {
 
   const handleNotAuthenticatedState = (isPublicRoute: boolean) => {
     if (isPublicRoute) {
-      console.log('ℹ️ useAuth: Ruta cliente pública - no redireccionar');
       setAuthState({
         user: null,
         loading: false,
@@ -46,7 +45,6 @@ export function useAuth(requiredRole?: UserRole) {
       return;
     }
     
-    console.log('� useAuth: Redirigiendo a login');
     router.push('/login');
   };
 
@@ -54,8 +52,6 @@ export function useAuth(requiredRole?: UserRole) {
 
   useEffect(() => {
     const checkAuth = async () => {
-      console.log('🔐 useAuth: Iniciando verificación de autenticación');
-      
       // Función auxiliar para verificar si es ruta pública
       const isClientPublicRoute = () => {
         return typeof window !== 'undefined' && 
@@ -68,7 +64,6 @@ export function useAuth(requiredRole?: UserRole) {
         console.error('💥 useAuth: Error durante verificación:', error);
         
         if (isPublicRoute) {
-          console.log('ℹ️ useAuth: Error en ruta cliente pública - no redireccionar');
           setAuthState({
             user: null,
             loading: false,
@@ -88,7 +83,6 @@ export function useAuth(requiredRole?: UserRole) {
       // Función auxiliar para validar rol
       const handleRoleValidation = (userData: any, isPublicRoute: boolean) => {
         if (!requiredRole || userData.user.role === requiredRole) {
-          console.log('✅ useAuth: Autenticación exitosa');
           setAuthState({
             user: userData.user,
             loading: false,
@@ -96,12 +90,9 @@ export function useAuth(requiredRole?: UserRole) {
           });
           return true;
         }
-
-        console.log('🔐 useAuth: Rol no coincide - verificando SUPERADMIN');
         
         // SUPERADMIN puede acceder a cualquier dashboard
         if (userData.user.role === 'SUPERADMIN') {
-          console.log('✅ useAuth: Usuario es SUPERADMIN - acceso permitido');
           setAuthState({
             user: userData.user,
             loading: false,
@@ -109,15 +100,12 @@ export function useAuth(requiredRole?: UserRole) {
           });
           return true;
         }
-
-        console.log('❌ useAuth: Usuario no es SUPERADMIN - redirigiendo');
         
         // Usar helper centralizado para redirecciones
         if (!validateBusinessForRedirect(userData.user.business)) {
           console.error('❌ useAuth: Business inválido para redirección');
           
           if (isPublicRoute) {
-            console.log('ℹ️ useAuth: Business inválido en ruta cliente pública - no redireccionar');
             setAuthState({
               user: null,
               loading: false,
@@ -139,30 +127,15 @@ export function useAuth(requiredRole?: UserRole) {
       };
       
       const isPublicRoute = isClientPublicRoute();
-      console.log('🔐 useAuth: Ruta cliente pública?', isPublicRoute);
       
       try {
         const response = await fetch('/api/auth/me');
-        
-        console.log('� useAuth: Respuesta recibida:', {
-          status: response.status,
-          ok: response.ok
-        });
 
         if (response.ok) {
           const userData = await response.json();
-          
-          console.log('🔐 useAuth: Datos de usuario:', {
-            userId: userData.user?.id,
-            role: userData.user?.role,
-            businessId: userData.user?.businessId,
-            businessSlug: userData.user?.business?.slug,
-            requiredRole
-          });
 
           handleRoleValidation(userData, isPublicRoute);
         } else {
-          console.log('❌ useAuth: No autenticado');
           handleNotAuthenticatedState(isPublicRoute);
         }
       } catch (error) {
@@ -255,26 +228,13 @@ export function useAuth(requiredRole?: UserRole) {
 export function useRequireAuth(requiredRole?: UserRole) {
   const auth = useAuth(requiredRole);
 
-  console.log('🔒 useRequireAuth: Estado actual:', {
-    loading: auth.loading,
-    hasUser: !!auth.user,
-    userRole: auth.user?.role,
-    requiredRole,
-    error: auth.error
-  });
-
   // Mostrar loading mientras se verifica
   if (auth.loading) {
-    console.log('⏳ useRequireAuth: Mostrando loading');
     return {
       ...auth,
       isAuthenticated: false,
     };
   }
-
-  console.log('🔓 useRequireAuth: Autenticación completada:', {
-    isAuthenticated: !!auth.user
-  });
 
   // Si no hay usuario, el hook ya redirigió
   return {

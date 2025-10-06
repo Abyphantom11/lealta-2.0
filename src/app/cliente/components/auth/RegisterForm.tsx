@@ -63,6 +63,9 @@ export const RegisterForm = ({
         logger.log('💾 Sesión guardada para nuevo cliente:', cedula.trim());
         
         setStep('dashboard');
+
+        // Disparar evento de login exitoso para PWA iOS
+        window.dispatchEvent(new CustomEvent('client-logged-in'));
       } else {
         setError(data.error || 'Error al registrar el cliente');
       }
