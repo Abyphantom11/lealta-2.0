@@ -53,6 +53,10 @@ lerna-debug.log*
 
 # Security: Files with real credentials
 VERCEL_ENV_VARIABLES.txt
+VERCEL_ENV_VARS.txt
+SECURITY_INCIDENT_REPORT.md
+BLOB_STORAGE_RESOLUTION_COMPLETE.md
+test-prod-connection.js
 vercel-build-fix.js
 
 # Vercel

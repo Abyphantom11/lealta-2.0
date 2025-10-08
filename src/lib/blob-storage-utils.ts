@@ -19,8 +19,8 @@ export function getBlobStorageToken(): string {
     return lealtaToken;
   }
   
-  // Fallback hardcodeado (último recurso)
-  return "vercel_blob_rw_QSQoErcPWIoMxvo2_DYdNIDEA6Q1yeI3T0BHuwbTnC0grwT";
+  // ⚠️ No hay token válido configurado
+  throw new Error('BLOB_READ_WRITE_TOKEN or LEALTA_READ_WRITE_TOKEN must be configured in environment variables');
 }
 
 /**
