@@ -8,16 +8,7 @@
 // import { shouldShowPWAButtonForRoute } from '@/hooks/usePWAConditional';
 // import { triggerPWAInstall } from '../PWAManager';
 
-interface PWAInstallButtonProps {
-  position?: 'top-right' | 'bottom-right';
-  theme?: 'dark' | 'light';
-}
-
-export default function PWAInstallButton({ 
-  position = 'top-right', 
-  theme = 'dark' 
-}: Readonly<PWAInstallButtonProps>) {
+export default function PWAInstallButton() {
   // ✅ PWA COMPLETAMENTE DESHABILITADO
-  console.log('🚫 PWAInstallButton principal: Componente deshabilitado', { position, theme });
   return null;
 }

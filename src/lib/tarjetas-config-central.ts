@@ -194,8 +194,6 @@ function validarJerarquiaTarjetas(tarjetas: any[]): {
 
 // 🎯 FUNCIÓN PRINCIPAL - OBTENER CONFIGURACIÓN CENTRAL
 export async function getTarjetasConfigCentral(businessId: string): Promise<ConfiguracionCentralTarjetas> {
-  console.log(`🎯 [CENTRAL] Obteniendo configuración de tarjetas para business: ${businessId}`);
-  
   try {
     // Construir ruta del archivo de configuración
     const configPath = path.join(process.cwd(), 'config', 'portal', `portal-config-${businessId}.json`);
@@ -206,15 +204,11 @@ export async function getTarjetasConfigCentral(businessId: string): Promise<Conf
     
     // Intentar leer configuración específica del business
     if (fs.existsSync(configPath)) {
-      console.log(`✅ [CENTRAL] Archivo de configuración encontrado: ${configPath}`);
-      
       const configData = fs.readFileSync(configPath, 'utf8');
       const config = JSON.parse(configData);
       
       // 🔧 LEER TARJETAS DIRECTAMENTE DEL JSON (NUEVA ESTRUCTURA)
       if (config.tarjetas && Array.isArray(config.tarjetas)) {
-        console.log(`✅ [CENTRAL] Estructura nueva detectada: ${config.tarjetas.length} tarjetas directas`);
-        
         tarjetas = config.tarjetas.map((tarjeta: any) => ({
           id: tarjeta.id || `tarjeta-${tarjeta.nivel.toLowerCase()}`,
           nivel: tarjeta.nivel,
@@ -233,12 +227,9 @@ export async function getTarjetasConfigCentral(businessId: string): Promise<Conf
           beneficio: tarjeta.beneficio || `Cliente ${tarjeta.nivel}`,
           activo: tarjeta.activo !== undefined ? tarjeta.activo : true
         }));
-        
-        console.log(`✅ [CENTRAL] Transformadas ${tarjetas.length} tarjetas desde JSON nuevo`);
       } 
       // 🔧 FALLBACK: ESTRUCTURA ANTIGUA (compatibilidad)
       else if (config.tarjetas && config.tarjetas[0] && config.tarjetas[0].niveles) {
-        console.log(`⚠️ [CENTRAL] Estructura antigua detectada, transformando...`);
         const nivelesJson = config.tarjetas[0].niveles;
         
         tarjetas = nivelesJson.map((nivel: any) => ({
@@ -267,10 +258,7 @@ export async function getTarjetasConfigCentral(businessId: string): Promise<Conf
       
       nombreEmpresa = config.nombreEmpresa || 'Mi Negocio';
       nivelesConfig = config.nivelesConfig || {};
-      
-      console.log(`✅ [CENTRAL] Configuración cargada: ${tarjetas.length} tarjetas`);
     } else {
-      console.log(`⚠️ [CENTRAL] Archivo no encontrado, usando configuración por defecto`);
       tarjetas = TARJETAS_DEFAULT;
     }
     
@@ -282,8 +270,6 @@ export async function getTarjetasConfigCentral(businessId: string): Promise<Conf
       
       // En caso de jerarquía inválida, usar valores por defecto pero reportar el error
       tarjetas = TARJETAS_DEFAULT;
-    } else {
-      console.log(`✅ [CENTRAL] Jerarquía válida para ${businessId}`);
     }
     
     return {
@@ -350,13 +336,12 @@ export async function evaluarNivelCorrespondiente(
     
     // Lógica OR: cumple puntos O visitas
     if (cumplePuntos || cumpleVisitas) {
-      console.log(`✅ [CENTRAL] Cliente califica para ${tarjeta.nivel} (puntos: ${cumplePuntos}, visitas: ${cumpleVisitas})`);
       return tarjeta.nivel;
     }
   }
   
   // Fallback a Bronce
-  console.log(`🔧 [CENTRAL] Fallback a Bronce`);
+  return 'Bronce';
   return 'Bronce';
 }
 

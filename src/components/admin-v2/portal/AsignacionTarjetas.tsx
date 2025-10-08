@@ -190,8 +190,6 @@ export default function AsignacionTarjetas({
 
         // ✅ DETECTAR ASCENSO MANUAL Y MOSTRAR NOTIFICACIÓN ESPECIAL
         if (result.mostrarAnimacion && result.esSubida) {
-          console.log(`🎉 Ascenso manual detectado: ${result.nivelAnterior} → ${result.nivelNuevo}`);
-
           // Notificación especial para ascensos
           showNotification(
             `🎉 ¡ASCENSO! ${selectedClient.nombre} subió de ${result.nivelAnterior} a ${result.nivelNuevo}`,
@@ -223,9 +221,9 @@ export default function AsignacionTarjetas({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ tipo: 'actualizacion_tarjeta' }),
-          }).catch(e => console.log('Error enviando notificación:', e));
-        } catch (e) {
-          console.log('Error en notificación:', e);
+          }).catch(() => {});
+        } catch {
+          // Silenciar error de notificación
         }
       } else {
         const errorData = await response.json();

@@ -32,12 +32,6 @@ export async function requireAuth(
   } = config;
 
   const pathname = request.nextUrl.pathname;
-  const method = request.method;
-
-  // Log de seguridad
-  if (logAccess) {
-    console.log(`🔒 AUTH: Protecting ${method} ${pathname}`);
-  }
 
   // 1. EXTRAER COOKIE DE SESIÓN
   const sessionCookie = request.cookies.get('session');

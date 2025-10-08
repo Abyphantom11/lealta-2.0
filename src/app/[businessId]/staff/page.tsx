@@ -28,15 +28,11 @@ export default function BusinessStaffPage() {
     // Validar que el businessId existe y es válido
     const validateBusiness = async () => {
       try {
-        console.log(`🔍 Validating business for staff: ${businessId}`);
-        
         const response = await fetch(`/api/businesses/${businessId}/validate`);
         if (response.ok) {
-          const businessData = await response.json();
-          console.log(`✅ Business validated for staff:`, businessData);
+          await response.json();
           setIsValidBusiness(true);
         } else {
-          console.log(`❌ Business validation failed for staff: ${businessId}`);
           window.location.href = `/login?error=invalid-business&message=El negocio no es válido o no existe`;
         }
       } catch (error) {

@@ -142,8 +142,6 @@ interface StaffPageContentProps {
 }
 
 export default function StaffPageContent({ businessId }: StaffPageContentProps) {
-  // Integrar businessId en las llamadas a la API
-  console.log('Staff Page loaded for business:', businessId);
   // 🚫 BLOQUEO DE BUSINESS CONTEXT - SECURITY ENFORCEMENT
   useEffect(() => {
     const currentPath = window.location.pathname;
@@ -483,14 +481,6 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
   // Referencias para el input de archivo
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Debug para el cuadro de confirmación
-  useEffect(() => {
-    console.log('🎨 Estado de confirmación cambió:', {
-      showConfirmation,
-      editableData,
-    });
-  }, [showConfirmation, editableData]);
-
   // ========================================
   // 🔍 SECCIÓN: FUNCIONES DE BÚSQUEDA Y CLIENTE (202-300)
   // ========================================
@@ -754,16 +744,8 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
   // Función para cargar tickets recientes desde la API
   const loadRecentTickets = useCallback(async () => {
     try {
-      console.log('🔄 Cargando estadísticas desde API...');
       const response = await fetch('/api/admin/estadisticas?periodo=today');
       const data = await response.json();
-
-      console.log('📊 Respuesta de estadísticas:', {
-        success: data.success,
-        hasEstadisticas: !!data.estadisticas,
-        hasConsumos: !!data.estadisticas?.consumosRecientes,
-        resumen: data.estadisticas?.resumen
-      });
 
       if (data.success && data.estadisticas) {
         // Actualizar estadísticas del día
@@ -826,7 +808,6 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
         const data = await response.json();
         if (data.success && data.data?.puntosPorDolar) {
           setPuntosPorDolar(data.data.puntosPorDolar);
-          console.log('✅ Configuración de puntos cargada en staff desde API:', data.data.puntosPorDolar);
         }
       }
     } catch (error) {
@@ -835,7 +816,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
     }
   }, []);
 
-  // Efecto para cargar datos iniciales (movido después de las declaraciones de funciones)
+  // Cargar tickets recientes y configuración de puntos al montar
   useEffect(() => {
     loadRecentTickets();
     loadPuntosConfig();
@@ -1803,11 +1784,6 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                   {/* Botón Registrar Cliente */}
                   {(() => {
                     const shouldShow = !customerInfo && cedula.length >= 8;
-                    console.log('🔍 Botón Registrar Cliente:', { 
-                      customerInfo: !!customerInfo, 
-                      cedulaLength: cedula.length, 
-                      shouldShow 
-                    });
                     return shouldShow;
                   })() && (
                     <div className="flex justify-center">

@@ -82,15 +82,39 @@ const PromocionesManager: React.FC<PromocionesManagerProps> = ({
           promocionesTitle: sectionTitle,
         }),
       });
-
-      if (response.ok) {
-        console.log('✅ Título guardado:', sectionTitle);
-      }
     } catch (error) {
       console.error('Error guardando título:', error);
     } finally {
       setIsSavingTitle(false);
     }
+  };
+
+  // 🔄 Helper para disparar evento de actualización
+  const triggerPreviewUpdate = () => {
+    setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('promocionesUpdated', { 
+          detail: { businessId } 
+        }));
+        console.log('🔄 Evento promocionesUpdated disparado');
+      }
+    }, 100);
+  };
+
+  // 🔄 Wrappers para las acciones que disparan actualización de vista previa
+  const handleDelete = (id: string) => {
+    onDelete(id);
+    triggerPreviewUpdate();
+  };
+
+  const handleToggle = (id: string) => {
+    onToggle(id);
+    triggerPreviewUpdate();
+  };
+
+  const handleUpdate = (id: string, data: Partial<Promocion>) => {
+    onUpdate(id, data);
+    triggerPreviewUpdate();
   };
 
   // Escuchar eventos de cambio de día simulado
@@ -179,9 +203,10 @@ const PromocionesManager: React.FC<PromocionesManagerProps> = ({
     };
 
     if (editingPromoId) {
-      onUpdate(editingPromoId, dataToSubmit);
+      handleUpdate(editingPromoId, dataToSubmit);
     } else {
       onAdd(dataToSubmit);
+      triggerPreviewUpdate();
     }
 
     // Limpiar formulario y restablecer modo
@@ -320,13 +345,13 @@ const PromocionesManager: React.FC<PromocionesManagerProps> = ({
                       Editar
                     </button>
                     <button
-                      onClick={() => promo.id && onDelete(promo.id)}
+                      onClick={() => promo.id && handleDelete(promo.id)}
                       className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
                     >
                       Eliminar
                     </button>
                     <button
-                      onClick={() => promo.id && onToggle(promo.id)}
+                      onClick={() => promo.id && handleToggle(promo.id)}
                       className={`px-2 py-1 rounded text-xs ${
                         promo.activo
                           ? 'bg-success-600 hover:bg-success-700 text-white'
@@ -457,7 +482,7 @@ const PromocionesManager: React.FC<PromocionesManagerProps> = ({
                 type="button"
                 onClick={() => {
                   if (editingPromoId) {
-                    onDelete(editingPromoId);
+                    handleDelete(editingPromoId);
                     resetForm();
                   }
                 }}
@@ -489,7 +514,7 @@ const PromocionesManager: React.FC<PromocionesManagerProps> = ({
                 onClick={() => {
                   const promo = promociones.find(p => p.dia === selectedDay);
                   if (promo && promo.id) {
-                    onToggle(promo.id);
+                    handleToggle(promo.id);
                   }
                 }}
                 className={`px-3 py-1 rounded-full text-xs font-medium ${

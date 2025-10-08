@@ -19,6 +19,7 @@ import { motion } from '../components/motion';
 import { DesktopTitleBar } from '../components/DesktopUI';
 import Footer from '../components/ui/Footer';
 import Header from '../components/ui/Header';
+import CookieBanner from '../components/ui/CookieBanner';
 
 // ========================================
 // 🎨 COMPONENTES AUXILIARES PREMIUM
@@ -349,6 +350,9 @@ export default function HomePage() {
 
       {/* Footer */}
       <Footer variant="full" />
+      
+      {/* Cookie Banner - Solo en landing page */}
+      <CookieBanner position="from-logo" theme="dark" />
     </div>
   );
 }

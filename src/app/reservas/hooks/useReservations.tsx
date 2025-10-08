@@ -302,9 +302,17 @@ export function useReservations(businessId?: string) {
       
       setReservas(prev => {
         const nuevasReservas = [...prev, newReserva];
-        return nuevasReservas;
+        // ✅ Ordenar por orden de creación (más antiguas primero)
+        return nuevasReservas.sort((a, b) => {
+          const fechaCreacionA = new Date(a.fechaCreacion).getTime();
+          const fechaCreacionB = new Date(b.fechaCreacion).getTime();
+          return fechaCreacionA - fechaCreacionB;
+        });
       });
-      toast.success('✨ Reserva creada exitosamente', {
+      
+      // Toast dinámico según si es express o normal
+      const isExpress = reservaData.razonVisita?.includes('⚡ Reserva Express');
+      toast.success(isExpress ? '⚡ Reserva Express creada' : '✨ Reserva creada exitosamente', {
         className: 'bg-green-600 text-white border-0',
         style: {
           backgroundColor: '#16a34a !important',

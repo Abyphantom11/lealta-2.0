@@ -91,15 +91,6 @@ export function AIReservationModal({
           if (clienteExacto) {
             setClienteExistente(true);
             
-            console.log('👤 [CLIENTE] Datos del cliente encontrado:', {
-              nombre: clienteExacto.nombre,
-              cedula: clienteExacto.cedula,
-              correo: clienteExacto.correo,
-              email: clienteExacto.email,
-              telefono: clienteExacto.telefono,
-              allKeys: Object.keys(clienteExacto)
-            });
-            
             // Auto-llenar con datos del cliente existente
             // IMPORTANTE: Mantener la cédula del parsedData original
             const emailCliente = clienteExacto.correo || clienteExacto.email;
@@ -197,27 +188,6 @@ export function AIReservationModal({
   };
 
   const handleCreateReservation = async () => {
-    // Log para debugging
-    console.log('🔍 [SUBMIT] Validando datos:', {
-      clienteNombre: editableData.clienteNombre,
-      clienteCedula: editableData.clienteCedula,
-      clienteCorreo: editableData.clienteCorreo,
-      clienteTelefono: editableData.clienteTelefono,
-      fecha: editableData.fecha,
-      hora: editableData.hora,
-      promotorId: editableData.promotorId,
-      promotorNombre: editableData.promotorNombre,
-      clienteExistente,
-    });
-
-    console.log('📋 [SUBMIT] Valores con trim y verificación:', {
-      nombre: `"${editableData.clienteNombre}" (length: ${editableData.clienteNombre?.length || 0})`,
-      cedula: `"${editableData.clienteCedula}" (length: ${editableData.clienteCedula?.length || 0})`,
-      correo: `"${editableData.clienteCorreo}" (length: ${editableData.clienteCorreo?.length || 0})`,
-      telefono: `"${editableData.clienteTelefono}" (length: ${editableData.clienteTelefono?.length || 0})`,
-      promotorId: `"${editableData.promotorId}" (length: ${editableData.promotorId?.length || 0})`,
-    });
-
     // Validar campos obligatorios
     const camposFaltantes = [];
     if (!editableData.clienteNombre || !editableData.clienteNombre.trim()) camposFaltantes.push('Nombre');

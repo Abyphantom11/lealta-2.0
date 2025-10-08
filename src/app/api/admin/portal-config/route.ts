@@ -12,21 +12,10 @@ export const dynamic = 'force-dynamic';
 const getAdminTarjetas = async (businessId: string) => {
   try {
     const configPath = path.join(process.cwd(), 'config', 'portal', `portal-config-${businessId}.json`);
-    console.log('🔍 Admin reading tarjetas from:', configPath);
     
     if (fs.existsSync(configPath)) {
       const fileContent = fs.readFileSync(configPath, 'utf8');
       const config = JSON.parse(fileContent);
-      
-      console.log('📊 Admin tarjetas RAW data:', {
-        tarjetasArrayLength: config.tarjetas?.length || 0,
-        tarjetasExist: !!config.tarjetas,
-        tarjetasType: typeof config.tarjetas,
-        firstTarjeta: config.tarjetas?.[0]?.nivel,
-        allNiveles: config.tarjetas?.map((t: any) => t.nivel) || [],
-        nombreEmpresa: config.nombreEmpresa,
-        nivelesConfigKeys: Object.keys(config.nivelesConfig || {})
-      });
       
       return {
         tarjetas: config.tarjetas || [],
@@ -92,8 +81,6 @@ const saveAdminTarjetas = async (businessId: string, tarjetas: any[], nombreEmpr
 export async function GET(request: NextRequest) {
   return withAuth(request, async (session) => {
     try {
-      console.log(`🔍 Portal config access by: ${session.role} (${session.userId}) for business: ${session.businessId}`);
-      
       // 🔄 NUEVA LÓGICA: Leer directamente de PostgreSQL como el branding
       const [banners, promociones, recompensas, favoritos] = await Promise.all([
         prisma.portalBanner.findMany({

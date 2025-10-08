@@ -744,7 +744,6 @@ export const Dashboard = ({
             <button
               className="bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 px-10 rounded-full transition-all duration-300 text-lg shadow-lg z-[100] relative"
               onClick={() => {
-                console.log('botón ¡Continuar! pulsado');
                 setShowLevelUpAnimation(false);
               }}
             >

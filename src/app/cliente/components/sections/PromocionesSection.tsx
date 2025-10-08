@@ -118,7 +118,7 @@ export default function PromocionesSection({ businessId }: Readonly<PromocionesP
   }
 
   return (
-    <div className="mx-4 mb-6">
+    <div className="mx-4 mb-6 mt-6">
       <h3 className="text-lg font-semibold text-white mb-4">
         {sectionTitle}
       </h3>

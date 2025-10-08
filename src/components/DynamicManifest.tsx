@@ -26,13 +26,9 @@ export function useDynamicManifest({ businessSlug }: UseDynamicManifestProps) {
       if (businessSlug) {
         const manifestUrl = `/api/manifest?business=${encodeURIComponent(businessSlug)}`;
         manifestLink.href = manifestUrl;
-        console.log('🔧 Manifest dinámico configurado para:', businessSlug);
-        console.log('🔧 Manifest URL:', manifestUrl);
-        console.log('🔧 Start URL será:', `/${businessSlug}/cliente`);
       } else {
         // Usar manifest genérico
         manifestLink.href = '/api/manifest';
-        console.log('🔧 Manifest genérico configurado');
       }
 
       // Forzar que el navegador recharge el manifest
@@ -50,7 +46,6 @@ export function useDynamicManifest({ businessSlug }: UseDynamicManifestProps) {
     // Forzar actualización del service worker y PWA
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.ready.then((registration) => {
-        console.log('🔧 Service Worker listo para manifest dinámico');
         // Disparar evento para que PWA detecte cambios
         window.dispatchEvent(new Event('manifestchange'));
         

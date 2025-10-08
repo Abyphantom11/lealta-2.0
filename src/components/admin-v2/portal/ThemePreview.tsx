@@ -13,12 +13,30 @@ interface ThemeConfig {
   nameColor?: string;
 }
 
+interface Promocion {
+  id: string;
+  titulo: string;
+  descripcion: string;
+  descuento?: number;
+  activo?: boolean;
+}
+
+interface Recompensa {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  puntosRequeridos: number;
+  activo?: boolean;
+}
+
 interface ThemePreviewProps {
   theme: ThemeStyle;
   previewConfig?: ThemeConfig; // Config en tiempo real desde el editor
+  promociones?: Promocion[]; // 🆕 Promociones reales
+  recompensas?: Recompensa[]; // 🆕 Recompensas reales
 }
 
-export default function ThemePreview({ theme, previewConfig }: ThemePreviewProps) {
+export default function ThemePreview({ theme, previewConfig, promociones = [], recompensas = [] }: ThemePreviewProps) {
   const { themeConfig } = useTheme();
   
   // Usar previewConfig si está disponible (desde el editor), sino usar themeConfig del contexto
@@ -40,10 +58,10 @@ export default function ThemePreview({ theme, previewConfig }: ThemePreviewProps
       <BalanceCardPreview theme={theme} config={activeConfig} />
       
       {/* Promociones Preview */}
-      <PromocionesPreview theme={theme} config={activeConfig} />
+      <PromocionesPreview theme={theme} config={activeConfig} promociones={promociones} />
       
       {/* Recompensas Preview */}
-      <RecompensasPreview theme={theme} config={activeConfig} />
+      <RecompensasPreview theme={theme} config={activeConfig} recompensas={recompensas} />
     </div>
   );
 }
@@ -79,13 +97,10 @@ function BalanceCardPreview({ theme, config }: { theme: ThemeStyle; config: any 
   if (theme === 'elegante') {
     return (
       <motion.div
-        className="bg-[#0a0a0a] rounded-xl p-4 relative overflow-hidden border-2 border-yellow-400 shadow-2xl shadow-yellow-400/20"
+        className="bg-[#0a0a0a] rounded-xl p-4 relative overflow-hidden border-2 border-yellow-500/30"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        {/* Degradado metálico sutil */}
-        <div className="absolute inset-0 bg-gradient-to-br from-zinc-800/10 via-transparent to-zinc-700/10" />
-        
         {/* Background pattern elegante con efecto dorado */}
         <div className="absolute top-0 right-0 w-20 h-20 opacity-10">
           <svg viewBox="0 0 24 24" fill="none" className="w-full h-full text-yellow-400">
@@ -100,9 +115,6 @@ function BalanceCardPreview({ theme, config }: { theme: ThemeStyle; config: any 
             <div className="text-zinc-500 text-xs font-light">Tarjeta ****1234</div>
           </div>
         </div>
-
-        {/* Shine effect metálico */}
-        <div className="absolute inset-0 bg-gradient-to-tr from-yellow-400/3 via-transparent to-zinc-400/3 pointer-events-none" />
       </motion.div>
     );
   }
@@ -131,7 +143,40 @@ function BalanceCardPreview({ theme, config }: { theme: ThemeStyle; config: any 
 // 🎁 PROMOCIONES PREVIEWS
 // ========================================
 
-function PromocionesPreview({ theme, config }: { theme: ThemeStyle; config: any }) {
+function PromocionesPreview({ theme, config, promociones = [] }: { theme: ThemeStyle; config: any; promociones?: Promocion[] }) {
+  // 🔥 Si no hay promociones, mostrar mensaje
+  const promocionesActivas = promociones.filter(p => p.activo !== false).slice(0, 3);
+  
+  if (promocionesActivas.length === 0) {
+    return (
+      <div className={`rounded-xl p-3 ${
+        theme === 'moderno' ? 'bg-gradient-to-r from-green-600 to-emerald-600' :
+        theme === 'elegante' ? 'bg-gradient-to-r from-zinc-900 to-zinc-800 border-2 border-yellow-500/30' :
+        'bg-gray-100 border-2 border-gray-300'
+      }`}>
+        <div className="flex items-center space-x-2 mb-2">
+          <Percent className={`w-4 h-4 ${
+            theme === 'moderno' ? 'text-white' :
+            theme === 'elegante' ? 'text-yellow-400' :
+            'text-gray-500'
+          }`} />
+          <div className={`font-semibold text-xs ${
+            theme === 'moderno' ? 'text-white' :
+            theme === 'elegante' ? 'text-yellow-400' :
+            'text-gray-700'
+          }`}>Ofertas del Día</div>
+        </div>
+        <p className={`text-xs ${
+          theme === 'moderno' ? 'text-white/70' :
+          theme === 'elegante' ? 'text-zinc-400' :
+          'text-gray-500'
+        }`}>
+          No hay promociones activas. Crea una en la pestaña "Promociones".
+        </p>
+      </div>
+    );
+  }
+  
   if (theme === 'moderno') {
     return (
       <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl p-3">
@@ -141,26 +186,19 @@ function PromocionesPreview({ theme, config }: { theme: ThemeStyle; config: any 
         </div>
         
         <div className="flex space-x-2 overflow-x-auto pb-1">
-          <motion.div
-            className="bg-white/20 rounded-lg px-2 pb-2 pt-2 min-w-[140px]"
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-          >
-            <div className="text-white font-medium text-xs mb-0.5">2x1 Hamburguesas</div>
-            <div className="text-white/80 text-xs mb-1">Lunes a Viernes</div>
-            <div className="text-white font-bold text-xs">50% OFF</div>
-          </motion.div>
-
-          <motion.div
-            className="bg-white/20 rounded-lg px-2 pb-2 pt-2 min-w-[140px]"
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-          >
-            <div className="text-white font-medium text-xs mb-0.5">Bebida Gratis</div>
-            <div className="text-white/80 text-xs mb-1">Con cualquier combo</div>
-            <div className="text-white font-bold text-xs">GRATIS</div>
-          </motion.div>
+          {promocionesActivas.map((promo, index) => (
+            <motion.div
+              key={promo.id}
+              className="bg-white/20 rounded-lg px-2 pb-2 pt-2 min-w-[140px]"
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <div className="text-white font-medium text-xs mb-0.5 line-clamp-1">{promo.titulo}</div>
+              <div className="text-white/80 text-xs mb-1 line-clamp-1">{promo.descripcion}</div>
+              <div className="text-white font-bold text-xs">{promo.descuento ? `${promo.descuento}% OFF` : 'OFERTA'}</div>
+            </motion.div>
+          ))}
         </div>
       </div>
     );
@@ -175,26 +213,19 @@ function PromocionesPreview({ theme, config }: { theme: ThemeStyle; config: any 
         </div>
         
         <div className="flex space-x-2 overflow-x-auto pb-1">
-          <motion.div
-            className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-2 pb-2 pt-2 min-w-[140px]"
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-          >
-            <div className="text-yellow-400 font-medium text-xs mb-0.5">2x1 Hamburguesas</div>
-            <div className="text-zinc-400 text-xs mb-1">Lunes a Viernes</div>
-            <div className="text-yellow-400 font-bold text-xs">50% OFF</div>
-          </motion.div>
-
-          <motion.div
-            className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-2 pb-2 pt-2 min-w-[140px]"
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-          >
-            <div className="text-yellow-400 font-medium text-xs mb-0.5">Bebida Gratis</div>
-            <div className="text-zinc-400 text-xs mb-1">Con cualquier combo</div>
-            <div className="text-yellow-400 font-bold text-xs">GRATIS</div>
-          </motion.div>
+          {promocionesActivas.map((promo, index) => (
+            <motion.div
+              key={promo.id}
+              className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-2 pb-2 pt-2 min-w-[140px]"
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <div className="text-yellow-400 font-medium text-xs mb-0.5 line-clamp-1">{promo.titulo}</div>
+              <div className="text-zinc-400 text-xs mb-1 line-clamp-1">{promo.descripcion}</div>
+              <div className="text-yellow-400 font-bold text-xs">{promo.descuento ? `${promo.descuento}% OFF` : 'OFERTA'}</div>
+            </motion.div>
+          ))}
         </div>
       </div>
     );
@@ -213,28 +244,20 @@ function PromocionesPreview({ theme, config }: { theme: ThemeStyle; config: any 
       </div>
       
       <div className="flex space-x-2 overflow-x-auto pb-1">
-        <motion.div
-          className="rounded-lg px-2 pb-2 pt-2 min-w-[140px]"
-          style={{ backgroundColor: `${secondaryColor}15`, borderWidth: '1px', borderColor: `${secondaryColor}50` }}
-          initial={{ opacity: 0, x: 10 }}
-          animate={{ opacity: 1, x: 0 }}
-        >
-          <div className="font-medium text-xs mb-0.5" style={{ color: secondaryColor }}>2x1 Hamburguesas</div>
-          <div className="text-gray-600 text-xs mb-1">Lunes a Viernes</div>
-          <div className="font-bold text-xs" style={{ color: secondaryColor }}>50% OFF</div>
-        </motion.div>
-
-        <motion.div
-          className="rounded-lg px-2 pb-2 pt-2 min-w-[140px]"
-          style={{ backgroundColor: `${secondaryColor}15`, borderWidth: '1px', borderColor: `${secondaryColor}50` }}
-          initial={{ opacity: 0, x: 10 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <div className="font-medium text-xs mb-0.5" style={{ color: secondaryColor }}>Bebida Gratis</div>
-          <div className="text-gray-600 text-xs mb-1">Con cualquier combo</div>
-          <div className="font-bold text-xs" style={{ color: secondaryColor }}>GRATIS</div>
-        </motion.div>
+        {promocionesActivas.map((promo, index) => (
+          <motion.div
+            key={promo.id}
+            className="rounded-lg px-2 pb-2 pt-2 min-w-[140px]"
+            style={{ backgroundColor: `${secondaryColor}15`, borderWidth: '1px', borderColor: `${secondaryColor}50` }}
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: index * 0.1 }}
+          >
+            <div className="font-medium text-xs mb-0.5 line-clamp-1" style={{ color: secondaryColor }}>{promo.titulo}</div>
+            <div className="text-xs mb-1 line-clamp-1" style={{ color: '#6b7280' }}>{promo.descripcion}</div>
+            <div className="font-bold text-xs" style={{ color: secondaryColor }}>{promo.descuento ? `${promo.descuento}% OFF` : 'OFERTA'}</div>
+          </motion.div>
+        ))}
       </div>
     </div>
   );
@@ -244,7 +267,40 @@ function PromocionesPreview({ theme, config }: { theme: ThemeStyle; config: any 
 // 🎁 RECOMPENSAS PREVIEWS
 // ========================================
 
-function RecompensasPreview({ theme, config }: { theme: ThemeStyle; config: any }) {
+function RecompensasPreview({ theme, config, recompensas = [] }: { theme: ThemeStyle; config: any; recompensas?: Recompensa[] }) {
+  // 🔥 Si no hay recompensas, mostrar mensaje
+  const recompensasActivas = recompensas.filter(r => r.activo !== false).slice(0, 3);
+  
+  if (recompensasActivas.length === 0) {
+    return (
+      <div className={`rounded-xl p-3 ${
+        theme === 'moderno' ? 'bg-gradient-to-r from-purple-600 to-pink-600' :
+        theme === 'elegante' ? 'bg-gradient-to-r from-zinc-900 to-zinc-800 border-2 border-yellow-500/30' :
+        'bg-gray-100 border-2 border-purple-300'
+      }`}>
+        <div className="flex items-center space-x-2 mb-2">
+          <Gift className={`w-4 h-4 ${
+            theme === 'moderno' ? 'text-white' :
+            theme === 'elegante' ? 'text-yellow-400' :
+            'text-purple-500'
+          }`} />
+          <div className={`font-semibold text-xs ${
+            theme === 'moderno' ? 'text-white' :
+            theme === 'elegante' ? 'text-yellow-400' :
+            'text-purple-700'
+          }`}>Programa de Puntos</div>
+        </div>
+        <p className={`text-xs ${
+          theme === 'moderno' ? 'text-white/70' :
+          theme === 'elegante' ? 'text-zinc-400' :
+          'text-gray-500'
+        }`}>
+          No hay recompensas activas. Crea una en la pestaña "Recompensas".
+        </p>
+      </div>
+    );
+  }
+  
   if (theme === 'moderno') {
     return (
       <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl p-3">
@@ -254,26 +310,19 @@ function RecompensasPreview({ theme, config }: { theme: ThemeStyle; config: any 
         </div>
         
         <div className="flex space-x-2 overflow-x-auto pb-1">
-          <motion.div
-            className="bg-white/20 rounded-lg px-2 pb-2 pt-2 min-w-[140px]"
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-          >
-            <div className="text-white font-medium text-xs mb-0.5">Café Gratis</div>
-            <div className="text-white/80 text-xs mb-1">Redime tu premio</div>
-            <div className="text-white font-bold text-xs">45 pts</div>
-          </motion.div>
-
-          <motion.div
-            className="bg-white/20 rounded-lg px-2 pb-2 pt-2 min-w-[140px]"
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-          >
-            <div className="text-white font-medium text-xs mb-0.5">Descuento 20%</div>
-            <div className="text-white/80 text-xs mb-1">En tu próxima compra</div>
-            <div className="text-white font-bold text-xs">100 pts</div>
-          </motion.div>
+          {recompensasActivas.map((recompensa, index) => (
+            <motion.div
+              key={recompensa.id}
+              className="bg-white/20 rounded-lg px-2 pb-2 pt-2 min-w-[140px]"
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <div className="text-white font-medium text-xs mb-0.5 line-clamp-1">{recompensa.nombre}</div>
+              <div className="text-white/80 text-xs mb-1 line-clamp-1">{recompensa.descripcion}</div>
+              <div className="text-white font-bold text-xs">{recompensa.puntosRequeridos} pts</div>
+            </motion.div>
+          ))}
         </div>
       </div>
     );
@@ -288,26 +337,19 @@ function RecompensasPreview({ theme, config }: { theme: ThemeStyle; config: any 
         </div>
         
         <div className="flex space-x-2 overflow-x-auto pb-1">
-          <motion.div
-            className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-2 pb-2 pt-2 min-w-[140px]"
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-          >
-            <div className="text-yellow-400 font-medium text-xs mb-0.5">Café Gratis</div>
-            <div className="text-zinc-400 text-xs mb-1">Redime tu premio</div>
-            <div className="text-yellow-400 font-bold text-xs">45 pts</div>
-          </motion.div>
-
-          <motion.div
-            className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-2 pb-2 pt-2 min-w-[140px]"
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-          >
-            <div className="text-yellow-400 font-medium text-xs mb-0.5">Descuento 20%</div>
-            <div className="text-zinc-400 text-xs mb-1">En tu próxima compra</div>
-            <div className="text-yellow-400 font-bold text-xs">100 pts</div>
-          </motion.div>
+          {recompensasActivas.map((recompensa, index) => (
+            <motion.div
+              key={recompensa.id}
+              className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-2 pb-2 pt-2 min-w-[140px]"
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <div className="text-yellow-400 font-medium text-xs mb-0.5 line-clamp-1">{recompensa.nombre}</div>
+              <div className="text-zinc-400 text-xs mb-1 line-clamp-1">{recompensa.descripcion}</div>
+              <div className="text-yellow-400 font-bold text-xs">{recompensa.puntosRequeridos} pts</div>
+            </motion.div>
+          ))}
         </div>
       </div>
     );
@@ -326,28 +368,20 @@ function RecompensasPreview({ theme, config }: { theme: ThemeStyle; config: any 
       </div>
       
       <div className="flex space-x-2 overflow-x-auto pb-1">
-        <motion.div
-          className="rounded-lg px-2 pb-2 pt-2 min-w-[140px]"
-          style={{ backgroundColor: `${accentColor}15`, borderWidth: '1px', borderColor: `${accentColor}50` }}
-          initial={{ opacity: 0, x: 10 }}
-          animate={{ opacity: 1, x: 0 }}
-        >
-          <div className="font-medium text-xs mb-0.5" style={{ color: accentColor }}>Café Gratis</div>
-          <div className="text-gray-600 text-xs mb-1">Redime tu premio</div>
-          <div className="font-bold text-xs" style={{ color: accentColor }}>45 pts</div>
-        </motion.div>
-
-        <motion.div
-          className="rounded-lg px-2 pb-2 pt-2 min-w-[140px]"
-          style={{ backgroundColor: `${accentColor}15`, borderWidth: '1px', borderColor: `${accentColor}50` }}
-          initial={{ opacity: 0, x: 10 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <div className="font-medium text-xs mb-0.5" style={{ color: accentColor }}>Descuento 20%</div>
-          <div className="text-gray-600 text-xs mb-1">En tu próxima compra</div>
-          <div className="font-bold text-xs" style={{ color: accentColor }}>100 pts</div>
-        </motion.div>
+        {recompensasActivas.map((recompensa, index) => (
+          <motion.div
+            key={recompensa.id}
+            className="rounded-lg px-2 pb-2 pt-2 min-w-[140px]"
+            style={{ backgroundColor: `${accentColor}15`, borderWidth: '1px', borderColor: `${accentColor}50` }}
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: index * 0.1 }}
+          >
+            <div className="font-medium text-xs mb-0.5 line-clamp-1" style={{ color: accentColor }}>{recompensa.nombre}</div>
+            <div className="text-xs mb-1 line-clamp-1" style={{ color: '#6b7280' }}>{recompensa.descripcion}</div>
+            <div className="font-bold text-xs" style={{ color: accentColor }}>{recompensa.puntosRequeridos} pts</div>
+          </motion.div>
+        ))}
       </div>
     </div>
   );

@@ -26,7 +26,6 @@ export function PWADownloadButton({ className = '' }: Readonly<PWADownloadButton
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowButton(true);
-      console.log('✅ PWADownloadButton: Mostrando botón después del delay');
     }, 1000); // Cambiado temporalmente a 1 segundo
 
     return () => clearTimeout(timer);
@@ -60,19 +59,8 @@ export function PWADownloadButton({ className = '' }: Readonly<PWADownloadButton
     }
   };
 
-  // Debug: Logs para diagnóstico
-  console.log('🔍 PWADownloadButton Debug:', {
-    isInitialized,
-    showButton,
-    state,
-    isInstallable: state.isInstallable,
-    isInstalled: state.isInstalled,
-    hasDeferredPrompt: !!state.deferredPrompt
-  });
-
   // Mostrar siempre que esté inicializado y el botón sea visible
   if (!isInitialized || !showButton) {
-    console.log('❌ PWADownloadButton: No mostrar -', { isInitialized, showButton });
     return null;
   }
 

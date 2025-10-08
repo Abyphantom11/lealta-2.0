@@ -83,7 +83,7 @@ export default function RecompensasSection({ businessId }: Readonly<RecompensasP
   }
   
   return (
-    <div className="mx-4 mb-6">
+    <div className="mx-4 mb-6 mt-6">
       <h3 className="text-lg font-semibold text-white mb-4">Recompensas</h3>
       <div className={`rounded-xl p-4 ${containerStyles}`}>
         <div className="flex items-center space-x-3 mb-3">

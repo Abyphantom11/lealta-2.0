@@ -18,12 +18,16 @@ interface ThemeEditorProps {
   businessId: string;
   currentTheme?: ThemeStyle;
   onThemeChange?: (theme: ThemeStyle) => void;
+  promociones?: any[]; // 🆕 Datos de promociones
+  recompensas?: any[]; // 🆕 Datos de recompensas
 }
 
 export default function ThemeEditor({ 
   businessId, 
   currentTheme = 'moderno',
-  onThemeChange 
+  onThemeChange,
+  promociones = [],
+  recompensas = []
 }: ThemeEditorProps) {
   const [selectedTheme, setSelectedTheme] = useState<ThemeStyle>(currentTheme);
   const [savedTheme, setSavedTheme] = useState<ThemeStyle>(currentTheme);
@@ -42,17 +46,26 @@ export default function ThemeEditor({
   // Cargar configuración actual al montar
   useEffect(() => {
     const loadCurrentConfig = async () => {
+      if (!businessId || businessId === 'default' || businessId === 'cmgewmtue0000eygwq8taawak') {
+        console.warn('⚠️ ThemeEditor: businessId no válido o por defecto:', businessId);
+        return;
+      }
+      
       try {
+        console.log('🎨 ThemeEditor: Cargando config para businessId:', businessId);
         const response = await fetch(`/api/business/${businessId}/client-theme`);
         if (response.ok) {
           const data = await response.json();
           if (data.config) {
+            console.log('✅ ThemeEditor: Config cargada:', data.config);
             setThemeConfig(data.config);
             setSavedConfig(data.config);
           }
+        } else {
+          console.warn('⚠️ ThemeEditor: No se pudo cargar config, response:', response.status);
         }
       } catch (error) {
-        console.error('Error loading theme config:', error);
+        console.error('❌ ThemeEditor: Error loading theme config:', error);
       }
     };
     loadCurrentConfig();
@@ -173,20 +186,17 @@ export default function ThemeEditor({
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="text-center">
-        <Palette className="w-12 h-12 mx-auto mb-4 text-primary-500" />
-        <h4 className="text-lg font-semibold text-white mb-2">
-          Gestor de Temas Visuales
+    <div className="space-y-4">
+      {/* Header - Simplificado */}
+      <div className="flex items-center gap-2 mb-3">
+        <h4 className="text-lg font-semibold text-white">
+          Gestor de Temas
         </h4>
-        <p className="text-dark-400 mb-4">
-          Personaliza el aspecto del portal de tus clientes. Los cambios se aplican instantáneamente.
-        </p>
+        <Palette className="w-5 h-5 text-primary-500" />
       </div>
 
-      {/* Theme Selector */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Theme Selector - Compacto */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {themes.map((theme) => {
           const Icon = theme.icon;
           const isSelected = selectedTheme === theme.id;
@@ -196,7 +206,7 @@ export default function ThemeEditor({
               key={theme.id}
               onClick={() => handleThemeSelect(theme.id)}
               className={`
-                relative p-4 rounded-xl border-2 transition-all text-left
+                relative p-3 rounded-lg border-2 transition-all text-left
                 ${isSelected 
                   ? 'border-primary-500 bg-primary-500/10' 
                   : 'border-dark-700 bg-dark-800 hover:border-dark-600'
@@ -208,22 +218,22 @@ export default function ThemeEditor({
             >
               {/* Selected Badge */}
               {isSelected && (
-                <div className="absolute top-2 right-2 bg-primary-500 text-white rounded-full p-1 z-10">
-                  <Check className="w-4 h-4" />
+                <div className="absolute top-1.5 right-1.5 bg-primary-500 text-white rounded-full p-0.5">
+                  <Check className="w-3 h-3" />
                 </div>
               )}
 
               {/* Icon and Name */}
-              <div className="flex items-center gap-2 mb-3">
-                <Icon className={`w-5 h-5 ${isSelected ? 'text-primary-500' : 'text-dark-400'}`} />
+              <div className="flex items-center gap-2 mb-2">
+                <Icon className={`w-4 h-4 ${isSelected ? 'text-primary-500' : 'text-dark-400'}`} />
                 <div>
                   <h5 className="text-white font-semibold text-sm">{theme.name}</h5>
                   <p className="text-xs text-dark-400">{theme.description}</p>
                 </div>
               </div>
 
-              {/* Features List */}
-              <ul className="space-y-1 text-xs text-dark-300 mb-2">
+              {/* Features List - Reducido */}
+              <ul className="space-y-0.5 text-xs text-dark-300">
                 {theme.features.slice(0, 3).map((feature) => (
                   <li key={feature} className="flex items-start gap-1">
                     <span className="text-primary-500 mt-0.5">•</span>
@@ -237,18 +247,19 @@ export default function ThemeEditor({
       </div>
 
       {/* Save Button */}
+      {/* Save Button - Compacto */}
       {hasChanges && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-3"
+          className="flex items-center gap-2"
         >
           <button
             onClick={handleSaveTheme}
             disabled={isLoading}
-            className="flex-1 bg-primary-500 hover:bg-primary-600 disabled:bg-dark-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
+            className="flex-1 bg-primary-500 hover:bg-primary-600 disabled:bg-dark-700 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
           >
-            <Save className="w-5 h-5" />
+            <Save className="w-4 h-4" />
             {isLoading ? 'Guardando...' : 'Guardar Cambios'}
           </button>
           
@@ -256,7 +267,7 @@ export default function ThemeEditor({
             <motion.div
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              className={`px-4 py-3 rounded-lg text-sm font-medium ${
+              className={`px-3 py-2 rounded-lg text-xs font-medium ${
                 saveMessage.includes('✓') 
                   ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
                   : 'bg-red-500/20 text-red-400 border border-red-500/30'
@@ -268,126 +279,93 @@ export default function ThemeEditor({
         </motion.div>
       )}
 
-      {/* Color Customization for ALL themes */}
-      <div className="bg-dark-800 border border-dark-700 rounded-xl p-6">
-        <h5 className="text-white font-semibold mb-4 flex items-center gap-2">
-          <Palette className="w-5 h-5 text-primary-500" />
+      {/* Color Customization - Compacto */}
+      <div className="bg-dark-800 border border-dark-700 rounded-lg p-4">
+        <h5 className="text-white font-medium mb-3 flex items-center gap-2 text-sm">
+          <Palette className="w-4 h-4 text-primary-500" />
           Personalización de Colores
         </h5>
         
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {/* Color del Nombre del Cliente */}
-          <div className="space-y-2">
-            <label className="text-sm text-dark-300 block">
+          <div className="space-y-1.5">
+            <label className="text-xs text-dark-300 block">
               Color del Nombre
             </label>
-            <div className="relative">
-              <input
-                type="color"
-                value={themeConfig.nameColor || '#ec4899'}
-                onChange={(e) => handleColorChange('nameColor', e.target.value)}
-                className="w-full h-12 rounded-lg border-2 border-dark-600 cursor-pointer bg-dark-700"
-                title="Seleccionar color del nombre"
-              />
-            </div>
-            <p className="text-xs text-dark-400">
-              Solo el nombre
-            </p>
+            <input
+              type="color"
+              value={themeConfig.nameColor || '#ec4899'}
+              onChange={(e) => handleColorChange('nameColor', e.target.value)}
+              className="w-full h-10 rounded-lg border-2 border-dark-600 cursor-pointer bg-dark-700"
+              title="Seleccionar color del nombre"
+            />
+            <p className="text-xs text-dark-400">Solo el nombre</p>
           </div>
 
           {/* Conditional: Show additional colors only for "sencillo" theme */}
           {selectedTheme === 'sencillo' && (
             <>
               {/* Color Primario */}
-              <div className="space-y-2">
-                <label className="text-sm text-dark-300 block">Color Primario</label>
-                <div className="relative">
-                  <input
-                    type="color"
-                    value={themeConfig.primaryColor || '#3b82f6'}
-                    onChange={(e) => handleColorChange('primaryColor', e.target.value)}
-                    className="w-full h-12 rounded-lg border-2 border-dark-600 cursor-pointer bg-dark-700"
-                    title="Seleccionar color primario"
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-dark-300 block">Color Primario</label>
+                <input
+                  type="color"
+                  value={themeConfig.primaryColor || '#3b82f6'}
+                  onChange={(e) => handleColorChange('primaryColor', e.target.value)}
+                  className="w-full h-10 rounded-lg border-2 border-dark-600 cursor-pointer bg-dark-700"
+                  title="Seleccionar color primario"
+                />
                 <p className="text-xs text-dark-400">Balance</p>
               </div>
 
               {/* Color Secundario */}
-              <div className="space-y-2">
-                <label className="text-sm text-dark-300 block">Color Secundario</label>
-                <div className="relative">
-                  <input
-                    type="color"
-                    value={themeConfig.secondaryColor || '#10b981'}
-                    onChange={(e) => handleColorChange('secondaryColor', e.target.value)}
-                    className="w-full h-12 rounded-lg border-2 border-dark-600 cursor-pointer bg-dark-700"
-                    title="Seleccionar color secundario"
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-dark-300 block">Color Secundario</label>
+                <input
+                  type="color"
+                  value={themeConfig.secondaryColor || '#10b981'}
+                  onChange={(e) => handleColorChange('secondaryColor', e.target.value)}
+                  className="w-full h-10 rounded-lg border-2 border-dark-600 cursor-pointer bg-dark-700"
+                  title="Seleccionar color secundario"
+                />
                 <p className="text-xs text-dark-400">Promociones</p>
               </div>
 
               {/* Color de Acento */}
-              <div className="space-y-2">
-                <label className="text-sm text-dark-300 block">Color de Acento</label>
-                <div className="relative">
-                  <input
-                    type="color"
-                    value={themeConfig.accentColor || '#8b5cf6'}
-                    onChange={(e) => handleColorChange('accentColor', e.target.value)}
-                    className="w-full h-12 rounded-lg border-2 border-dark-600 cursor-pointer bg-dark-700"
-                    title="Seleccionar color de acento"
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-dark-300 block">Color de Acento</label>
+                <input
+                  type="color"
+                  value={themeConfig.accentColor || '#8b5cf6'}
+                  onChange={(e) => handleColorChange('accentColor', e.target.value)}
+                  className="w-full h-10 rounded-lg border-2 border-dark-600 cursor-pointer bg-dark-700"
+                  title="Seleccionar color de acento"
+                />
                 <p className="text-xs text-dark-400">Recompensas</p>
               </div>
             </>
           )}
         </div>
-
-        {selectedTheme !== 'sencillo' && (
-          <p className="mt-4 text-sm text-dark-400 bg-dark-700 p-3 rounded-lg">
-            💡 Los temas <strong className="text-white">Moderno</strong> y <strong className="text-white">Elegante</strong> utilizan colores predefinidos. 
-            Solo el color del nombre es editable. Para personalizar más colores, selecciona el tema <strong className="text-white">Sencillo</strong>.
-          </p>
-        )}
       </div>
 
-      {/* Live Preview Section */}
-      <div className="bg-dark-800 rounded-xl p-6 border border-dark-700">
-        <div className="flex items-center gap-2 mb-4">
-          <Sparkles className="w-5 h-5 text-primary-500" />
-          <h5 className="text-white font-semibold">Vista Previa en Tiempo Real</h5>
+      {/* Live Preview Section - Compacto */}
+      <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
+        <div className="flex items-center gap-2 mb-3">
+          <Sparkles className="w-4 h-4 text-primary-500" />
+          <h5 className="text-white font-medium text-sm">Vista Previa en Tiempo Real</h5>
           <span className="text-xs text-dark-400 ml-auto capitalize">
             Tema: {selectedTheme}
           </span>
         </div>
         
-        <div className="bg-black rounded-lg p-4 overflow-hidden">
-          <ThemePreview theme={selectedTheme} previewConfig={themeConfig} />
+        <div className="bg-black rounded-lg p-3 overflow-hidden">
+          <ThemePreview 
+            theme={selectedTheme} 
+            previewConfig={themeConfig}
+            promociones={promociones}
+            recompensas={recompensas}
+          />
         </div>
-      </div>
-
-      {/* Info Box */}
-      <div className="bg-dark-800 border border-dark-700 rounded-lg p-4">
-        <h5 className="text-white font-medium mb-2 flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-primary-500" />
-          Tema Actual: <span className="text-primary-500 capitalize">{selectedTheme}</span>
-        </h5>
-        <p className="text-sm text-dark-400">
-          {selectedTheme === 'moderno' && 'Estilo vibrante y tech. Perfecto para negocios modernos y dinámicos.'}
-          {selectedTheme === 'elegante' && 'Estilo sofisticado con tonos dorados. Ideal para negocios premium y exclusivos.'}
-          {selectedTheme === 'sencillo' && 'Estilo limpio y personalizable. Perfecto para negocios locales con identidad propia.'}
-        </p>
-        
-        {selectedTheme === 'sencillo' && (
-          <div className="mt-3 pt-3 border-t border-dark-700">
-            <p className="text-xs text-dark-400 mb-2">
-              💡 En el tema "Sencillo" podrás personalizar los colores según tu marca en una futura actualización.
-            </p>
-          </div>
-        )}
       </div>
 
       {/* Save Status */}

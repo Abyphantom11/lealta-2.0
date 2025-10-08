@@ -23,14 +23,23 @@ const nextConfig = {
       : undefined,
   trailingSlash: true,
   images: {
-    unoptimized: true,
+    // ✅ OPTIMIZACIÓN: Activar optimización de imágenes para reducir bandwidth
+    unoptimized: process.env.ELECTRON_BUILD ? true : false,
+    formats: ['image/avif', 'image/webp'], // Formatos modernos más eficientes
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    minimumCacheTTL: 31536000, // Cache de 1 año para imágenes optimizadas
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   // Performance optimizations
   poweredByHeader: false,
   compress: true,
+  swcMinify: true, // ✅ Usar SWC para minificación más rápida
   
   // Bundle optimization - SIMPLIFICADO PARA EVITAR BUCLES
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, dev }) => {
     // 🎯 OPTIMIZACIONES BÁSICAS (sin optimizaciones agresivas que pueden causar loops)
     if (!isServer) {
       config.resolve.fallback = {
@@ -42,6 +51,16 @@ const nextConfig = {
         stream: false,
         buffer: false,
       };
+    }
+    
+    // ✅ OPTIMIZACIÓN: Reducir tamaño del bundle
+    if (!dev) {
+      // Eliminar console.logs en producción
+      config.optimization.minimize = true;
+      
+      // Tree shaking mejorado
+      config.optimization.usedExports = true;
+      config.optimization.sideEffects = true;
     }
     
     return config;
@@ -142,6 +161,44 @@ const nextConfig = {
           {
             key: 'Cache-Control',
             value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      // ✅ OPTIMIZACIÓN: Cache para iconos y assets estáticos
+      {
+        source: '/icons/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        source: '/fonts/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        source: '/:path*.{jpg,jpeg,png,gif,webp,avif,svg,ico}',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=2592000, must-revalidate', // 30 días
+          },
+        ],
+      },
+      // ✅ OPTIMIZACIÓN: Manifest y service worker
+      {
+        source: '/manifest.json',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=86400, must-revalidate', // 1 día
           },
         ],
       },

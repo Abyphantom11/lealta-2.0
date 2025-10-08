@@ -58,11 +58,9 @@ export default function BannersSection({ businessId }: BannersProps) {
   // Función para habilitar notificaciones del navegador
   const enableNotifications = async () => {
     try {
-      console.log('🔔 Intentando habilitar notificaciones del navegador...');
       const granted = await browserNotifications.requestPermission();
       
       if (granted) {
-        console.log('✅ Notificaciones del navegador habilitadas');
         setShowNotificationPrompt(false);
         // Persistir la decisión del usuario
         if (typeof window !== 'undefined') {
@@ -76,7 +74,6 @@ export default function BannersSection({ businessId }: BannersProps) {
           body: 'Ahora recibirás alertas de promociones y actualizaciones importantes'
         });
       } else {
-        console.log('❌ Usuario rechazó las notificaciones del navegador');
         // No ocultar el prompt si fue rechazado, dar otra oportunidad
       }
     } catch (error) {
@@ -148,20 +145,27 @@ export default function BannersSection({ businessId }: BannersProps) {
           .filter((banner: Banner) => banner.imagenUrl && banner.imagenUrl.trim() !== '')
           .slice(0, 1)
           .map((banner: Banner, index: number) => (
-            <motion.div
-              key={banner.id}
-              className="bg-dark-800 rounded-xl overflow-hidden relative cursor-pointer"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              onClick={() => setSelectedBanner(banner)}
-            >
-              <img
-                src={banner.imagenUrl}
-                alt={banner.titulo || 'Evento del día'}
-                className="w-full h-48 object-cover rounded-xl"
-              />
-            </motion.div>
+            <div key={banner.id} className="mx-4">
+              {/* Título del banner - editable desde el admin */}
+              {banner.titulo && (
+                <h3 className="text-lg font-semibold text-white mb-3">
+                  {banner.titulo}
+                </h3>
+              )}
+              <motion.div
+                className="bg-dark-800 rounded-xl overflow-hidden relative cursor-pointer"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                onClick={() => setSelectedBanner(banner)}
+              >
+                <img
+                  src={banner.imagenUrl}
+                  alt={banner.titulo || 'Evento del día'}
+                  className="w-full h-48 object-cover rounded-xl"
+                />
+              </motion.div>
+            </div>
           ))}
       </div>
 

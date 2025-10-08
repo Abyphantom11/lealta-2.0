@@ -37,8 +37,6 @@ export const RegisterForm = ({
     setIsLoading(true);
     setError('');
     try {
-      console.log('🔄 Registrando cliente con businessId:', businessId);
-      
       const response = await fetch('/api/cliente/registro', {
         method: 'POST',
         headers: { 

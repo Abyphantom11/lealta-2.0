@@ -14,18 +14,7 @@ export default function RedirectInterceptor() {
     // Interceptar fetch calls para monitorear APIs (solo errores críticos)
     const originalFetch = window.fetch;
     window.fetch = async function(...args) {
-      const [url, options] = args;
-      
       const response = await originalFetch.apply(this, args);
-      
-      // Solo logear errores no esperados (no 401 para /api/auth/me)
-      if (!response.ok && !(response.status === 401 && url.toString().includes('/api/auth/me'))) {
-        console.log('📡 FETCH error:', {
-          url: url.toString(),
-          status: response.status,
-          method: options?.method || 'GET'
-        });
-      }
       
       return response;
     };
@@ -34,10 +23,6 @@ export default function RedirectInterceptor() {
     let currentUrl = window.location.href;
     const urlMonitor = setInterval(() => {
       if (window.location.href !== currentUrl) {
-        console.log('🌐 URL cambió:', {
-          from: currentUrl,
-          to: window.location.href
-        });
         currentUrl = window.location.href;
       }
     }, 100);

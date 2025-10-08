@@ -95,7 +95,6 @@ export default function PWAUI({
     // Escuchar eventos personalizados del controller
     const handleInstallAvailable = (e: Event) => {
       const customEvent = e as CustomEvent;
-      console.log('🎯 PWAUI: Install available event', customEvent.detail);
       
       if (autoShow && customEvent.detail.canInstall) {
         setTimeout(() => {

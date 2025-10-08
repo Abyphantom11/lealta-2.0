@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Toaster, toast } from 'sonner';
 import { QrCode, FileText, Calendar as CalendarIcon, Users } from 'lucide-react';
 
@@ -16,6 +16,9 @@ import { Header } from './components/Header';
 import { PromotorManagement } from './components/PromotorManagement';
 import { AIReservationModal } from './components/AIReservationModal';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { SinReservaTable } from './components/SinReservaTable';
+import { SinReservaCounter } from './components/SinReservaCounter';
+import { SinReserva } from './types/sin-reserva';
 
 // Importar estilos
 import './globals.css';
@@ -58,6 +61,55 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedReservaForDetails, setSelectedReservaForDetails] = useState<any>(null);
   const [showPromotorManagement, setShowPromotorManagement] = useState(false);
+  
+  // Estados para sin reserva
+  const [showSinReserva, setShowSinReserva] = useState(false); // Toggle entre reservas y sin reserva
+  const [sinReservas, setSinReservas] = useState<SinReserva[]>([]);
+  const [loadingSinReservas, setLoadingSinReservas] = useState(false);
+
+  // Cargar registros sin reserva
+  const loadSinReservas = async () => {
+    if (!businessId) return;
+    
+    setLoadingSinReservas(true);
+    try {
+      const response = await fetch(`/api/sin-reserva?businessId=${businessId}`);
+      if (!response.ok) throw new Error('Error al cargar registros');
+      
+      const data = await response.json();
+      setSinReservas(data.registros || []);
+    } catch (error) {
+      console.error('Error cargando sin reservas:', error);
+      toast.error('Error al cargar registros sin reserva');
+    } finally {
+      setLoadingSinReservas(false);
+    }
+  };
+
+  // Eliminar registro sin reserva
+  const handleDeleteSinReserva = async (id: string) => {
+    try {
+      const response = await fetch(`/api/sin-reserva?id=${id}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) throw new Error('Error al eliminar');
+      
+      toast.success('✅ Registro eliminado');
+      loadSinReservas(); // Recargar
+    } catch (error) {
+      console.error('Error eliminando:', error);
+      toast.error('❌ Error al eliminar registro');
+    }
+  };
+
+  // Cargar sin reservas cuando cambia businessId
+  useEffect(() => {
+    if (businessId) {
+      loadSinReservas();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessId]);
 
   // Handlers para la tabla de reservas
   const handleViewReserva = (id: string) => {
@@ -272,40 +324,90 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
             {/* Dashboard Stats */}
             <DashboardStats stats={stats} />
 
-            {/* Tabla de reservas - Los filtros ya están dentro del componente */}
-            <ReservationTable
-              businessId={businessId}
-              reservas={reservasFiltradas}
-              allReservas={reservas}
-              selectedDate={selectedDate}
-              onDateSelect={setSelectedDate}
-              onViewReserva={handleViewReserva}
-              onDeleteReserva={handleDeleteReserva}
-              onUploadComprobante={handleUploadComprobante}
-              onEstadoChange={handleEstadoChange}
-              onMesaChange={handleMesaChange}
-              onHoraChange={handleHoraChange}
-              onRazonVisitaChange={handleRazonVisitaChange}
-              onBeneficiosChange={handleBeneficiosChange}
-              onPromotorChange={handlePromotorChange}
-              onDetallesChange={handleDetallesChange}
-            />
+            {/* Toggle Reservas / Sin Reserva - Centrado */}
+            <div className="bg-white rounded-lg shadow-sm p-4 flex items-center justify-center">
+              <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setShowSinReserva(false)}
+                  className={`px-6 py-2.5 rounded-md font-medium transition-all ${
+                    !showSinReserva
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  📋 Reservas
+                </button>
+                <button
+                  onClick={() => setShowSinReserva(true)}
+                  className={`px-6 py-2.5 rounded-md font-medium transition-all ${
+                    showSinReserva
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  👥 Sin Reserva
+                </button>
+              </div>
+            </div>
+
+            {/* Tabla de reservas O Sin Reserva */}
+            {!showSinReserva ? (
+              <ReservationTable
+                businessId={businessId}
+                reservas={reservasFiltradas}
+                allReservas={reservas}
+                selectedDate={selectedDate}
+                onDateSelect={setSelectedDate}
+                onViewReserva={handleViewReserva}
+                onDeleteReserva={handleDeleteReserva}
+                onUploadComprobante={handleUploadComprobante}
+                onEstadoChange={handleEstadoChange}
+                onMesaChange={handleMesaChange}
+                onHoraChange={handleHoraChange}
+                onRazonVisitaChange={handleRazonVisitaChange}
+                onBeneficiosChange={handleBeneficiosChange}
+                onPromotorChange={handlePromotorChange}
+                onDetallesChange={handleDetallesChange}
+              />
+            ) : (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                {loadingSinReservas ? (
+                  <div className="text-center py-12 text-gray-500">
+                    Cargando registros...
+                  </div>
+                ) : (
+                  <SinReservaTable
+                    registros={sinReservas}
+                    onDelete={handleDeleteSinReserva}
+                  />
+                )}
+              </div>
+            )}
           </div>
         )}
 
         {/* Vista Scanner QR */}
         {viewMode === 'scanner' && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-semibold mb-4">Escanear Código QR</h2>
-            <p className="text-gray-600 mb-6">
-              Escanea el código QR de una reserva para registrar la asistencia
-            </p>
-            <QRScannerClean
-              businessId={businessId}
-              onScan={handleQRScan}
-              onError={handleQRError}
-              onRefreshNeeded={forceRefresh}
+          <div className="space-y-6">
+            {/* Contador Sin Reserva */}
+            <SinReservaCounter
+              businessId={businessId || 'default-business-id'}
+              onRegistroCreado={loadSinReservas}
             />
+
+            {/* Scanner QR */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-xl font-semibold mb-4">Escanear Código QR</h2>
+              <p className="text-gray-600 mb-6">
+                Escanea el código QR de una reserva para registrar la asistencia
+              </p>
+              <QRScannerClean
+                businessId={businessId}
+                onScan={handleQRScan}
+                onError={handleQRError}
+                onRefreshNeeded={forceRefresh}
+              />
+            </div>
           </div>
         )}
 

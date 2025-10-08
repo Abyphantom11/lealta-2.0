@@ -49,9 +49,6 @@ export default function ProductosTendenciasChart() {
       if (response.ok) {
         const result = await response.json();
         setData(result);
-        console.log('📊 Datos de tendencias cargados:', result);
-        console.log('📊 Primer producto:', result.productos?.[0]);
-        console.log('📊 Ventas semana primer producto:', result.productos?.[0]?.ventasSemana);
       } else {
         console.error('Error fetching tendencias data:', response.status);
       }

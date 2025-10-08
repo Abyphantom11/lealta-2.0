@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Eye, Smartphone, Gift, TrendingUp, Building, CreditCard } from 'lucide-react';
+import { Eye, Smartphone, Gift, TrendingUp, Building, CreditCard, Calendar } from 'lucide-react';
 import PortalContentManager from './PortalContentManager';
 import { GeneralConfig } from './types';
 import {
@@ -133,12 +133,21 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
       // Solo actualizar el slug para construir URLs del portal cliente
       if (urlBusinessIdentifier) {
         setCurrentBusinessSlug(urlBusinessIdentifier);
+        
+        // 🔥 RESOLVER Y ACTUALIZAR EL BUSINESS ID REAL
+        const resolvedId = await resolveBusinessId(urlBusinessIdentifier);
+        if (resolvedId) {
+          setCurrentBusinessId(resolvedId);
+          console.log('✅ Business ID resuelto:', resolvedId);
+        }
+      } else {
+        // 🔥 FALLBACK: Obtener desde localStorage
+        const storedBusinessId = localStorage.getItem('currentBusinessId');
+        if (storedBusinessId) {
+          setCurrentBusinessId(storedBusinessId);
+          console.log('✅ Business ID desde localStorage:', storedBusinessId);
+        }
       }
-      
-      console.log('🔍 Portal fetchConfig - Obteniendo config (businessId desde sesión autenticada):', {
-        urlBusinessIdentifier,
-        currentUrl: window.location.pathname
-      });
       
       // ✅ CORRECCIÓN: NO enviar businessId - el backend usa session.businessId
       const response = await fetch('/api/admin/portal-config');
@@ -193,11 +202,6 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
             beneficio: `Acceso a beneficios ${nivel}`,
             activo: true
           }));
-          
-          console.log('🎯 Generated tarjetas from loaded config:', {
-            count: finalTarjetas.length,
-            niveles: finalTarjetas.map((t: any) => `${t.nivel}:${t.condiciones.puntosMinimos}`)
-          });
         }
 
         setConfig({
@@ -205,12 +209,6 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
           nombreEmpresa: loadedConfig.nombreEmpresa || loadedConfig.empresa?.nombre || 'Mi Negocio',
           tarjetas: finalTarjetas,
           nivelesConfig: loadedConfig.nivelesConfig || defaultNivelesConfig,
-        });
-
-        console.log('✅ Portal config cargado:', {
-          nombreEmpresa: loadedConfig.nombreEmpresa || loadedConfig.empresa?.nombre || 'Mi Negocio',
-          tarjetasCount: finalTarjetas.length,
-          hasNivelesConfig: !!(loadedConfig.nivelesConfig),
         });
       } else {
         // 🎯 GENERAR CONFIGURACIÓN POR DEFECTO CON TARJETAS DESDE NIVELESCONFIG
@@ -257,11 +255,6 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
           beneficio: `Acceso a beneficios ${nivel}`,
           activo: true
         }));
-
-        console.log('🎯 Generated default tarjetas:', {
-          count: generatedTarjetas.length,
-          niveles: generatedTarjetas.map(t => `${t.nivel}:${t.condiciones.puntosMinimos}`)
-        });
 
         setConfig({
           banners: [
@@ -319,8 +312,6 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
       } else {
         finalBusinessId = storedBusinessId || 'cmfr2y0ia0000eyvw7ef3k20u';
       }
-      
-      console.log('💾 Portal handleSave - BusinessId resolved:', finalBusinessId);
       
       const response = await fetch('/api/admin/portal-config', {
         method: 'PUT',
@@ -382,18 +373,11 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
         finalBusinessId = storedBusinessId || 'cmfr2y0ia0000eyvw7ef3k20u';
       }
       
-      console.log('🎨 Branding change - BusinessId resolved:', finalBusinessId);
-      
       // Agregar businessId a la configuración que enviamos
       const configWithBusinessId = {
         ...newConfig,
         businessId: finalBusinessId
       };
-
-      // console.log('🔄 Admin: Enviando branding a API:', {
-      //   field,
-      //   value,
-      //   businessId: finalBusinessId,
       
       // Guardar en la API (funcionará entre diferentes dominios/puertos)
       const requestBody = JSON.stringify(configWithBusinessId);
@@ -483,8 +467,6 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
           finalBusinessId = storedBusinessId || 'cmfr2y0ia0000eyvw7ef3k20u';
         }
         
-        console.log('🎨 Loading branding for business:', finalBusinessId);
-        
         const response = await fetch(`/api/branding?businessId=${finalBusinessId}`);
         if (response.ok) {
           const branding = await response.json();
@@ -538,7 +520,19 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-semibold text-white">Portal del Cliente</h3>
-        <div className="flex items-center">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              const businessId = getCurrentBusinessFromUrl();
+              if (businessId) {
+                window.open(`/${businessId}/reservas`, '_blank');
+              }
+            }}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+          >
+            <Calendar className="w-4 h-4 text-white" />
+            <span className="text-white">Gestionar Reservas</span>
+          </button>
           <button
             onClick={() => window.open(getPortalUrl(), '_blank')}
             className="flex items-center space-x-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"

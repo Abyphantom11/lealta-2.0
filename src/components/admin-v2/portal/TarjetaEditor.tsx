@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { CreditCard } from 'lucide-react';
+import { AlertCircle, Save } from 'lucide-react';
 import { Tarjeta, GeneralConfig, NivelTarjeta } from './types';
 
 const NIVELES_TARJETAS_CONFIG = {
@@ -72,6 +72,7 @@ export default function TarjetaEditor({
 }: TarjetaEditorProps) {
   const [selectedLevel, setSelectedLevel] = useState('Oro');
   const [editingCard, setEditingCard] = useState<any>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [savingEmpresa, setSavingEmpresa] = useState(false);
   const [empresaChanged, setEmpresaChanged] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -157,19 +158,6 @@ export default function TarjetaEditor({
       }
     }
     
-    console.log(`🔍 VALIDACIÓN JERÁRQUICA para ${level} con ${points} puntos:`, {
-      configTarjetasOriginales: config.tarjetas?.length || 0,
-      editingCard: editingCard?.nivel,
-      allCardsFinales: allCards.length,
-      estructura: allCards
-        .sort((a, b) => JERARQUIA_NIVELES.indexOf(a.nivel) - JERARQUIA_NIVELES.indexOf(b.nivel))
-        .map(c => ({ 
-          nivel: c.nivel, 
-          puntos: c.condiciones?.puntosMinimos || 0,
-          esActual: c.nivel === level
-        }))
-    });
-    
     // 🔍 LÍMITE SUPERIOR: Buscar el nivel inmediatamente superior que tenga configuración
     let maxAllowedPoints: number | undefined;
     const nivelesSuperiores = JERARQUIA_NIVELES.slice(currentIndex + 1);
@@ -178,7 +166,6 @@ export default function TarjetaEditor({
       const higherCard = allCards.find(card => card.nivel === nivelSuperior);
       if (higherCard && higherCard.condiciones && typeof higherCard.condiciones.puntosMinimos === 'number') {
         maxAllowedPoints = higherCard.condiciones.puntosMinimos - 1;
-        console.log(`� Límite superior encontrado: ${nivelSuperior} (${higherCard.condiciones.puntosMinimos}) → máximo para ${level}: ${maxAllowedPoints}`);
         
         if (points >= higherCard.condiciones.puntosMinimos) {
           errors.push(`${level} no puede tener ${points} puntos o más porque ${nivelSuperior} requiere ${higherCard.condiciones.puntosMinimos}. Máximo permitido: ${maxAllowedPoints}`);
@@ -195,7 +182,6 @@ export default function TarjetaEditor({
       const lowerCard = allCards.find(card => card.nivel === nivelInferior);
       if (lowerCard && lowerCard.condiciones && typeof lowerCard.condiciones.puntosMinimos === 'number') {
         minRequiredPoints = lowerCard.condiciones.puntosMinimos + 1;
-        console.log(`� Límite inferior encontrado: ${nivelInferior} (${lowerCard.condiciones.puntosMinimos}) → mínimo para ${level}: ${minRequiredPoints}`);
         
         if (points <= lowerCard.condiciones.puntosMinimos) {
           errors.push(`${level} debe tener más de ${lowerCard.condiciones.puntosMinimos} puntos porque ${nivelInferior} ya requiere ${lowerCard.condiciones.puntosMinimos}. Mínimo requerido: ${minRequiredPoints}`);
@@ -208,13 +194,6 @@ export default function TarjetaEditor({
     if (currentIndex === 0) {
       minRequiredPoints = 0;
     }
-    
-    console.log(`✅ RESULTADO para ${level}:`, {
-      isValid: errors.length === 0,
-      minRequiredPoints,
-      maxAllowedPoints,
-      errorsCount: errors.length
-    });
 
     return {
       isValid: errors.length === 0,
@@ -248,7 +227,7 @@ export default function TarjetaEditor({
   // Función auxiliar para persistir cambios
   // ✅ ELIMINADO: persistCardChanges - ahora usa callback del padre
 
-  const handleSaveCard = async () => {
+  const handleSave = async () => {
     if (!editingCard) return;
 
     // 🛡️ Validar jerarquía antes de guardar
@@ -267,6 +246,7 @@ export default function TarjetaEditor({
     }
 
     try {
+      setIsSaving(true);
       const cardToSave = normalizeCardConditions(editingCard);
       
       // ✅ NUEVO: Usar callback del padre para persistir
@@ -284,6 +264,8 @@ export default function TarjetaEditor({
         '❌ Error al guardar los cambios de la tarjeta',
         'error'
       );
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -329,8 +311,6 @@ export default function TarjetaEditor({
     try {
       setSavingEmpresa(true);
 
-      console.log('🔍 Guardando cambios de empresa (usando callback del padre)');
-
       // ✅ NUEVO: Usar callback del padre para persistir
       await onUpdateNombreEmpresa(tempNombreEmpresa);
 
@@ -347,17 +327,42 @@ export default function TarjetaEditor({
     }
   };
 
+  // ===========================================
+  // 🎨 RENDER PRINCIPAL
+  // ===========================================
   return (
-    <div>
-      <div className="flex items-center mb-6">
-        <CreditCard className="w-6 h-6 mr-2 text-primary-500" />
-        <h4 className="text-lg font-semibold text-white">
-          Gestión de Tarjetas de Lealtad
-        </h4>
-      </div>
+    <div className="space-y-6">
+      {/* Header del editor con warning de cambios sin guardar */}
+      {hasUnsavedChanges && (
+        <div className="flex items-center justify-between p-4 bg-amber-900/30 border border-amber-600/50 rounded-lg">
+          <div className="flex items-center">
+            <AlertCircle className="w-5 h-5 text-amber-400 mr-2" />
+            <span className="text-amber-300 font-medium">
+              Tienes cambios sin guardar
+            </span>
+          </div>
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+          >
+            {isSaving ? (
+              <>
+                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                Guardando...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                Guardar Cambios
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
-      {/* Configuración del nombre de empresa */}
-      <div className="bg-dark-800 rounded-lg p-4 mb-6">
+      {/* Nombre de la Empresa */}
+      <div className="bg-dark-800 rounded-lg p-6">
         <h5 className="text-white font-medium mb-3">
           Nombre de la Empresa en Tarjetas
         </h5>
@@ -646,7 +651,7 @@ export default function TarjetaEditor({
                   </p>
                 )}
                 <button
-                  onClick={handleSaveCard}
+                  onClick={handleSave}
                   disabled={!hasUnsavedChanges || validationErrors.length > 0}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     hasUnsavedChanges && validationErrors.length === 0

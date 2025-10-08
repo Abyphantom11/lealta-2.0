@@ -12,7 +12,6 @@ export const dynamic = 'force-dynamic';
 async function getAdminTarjetas(businessId: string) {
   try {
     const config = await getTarjetasConfigCentral(businessId);
-    console.log(`✅ Admin config encontrado para ${businessId}, tarjetas:`, config.tarjetas?.length || 0);
     
     if (config.erroresValidacion.length > 0) {
       console.warn(`⚠️ Errores de validación para ${businessId}:`, config.erroresValidacion);
@@ -302,7 +301,6 @@ export async function GET(request: NextRequest) {
         const adminConfig = await getAdminTarjetas(businessId);
         if (adminConfig && adminConfig.tarjetas && adminConfig.tarjetas.length > 0) {
           // ✅ NUEVA ESTRUCTURA: adminConfig.tarjetas es directamente un array de tarjetas
-          console.log(`🎯 [API] Procesando ${adminConfig.tarjetas.length} tarjetas del admin config`);
           return adminConfig.tarjetas.map((tarjeta: any) => ({
             id: tarjeta.id || `tarjeta-${tarjeta.nivel?.toLowerCase()}`,
             nivel: tarjeta.nivel,

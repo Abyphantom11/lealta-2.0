@@ -113,13 +113,6 @@ export default function AdminV2Page({ businessId }: AdminV2PageProps = {}) {
   const businessNameOrId = businessId || getCurrentBusinessFromUrl();
   const [actualBusinessId, setActualBusinessId] = useState<string | null>(businessNameOrId);
   
-  console.log('🔍 AdminV2Page: businessId inicial:', {
-    fromProps: businessId,
-    fromUrl: getCurrentBusinessFromUrl(),
-    businessNameOrId,
-    actualBusinessId
-  });
-  
   // Convertir nombre a ID si es necesario
   useEffect(() => {
     const resolveBusinessId = async () => {
@@ -130,16 +123,13 @@ export default function AdminV2Page({ businessId }: AdminV2PageProps = {}) {
       
       // Si parece un ID (empieza con 'cm' y es largo), usarlo directamente
       if (businessNameOrId.startsWith('cm') && businessNameOrId.length > 20) {
-        console.log('✅ AdminV2: Usando businessId directamente:', businessNameOrId);
         setActualBusinessId(businessNameOrId);
         return;
       }
       
       // Si parece un nombre, convertirlo a ID
-      console.log('🔄 AdminV2: Convirtiendo nombre de negocio a ID:', businessNameOrId);
       const id = await getBusinessIdFromName(businessNameOrId);
       if (id) {
-        console.log('✅ AdminV2: ID resuelto:', id);
         setActualBusinessId(id);
       } else {
         console.error('❌ AdminV2: No se pudo resolver el ID del negocio');
@@ -155,8 +145,6 @@ export default function AdminV2Page({ businessId }: AdminV2PageProps = {}) {
     
     // Si no tenemos businessId y estamos en ruta legacy, redirigir
     if (!businessNameOrId && (currentPath === '/admin' || (currentPath.startsWith('/admin/') && !currentPath.includes('/business')))) {
-      console.log('🚫 Admin: Sin business context, redirigiendo a login');
-      
       const redirectUrl = '/login?error=no-business&message=No se pudo determinar el negocio. Inicia sesión nuevamente.';
       window.location.href = redirectUrl;
       return;
@@ -302,10 +290,7 @@ export default function AdminV2Page({ businessId }: AdminV2PageProps = {}) {
         <main className="flex-1 p-6 bg-gradient-to-br from-dark-950 via-dark-900 to-dark-800 overflow-auto">
           {activeSection === 'dashboard' && <DashboardContent />}
           {activeSection === 'clientes' && (
-            <>
-              {console.log('🔍 AdminV2: Renderizando ClientesContent con businessId:', actualBusinessId)}
-              <ClientesContent businessId={actualBusinessId || undefined} />
-            </>
+            <ClientesContent businessId={actualBusinessId || undefined} />
           )}
           {activeSection === 'menu' && <MenuContent />}
           {activeSection === 'portal' && (

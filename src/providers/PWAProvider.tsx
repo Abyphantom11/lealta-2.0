@@ -69,19 +69,13 @@ export function PWAProvider({ children, enableDebugLogs = false }: PWAProviderPr
   useEffect(() => {
     if (isInitialized) {
       updatePWARoute(pathname);
-      
-      if (enableDebugLogs) {
-        console.log(`🔄 PWAProvider: Ruta actualizada: ${pathname}`);
-      }
     }
   }, [pathname, isInitialized, enableDebugLogs]);
 
   // Limpieza al desmontar
   useEffect(() => {
     return () => {
-      if (enableDebugLogs) {
-        console.log('🧹 PWAProvider: Limpiando recursos PWA');
-      }
+      // Cleanup silencioso
     };
   }, [enableDebugLogs]);
 
@@ -132,9 +126,7 @@ export function PWAManager({ enableDebugLogs = false }: { enableDebugLogs?: bool
   const pathname = usePathname();
 
   useEffect(() => {
-    if (enableDebugLogs) {
-      console.log(`🎯 PWAManager: Gestionando PWA en ruta ${pathname}`);
-    }
+    // Gestión silenciosa
   }, [pathname, enableDebugLogs]);
 
   // Este componente solo gestiona, no renderiza UI

@@ -47,21 +47,17 @@ export function ThemeProvider({ children, businessId, initialTheme = 'moderno' }
     // Cargar el tema del negocio desde la API
     const fetchTheme = async () => {
       try {
-        console.log('🎨 ThemeProvider: Cargando tema para businessId:', businessId);
         const response = await fetch(`/api/business/${businessId}/client-theme`);
-        console.log('🎨 ThemeProvider: Response status:', response.status);
         
         if (response.ok) {
           const data = await response.json();
-          console.log('🎨 ThemeProvider: Tema recibido:', data.theme);
-          console.log('🎨 ThemeProvider: Config recibida:', data.config);
           setThemeState(data.theme || 'moderno');
           setThemeConfigState(data.config || {});
         } else {
-          console.error('🎨 ThemeProvider: Error response:', await response.text());
+          console.error('ThemeProvider: Error loading theme:', await response.text());
         }
       } catch (error) {
-        console.error('🎨 ThemeProvider: Error loading theme:', error);
+        console.error('ThemeProvider: Error loading theme:', error);
       } finally {
         setIsLoading(false);
       }
@@ -70,22 +66,17 @@ export function ThemeProvider({ children, businessId, initialTheme = 'moderno' }
     if (businessId) {
       fetchTheme();
     } else {
-      console.warn('🎨 ThemeProvider: No businessId provided');
       setIsLoading(false);
     }
   }, [businessId]);
 
   const setTheme = (newTheme: ThemeStyle) => {
-    console.log('🎨 ThemeProvider: Tema cambiado localmente a:', newTheme);
     setThemeState(newTheme);
   };
 
   const setThemeConfig = (newConfig: ThemeConfig) => {
-    console.log('🎨 ThemeProvider: Config cambiada localmente a:', newConfig);
     setThemeConfigState(newConfig);
   };
-
-  console.log('🎨 ThemeProvider: Renderizando con tema:', theme, 'isLoading:', isLoading);
 
   return (
     <ThemeContext.Provider value={{ theme, themeConfig, setTheme, setThemeConfig, isLoading }}>

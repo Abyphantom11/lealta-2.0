@@ -1,0 +1,86 @@
+# ============================================
+# VARIABLES DE ENTORNO PARA VERCEL PRODUCCIÓN
+# ============================================
+# Copia estas variables en:
+# https://vercel.com/themaster2648-9501s-projects/lealta/settings/environment-variables
+# Después de agregarlas, haz un REDEPLOY
+
+# ====================
+# 🔴 CRÍTICAS (REQUERIDAS)
+# ====================
+
+# Database (Neon PostgreSQL)
+DATABASE_URL=postgresql://neondb_owner:npg_XcL6eWBCMz9b@ep-floral-morning-ad47ojau-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
+
+# NextAuth Configuration
+NEXTAUTH_URL=https://lealta-9ihr8l471-themaster2648-9501s-projects.vercel.app
+NEXTAUTH_SECRET=3nULI9Ywt+8ALxxA9zvL6JJIRHImT6ALSMlhUN8wbDs=
+AUTH_SECRET=icVrI5x7M6RgbdmwIw87rQsAd7Dju5tS8uJOIXoSV1c=
+
+# ====================
+# 🟡 IMPORTANTES (RECOMENDADAS)
+# ====================
+
+# Blob Storage (para uploads de imágenes)
+BLOB_READ_WRITE_TOKEN=vercel_blob_rw_QSQoErcPWIoMxvo2_DYdNIDEA6Q1yeI3T0BHuwbTnC0grwT
+LEALTA_READ_WRITE_TOKEN=vercel_blob_rw_QSQoErcPWIoMxvo2_DYdNIDEA6Q1yeI3T0BHuwbTnC0grwT
+
+# Redis (caché y sesiones)
+UPSTASH_REDIS_REST_TOKEN=AR5zAAImcDJiNmY3ZGY5ZDYyZDQ0ZTZlYTYyMDlkNWNiMWNjYWE0ZXAyNzc5NQ
+UPSTASH_REDIS_REST_URL=https://renewed-moose-7795.upstash.io
+
+# ====================
+# 🟢 OPCIONALES
+# ====================
+
+# AI (si usas features de IA)
+GOOGLE_GEMINI_API_KEY=AIzaSyAkSmHtoNHHNAwukPwtJEL5pQ0U7IzAM7k
+
+# Email (si usas notificaciones)
+RESEND_FROM_EMAIL=hello@lealta.app
+RESEND_NO_REPLY_EMAIL=no-reply@lealta.app
+RESEND_TRIALS_EMAIL=privacity@lealta.app
+
+# App Config (Vercel las setea automáticamente, pero puedes sobreescribirlas)
+NEXT_PUBLIC_APP_NAME=lealta
+NODE_ENV=production
+
+# ====================
+# 📋 INSTRUCCIONES
+# ====================
+
+# 1. Ve a Vercel Dashboard:
+#    https://vercel.com/themaster2648-9501s-projects/lealta/settings/environment-variables
+
+# 2. Para CADA variable arriba:
+#    - Click "Add New"
+#    - Name: [nombre de la variable]
+#    - Value: [valor de la variable]
+#    - Environment: Selecciona "Production" (y opcionalmente Preview/Development)
+#    - Click "Save"
+
+# 3. Después de agregar todas las variables:
+#    - Ve a: https://vercel.com/themaster2648-9501s-projects/lealta
+#    - Click en "Deployments"
+#    - Click en el último deployment
+#    - Click en "..." (tres puntos)
+#    - Click "Redeploy"
+#    - Confirma
+
+# ====================
+# 🔍 VERIFICACIÓN
+# ====================
+
+# Después del redeploy, verifica:
+# 1. Login funciona: https://lealta-9ihr8l471-themaster2648-9501s-projects.vercel.app/login
+# 2. Email: admin@casadelsabor.com
+# 3. Password: Admin2024!
+
+# ====================
+# 🐛 TROUBLESHOOTING
+# ====================
+
+# Si el login no funciona después del redeploy:
+# - Verifica que DATABASE_URL esté configurada correctamente en Vercel
+# - Checa los logs en: https://vercel.com/themaster2648-9501s-projects/lealta/logs
+# - Busca errores relacionados con Prisma o database connection

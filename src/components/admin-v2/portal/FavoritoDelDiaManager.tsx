@@ -61,9 +61,6 @@ const FavoritoDelDiaManager: React.FC<FavoritoDelDiaManagerProps> = ({
     }
 
     try {
-      console.log('🔄 Favorito direct upload for day:', selectedDay);
-      console.log('📁 Iniciando upload directo de imagen:', file.name);
-      
       // ✅ UPLOAD DIRECTO - sin usar el estado del hook
       const formData = new FormData();
       formData.append('file', file);
@@ -167,13 +164,6 @@ const FavoritoDelDiaManager: React.FC<FavoritoDelDiaManagerProps> = ({
         horaPublicacion: publishTime,
         activo: favoritoPorDia?.activo ?? true,
       };
-
-      console.log('🔄 Actualizando favorito:', {
-        id: favoritoPorDia?.id,
-        oldImage: favoritoPorDia?.imagenUrl,
-        newImage: favoritoData.imagenUrl,
-        data: favoritoData
-      });
 
       onUpdate(favoritoData);
       notificationService.success({

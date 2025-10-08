@@ -152,12 +152,10 @@ export default function GoalsConfigurator({ onClose, onSave }: Readonly<GoalsCon
         const customEvent = new CustomEvent('goalsUpdated', {
           detail: data.goals
         });
-        console.log('🎯 Disparando evento goalsUpdated:', data.goals);
         window.dispatchEvent(customEvent);
 
         // También forzar un refresh de las estadísticas directamente
         setTimeout(() => {
-          console.log('🔄 Forzando refresh del dashboard después de 500ms');
           window.dispatchEvent(new CustomEvent('forceStatsRefresh'));
           
           // Forzar reload de la página si es necesario (para debugging)

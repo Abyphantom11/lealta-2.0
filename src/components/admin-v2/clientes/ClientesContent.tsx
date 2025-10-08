@@ -134,33 +134,19 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '', busin
   useEffect(() => {
     const fetchClientes = async () => {
       try {
-        // 🔥 BUSINESS CONTEXT: Incluir businessId en la petición
-        const url = businessId ? `/api/cliente/lista?businessId=${businessId}` : '/api/cliente/lista';
-        const headers: HeadersInit = {
-          'Content-Type': 'application/json',
-        };
+        console.log('🔍 ClientesContent: Fetching clientes...');
         
-        // Agregar businessId en header también para mayor compatibilidad
-        if (businessId) {
-          headers['x-business-id'] = businessId;
-        }
-
-        console.log('🔍 CLIENTES: Fetching con businessId:', businessId);
-        
-        const response = await fetch(url, { 
-          headers,
+        // ✅ SIMPLIFICADO: La API usa session.businessId automáticamente
+        // No necesitamos pasar businessId como parámetro
+        const response = await fetch('/api/cliente/lista', { 
           credentials: 'include', // ✅ CRÍTICO: Incluir cookies de sesión
-          cache: 'no-store' // ✅ No cachear para obtener datos frescos
+          cache: 'no-store', // ✅ No cachear para obtener datos frescos
         });
+        
         const data = await response.json();
         
-        console.log('📊 CLIENTES: Respuesta recibida:', {
-          success: data.success,
-          count: data.clientes?.length || 0,
-          businessId
-        });
-        
         if (data.success) {
+          console.log('✅ Clientes cargados:', data.clientes.length);
           setClientes(data.clientes);
           setFilteredClientes(data.clientes);
         } else {
@@ -174,7 +160,7 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '', busin
     };
 
     fetchClientes();
-  }, [businessId]);
+  }, []); // ✅ Sin dependencias - solo cargar una vez al montar
 
   // Cargar historial de canjes cuando se active esa pestaña
   useEffect(() => {

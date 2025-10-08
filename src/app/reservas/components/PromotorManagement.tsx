@@ -51,11 +51,6 @@ export function PromotorManagement({ businessId, onClose }: Readonly<PromotorMan
   const [view, setView] = useState<'list' | 'stats'>('list');
   const [nombre, setNombre] = useState("");
 
-  // Debug: Log del businessId recibido
-  console.log('🏢 PromotorManagement montado con businessId:', businessId);
-  console.log('🏢 Tipo de businessId:', typeof businessId);
-  console.log('🏢 BusinessId válido:', !!businessId && businessId.length > 0);
-
   // Bloquear scroll del body cuando el modal está abierto
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -104,19 +99,11 @@ export function PromotorManagement({ businessId, onClose }: Readonly<PromotorMan
       return;
     }
     try {
-      console.log('📤 Enviando request:', {
-        businessId,
-        nombre: nombre.trim(),
-        activo: true
-      });
-
       const response = await fetch('/api/promotores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ businessId, nombre: nombre.trim(), activo: true }),
       });
-
-      console.log('📥 Response status:', response.status);
       
       const data = await response.json();
 

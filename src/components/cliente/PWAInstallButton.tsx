@@ -14,12 +14,7 @@ export default function PWAInstallButton() {
     
     setIsInstalling(true);
     try {
-      const success = await installPWA();
-      if (success) {
-        console.log('✅ PWA instalada exitosamente');
-      } else {
-        console.log('❌ Instalación cancelada por el usuario');
-      }
+      await installPWA();
     } catch (error) {
       console.error('❌ Error instalando PWA:', error);
     } finally {

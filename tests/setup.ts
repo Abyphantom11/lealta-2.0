@@ -3,6 +3,7 @@ import { afterEach, vi } from 'vitest';
 
 // Mock de variables de entorno
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
+// @ts-expect-error - NODE_ENV es de solo lectura pero necesitamos mockearlo en tests
 process.env.NODE_ENV = 'test';
 process.env.NEXTAUTH_SECRET = 'test-secret';
 process.env.NEXTAUTH_URL = 'http://localhost:3001';

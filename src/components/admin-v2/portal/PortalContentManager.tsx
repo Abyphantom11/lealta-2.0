@@ -189,32 +189,47 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
   const [currentTheme, setCurrentTheme] = useState<'moderno' | 'elegante' | 'sencillo'>('moderno');
   const [isLoadingTheme, setIsLoadingTheme] = useState(true);
   
+  // 🔥 TIMEOUT DE SEGURIDAD: Si después de 2 segundos no se carga, mostrar de todos modos
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (isLoadingTheme) {
+        console.warn('⏱️ Timeout de carga de tema - mostrando con tema por defecto');
+        setIsLoadingTheme(false);
+      }
+    }, 2000);
+    
+    return () => clearTimeout(timeout);
+  }, [isLoadingTheme]);
+  
   // 🎨 Cargar el tema actual del negocio
   const loadCurrentTheme = useCallback(async () => {
-    if (!businessId || businessId === 'default') {
-      console.warn('⚠️ businessId no válido para cargar tema:', businessId);
-      setIsLoadingTheme(false);
+    // 🔥 SIEMPRE establecer un tema por defecto y quitar loading
+    setCurrentTheme('moderno');
+    setIsLoadingTheme(false);
+    
+    if (!businessId || businessId === 'default' || businessId === 'cmgewmtue0000eygwq8taawak') {
+      console.warn('⚠️ businessId no válido o por defecto para cargar tema:', businessId);
       return;
     }
     
     try {
+      console.log('🎨 Cargando tema para businessId:', businessId);
       const response = await fetch(`/api/business/${businessId}/client-theme`);
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Tema cargado:', data.theme);
         setCurrentTheme(data.theme || 'moderno');
-        console.log('🎨 Tema cargado:', data.theme);
+      } else {
+        console.warn('⚠️ No se pudo cargar el tema, usando moderno por defecto');
       }
     } catch (error) {
       console.error('❌ Error cargando tema:', error);
-    } finally {
-      setIsLoadingTheme(false);
     }
   }, [businessId]);
   
   // 🎨 Manejar cambio de tema
   const handleThemeChange = useCallback(async (newTheme: 'moderno' | 'elegante' | 'sencillo') => {
     setCurrentTheme(newTheme);
-    console.log('🎨 Tema actualizado a:', newTheme);
     
     // Forzar recarga de la vista previa con el nuevo tema
     if (previewMode === 'portal' || previewMode === 'portal-refresh') {
@@ -228,6 +243,7 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
   // 🆕 Función para cargar datos reales para vista previa
   const loadPreviewData = useCallback(async () => {
     try {
+      console.log('🔄 Cargando datos de vista previa...', { businessId, previewMode });
       const response = await fetch(`/api/portal/config-v2?businessId=${businessId}`, {
         cache: 'no-store',
         headers: {
@@ -237,31 +253,62 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
       
       if (response.ok) {
         const data = await response.json();
-        setPreviewData(data);
-        console.log('🔄 Preview data loaded from DB:', {
-          banners: data.banners?.length || 0,
-          promociones: data.promociones?.length || 0
+        console.log('✅ Datos de vista previa cargados:', {
+          hasBanners: !!data.banners,
+          bannersCount: data.banners?.length || 0,
+          hasPromociones: !!data.promociones,
+          promocionesCount: data.promociones?.length || 0,
+          hasRecompensas: !!data.recompensas,
+          recompensasCount: data.recompensas?.length || 0,
+          fullData: data, // 🔍 Ver todos los datos
         });
+        setPreviewData(data);
+        console.log('🔍 previewData actualizado:', data);
       } else {
         console.error('❌ Error response:', response.status, await response.text());
       }
     } catch (error) {
       console.error('❌ Error loading preview data:', error);
     }
-  }, [businessId]);
+  }, [businessId, previewMode]);
   
-  // � Cargar tema al montar el componente
+  // 🔄 Cargar tema al montar el componente
   useEffect(() => {
     loadCurrentTheme();
   }, [loadCurrentTheme]);
   
-  // �🆕 Efecto para cargar datos cuando cambia el modo de vista previa
+  // 🆕 Cargar datos de vista previa SIEMPRE (no solo en modo portal)
+  useEffect(() => {
+    loadPreviewData();
+    
+    // Escuchar eventos de actualización
+    const handlePromocionesUpdate = () => {
+      console.log('📥 Evento promocionesUpdated recibido, recargando vista previa...');
+      loadPreviewData();
+    };
+    
+    const handleContentUpdate = () => {
+      console.log('📥 Evento contentUpdated recibido, recargando vista previa...');
+      loadPreviewData();
+    };
+    
+    window.addEventListener('promocionesUpdated', handlePromocionesUpdate);
+    window.addEventListener('contentUpdated', handleContentUpdate);
+    
+    // Recargar cada 10 segundos
+    const interval = setInterval(loadPreviewData, 10000);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('promocionesUpdated', handlePromocionesUpdate);
+      window.removeEventListener('contentUpdated', handleContentUpdate);
+    };
+  }, [loadPreviewData]);
+  
+  // 🆕 Efecto adicional para recargar cuando cambias a modo portal
   useEffect(() => {
     if (previewMode === 'portal') {
       loadPreviewData();
-      // Recargar cada 10 segundos para mantener sincronización
-      const interval = setInterval(loadPreviewData, 10000);
-      return () => clearInterval(interval);
     }
   }, [previewMode, loadPreviewData]);
   
@@ -442,6 +489,8 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
       await handleSyncToClient();
       // 🆕 Recargar datos de vista previa inmediatamente
       await loadPreviewData();
+      // 🔄 Disparar evento global de actualización
+      window.dispatchEvent(new CustomEvent('contentUpdated', { detail: { type, businessId } }));
       showNotification(`✅ ${type} agregado y sincronizado con el cliente`, 'success');
     } catch (error) {
       console.error('Error sincronizando con cliente:', error);
@@ -454,8 +503,6 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
     itemId: string,
     updates: Partial<ConfigurableItem>
   ) => {
-    console.log('🔄 updateItem ejecutado:', { type, itemId, updates });
-    
     // 🆕 Actualizar estado local primero para UI responsiva
     setConfig((prev: GeneralConfig): GeneralConfig => {
       if (type === 'favoritoDelDia') {
@@ -496,7 +543,6 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
           : prev[type],
       };
 
-      console.log('✅ Config actualizado para', type, ':', newConfig[type]);
       return newConfig;
     });
 
@@ -505,6 +551,8 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
       await handleSyncToClient();
       // 🆕 Recargar datos de vista previa inmediatamente
       await loadPreviewData();
+      // 🔄 Disparar evento global de actualización
+      window.dispatchEvent(new CustomEvent('contentUpdated', { detail: { type, businessId } }));
       showNotification(`✅ ${type} actualizado y sincronizado con el cliente`, 'success');
     } catch (error) {
       console.error('Error sincronizando con cliente:', error);
@@ -565,6 +613,8 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
       await handleSyncToClient();
       // 🆕 Recargar datos de vista previa inmediatamente
       await loadPreviewData();
+      // 🔄 Disparar evento global de actualización
+      window.dispatchEvent(new CustomEvent('contentUpdated', { detail: { type, businessId } }));
       showNotification(`✅ ${itemName} eliminado y sincronizado con el cliente`, 'success');
     } catch (error) {
       console.error('Error sincronizando con cliente:', error);
@@ -797,6 +847,13 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
                 // Filtrar banners por día seleccionado y actividad
                 // 🆕 USAR DATOS REALES DE BD EN LUGAR DEL ESTADO LOCAL
                 const bannersReales = previewData?.banners || config.banners || [];
+                console.log('🎨 Renderizando banners:', {
+                  previewDataExists: !!previewData,
+                  bannersFromPreview: previewData?.banners?.length || 0,
+                  bannersFromConfig: config.banners?.length || 0,
+                  bannersRealesLength: bannersReales.length,
+                  diaParaMostrar,
+                });
                 const bannersDia = bannersReales.filter(
                   (b: Banner) =>
                     b.activo &&
@@ -857,6 +914,13 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
                 // Filtrar promociones por día seleccionado y actividad
                 // 🆕 USAR DATOS REALES DE BD EN LUGAR DEL ESTADO LOCAL
                 const promocionesReales = previewData?.promociones || config.promociones || [];
+                console.log('🎁 Renderizando promociones:', {
+                  previewDataExists: !!previewData,
+                  promocionesFromPreview: previewData?.promociones?.length || 0,
+                  promocionesFromConfig: config.promociones?.length || 0,
+                  promocionesRealesLength: promocionesReales.length,
+                  diaParaMostrar,
+                });
                 const promocionesDia = promocionesReales.filter(
                   (p: Promocion) =>
                     p.activo &&
@@ -1144,6 +1208,8 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
                   await handleThemeChange(theme);
                   showNotification(`Vista previa del tema "${theme}" actualizada`, 'info');
                 }}
+                promociones={previewData?.promociones || config.promociones || []}
+                recompensas={previewData?.recompensas || config.recompensas || []}
               />
             )}
           </>

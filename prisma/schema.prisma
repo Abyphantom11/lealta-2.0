@@ -793,3 +793,20 @@ model ReservationQRCode {
   @@index([status])
   @@index([expiresAt])
 }
+
+// ✅ NUEVO: Registros de personas que llegan sin reserva (walk-ins)
+model SinReserva {
+  id            String   @id @default(cuid())
+  businessId    String
+  numeroPersonas Int
+  fecha         DateTime // Fecha del registro
+  hora          String   // Hora en formato HH:mm
+  registradoPor String?  // Usuario/staff que registró
+  notas         String?  // Notas opcionales
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([businessId])
+  @@index([fecha])
+  @@index([createdAt])
+}

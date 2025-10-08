@@ -35,10 +35,7 @@ export default function SimplePWAButton({
     
     setIsInstalling(true);
     try {
-      const success = await installPWA();
-      if (success) {
-        console.log('✅ PWA instalada exitosamente desde SimplePWAButton');
-      }
+      await installPWA();
     } catch (error) {
       console.error('❌ Error instalando PWA:', error);
     } finally {

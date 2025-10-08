@@ -8,6 +8,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { PromotorSearchOnly } from "./PromotorSearchOnly";
 import { CedulaSearch } from "./CedulaSearch";
+import { Zap } from "lucide-react";
 
 import { Reserva } from "../types/reservation";
 
@@ -41,6 +42,7 @@ export default function ReservationForm({
   selectedTime,
   businessId // ✅ NUEVO
 }: Readonly<ReservationFormProps>) {
+  const [isExpressMode, setIsExpressMode] = useState(false); // 🆕 Estado para modo express
   const [formData, setFormData] = useState<FormData>({
     clienteNombre: '',
     clienteCedula: '',
@@ -56,6 +58,29 @@ export default function ReservationForm({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [clienteExistente, setClienteExistente] = useState<boolean>(false);
+
+  // 🆕 Toggle modo express
+  const toggleExpressMode = () => {
+    setIsExpressMode(!isExpressMode);
+    // Limpiar campos cuando cambiamos de modo
+    if (!isExpressMode) {
+      // Activando modo express - limpiar campos no necesarios
+      setFormData(prev => ({
+        ...prev,
+        clienteCedula: 'EXPRESS',
+        clienteCorreo: 'express@reserva.local',
+        clienteTelefono: '',
+      }));
+    } else {
+      // Desactivando modo express - limpiar todo
+      setFormData(prev => ({
+        ...prev,
+        clienteCedula: '',
+        clienteCorreo: '',
+        clienteTelefono: '',
+      }));
+    }
+  };
 
   // ✅ Manejar cuando se encuentra un cliente existente
   const handleClienteFound = (cliente: { id: string; cedula: string; nombre: string; email: string; telefono: string } | null) => {
@@ -83,60 +108,75 @@ export default function ReservationForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // ✅ Validación completa de campos obligatorios
-    if (!formData.clienteNombre || 
-        !formData.clienteCedula || 
-        !formData.clienteCorreo || 
-        !formData.clienteTelefono ||
-        !formData.fecha || 
-        !formData.hora || 
-        !formData.promotorId) {
-      toast.error('❌ Campos incompletos', {
-        description: 'Complete todos los campos: Nombre, Cédula, Email, Teléfono, Fecha, Hora y Promotor'
-      });
-      return;
-    }
+    // 🆕 Validación diferente según el modo
+    if (isExpressMode) {
+      // Modo Express - Solo validar nombre, fecha, hora y promotor
+      if (!formData.clienteNombre || 
+          !formData.fecha || 
+          !formData.hora || 
+          !formData.promotorId) {
+        toast.error('❌ Campos incompletos (Express)', {
+          description: 'Complete: Nombre, Fecha, Hora y Promotor'
+        });
+        return;
+      }
+    } else {
+      // Modo Normal - Validación completa
+      if (!formData.clienteNombre || 
+          !formData.clienteCedula || 
+          !formData.clienteCorreo || 
+          !formData.clienteTelefono ||
+          !formData.fecha || 
+          !formData.hora || 
+          !formData.promotorId) {
+        toast.error('❌ Campos incompletos', {
+          description: 'Complete todos los campos: Nombre, Cédula, Email, Teléfono, Fecha, Hora y Promotor'
+        });
+        return;
+      }
 
-    // ✅ Validar formato de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.clienteCorreo)) {
-      toast.error('❌ Email inválido', {
-        description: 'Por favor ingrese un email válido'
-      });
-      return;
-    }
+      // ✅ Validar formato de email (solo modo normal)
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.clienteCorreo)) {
+        toast.error('❌ Email inválido', {
+          description: 'Por favor ingrese un email válido'
+        });
+        return;
+      }
 
-    // ✅ Validar que teléfono tenga al menos 8 dígitos
-    const digitosEnTelefono = formData.clienteTelefono.replace(/\D/g, '').length;
-    if (digitosEnTelefono < 8) {
-      toast.error('❌ Teléfono inválido', {
-        description: 'El teléfono debe tener al menos 8 dígitos'
-      });
-      return;
+      // ✅ Validar que teléfono tenga al menos 8 dígitos (solo modo normal)
+      const digitosEnTelefono = formData.clienteTelefono.replace(/\D/g, '').length;
+      if (digitosEnTelefono < 8) {
+        toast.error('❌ Teléfono inválido', {
+          description: 'El teléfono debe tener al menos 8 dígitos'
+        });
+        return;
+      }
     }
 
     setIsSubmitting(true);
     
     try {
+      // 🆕 Datos según el modo
       const reservaData: Omit<Reserva, 'id' | 'codigoQR' | 'fechaCreacion' | 'registroEntradas'> = {
         cliente: {
-          id: formData.clienteCedula, // ✅ Usar cédula real del formulario
+          id: isExpressMode ? 'EXPRESS' : formData.clienteCedula,
           nombre: formData.clienteNombre,
-          email: formData.clienteCorreo, // ✅ Obligatorio ahora
-          telefono: formData.clienteTelefono // ✅ Obligatorio ahora
+          email: isExpressMode ? 'express@reserva.local' : formData.clienteCorreo,
+          telefono: isExpressMode ? 'N/A' : formData.clienteTelefono // 🆕 N/A para express
         },
-        numeroPersonas: parseInt(formData.invitados) || 1, // El campo "invitados" es realmente el total de personas
-        razonVisita: formData.servicio || "Reserva general",
-        beneficiosReserva: "Sin observaciones", // Eliminar campo de observaciones
+        numeroPersonas: parseInt(formData.invitados) || 1,
+        razonVisita: isExpressMode ? "⚡ Reserva Express" : (formData.servicio || "Reserva general"), // 🆕 Identificador
+        beneficiosReserva: "Sin observaciones",
         promotor: {
-          id: formData.promotorId, // ✅ Usar el ID del promotor seleccionado
-          nombre: formData.promotorNombre // ✅ Usar el nombre del promotor seleccionado
+          id: formData.promotorId,
+          nombre: formData.promotorNombre
         },
-        promotorId: formData.promotorId, // ✅ NUEVO: Guardar el ID para la base de datos
+        promotorId: formData.promotorId,
         fecha: formData.fecha,
         hora: formData.hora,
-        estado: 'En Progreso', // Estado amarillo por defecto
-        asistenciaActual: 0 // Iniciar en 0 porque nadie ha asistido aún
+        estado: 'En Progreso',
+        asistenciaActual: 0
       };
 
       onSubmit(reservaData);
@@ -175,7 +215,24 @@ export default function ReservationForm({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px] w-full max-h-[90vh] overflow-y-auto mx-4 sm:mx-auto bg-white">
         <DialogHeader className="space-y-3 pb-4">
-          <DialogTitle className="text-lg sm:text-xl">Nueva Reserva</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-lg sm:text-xl">Nueva Reserva</DialogTitle>
+            <Button
+              type="button"
+              onClick={toggleExpressMode}
+              variant={isExpressMode ? "default" : "outline"}
+              size="sm"
+              className={isExpressMode ? "bg-yellow-500 hover:bg-yellow-600 text-white" : ""}
+            >
+              <Zap className="w-4 h-4 mr-1" />
+              Express
+            </Button>
+          </div>
+          {isExpressMode && (
+            <p className="text-sm text-yellow-600">
+              ⚡ Modo rápido: solo nombre, fecha, hora y promotor
+            </p>
+          )}
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -201,53 +258,57 @@ export default function ReservationForm({
               )}
             </div>
             
-            <CedulaSearch
-              businessId={businessId}
-              value={formData.clienteCedula}
-              onChange={(cedula) => handleInputChange('clienteCedula', cedula)}
-              onClienteFound={handleClienteFound}
-            />
+            {!isExpressMode && (
+              <CedulaSearch
+                businessId={businessId}
+                value={formData.clienteCedula}
+                onChange={(cedula) => handleInputChange('clienteCedula', cedula)}
+                onClienteFound={handleClienteFound}
+              />
+            )}
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="clienteCorreo" className="text-sm font-medium text-gray-800">
-                Correo Electrónico *
-              </Label>
-              <Input
-                id="clienteCorreo"
-                type="email"
-                value={formData.clienteCorreo}
-                onChange={(e) => handleInputChange('clienteCorreo', e.target.value)}
-                placeholder="ejemplo@correo.com"
-                className="min-h-[44px] text-gray-900 placeholder:text-gray-500"
-                disabled={clienteExistente}
-                required
-              />
+          {!isExpressMode && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="clienteCorreo" className="text-sm font-medium text-gray-800">
+                  Correo Electrónico *
+                </Label>
+                <Input
+                  id="clienteCorreo"
+                  type="email"
+                  value={formData.clienteCorreo}
+                  onChange={(e) => handleInputChange('clienteCorreo', e.target.value)}
+                  placeholder="ejemplo@correo.com"
+                  className="min-h-[44px] text-gray-900 placeholder:text-gray-500"
+                  disabled={clienteExistente}
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="clienteTelefono" className="text-sm font-medium text-gray-800">
+                  Teléfono *
+                </Label>
+                <Input
+                  id="clienteTelefono"
+                  type="tel"
+                  value={formData.clienteTelefono}
+                  onChange={(e) => {
+                    // ✅ Solo permitir números, guiones, espacios y símbolo + (para código de país)
+                    const valor = e.target.value.replace(/[^\d\s\-+]/g, '');
+                    handleInputChange('clienteTelefono', valor);
+                  }}
+                  placeholder="+507 6000-0000"
+                  className="min-h-[44px] text-gray-900 placeholder:text-gray-500"
+                  disabled={clienteExistente}
+                  required
+                  pattern="[\d\s\-+]+"
+                  title="Solo se permiten números, espacios, guiones y símbolo +"
+                />
+              </div>
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="clienteTelefono" className="text-sm font-medium text-gray-800">
-                Teléfono *
-              </Label>
-              <Input
-                id="clienteTelefono"
-                type="tel"
-                value={formData.clienteTelefono}
-                onChange={(e) => {
-                  // ✅ Solo permitir números, guiones, espacios y símbolo + (para código de país)
-                  const valor = e.target.value.replace(/[^\d\s\-+]/g, '');
-                  handleInputChange('clienteTelefono', valor);
-                }}
-                placeholder="+507 6000-0000"
-                className="min-h-[44px] text-gray-900 placeholder:text-gray-500"
-                disabled={clienteExistente}
-                required
-                pattern="[\d\s\-+]+"
-                title="Solo se permiten números, espacios, guiones y símbolo +"
-              />
-            </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">

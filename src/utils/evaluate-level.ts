@@ -5,10 +5,6 @@ const prisma = new PrismaClient();
 
 // Función para obtener la configuración del portal
 async function getPortalConfig(businessId: string) {
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`🎯 [EVALUATE] Usando configuración central para ${businessId}`);
-  }
-  
   try {
     // ✅ USAR CONFIGURACIÓN CENTRAL - SINGLE SOURCE OF TRUTH
     const config = await getTarjetasConfigCentral(businessId);
@@ -33,20 +29,9 @@ async function evaluarNivelCliente(cliente: any, businessId: string) {
   const puntosProgreso = cliente.tarjetaLealtad?.puntosProgreso || cliente.puntosAcumulados || cliente.puntos || 0;
   const visitas = cliente.totalVisitas || 0;
 
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`🤖 [EVALUATE] Evaluando nivel para cliente ${cliente.id}:`);
-    console.log(`   • PuntosProgreso: ${puntosProgreso}`);
-    console.log(`   • Puntos canjeables: ${cliente.puntos || 0}`);
-    console.log(`   • Visitas: ${visitas}`);
-    console.log(`   • Nivel actual: ${cliente.tarjetaLealtad?.nivel || 'Sin tarjeta'}`);
-  }
-
   // ✅ USAR CONFIGURACIÓN CENTRAL - ELIMINANDO HARDCODING
   const nivelCorrespondiente = await evaluarNivelCorrespondiente(businessId, puntosProgreso, visitas);
   
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`✅ [EVALUATE] Nivel correspondiente calculado: ${nivelCorrespondiente}`);
-  }
   return nivelCorrespondiente;
 }
 

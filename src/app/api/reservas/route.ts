@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
         promotor: true
       },
       orderBy: {
-        reservedAt: 'asc' // ✅ Ordenar por hora de llegada (ascendente = primero las más tempranas)
+        createdAt: 'asc' // ✅ Ordenar por orden de creación (más antiguas primero)
       }
     });
 
@@ -188,38 +188,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ Validar email obligatorio
-    if (!data.cliente?.email || data.cliente.email.trim() === '') {
-      return NextResponse.json(
-        { success: false, error: 'El email del cliente es obligatorio' },
-        { status: 400 }
-      );
-    }
+    // ✅ Validar email obligatorio (excepto para EXPRESS)
+    const isExpressReservation = data.cliente?.id === 'EXPRESS';
+    
+    if (!isExpressReservation) {
+      if (!data.cliente?.email || data.cliente.email.trim() === '') {
+        return NextResponse.json(
+          { success: false, error: 'El email del cliente es obligatorio' },
+          { status: 400 }
+        );
+      }
 
-    // ✅ Validar formato de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(data.cliente.email)) {
-      return NextResponse.json(
-        { success: false, error: 'El email del cliente no tiene un formato válido' },
-        { status: 400 }
-      );
-    }
+      // ✅ Validar formato de email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(data.cliente.email)) {
+        return NextResponse.json(
+          { success: false, error: 'El email del cliente no tiene un formato válido' },
+          { status: 400 }
+        );
+      }
 
-    // ✅ Validar teléfono obligatorio
-    if (!data.cliente?.telefono || data.cliente.telefono.trim() === '') {
-      return NextResponse.json(
-        { success: false, error: 'El teléfono del cliente es obligatorio' },
-        { status: 400 }
-      );
-    }
+      // ✅ Validar teléfono obligatorio
+      if (!data.cliente?.telefono || data.cliente.telefono.trim() === '') {
+        return NextResponse.json(
+          { success: false, error: 'El teléfono del cliente es obligatorio' },
+          { status: 400 }
+        );
+      }
 
-    // ✅ Validar que teléfono tenga al menos 8 dígitos
-    const digitosEnTelefono = data.cliente.telefono.replace(/\D/g, '').length;
-    if (digitosEnTelefono < 8) {
-      return NextResponse.json(
-        { success: false, error: 'El teléfono debe tener al menos 8 dígitos' },
-        { status: 400 }
-      );
+      // ✅ Validar que teléfono tenga al menos 8 dígitos
+      const digitosEnTelefono = data.cliente.telefono.replace(/\D/g, '').length;
+      if (digitosEnTelefono < 8) {
+        return NextResponse.json(
+          { success: false, error: 'El teléfono debe tener al menos 8 dígitos' },
+          { status: 400 }
+        );
+      }
     }
 
     if (!data.fecha || !data.hora) {
@@ -239,71 +243,98 @@ export async function POST(request: NextRequest) {
     // 1. Crear o buscar el cliente
     let cliente;
     
-    // ✅ MEJORADO: Buscar cliente por múltiples criterios para evitar duplicados
-    // Prioridad: 1) Email, 2) Cédula, 3) Teléfono
-    if (data.cliente.email) {
-      // Buscar por email primero
+    // ✅ Manejar cliente EXPRESS (reservas rápidas)
+    if (isExpressReservation) {
+      // Buscar o crear cliente EXPRESS único para este business
       cliente = await prisma.cliente.findFirst({
         where: {
           businessId: businessId,
-          correo: data.cliente.email
+          cedula: 'EXPRESS'
         }
       });
-    }
-    
-    // Si no se encontró por email y hay cédula, buscar por cédula
-    if (!cliente && data.cliente.id && data.cliente.id !== `c-${Date.now()}`) {
-      cliente = await prisma.cliente.findFirst({
-        where: {
-          businessId: businessId,
-          cedula: data.cliente.id
-        }
-      });
-    }
-    
-    // Si no se encontró y hay teléfono, buscar por teléfono (última opción)
-    if (!cliente && data.cliente.telefono) {
-      cliente = await prisma.cliente.findFirst({
-        where: {
-          businessId: businessId,
-          telefono: data.cliente.telefono
-        }
-      });
-    }
-    
-    if (!cliente) {
-      // ✅ MEJORADO: Crear nuevo cliente usando cédula real si está disponible
-      const cedulaReal = data.cliente.id && data.cliente.id !== `c-${Date.now()}` 
-        ? data.cliente.id 
-        : `temp-${Date.now()}`;
       
-      cliente = await prisma.cliente.create({
-        data: {
-          businessId: businessId,
-          cedula: cedulaReal, // ✅ Usar cédula real del formulario
-          nombre: data.cliente.nombre,
-          telefono: data.cliente.telefono || '',
-          correo: data.cliente.email || `temp-${Date.now()}@temp.com`,
-          puntos: 0
-        }
-      });
-      console.log('✅ Cliente nuevo creado:', { id: cliente.id, cedula: cedulaReal, nombre: cliente.nombre });
+      if (!cliente) {
+        cliente = await prisma.cliente.create({
+          data: {
+            businessId: businessId,
+            cedula: 'EXPRESS',
+            nombre: 'Cliente Express',
+            telefono: 'N/A',
+            correo: 'express@reserva.local',
+            puntos: 0
+          }
+        });
+        console.log('✅ Cliente EXPRESS creado para business:', businessId);
+      } else {
+        console.log('✅ Usando cliente EXPRESS existente:', cliente.id);
+      }
     } else {
-      // ✅ MEJORADO: Actualizar todos los datos del cliente existente
-      cliente = await prisma.cliente.update({
-        where: { id: cliente.id },
-        data: {
-          nombre: data.cliente.nombre,
-          telefono: data.cliente.telefono || cliente.telefono,
-          correo: data.cliente.email || cliente.correo,
-          // Actualizar cédula si ahora tenemos una real y antes era temporal
-          ...(data.cliente.id && 
-              data.cliente.id !== `c-${Date.now()}` && 
-              cliente.cedula.startsWith('temp-') && 
-              { cedula: data.cliente.id })
-        }
-      });
-      console.log('✅ Cliente existente actualizado:', { id: cliente.id, nombre: cliente.nombre });
+      // ✅ MEJORADO: Buscar cliente por múltiples criterios para evitar duplicados
+      // Prioridad: 1) Email, 2) Cédula, 3) Teléfono
+      if (data.cliente.email) {
+        // Buscar por email primero
+        cliente = await prisma.cliente.findFirst({
+          where: {
+            businessId: businessId,
+            correo: data.cliente.email
+          }
+        });
+      }
+    
+      // Si no se encontró por email y hay cédula, buscar por cédula
+      if (!cliente && data.cliente.id && data.cliente.id !== `c-${Date.now()}`) {
+        cliente = await prisma.cliente.findFirst({
+          where: {
+            businessId: businessId,
+            cedula: data.cliente.id
+          }
+        });
+      }
+      
+      // Si no se encontró y hay teléfono, buscar por teléfono (última opción)
+      if (!cliente && data.cliente.telefono) {
+        cliente = await prisma.cliente.findFirst({
+          where: {
+            businessId: businessId,
+            telefono: data.cliente.telefono
+          }
+        });
+      }
+      
+      if (!cliente) {
+        // ✅ MEJORADO: Crear nuevo cliente usando cédula real si está disponible
+        const cedulaReal = data.cliente.id && data.cliente.id !== `c-${Date.now()}` 
+          ? data.cliente.id 
+          : `temp-${Date.now()}`;
+        
+        cliente = await prisma.cliente.create({
+          data: {
+            businessId: businessId,
+            cedula: cedulaReal, // ✅ Usar cédula real del formulario
+            nombre: data.cliente.nombre,
+            telefono: data.cliente.telefono || '',
+            correo: data.cliente.email || `temp-${Date.now()}@temp.com`,
+            puntos: 0
+          }
+        });
+        console.log('✅ Cliente nuevo creado:', { id: cliente.id, cedula: cedulaReal, nombre: cliente.nombre });
+      } else {
+        // ✅ MEJORADO: Actualizar todos los datos del cliente existente
+        cliente = await prisma.cliente.update({
+          where: { id: cliente.id },
+          data: {
+            nombre: data.cliente.nombre,
+            telefono: data.cliente.telefono || cliente.telefono,
+            correo: data.cliente.email || cliente.correo,
+            // Actualizar cédula si ahora tenemos una real y antes era temporal
+            ...(data.cliente.id && 
+                data.cliente.id !== `c-${Date.now()}` && 
+                cliente.cedula.startsWith('temp-') && 
+                { cedula: data.cliente.id })
+          }
+        });
+        console.log('✅ Cliente existente actualizado:', { id: cliente.id, nombre: cliente.nombre });
+      }
     }
 
     // 2. Crear o buscar el servicio

@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
+  // 🎯 Obtener business context de headers (inyectado por middleware)
+  const businessId = request.headers.get('x-business-id');
+  const subdomain = request.headers.get('x-business-subdomain');
   
-  // Obtener el business slug desde los parámetros de la URL
-  const businessSlug = searchParams.get('business') || searchParams.get('slug');
+  // Fallback: Intentar desde query params si no hay headers
+  const searchParams = request.nextUrl.searchParams;
+  const businessSlug = subdomain || searchParams.get('business') || searchParams.get('slug');
   
   // Si no hay business slug, usar manifest genérico
   if (!businessSlug) {
@@ -12,7 +15,7 @@ export async function GET(request: NextRequest) {
       "name": "Lealta",
       "short_name": "Lealta",
       "description": "Sistema de fidelización inteligente",
-      "start_url": "/",
+      "start_url": "/cliente",  // ✅ Start en /cliente genérico
       "display": "standalone",
       "background_color": "#1a1a1a",
       "theme_color": "#3b82f6",
@@ -43,17 +46,17 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // Manifest específico para el negocio
+  // Manifest específico para el negocio con start_url dinámico
   const businessManifest = {
     "name": `Lealta - ${businessSlug.charAt(0).toUpperCase() + businessSlug.slice(1)}`,
     "short_name": businessSlug.charAt(0).toUpperCase() + businessSlug.slice(1),
     "description": `App de fidelización para ${businessSlug}`,
-    "start_url": `/${businessSlug}/cliente`,
+    "start_url": `/${businessSlug}/cliente`,  // ✅ Start en /[subdomain]/cliente
     "display": "standalone",
     "background_color": "#1a1a1a",
     "theme_color": "#3b82f6",
     "orientation": "portrait-primary",
-    "scope": `/${businessSlug}/`,
+    "scope": `/${businessSlug}/`,  // ✅ Scope específico del negocio
     "lang": "es",
     "categories": ["business", "lifestyle", "shopping"],
     "prefer_related_applications": false,
@@ -144,7 +147,10 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(businessManifest, {
     headers: {
       'Content-Type': 'application/manifest+json',
-      'Cache-Control': 'public, max-age=3600'
+      // ⚠️ Cache corto para permitir actualizaciones rápidas en desarrollo
+      // En producción iOS cachea agresivamente de todos modos
+      'Cache-Control': 'public, max-age=300, must-revalidate', // 5 minutos
+      'X-Business-Slug': businessSlug // Debug header
     }
   });
 }

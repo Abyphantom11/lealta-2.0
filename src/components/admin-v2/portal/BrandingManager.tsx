@@ -39,8 +39,6 @@ const BrandingManager: React.FC<BrandingManagerProps> = ({
     }
 
     try {
-      console.log('📁 Iniciando upload de imagen:', file.name);
-      
       // ✅ Upload directo usando FormData
       const formData = new FormData();
       formData.append('file', file);

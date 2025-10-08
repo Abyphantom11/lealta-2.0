@@ -50,10 +50,6 @@ export function NotificationButton({ className = '' }: Readonly<NotificationButt
     try {
       const granted = await browserNotifications.requestPermissionWithUI();
       
-      if (granted) {
-        console.log('✅ Notificaciones habilitadas exitosamente');
-      }
-      
       updateNotificationStatus();
     } catch (error) {
       console.error('❌ Error habilitando notificaciones:', error);

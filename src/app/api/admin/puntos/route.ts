@@ -24,8 +24,6 @@ interface ConfiguracionPuntos {
 export async function GET(request: NextRequest) {
   return withAuth(request, async (session) => {
     try {
-      console.log(`🎯 Points config GET by: ${session.role} (${session.userId}) for business: ${session.businessId}`);
-      
       const configPath = getPortalConfigPath(session.businessId);
       const configContent = await fs.readFile(configPath, 'utf-8');
     const config = JSON.parse(configContent);

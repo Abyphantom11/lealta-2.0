@@ -20,16 +20,12 @@ export default function BusinessAdminPage() {
     // Validar que el businessId existe y es válido
     const validateBusiness = async () => {
       try {
-        console.log(`🔍 Validating business from URL: ${businessId}`);
-        
         // Verificar que el business existe
         const response = await fetch(`/api/businesses/${businessId}/validate`);
         if (response.ok) {
-          const businessData = await response.json();
-          console.log(`✅ Business validated:`, businessData);
+          await response.json();
           setIsValidBusiness(true);
         } else {
-          console.log(`❌ Business validation failed for: ${businessId}`);
           // Redirect a login si no es válido
           window.location.href = `/login?error=invalid-business&message=El negocio no es válido o no existe`;
         }

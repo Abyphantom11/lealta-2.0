@@ -65,9 +65,6 @@ const BannersManager: React.FC<BannersManagerProps> = ({
     }
 
     try {
-      console.log('🔄 Banner direct upload for day:', selectedDay);
-      console.log('📁 Iniciando upload directo de imagen:', file.name);
-      
       // ✅ UPLOAD DIRECTO - sin usar el estado del hook
       const formData = new FormData();
       formData.append('file', file);
@@ -192,11 +189,6 @@ const BannersManager: React.FC<BannersManagerProps> = ({
       };
 
       if (bannerPorDia) {
-        console.log('🔄 Actualizando banner existente:', {
-          id: bannerPorDia.id,
-          oldImage: bannerPorDia.imagenUrl,
-          newImage: dataToSubmit.imagenUrl
-        });
         // ✅ Pasar solo las propiedades que cambiaron (Partial<Banner>)
         const updates: Partial<Banner> = {
           titulo: formData.titulo,
@@ -209,7 +201,6 @@ const BannersManager: React.FC<BannersManagerProps> = ({
           message: `Banner del ${diasCompletos[selectedDay as keyof typeof diasCompletos]} actualizado exitosamente`
         });
       } else {
-        console.log('➕ Creando nuevo banner:', dataToSubmit);
         onAdd(dataToSubmit);
         notificationService.success({
           message: `Banner del ${diasCompletos[selectedDay as keyof typeof diasCompletos]} creado exitosamente`

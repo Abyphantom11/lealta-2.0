@@ -17,12 +17,7 @@ export async function GET(request: NextRequest) {
   };
 
   return withAuth(request, async (session) => {
-    try {      
-      // Solo log en development para debugging
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`📊 Stats: ${session.role} - ${session.businessId}`);
-      }
-      
+    try {
       // SuperAdmin: Si no tiene businessId, mostrar todas las estadísticas
       // Admins normales: Solo su business
       const targetBusinessId = session.role === 'superadmin' 
@@ -37,11 +32,6 @@ export async function GET(request: NextRequest) {
           error: 'BusinessId no encontrado',
           message: 'No se pudo determinar el negocio para las estadísticas'
         }, { status: 400 });
-      }
-      
-      // Log optimizado solo en development
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`📊 BusinessId: ${targetBusinessId}`);
       }
       
       const searchParams = request.nextUrl.searchParams;
@@ -340,17 +330,6 @@ export async function GET(request: NextRequest) {
     const targetConversionRate = businessGoals?.targetConversionRate || 80;
     const targetTopClient = businessGoals?.targetTopClient || 150;
     const targetActiveClients = businessGoals?.targetActiveClients || 50;
-    
-    console.log('🎯 Targets calculados:', {
-      targetRevenue,
-      targetClients,
-      targetTransactions,
-      targetTicketAverage,
-      targetRetentionRate,
-      targetConversionRate,
-      targetTopClient,
-      targetActiveClients
-    });
 
     // Cliente top (mayor gastador del período)
     const clienteTop = topClientes[0];

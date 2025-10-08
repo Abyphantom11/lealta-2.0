@@ -67,11 +67,11 @@ export class PWAController {
       /^\/[^/]+\/admin$/,    // /[businessId]/admin
       /^\/[^/]+\/staff$/,    // /[businessId]/staff
     ],
-    buttonAllowedRoutes: ['/login'],
+    buttonAllowedRoutes: ['/cliente'],  // Solo mostrar en /cliente
     minPromptInterval: 300000, // 5 minutos
     maxInstallAttempts: 3,
     autoShowDelay: 3000,
-    enableNotifications: true
+    enableNotifications: false  // 🔥 DESHABILITADO para evitar molestia en iOS
   };
 
   private listeners: PWAEventCallback[] = [];
@@ -149,6 +149,26 @@ export class PWAController {
   }
 
   /**
+   * 🎯 DETECTAR SI ES iOS
+   */
+  isIOS(): boolean {
+    if (typeof window === 'undefined') return false;
+    
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    return /iphone|ipad|ipod/.test(userAgent);
+  }
+
+  /**
+   * 🎯 DETECTAR SI ES iOS SAFARI
+   */
+  isIOSSafari(): boolean {
+    if (!this.isIOS()) return false;
+    
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    return /safari/.test(userAgent) && !/crios|fxios|edgios/.test(userAgent);
+  }
+
+  /**
    * 🎯 ASEGURAR SERVICE WORKER
    */
   private async ensureServiceWorker(): Promise<void> {
@@ -188,6 +208,9 @@ export class PWAController {
   private readonly handleBeforeInstallPrompt = (e: Event) => {
     const event = e as BeforeInstallPromptEvent;
     
+    // 🚫 iOS no dispara este evento, solo Android/Chrome
+    // Si llegamos aquí, es un navegador compatible con PWA nativo
+    
     // Verificar si está permitido en la ruta actual
     const isRouteAllowed = this.isRouteAllowed();
     
@@ -207,8 +230,10 @@ export class PWAController {
     // Guardar estado
     this.saveState();
     
-    // ✅ UNA SOLA NOTIFICACIÓN
-    this.showInstallNotification();
+    // ✅ UNA SOLA NOTIFICACIÓN (solo si notifications están habilitadas)
+    if (this.config.enableNotifications) {
+      this.showInstallNotification();
+    }
     
     // Notificar a componentes suscritos
     this.notifyListeners();

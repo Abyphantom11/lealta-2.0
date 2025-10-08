@@ -29,6 +29,7 @@ import AdvancedMetrics from '../../components/AdvancedMetrics';
 import TopClients from '../../components/TopClients';
 import ProductosTendenciasChart from '../../components/ProductosTendenciasChart';
 import GoalsConfigurator from '../../components/GoalsConfigurator';
+import TopClientesReservas from '../../components/TopClientesReservas';
 
 // ========================================
 // 🎨 SECCIÓN: ESTILOS CSS Y CONFIGURACIÓN (23-50)
@@ -141,8 +142,6 @@ const checkAndRedirectLegacyRoutes = (businessId?: string) => {
                        (currentPath.startsWith('/superadmin/') && !businessId);
   
   if (isLegacyRoute) {
-    console.log('🚫 SuperAdmin: Ruta legacy detectada, redirigiendo a login');
-    
     const redirectUrl = new URL('/login', window.location.origin);
     redirectUrl.searchParams.set('error', 'access-denied');
     redirectUrl.searchParams.set('message', 'SuperAdmin requiere contexto de business válido');
@@ -249,7 +248,6 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
     
     setIsLoadingStats(true);
     try {
-      console.log('🔄 Cargando estadísticas con período:', selectedDateRange);
       const response = await fetch(`/api/admin/estadisticas?periodo=${selectedDateRange}`, {
         method: 'GET',
         headers: {
@@ -260,7 +258,6 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
       });
       if (response.ok) {
         const data = await response.json();
-        console.log('📊 Estadísticas cargadas:', data);
         setStatsData(data);
       } else {
         console.error('Error cargando estadísticas:', response.status);
@@ -287,13 +284,11 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
         url += `&año=${filtroAño}`;
       }
 
-      console.log('🔍 Solicitando datos del gráfico:', url);
       const response = await fetch(url);
       const data = await response.json();
 
       if (data.success) {
         setDatosGrafico(data);
-        console.log('📈 Datos gráfico cargados:', data);
       }
     } catch (error) {
       console.error('Error loading gráfico datos:', error);
@@ -345,13 +340,11 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
   // Listener para eventos de actualización de metas
   useEffect(() => {
     const handleGoalsUpdateEvent = (event: any) => {
-      console.log('🎯 Metas actualizadas, refrescando dashboard...', event.detail);
       fetchEstadisticas();
       setMetricsRefreshKey(prev => prev + 1); // Forzar re-render de métricas
     };
 
     const handleForceRefresh = () => {
-      console.log('🔄 Refresh forzado del dashboard...');
       fetchEstadisticas();
       setMetricsRefreshKey(prev => prev + 1); // Forzar re-render de métricas
     };
@@ -374,8 +367,6 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
 
       if (data.success) {
         const stats = data.estadisticas;
-
-        console.log('📊 Datos recibidos del API:', stats);
 
         // Mapear a la estructura esperada
         setAnalytics({
@@ -401,12 +392,6 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
                   trend: p.trend || '+0%', // API ya incluye trend, usar fallback si no existe
                 }))
               : [], // Sin productos fallback, mostrar array vacío
-        });
-
-        console.log('📊 Analytics actualizado:', {
-          totalClientes: stats.resumen.totalClientes,
-          totalConsumos: stats.resumen.totalConsumos,
-          totalMonto: stats.resumen.totalMonto,
         });
       }
     } catch (error) {
@@ -887,12 +872,12 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
+              className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"
             >
               <MetricCard
                 title="Total Clientes"
                 value={formatNumber(currentAnalytics.totalClients)}
-                icon={<Users className="w-6 h-6" />}
+                icon={<Users className="w-5 h-5" />}
                 gradient="from-blue-600 to-cyan-600"
                 change={`+${currentAnalytics.monthlyGrowth}%`}
                 subtitle="crecimiento mensual"
@@ -900,7 +885,7 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
               <MetricCard
                 title="Ingresos Totales"
                 value={formatCurrency(currentAnalytics.totalRevenue)}
-                icon={<DollarSign className="w-6 h-6" />}
+                icon={<DollarSign className="w-5 h-5" />}
                 gradient="from-green-600 to-emerald-600"
                 change={`+${currentAnalytics.revenueGrowth}%`}
                 subtitle="este mes"
@@ -908,7 +893,7 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
               <MetricCard
                 title="Transacciones"
                 value={formatNumber(currentAnalytics.dailyTransactions)}
-                icon={<DollarSign className="w-6 h-6" />}
+                icon={<DollarSign className="w-5 h-5" />}
                 gradient="from-purple-600 to-blue-600"
                 change={`+${currentAnalytics.transactionsGrowth}%`}
                 subtitle="hoy"
@@ -1222,6 +1207,16 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
                     </div>
                   </div>
                 )}
+              </motion.div>
+
+              {/* Top Clientes por Reservas */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 }}
+                className="lg:col-span-1"
+              >
+                <TopClientesReservas businessId={businessId} />
               </motion.div>
             </div>
           </>
@@ -1581,13 +1576,6 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
                         <div className="space-y-3 max-h-64 overflow-y-auto">
                           {clienteHistorial.historial?.map(
                             (consumo: any, index: number) => {
-                              // 🔍 Debug temporal para ver los datos del consumo
-                              console.log('🔍 Consumo data:', {
-                                id: consumo.id,
-                                productos: consumo.productos,
-                                tieneProductos: consumo.productos && consumo.productos.length > 0
-                              });
-                              
                               return (
                                 <div
                                   key={`${consumo.id}-${index}`}
@@ -2151,25 +2139,25 @@ function MetricCard({
   subtitle: string;
 }>) {
   return (
-    <div className="bg-gray-900/60 backdrop-blur-sm rounded-2xl p-6 border border-gray-800/50 shadow-2xl hover:border-gray-700/50 transition-all duration-300">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-gray-900/60 backdrop-blur-sm rounded-xl p-4 border border-gray-800/50 shadow-lg hover:border-gray-700/50 transition-all duration-300">
+      <div className="flex items-center justify-between mb-2">
         <div
-          className={`w-12 h-12 bg-gradient-to-r ${gradient} rounded-xl flex items-center justify-center text-white shadow-lg`}
+          className={`w-10 h-10 bg-gradient-to-r ${gradient} rounded-lg flex items-center justify-center text-white shadow-lg`}
         >
           {icon}
         </div>
         <span
-          className={`text-sm font-medium px-2 py-1 rounded-lg ${getChangeColor(change)} bg-black/20`}
+          className={`text-xs font-medium px-2 py-1 rounded-md ${getChangeColor(change)} bg-black/20`}
         >
           {change}
         </span>
       </div>
       <div>
-        <p className="text-3xl font-bold text-white mb-2 drop-shadow-sm">
+        <p className="text-2xl font-bold text-white mb-1 drop-shadow-sm">
           {value}
         </p>
         <p className="text-gray-300 text-sm font-medium">{title}</p>
-        <p className="text-gray-500 text-xs mt-1">{subtitle}</p>
+        <p className="text-gray-500 text-xs">{subtitle}</p>
       </div>
     </div>
   );

@@ -39,21 +39,24 @@ export function QRCardShare({ reserva, businessId }: QRCardShareProps) {
   useEffect(() => {
     const loadConfig = async () => {
       try {
-        console.log('🔵 QRCardShare: Cargando config para businessId:', businessId);
-        const response = await fetch(`/api/business/${businessId}/qr-branding`);
+        console.log('🔍 QRCardShare - businessId:', businessId);
+        const url = `/api/business/${businessId}/qr-branding`;
+        console.log('🔍 Fetching QR config from:', url);
+        
+        const response = await fetch(url);
+        console.log('📡 Response status:', response.status);
+        
         if (response.ok) {
           const data = await response.json();
-          console.log('🔵 QRCardShare: Respuesta del API:', data);
+          console.log('✅ QR config data:', data);
           
           if (data.data?.businessName) {
-            console.log('✅ businessName:', data.data.businessName);
             setBusinessName(data.data.businessName);
           }
           if (data.data?.cardDesign) {
-            console.log('✅ cardDesign:', data.data.cardDesign);
             setCardDesign(data.data.cardDesign);
           } else {
-            console.log('⚠️ No hay cardDesign, usando diseño por defecto');
+            console.log('⚠️ No cardDesign found, using default');
             // Diseño por defecto (Elegante)
             setCardDesign({
               backgroundColor: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%)',
@@ -67,9 +70,23 @@ export function QRCardShare({ reserva, businessId }: QRCardShareProps) {
               textColor: '#9ca3af',
             });
           }
+        } else {
+          console.error('❌ Response not OK:', response.status, response.statusText);
+          // Usar diseño por defecto si la respuesta no es OK
+          setCardDesign({
+            backgroundColor: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%)',
+            borderColor: '#2a2a2a',
+            borderWidth: 1,
+            borderRadius: 20,
+            padding: 40,
+            shadowColor: '#000000',
+            shadowSize: 'xl',
+            headerColor: '#ffffff',
+            textColor: '#9ca3af',
+          });
         }
       } catch (error) {
-        console.error('Error al cargar configuración:', error);
+        console.error('❌ Error al cargar configuración QR:', error);
         // Usar diseño por defecto
         setCardDesign({
           backgroundColor: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%)',
@@ -87,10 +104,27 @@ export function QRCardShare({ reserva, businessId }: QRCardShareProps) {
       }
     };
 
-    loadConfig();
+    if (businessId) {
+      loadConfig();
+    } else {
+      console.error('❌ No businessId provided to QRCardShare');
+      // Si no hay businessId, usar diseño por defecto inmediatamente
+      setCardDesign({
+        backgroundColor: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%)',
+        borderColor: '#2a2a2a',
+        borderWidth: 1,
+        borderRadius: 20,
+        padding: 40,
+        shadowColor: '#000000',
+        shadowSize: 'xl',
+        headerColor: '#ffffff',
+        textColor: '#9ca3af',
+      });
+      setIsLoading(false);
+    }
   }, [businessId]);
 
-  // Generar imagen del QR Card
+  // Generar imagen del QR Card con mejor manejo de errores
   const generateQRCardImage = async (): Promise<Blob | null> => {
     if (!qrCardRef.current) return null;
 
@@ -100,12 +134,15 @@ export function QRCardShare({ reserva, businessId }: QRCardShareProps) {
         scale: 2,
         logging: false,
         useCORS: true,
+        allowTaint: true,
+        foreignObjectRendering: false, // ✅ Evita document.write()
+        removeContainer: true, // ✅ Limpia el DOM después
       });
 
       return new Promise((resolve) => {
         canvas.toBlob((blob) => {
           resolve(blob);
-        }, 'image/png');
+        }, 'image/png', 1.0); // ✅ Máxima calidad
       });
     } catch (error) {
       console.error('Error generando imagen:', error);
@@ -140,68 +177,104 @@ export function QRCardShare({ reserva, businessId }: QRCardShareProps) {
     }
   };
 
-  // Compartir por WhatsApp
+  // Compartir por WhatsApp - Optimizado para evitar bloqueos
   const handleShareWhatsApp = async () => {
+    // Prevenir múltiples clicks
+    if (isSharing) return;
+    
     setIsSharing(true);
+    
+    // Usar requestIdleCallback o setTimeout para no bloquear el UI
+    await new Promise(resolve => setTimeout(resolve, 0));
+    
     try {
+      // Generar imagen del QR Card con html2canvas
       const blob = await generateQRCardImage();
       
       if (!blob) {
         toast.error('❌ Error al generar la imagen');
+        setIsSharing(false);
         return;
       }
 
-      const file = new File(
-        [blob], 
-        `reserva-${reserva.cliente?.nombre?.replace(/\s+/g, '-') || 'qr'}.png`, 
-        { type: 'image/png' }
-      );
+      const fileName = `reserva-${businessName.replace(/\s+/g, '-')}-${reserva.cliente?.nombre?.replace(/\s+/g, '-') || 'cliente'}.png`;
+      const file = new File([blob], fileName, { 
+        type: 'image/png',
+        lastModified: Date.now()
+      });
 
-      // Intentar compartir con Web Share API (móviles)
-      if (navigator.share && 'canShare' in navigator && (navigator as any).canShare({ files: [file] })) {
-        await navigator.share({
-          title: `🎉 Reserva de ${reserva.cliente?.nombre || 'Cliente'}`,
-          text: `📅 ${reserva.fecha} ⏰ ${reserva.hora}\n👥 ${reserva.numeroPersonas} personas\n\n📱 Presenta este código QR al llegar`,
-          files: [file]
-        });
+      // Texto formateado para WhatsApp
+      const whatsappText = 
+        `🎉 *Reserva Confirmada - ${businessName}*\n\n` +
+        `👤 *Cliente:* ${reserva.cliente?.nombre || 'Cliente'}\n` +
+        `📅 *Fecha:* ${reserva.fecha}\n` +
+        `⏰ *Hora:* ${reserva.hora}\n` +
+        `👥 *Personas:* ${reserva.numeroPersonas}\n` +
+        (reserva.razonVisita ? `🎯 *Motivo:* ${reserva.razonVisita}\n` : '') +
+        `\n📱 *Presenta este QR al llegar*\n\n` +
+        `✨ ¡Nos vemos pronto!`;
 
-        toast.success('💚 Reserva compartida exitosamente', {
-          className: 'bg-green-600 text-white border-0',
-        });
-      } else {
-        // Fallback: Descargar la imagen y abrir WhatsApp con texto
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `reserva-${reserva.cliente?.nombre?.replace(/\s+/g, '-') || 'qr'}.png`;
-        document.body.appendChild(link);
-        link.click();
+      // 🎯 INTENTO 1: Web Share API con archivo (iOS/Android moderno)
+      if (navigator.share) {
+        try {
+          const canShareFiles = navigator.canShare?.({ files: [file] }) ?? false;
+          
+          if (canShareFiles) {
+            // Usar setTimeout para evitar que el modal se cierre antes del share
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            await navigator.share({
+              title: `Reserva - ${businessName}`,
+              text: whatsappText,
+              files: [file]
+            });
+
+            toast.success('💚 Reserva compartida exitosamente', {
+              className: 'bg-green-600 text-white border-0',
+            });
+            setIsSharing(false);
+            return;
+          }
+        } catch (shareError: any) {
+          // Si el usuario cancela, no mostrar error
+          if (shareError.name === 'AbortError') {
+            console.log('Usuario canceló el compartir');
+            setIsSharing(false);
+            return;
+          }
+          console.warn('Share API con archivo falló:', shareError);
+          // Continuar con fallback
+        }
+      }
+
+      // 🎯 INTENTO 2: Descargar + Abrir WhatsApp (Desktop/Fallback)
+      // Descargar la imagen
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      
+      // Limpiar inmediatamente
+      setTimeout(() => {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
+      }, 100);
 
-        const message = encodeURIComponent(
-          `🎉 *Tu Reserva Confirmada*\n\n` +
-          `👤 ${reserva.cliente?.nombre || 'Cliente'}\n` +
-          `📅 Fecha: ${reserva.fecha}\n` +
-          `⏰ Hora: ${reserva.hora}\n` +
-          `👥 Personas: ${reserva.numeroPersonas}\n` +
-          `🎯 Motivo: ${reserva.razonVisita || 'Visita'}\n\n` +
-          `📱 *La imagen del QR se descargó automáticamente*\n\n` +
-          `✨ Instrucciones:\n` +
-          `• Adjunta la imagen descargada en WhatsApp\n` +
-          `• Comparte con tus invitados\n` +
-          `• Presenta el código al llegar\n\n` +
-          `¡Nos vemos pronto! 🎉`
-        );
-
+      // Abrir WhatsApp con el texto después de un pequeño delay
+      setTimeout(() => {
+        const message = encodeURIComponent(whatsappText + '\n\n📎 Adjunta la imagen que se acaba de descargar');
         const whatsappUrl = `https://wa.me/?text=${message}`;
         window.open(whatsappUrl, '_blank');
+      }, 300);
 
-        toast.success('💚 Imagen descargada. Adjúntala en WhatsApp', {
-          className: 'bg-green-600 text-white border-0',
-          duration: 5000,
-        });
-      }
+      toast.success('💚 Imagen descargada. Adjúntala en WhatsApp', {
+        className: 'bg-green-600 text-white border-0',
+        description: 'La imagen del QR se descargó. Ahora ábrela en WhatsApp y adjúntala.',
+        duration: 6000,
+      });
     } catch (error) {
       console.error('Error al compartir:', error);
       toast.error('❌ Error al compartir por WhatsApp');

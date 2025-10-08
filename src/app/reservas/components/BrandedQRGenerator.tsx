@@ -289,28 +289,84 @@ export default function BrandedQRGenerator({
   const handleShare = async () => {
     setIsGenerating(true);
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      setIsGenerating(false);
+      return;
+    }
 
     try {
-      const blob = await new Promise<Blob>((resolve) => {
-        canvas.toBlob((blob) => resolve(blob!), 'image/png');
+      // Generar blob de alta calidad
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('No se pudo generar la imagen'));
+            }
+          },
+          'image/png',
+          1.0 // Máxima calidad
+        );
       });
 
-      const file = new File([blob], `reserva-${reserva.qrToken}.png`, { type: 'image/png' });
+      const fileName = `reserva-${config.header.nombreEmpresa.replace(/\s+/g, '-')}-${reserva.qrToken}.png`;
+      const file = new File([blob], fileName, { 
+        type: 'image/png',
+        lastModified: Date.now()
+      });
 
-      if (navigator.share && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: `Reserva - ${config.header.nombreEmpresa}`,
-          text: `Reserva confirmada para ${reserva.cliente.nombre}`,
-          files: [file],
-        });
-        onShare?.();
+      // 🎯 INTENTO 1: Navigator Share API con archivo
+      if (navigator.share) {
+        try {
+          // Verificar si el navegador puede compartir archivos
+          const canShareFiles = navigator.canShare && navigator.canShare({ files: [file] });
+          
+          if (canShareFiles) {
+            await navigator.share({
+              title: `Reserva - ${config.header.nombreEmpresa}`,
+              text: `✅ Reserva confirmada\n\n👤 ${reserva.cliente.nombre}\n📅 ${typeof reserva.fecha === 'string' ? reserva.fecha : format(new Date(reserva.fecha), "d 'de' MMMM, yyyy", { locale: es })}\n⏰ ${reserva.hora}\n👥 ${reserva.numeroPersonas} ${reserva.numeroPersonas === 1 ? 'persona' : 'personas'}${reserva.mesa ? `\n🪑 Mesa ${reserva.mesa}` : ''}\n\n📱 Presenta este QR al llegar`,
+              files: [file],
+            });
+            onShare?.();
+            setIsGenerating(false);
+            return;
+          }
+        } catch (shareError) {
+          console.warn('Navigator.share con archivo falló:', shareError);
+          // Continuar con fallback
+        }
+      }
+
+      // 🎯 INTENTO 2: Crear link temporal y copiar/compartir
+      const url = URL.createObjectURL(blob);
+      
+      // Para móviles: intentar abrir en nueva ventana para compartir desde ahí
+      if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        // Crear un link de descarga temporal
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Dar feedback al usuario
+        alert('✅ Imagen descargada. Ahora puedes compartirla desde tu galería a WhatsApp.');
+        
+        // Limpiar URL después de un delay
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
       } else {
-        // Fallback: descargar
+        // Desktop: descargar directamente
         handleDownload();
       }
+
+      onShare?.();
     } catch (error) {
       console.error('Error al compartir:', error);
+      // Último fallback: descargar
+      handleDownload();
+      alert('No se pudo compartir directamente. La imagen se ha descargado. Puedes compartirla manualmente desde tu galería.');
     } finally {
       setIsGenerating(false);
     }

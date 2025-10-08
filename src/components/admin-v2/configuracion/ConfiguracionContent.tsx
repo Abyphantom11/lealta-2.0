@@ -77,8 +77,6 @@ interface ConfiguracionContentProps {
 }
 
 const ConfiguracionContent: React.FC<ConfiguracionContentProps> = ({ businessId }) => {
-  console.log('🟢 ConfiguracionContent montado con businessId:', businessId);
-  
   const [selectedTemplate, setSelectedTemplate] = useState<keyof typeof CARD_TEMPLATES>('elegant');
   const [businessName, setBusinessName] = useState('Mi Negocio');
   const [cardDesign, setCardDesign] = useState<CardDesign>(CARD_TEMPLATES.elegant.style);
@@ -110,8 +108,6 @@ const ConfiguracionContent: React.FC<ConfiguracionContentProps> = ({ businessId 
           if (data.data?.selectedTemplate) {
             setSelectedTemplate(data.data.selectedTemplate);
           }
-          
-          console.log('✅ Configuración cargada:', data.data);
         }
       } catch (error) {
         console.error('Error al cargar configuración:', error);
@@ -130,12 +126,6 @@ const ConfiguracionContent: React.FC<ConfiguracionContentProps> = ({ businessId 
 
   // Guardar configuración
   const handleSave = async () => {
-    console.log('🔵 handleSave llamado');
-    console.log('🔵 businessId:', businessId);
-    console.log('🔵 cardDesign:', cardDesign);
-    console.log('🔵 businessName:', businessName);
-    console.log('🔵 selectedTemplate:', selectedTemplate);
-    
     if (!businessId) {
       console.error('❌ No hay businessId');
       toast.error('❌ Error: No se encontró el ID del negocio');
@@ -145,7 +135,6 @@ const ConfiguracionContent: React.FC<ConfiguracionContentProps> = ({ businessId 
     setIsSaving(true);
     setSaveSuccess(false);
     try {
-      console.log('🔵 Enviando PATCH a:', `/api/business/${businessId}/qr-branding`);
       const response = await fetch(`/api/business/${businessId}/qr-branding`, {
         method: 'PATCH',
         headers: {
@@ -157,9 +146,6 @@ const ConfiguracionContent: React.FC<ConfiguracionContentProps> = ({ businessId 
           selectedTemplate,
         }),
       });
-
-      console.log('🔵 Response status:', response.status);
-      console.log('🔵 Response ok:', response.ok);
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
@@ -167,8 +153,7 @@ const ConfiguracionContent: React.FC<ConfiguracionContentProps> = ({ businessId 
         throw new Error('Error al guardar');
       }
 
-      const result = await response.json();
-      console.log('✅ Resultado:', result);
+      await response.json();
 
       setSaveSuccess(true);
       toast.success('✅ Cambios guardados correctamente', {

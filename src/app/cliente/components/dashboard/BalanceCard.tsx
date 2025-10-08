@@ -21,8 +21,6 @@ export const BalanceCard = ({
   
   const { theme, themeConfig, isLoading } = useTheme();
   
-  console.log('💳 BalanceCard: Renderizando con tema:', theme, 'isLoading:', isLoading);
-  
   // Obtener puntos de forma más robusta
   const puntos = clienteData?.tarjetaLealtad?.puntos ?? 0;
   const tarjetaNumero = (clienteData?.cedula || cedula).slice(-4);
@@ -81,14 +79,11 @@ export const BalanceCard = ({
     return (
       <div className="mx-4 mb-6 mt-4">
         <motion.div
-          className="bg-[#0a0a0a] rounded-2xl p-6 relative overflow-hidden border-2 border-yellow-400 shadow-2xl shadow-yellow-400/20"
+          className="bg-[#0a0a0a] rounded-2xl p-6 relative overflow-hidden border-2 border-yellow-500/30"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          {/* Degradado metálico sutil */}
-          <div className="absolute inset-0 bg-gradient-to-br from-zinc-800/10 via-transparent to-zinc-700/10" />
-          
           {/* Background pattern elegante */}
           <div className="absolute top-0 right-0 w-32 h-32 opacity-10">
             <svg viewBox="0 0 24 24" fill="none" className="w-full h-full text-yellow-400">
@@ -108,15 +103,12 @@ export const BalanceCard = ({
             </div>
             <button 
               onClick={() => setShowTarjeta(!showTarjeta)} 
-              className="bg-yellow-400/10 border border-yellow-400/40 backdrop-blur-sm rounded-full p-3 hover:bg-yellow-400/20 transition-colors"
+              className="bg-yellow-500/10 border border-yellow-500/30 backdrop-blur-sm rounded-full p-3 hover:bg-yellow-500/20 transition-colors"
               aria-label="Ver tarjeta de fidelidad"
             >
               <Eye className="w-6 h-6 text-yellow-400" />
             </button>
           </div>
-
-          {/* Shine effect metálico */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-yellow-400/3 via-transparent to-zinc-400/3 pointer-events-none" />
         </motion.div>
       </div>
     );

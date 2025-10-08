@@ -24,12 +24,10 @@ function LoginContent() {
   useEffect(() => {
     const checkExistingAuth = async () => {
       try {
-        console.log('🔍 Login: Verificando sesión existente...');
         const response = await fetch('/api/auth/me');
         
         if (response.ok) {
           const userData = await response.json();
-          console.log('✅ Login: Sesión existente encontrada, redirigiendo...');
           
           // Determinar la ruta de redirección basada en el rol
           const businessSlug = userData.user.business?.slug || userData.user.business?.subdomain;
@@ -42,15 +40,12 @@ function LoginContent() {
             };
             
             const redirectUrl = roleRedirect[userData.user.role] || `/${businessSlug}/admin`;
-            console.log(`🔄 Login: Redirigiendo a ${redirectUrl}`);
             router.push(redirectUrl);
             return;
           }
         }
-        
-        console.log('ℹ️ Login: No hay sesión activa, mostrando formulario');
-      } catch (error) {
-        console.log('ℹ️ Login: Error verificando sesión, mostrando formulario:', error);
+      } catch {
+        // Silenciar error de verificación
       } finally {
         setIsCheckingAuth(false);
       }

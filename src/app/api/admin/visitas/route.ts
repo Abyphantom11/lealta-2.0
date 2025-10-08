@@ -215,8 +215,6 @@ async function actualizarEstadisticaPeriodo(
 export async function GET(request: NextRequest) {
   return withAuth(request, async (session) => {
   try {
-    console.log(`📊 Visitas GET by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
-    
     const ahora = new Date();
     const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
     
@@ -227,8 +225,6 @@ export async function GET(request: NextRequest) {
     inicioSemana.setDate(diff);
     
     const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
-
-    console.log('📊 GET - Obteniendo estadísticas para business:', session.businessId);
 
     // 🎯 CONSULTAR DIRECTAMENTE TABLA VISITA CON BUSINESS CONTEXT
     const [visitasHoy, visitasSemana, visitasMes] = await Promise.all([
@@ -260,8 +256,6 @@ export async function GET(request: NextRequest) {
         }
       })
     ]);
-
-    console.log('📈 Visitas encontradas - Hoy:', visitasHoy, 'Semana:', visitasSemana, 'Mes:', visitasMes);
 
     // Calcular tendencia simple basada en comparación hoy vs ayer
     const ayer = new Date(hoy);

@@ -4,7 +4,6 @@ import NotificationContainer from '@/components/ui/NotificationContainer';
 import RedirectInterceptor from '../components/RedirectInterceptor';
 import ServiceWorkerRegistration from '../components/ServiceWorkerRegistration';
 import { PWAProvider } from '../providers/PWAProvider';
-import CookieBanner from '../components/ui/CookieBanner';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -70,7 +69,6 @@ export default function RootLayout({
           <div className="min-h-screen bg-gradient-to-br from-slate-950 via-gray-950 to-black">
             {children}
             <NotificationContainer />
-            <CookieBanner position="from-logo" theme="dark" />
           </div>
         </PWAProvider>
       </body>
