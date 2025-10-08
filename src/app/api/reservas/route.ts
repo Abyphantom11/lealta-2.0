@@ -487,6 +487,29 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Reserva creada exitosamente:', reservation.id);
 
+    // 🏠 AUTO-ACTIVAR TRACKING DE ANFITRIÓN para reservas grandes
+    const MIN_GUESTS_FOR_HOST_TRACKING = 4; // Umbral: 4+ invitados
+    if (data.numeroPersonas >= MIN_GUESTS_FOR_HOST_TRACKING && !isExpressReservation) {
+      try {
+        await prisma.hostTracking.create({
+          data: {
+            businessId: businessId,
+            reservationId: reservation.id,
+            clienteId: cliente.id,
+            reservationName: data.cliente.nombre,
+            tableNumber: data.mesa || null, // Si se proporciona mesa en el futuro
+            reservationDate: reservedAtDate,
+            guestCount: data.numeroPersonas,
+            isActive: true,
+          },
+        });
+        console.log(`🏠 [HOST TRACKING] Auto-activado para ${data.cliente.nombre} (${data.numeroPersonas} invitados)`);
+      } catch (hostTrackingError) {
+        // No bloquear la reserva si falla el tracking
+        console.error('⚠️ [HOST TRACKING] Error al auto-activar:', hostTrackingError);
+      }
+    }
+
     // Retornar la reserva creada
     const reservaCreada: Reserva = {
       id: reservation.id,

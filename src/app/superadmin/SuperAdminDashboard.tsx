@@ -30,6 +30,7 @@ import TopClients from '../../components/TopClients';
 import ProductosTendenciasChart from '../../components/ProductosTendenciasChart';
 import GoalsConfigurator from '../../components/GoalsConfigurator';
 import TopClientesReservas from '../../components/TopClientesReservas';
+import HostTrackingPanel from '../../components/admin/HostTrackingPanel';
 
 // ========================================
 // 🎨 SECCIÓN: ESTILOS CSS Y CONFIGURACIÓN (23-50)
@@ -1571,6 +1572,14 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
                             </p>
                           </div>
                         </div>
+
+                        {/* Panel de Fidelización por Anfitrión */}
+                        {businessId && (
+                          <HostTrackingPanel
+                            clienteCedula={cliente.cedula}
+                            businessId={businessId}
+                          />
+                        )}
 
                         {/* Lista de Transacciones */}
                         <div className="space-y-3 max-h-64 overflow-y-auto">

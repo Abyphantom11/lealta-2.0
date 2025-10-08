@@ -89,6 +89,10 @@ model Business {
   
   // Configuración de Puntos
   puntosConfig        PuntosConfig?        @relation("BusinessPuntosConfig")
+  
+  // 🆕 Fidelización por Anfitrión
+  hostTrackings       HostTracking[]       @relation("BusinessHostTracking")
+  guestConsumos       GuestConsumo[]       @relation("BusinessGuestConsumos")
 }
 
 model User {
@@ -149,13 +153,14 @@ model Cliente {
   registeredAt     DateTime  @default(now())
 
   // Relaciones
-  business       Business         @relation("BusinessClientes", fields: [businessId], references: [id], onDelete: Cascade)
-  consumos       Consumo[]
-  visits         VisitLog[]
-  tarjetaLealtad TarjetaLealtad?
-  visitas        Visita[]         @relation("ClienteVisitas")
-  canjes         HistorialCanje[]
-  reservations   Reservation[]    @relation("ClienteReservations")
+  business         Business         @relation("BusinessClientes", fields: [businessId], references: [id], onDelete: Cascade)
+  consumos         Consumo[]
+  visits           VisitLog[]
+  tarjetaLealtad   TarjetaLealtad?
+  visitas          Visita[]         @relation("ClienteVisitas")
+  canjes           HistorialCanje[]
+  reservations     Reservation[]    @relation("ClienteReservations")
+  hostTrackings    HostTracking[]   @relation("ClienteAsHost") // 🆕 Reservas donde es anfitrión
 
   // ✅ AISLAMIENTO: Cédula única por business, no global
   @@unique([businessId, cedula])
@@ -178,10 +183,11 @@ model Consumo {
   ocrText        String? // texto crudo del OCR
 
   // Relaciones
-  business Business @relation("BusinessConsumos", fields: [businessId], references: [id], onDelete: Cascade)
-  cliente  Cliente  @relation(fields: [clienteId], references: [id])
-  location Location @relation(fields: [locationId], references: [id])
-  empleado User     @relation("EmpleadoConsumos", fields: [empleadoId], references: [id])
+  business     Business      @relation("BusinessConsumos", fields: [businessId], references: [id], onDelete: Cascade)
+  cliente      Cliente       @relation(fields: [clienteId], references: [id])
+  location     Location      @relation(fields: [locationId], references: [id])
+  empleado     User          @relation("EmpleadoConsumos", fields: [empleadoId], references: [id])
+  guestConsumo GuestConsumo? // 🆕 Si este consumo es de un invitado de anfitrión
 }
 
 model VisitLog {
@@ -729,6 +735,7 @@ model Reservation {
   customerName      String
   customerEmail     String
   customerPhone     String?
+  tableNumber       String? // 🆕 Número de mesa asignada (ej: "5", "VIP 2")
   specialRequests   String?
   notes             String?
   totalPrice        Decimal?          @db.Decimal(10, 2)
@@ -755,11 +762,12 @@ model Reservation {
   updatedAt  DateTime @updatedAt
 
   // Relaciones
-  cliente  Cliente?            @relation("ClienteReservations", fields: [clienteId], references: [id], onDelete: SetNull)
-  service  ReservationService  @relation(fields: [serviceId], references: [id])
-  slot     ReservationSlot     @relation(fields: [slotId], references: [id])
-  promotor Promotor?           @relation("PromotorReservations", fields: [promotorId], references: [id], onDelete: SetNull)
-  qrCodes  ReservationQRCode[]
+  cliente      Cliente?            @relation("ClienteReservations", fields: [clienteId], references: [id], onDelete: SetNull)
+  service      ReservationService  @relation(fields: [serviceId], references: [id])
+  slot         ReservationSlot     @relation(fields: [slotId], references: [id])
+  promotor     Promotor?           @relation("PromotorReservations", fields: [promotorId], references: [id], onDelete: SetNull)
+  qrCodes      ReservationQRCode[]
+  hostTracking HostTracking? // 🆕 Tracking de anfitrión si aplica
 
   @@index([businessId])
   @@index([clienteId])
@@ -828,4 +836,60 @@ model PuntosConfig {
   business          Business @relation("BusinessPuntosConfig", fields: [businessId], references: [id], onDelete: Cascade)
   
   @@index([businessId])
+}
+
+// 🆕 FIDELIZACIÓN POR ANFITRIÓN: Tracking de reservas con alto guest count
+model HostTracking {
+  id              String   @id @default(cuid())
+  businessId      String
+  reservationId   String   @unique // Una reserva = un anfitrión
+  clienteId       String // El anfitrión (quien hizo la reserva)
+
+  // Info de la reserva para búsqueda rápida
+  reservationName String // "Juan Pérez"
+  tableNumber     String? // "5" o "Mesa 5"
+  reservationDate DateTime // Fecha de la reserva
+  guestCount      Int // Número de invitados
+
+  // Estado
+  isActive  Boolean  @default(true) // Se desactiva cuando termina el evento
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  business      Business       @relation("BusinessHostTracking", fields: [businessId], references: [id], onDelete: Cascade)
+  reservation   Reservation    @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  anfitrion     Cliente        @relation("ClienteAsHost", fields: [clienteId], references: [id], onDelete: Cascade)
+  guestConsumos GuestConsumo[] // Consumos de invitados vinculados
+
+  @@index([businessId])
+  @@index([reservationId])
+  @@index([clienteId])
+  @@index([reservationDate])
+  @@index([tableNumber])
+  @@index([isActive])
+}
+
+// 🆕 FIDELIZACIÓN POR ANFITRIÓN: Vincula consumos de invitados al anfitrión
+model GuestConsumo {
+  id             String   @id @default(cuid())
+  businessId     String
+  hostTrackingId String // FK a HostTracking (el anfitrión)
+  consumoId      String   @unique // FK a Consumo (el consumo del invitado)
+
+  // Info del invitado (opcional - puede ser anónimo)
+  guestCedula String? // Si el invitado está registrado
+  guestName   String? // Nombre del invitado (manual o del consumo)
+
+  // Metadata
+  createdAt DateTime @default(now())
+
+  // Relaciones
+  business     Business     @relation("BusinessGuestConsumos", fields: [businessId], references: [id], onDelete: Cascade)
+  hostTracking HostTracking @relation(fields: [hostTrackingId], references: [id], onDelete: Cascade)
+  consumo      Consumo      @relation(fields: [consumoId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([hostTrackingId])
+  @@index([consumoId])
 }

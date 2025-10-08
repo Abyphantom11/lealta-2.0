@@ -26,6 +26,9 @@ import {
   Copy,
 } from 'lucide-react';
 import logger from '@/lib/logger';
+import HostSearchModal from '@/components/staff/HostSearchModal';
+import GuestConsumoToggle from '@/components/staff/GuestConsumoToggle';
+import type { HostSearchResult } from '@/types/host-tracking';
 
 // ========================================
 // 🔧 SECCIÓN: INTERFACES Y TIPOS (19-100)
@@ -298,6 +301,11 @@ export default function StaffPage() {
       setShowClientModal(true);
     }
   };
+
+  // 🏠 Estados para Host Tracking (Fidelización por Anfitrión)
+  const [isGuestConsumo, setIsGuestConsumo] = useState(false);
+  const [selectedHost, setSelectedHost] = useState<any>(null);
+  const [showHostSearch, setShowHostSearch] = useState(false);
 
   // Función para copiar texto individual al portapapeles
   const copyToClipboard = async (text: string, successMessage: string) => {
@@ -1463,10 +1471,47 @@ export default function StaffPage() {
 
       if (response.ok) {
         setAiResult(data.data);
-        showNotification(
-          'success',
-          '✅ Consumo confirmado y registrado exitosamente'
-        );
+        
+        // 🏠 VINCULAR A ANFITRIÓN si está habilitado
+        if (isGuestConsumo && selectedHost && data.data.consumoId) {
+          try {
+            const linkResponse = await fetch('/api/staff/guest-consumo', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                hostTrackingId: selectedHost.id,
+                consumoId: data.data.consumoId,
+                guestCedula: aiResult.cliente.cedula,
+                guestName: aiResult.cliente.nombre,
+              }),
+            });
+
+            const linkData = await linkResponse.json();
+
+            if (linkResponse.ok) {
+              showNotification(
+                'success',
+                `✅ Consumo vinculado al anfitrión ${linkData.details.anfitrionNombre}`
+              );
+            } else {
+              console.error('Error vinculando a anfitrión:', linkData.error);
+              showNotification(
+                'error',
+                `⚠️ Consumo registrado pero no vinculado: ${linkData.error}`
+              );
+            }
+          } catch (linkError) {
+            console.error('Error en vinculación:', linkError);
+            // No bloqueamos el éxito del consumo
+          }
+        } else {
+          showNotification(
+            'success',
+            '✅ Consumo confirmado y registrado exitosamente'
+          );
+        }
 
         // Actualizar estadísticas del día
         setTodayStats(prev => ({
@@ -1531,6 +1576,10 @@ export default function StaffPage() {
     setShowConfirmation(false);
     setAiResult(null);
     setEditableData(null);
+    // 🏠 Reset host tracking states
+    setIsGuestConsumo(false);
+    setSelectedHost(null);
+    setShowHostSearch(false);
   };
 
   const getNotificationClasses = (type: 'success' | 'error' | 'info') => {
@@ -2158,6 +2207,19 @@ export default function StaffPage() {
                       </motion.div>
                     )}
                   </div>
+
+                  {/* 🏠 TOGGLE DE ANFITRIÓN */}
+                  {customerInfo && (
+                    <div className="mt-4">
+                      <GuestConsumoToggle
+                        isEnabled={isGuestConsumo}
+                        onToggle={setIsGuestConsumo}
+                        selectedHost={selectedHost}
+                        onClearHost={() => setSelectedHost(null)}
+                        onOpenSearch={() => setShowHostSearch(true)}
+                      />
+                    </div>
+                  )}
 
                   {/* Submit Button */}
                   <button
@@ -2933,6 +2995,17 @@ export default function StaffPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* 🏠 MODAL DE BÚSQUEDA DE ANFITRIÓN */}
+      <HostSearchModal
+        isOpen={showHostSearch}
+        onClose={() => setShowHostSearch(false)}
+        onSelect={(host: HostSearchResult) => {
+          setSelectedHost(host);
+          setShowHostSearch(false);
+        }}
+        businessId={user?.businessId || ''}
+      />
     </div>
   );
 }
