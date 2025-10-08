@@ -16,7 +16,25 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
   const [config, setConfig] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [lastFetchDay, setLastFetchDay] = useState<string>('');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  /**
+   * ✅ SOLUCIÓN: Calcular el día comercial actual (considerando hora de reseteo a las 4 AM)
+   */
+  const getCurrentBusinessDayKey = useCallback(() => {
+    const now = new Date();
+    const hour = now.getHours();
+    
+    // Si es antes de las 4 AM, consideramos que aún es el día anterior
+    if (hour < 4) {
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      return yesterday.toDateString();
+    }
+    
+    return now.toDateString();
+  }, []);
 
   const fetchConfig = useCallback(async (showLoading = true) => {
     if (!enabled) return;
@@ -27,14 +45,24 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
       const configBusinessId = businessId || 'default';
       const timestamp = new Date().getTime();
       
-      console.log(`🔄 Auto-refresh: Fetching portal config v2 for ${configBusinessId} at ${new Date().toLocaleTimeString()}`);
+      // ✅ Detectar si cambió el día comercial
+      const currentDay = getCurrentBusinessDayKey();
+      const dayChanged = lastFetchDay !== '' && currentDay !== lastFetchDay;
+      
+      if (dayChanged) {
+        console.log(`�️ DÍA COMERCIAL CAMBIÓ: ${lastFetchDay} → ${currentDay}`);
+        console.log('🔄 Forzando cache-bust para obtener datos frescos...');
+      }
+      
+      console.log(`�🔄 Auto-refresh: Fetching portal config v2 for ${configBusinessId} at ${new Date().toLocaleTimeString()}`);
       
       const response = await fetch(
-        `/api/portal/config-v2?businessId=${configBusinessId}&t=${timestamp}`,
+        `/api/portal/config-v2?businessId=${configBusinessId}&t=${timestamp}&dayKey=${currentDay}`,
         {
-          cache: 'no-store',
+          // ✅ Si cambió el día, forzar reload completo ignorando cualquier cache
+          cache: dayChanged ? 'reload' : 'no-store',
           headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Cache-Control': dayChanged ? 'no-cache, must-revalidate, max-age=0' : 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache',
             'Expires': '0',
           },
@@ -45,12 +73,15 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
         const data = await response.json();
         setConfig(data);
         setLastUpdate(new Date());
+        setLastFetchDay(currentDay); // ✅ Actualizar el día del último fetch
+        
         console.log(`✅ Config v2 (DB) updated successfully at ${new Date().toLocaleTimeString()}`);
         console.log('🔍 Raw API data:', {
           banners: data.banners?.length || 0,
           promociones: (data.promociones || data.promotions)?.length || 0,
           recompensas: (data.recompensas || data.rewards)?.length || 0,
-          favoritoDelDia: (data.favoritoDelDia || data.favorites)?.length || 0
+          favoritoDelDia: (data.favoritoDelDia || data.favorites)?.length || 0,
+          businessDay: currentDay
         });
       } else {
         console.error('❌ Error fetching config:', response.status);
@@ -60,7 +91,7 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
     } finally {
       if (showLoading) setIsLoading(false);
     }
-  }, [businessId, enabled]);
+  }, [businessId, enabled, lastFetchDay, getCurrentBusinessDayKey]);
 
   // Función para refrescar manualmente
   const refresh = useCallback(() => {
@@ -73,6 +104,20 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
     // Fetch inicial
     fetchConfig(true);
 
+    // ✅ Configurar detector de cambio de día (verifica cada minuto)
+    const dayCheckInterval = setInterval(() => {
+      const currentDay = getCurrentBusinessDayKey();
+      
+      // Si el día cambió, forzar refresh inmediato
+      if (lastFetchDay !== '' && currentDay !== lastFetchDay) {
+        console.log('🗓️ ¡CAMBIO DE DÍA COMERCIAL DETECTADO!');
+        console.log(`   Anterior: ${lastFetchDay}`);
+        console.log(`   Actual: ${currentDay}`);
+        console.log('🔄 Refrescando configuración automáticamente...');
+        fetchConfig(false);
+      }
+    }, 60000); // Verificar cada minuto
+
     // Configurar polling automático
     if (refreshInterval > 0) {
       intervalRef.current = setInterval(() => {
@@ -84,8 +129,9 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
+      clearInterval(dayCheckInterval);
     };
-  }, [fetchConfig, refreshInterval, enabled]);
+  }, [fetchConfig, refreshInterval, enabled, getCurrentBusinessDayKey, lastFetchDay]);
 
   // ✅ NUEVA FUNCIÓN: Obtener promociones usando día comercial
   const getPromocionesForBusinessDay = useCallback(async () => {

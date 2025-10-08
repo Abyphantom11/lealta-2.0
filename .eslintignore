@@ -1,0 +1,46 @@
+# Build outputs
+.next/
+out/
+build/
+dist/
+
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Testing
+coverage/
+
+# Cache
+.cache/
+.turbo/
+
+# Scripts de utilidades y debugging (CommonJS)
+*.js
+!next.config.js
+!src/**/*.js
+!app/**/*.js
+!components/**/*.js
+
+# Prisma generated files
+prisma/generated/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Vercel
+.vercel

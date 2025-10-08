@@ -139,7 +139,7 @@ try {
     console.log(result);
   }
 } catch (error) {
-  console.log('⚠️  No se pudo calcular el tamaño del build');
+  console.log('⚠️  No se pudo calcular el tamaño del build:', error.message || error);
 }
 
 console.log('\n✨ Análisis completado!');

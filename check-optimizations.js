@@ -59,7 +59,7 @@ try {
     category: 'Bundle',
   });
 } catch (error) {
-  console.log('❌ Error leyendo next.config.js');
+  console.log('❌ Error leyendo next.config.js:', error.message || error);
 }
 
 // 2. Verificar @vercel/blob
@@ -90,7 +90,7 @@ try {
     category: 'Bundle',
   });
 } catch (error) {
-  console.log('❌ Error leyendo package.json');
+  console.log('❌ Error leyendo package.json:', error.message || error);
 }
 
 // 3. Verificar tamaño de public/uploads
@@ -112,7 +112,7 @@ try {
     });
   }
 } catch (error) {
-  console.log('⚠️  No se pudo verificar /public/uploads');
+  console.log('⚠️  No se pudo verificar /public/uploads:', error.message || error);
 }
 
 // 4. Verificar si existe blob-upload.ts
@@ -135,7 +135,16 @@ categories.forEach(category => {
   
   const categoryChecks = checks.filter(c => c.category === category);
   categoryChecks.forEach(check => {
-    const icon = check.status ? '✅' : (check.required === false ? '⚠️' : '❌');
+    // Determinar icono basado en estado y si es requerido
+    let icon;
+    if (check.status) {
+      icon = '✅';
+    } else if (check.required === false) {
+      icon = '⚠️';
+    } else {
+      icon = '❌';
+    }
+    
     console.log(`   ${icon} ${check.name}`);
     if (check.warning) {
       console.log(`      💡 ${check.warning}`);

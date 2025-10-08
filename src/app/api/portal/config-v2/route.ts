@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getBusinessIdFromRequest } from '@/lib/business-utils';
-import { getBusinessDayRange } from '@/lib/business-day-utils';
 import { getTarjetasConfigCentral } from '@/lib/tarjetas-config-central';
 
 const prisma = new PrismaClient();
@@ -36,6 +35,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const queryBusinessId = searchParams.get('businessId');
     const headerBusinessId = getBusinessIdFromRequest(request);
+    const simulateDay = searchParams.get('simulateDay'); // 🆕 Parámetro para simular día
     
     const businessId = queryBusinessId || headerBusinessId;
     
@@ -62,6 +62,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Obtener día comercial actual para filtrar contenido
+    // 🆕 Si viene simulateDay, usar ese día; de lo contrario, calcular el día comercial
+    const { getCurrentBusinessDay } = await import('@/lib/business-day-utils');
+    const currentBusinessDay = simulateDay || await getCurrentBusinessDay(businessId);
+    
+    console.log('🗓️ Día para filtrar contenido:', {
+      simulateDay,
+      currentBusinessDay,
+      isSimulated: !!simulateDay
+    });
+
     // Obtener todos los datos del portal en paralelo para mejor performance
     const [
       banners,
@@ -70,23 +81,39 @@ export async function GET(request: NextRequest) {
       favoritoDelDia,
       tarjetasConfig
     ] = await Promise.all([
-      // Banners activos ordenados
+      // Banners activos ordenados y filtrados por día comercial
       prisma.portalBanner.findMany({
-        where: {
-          businessId,
-          active: true
-        },
-        orderBy: { orden: 'asc' }
-      }),
-      
-      // Promociones activas y vigentes ordenadas
-      prisma.portalPromocion.findMany({
         where: {
           businessId,
           active: true,
           OR: [
-            { validUntil: null }, // Sin fecha de vencimiento
-            { validUntil: { gte: new Date() } } // Vigentes
+            { dia: currentBusinessDay }, // Banners específicos del día
+            { dia: null }, // Banners sin día específico (todos los días)
+            { dia: '' } // Banners sin día específico (todos los días)
+          ]
+        },
+        orderBy: { orden: 'asc' }
+      }),
+      
+      // Promociones activas y vigentes ordenadas, filtradas por día comercial
+      prisma.portalPromocion.findMany({
+        where: {
+          businessId,
+          active: true,
+          AND: [
+            {
+              OR: [
+                { validUntil: null }, // Sin fecha de vencimiento
+                { validUntil: { gte: new Date() } } // Vigentes
+              ]
+            },
+            {
+              OR: [
+                { dia: currentBusinessDay }, // Promociones específicas del día
+                { dia: null }, // Promociones sin día específico (todos los días)
+                { dia: '' } // Promociones sin día específico (todos los días)
+              ]
+            }
           ]
         },
         orderBy: { orden: 'asc' }
@@ -109,24 +136,16 @@ export async function GET(request: NextRequest) {
         ]
       }),
       
-      // ✅ SOLUCIÓN: Favorito del día activo para el día comercial actual
+      // ✅ Favorito del día activo filtrado por día comercial
       prisma.portalFavoritoDelDia.findFirst({
         where: {
           businessId,
           active: true,
-          // Usar rango de día comercial en lugar de día natural
-          ...(await getBusinessDayRange(businessId).then(({ start, end }) => ({
-            date: {
-              gte: start,
-              lte: end
-            }
-          })).catch(() => ({
-            // Fallback a día natural si falla el cálculo de día comercial
-            date: {
-              gte: new Date(new Date().setHours(0, 0, 0, 0)),
-              lte: new Date(new Date().setHours(23, 59, 59, 999))
-            }
-          })))
+          OR: [
+            { dia: currentBusinessDay }, // Favorito específico del día
+            { dia: null }, // Favorito sin día específico (todos los días)
+            { dia: '' } // Favorito sin día específico (todos los días)
+          ]
         },
         orderBy: { createdAt: 'desc' }
       }),
@@ -299,7 +318,7 @@ export async function GET(request: NextRequest) {
       // CONFIGURACIÓN DE TARJETAS - ✅ PRIORIZAR ADMIN CONFIG
       tarjetas: await (async () => {
         const adminConfig = await getAdminTarjetas(businessId);
-        if (adminConfig && adminConfig.tarjetas && adminConfig.tarjetas.length > 0) {
+        if (adminConfig?.tarjetas && adminConfig.tarjetas.length > 0) {
           // ✅ NUEVA ESTRUCTURA: adminConfig.tarjetas es directamente un array de tarjetas
           return adminConfig.tarjetas.map((tarjeta: any) => ({
             id: tarjeta.id || `tarjeta-${tarjeta.nivel?.toLowerCase()}`,
@@ -348,7 +367,33 @@ export async function GET(request: NextRequest) {
           const adminConfig = await getAdminTarjetas(businessId);
           return adminConfig ? 'admin-json-primary' : 'database-fallback';
         })()
-      }
+      },
+      // ✅ NUEVA METADATA: Info del día comercial para debugging y validación
+      _metadata: await (async () => {
+        const { getBusinessDayRange, getBusinessDayDebugInfo } = await import('@/lib/business-day-utils');
+        try {
+          const debugInfo = await getBusinessDayDebugInfo(businessId);
+          const { start, end } = await getBusinessDayRange(businessId);
+          
+          return {
+            businessDay: debugInfo.businessDay,
+            naturalDay: debugInfo.naturalDay,
+            fetchedAt: new Date().toISOString(),
+            validFrom: start.toISOString(),
+            validUntil: end.toISOString(),
+            resetHour: debugInfo.config.resetHour,
+            isAfterReset: debugInfo.isAfterReset,
+            note: 'Los datos son válidos hasta validUntil. Después de esa hora, el cliente debe refrescar para obtener datos del siguiente día comercial.'
+          };
+        } catch (error) {
+          console.warn('Error obteniendo metadata de día comercial:', error);
+          return {
+            businessDay: 'unknown',
+            fetchedAt: new Date().toISOString(),
+            error: 'Could not determine business day'
+          };
+        }
+      })()
     };
     
     // Headers anti-cache para el cliente (mantener compatibilidad)

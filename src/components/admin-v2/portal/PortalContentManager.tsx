@@ -240,11 +240,24 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
     }
   }, [previewMode, setPreviewMode]);
   
-  // 🆕 Función para cargar datos reales para vista previa
-  const loadPreviewData = useCallback(async () => {
+  // 🆕 Función para cargar datos reales para vista previa (con soporte para simulación de días)
+  const loadPreviewData = useCallback(async (simulatedDay?: string) => {
     try {
-      console.log('🔄 Cargando datos de vista previa...', { businessId, previewMode });
-      const response = await fetch(`/api/portal/config-v2?businessId=${businessId}`, {
+      // Obtener día simulado desde window si no se pasa como parámetro
+      const dayToSimulate = simulatedDay || (window as any).portalPreviewDay;
+      
+      console.log('🔄 Cargando datos de vista previa...', { 
+        businessId, 
+        previewMode, 
+        simulatedDay: dayToSimulate 
+      });
+      
+      // Construir URL con parámetro de día simulado si existe
+      const url = dayToSimulate 
+        ? `/api/portal/config-v2?businessId=${businessId}&simulateDay=${dayToSimulate}`
+        : `/api/portal/config-v2?businessId=${businessId}`;
+      
+      const response = await fetch(url, {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -260,6 +273,7 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
           promocionesCount: data.promociones?.length || 0,
           hasRecompensas: !!data.recompensas,
           recompensasCount: data.recompensas?.length || 0,
+          simulatedDay: dayToSimulate,
           fullData: data, // 🔍 Ver todos los datos
         });
         setPreviewData(data);
@@ -684,7 +698,7 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
     }
   };
 
-  // Función auxiliar para cambiar el día simulado y reducir complejidad
+  // Función auxiliar para cambiar el día simulado y recargar datos
   const handleDaySimulation = (diaSimulado: string, setPreviewMode: any) => {
     try {
       // Primero limpiamos cualquier valor anterior y notificamos el cambio
@@ -694,6 +708,11 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
       setTimeout(() => {
         // Actualizar la variable global con el nuevo valor
         (window as any).portalPreviewDay = diaSimulado;
+
+        console.log(`🗓️ Simulando día: ${diaSimulado}`);
+
+        // ✅ RECARGAR datos de la API con el día simulado
+        loadPreviewData(diaSimulado);
 
         // Disparar un evento para notificar a los componentes del cambio
         const event = new CustomEvent('portalPreviewDayChanged', {
