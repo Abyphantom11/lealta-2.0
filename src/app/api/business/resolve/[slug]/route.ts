@@ -60,7 +60,7 @@ export async function GET(
 
       // VALIDACIÓN DE SEGURIDAD: Usuario debe tener acceso al business
       // SuperAdmin puede acceder a cualquier business
-      if (session.role !== 'SUPERADMIN' && session.businessId !== business.id) {
+      if (session.role !== 'superadmin' && session.businessId !== business.id) {
         console.error('❌ Access denied:', {
           userId: session.userId,
           userRole: session.role,

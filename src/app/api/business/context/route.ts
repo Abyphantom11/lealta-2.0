@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Forzar renderizado dinámico (no estático)
+export const dynamic = 'force-dynamic';
+
 /**
  * 🎯 API ENDPOINT: GET BUSINESS CONTEXT
  * 

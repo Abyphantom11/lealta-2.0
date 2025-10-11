@@ -129,6 +129,7 @@ export async function DELETE(
 
     // Eliminar URL del comprobante del metadata
     const currentMetadata = reservation.metadata as any || {};
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { comprobanteUrl, comprobanteUploadedAt, ...restMetadata } = currentMetadata;
 
     const updatedReservation = await prisma.reservation.update({

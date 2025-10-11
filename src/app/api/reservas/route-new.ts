@@ -25,10 +25,10 @@ function mapPrismaStatusToReserva(status: string): EstadoReserva {
 }
 
 // Función para mapear nuestro estado a Prisma
-function mapReservaStatusToPrisma(estado: EstadoReserva): string {
+function mapReservaStatusToPrisma(estado: EstadoReserva): 'PENDING' | 'CONFIRMED' | 'CHECKED_IN' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' {
   switch (estado) {
     case 'Activa': return 'CONFIRMED';
-    case 'En Progreso': return 'IN_PROGRESS';
+    case 'En Progreso': return 'CONFIRMED';
     case 'En Camino': return 'COMPLETED';
     case 'Reserva Caída': return 'CANCELLED';
     default: return 'CONFIRMED';
@@ -151,22 +151,24 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Crear o buscar el servicio
-    const service = await prisma.reservationService.upsert({
+    let service = await prisma.reservationService.findFirst({
       where: {
-        businessId_name: {
-          businessId: businessId,
-          name: data.promotor.nombre
-        }
-      },
-      update: {},
-      create: {
         businessId: businessId,
-        name: data.promotor.nombre,
-        description: 'Servicio de reserva',
-        capacity: 100,
-        duration: 240
+        name: data.promotor.nombre
       }
     });
+
+    if (!service) {
+      service = await prisma.reservationService.create({
+        data: {
+          businessId: businessId,
+          name: data.promotor.nombre,
+          description: 'Servicio de reserva',
+          capacity: 100,
+          duration: 240
+        }
+      });
+    }
 
     // 3. Crear slot de tiempo
     const fechaSlot = new Date(data.fecha);
@@ -197,6 +199,7 @@ export async function POST(request: NextRequest) {
         serviceId: service.id,
         slotId: slot.id,
         reservationNumber: reservationNumber,
+        reservedAt: new Date(),
         // ✅ Estado inicial: PENDING (esperando llegada)
         // El primer escaneo cambiará a CHECKED_IN
         status: mapReservaStatusToPrisma(data.estado || 'En Progreso'),
@@ -211,11 +214,15 @@ export async function POST(request: NextRequest) {
 
     // 5. Crear código QR
     const qrToken = data.codigoQR || generateQRCode();
+    const qrExpirationDate = new Date();
+    qrExpirationDate.setDate(qrExpirationDate.getDate() + 30); // QR válido por 30 días
+    
     await prisma.reservationQRCode.create({
       data: {
         businessId: businessId,
         reservationId: reservation.id,
         qrToken: qrToken,
+        expiresAt: qrExpirationDate,
         qrData: JSON.stringify({
           reservationId: reservation.id,
           customerName: data.cliente.nombre,
@@ -225,15 +232,18 @@ export async function POST(request: NextRequest) {
     });
 
     // 6. Crear log de auditoría
-    await prisma.reservationAuditLog.create({
-      data: {
-        businessId: businessId,
-        reservationId: reservation.id,
-        action: 'created',
-        userName: 'Sistema',
-        newValues: JSON.stringify(data)
-      }
-    });
+    // 6. Log de auditoría (comentado - modelo no disponible)
+    // await prisma.reservationAuditLog.create({
+    //   data: {
+    //     businessId: businessId,
+    //     reservationId: reservation.id,
+    //     action: 'created',
+    //     userName: 'Sistema',
+    //     newValues: JSON.stringify(data)
+    //   }
+    // });
+
+    console.log(`✅ Reserva creada: ${reservation.reservationNumber}`);
 
     // Retornar la reserva creada
     const reservaCreada: Reserva = {

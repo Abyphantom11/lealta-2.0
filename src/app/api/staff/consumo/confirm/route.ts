@@ -41,6 +41,7 @@ const confirmConsumoSchema = z.object({
   clienteId: z.string().min(1, 'ID del cliente es requerido'),
   businessId: z.string().optional(),
   empleadoId: z.string().optional(),
+  reservationId: z.string().optional(), // 📅 ID de la reserva para vincular como anfitrión
   productos: z.array(z.object({
     nombre: z.string(),
     cantidad: z.number(),
@@ -100,6 +101,46 @@ export async function POST(request: NextRequest) {
         ocrText: `Procesado con IA - Confianza: ${(validatedData.confianza * 100).toFixed(1)}% - Empleado: ${validatedData.empleadoDetectado || 'No detectado'}`,
       },
     });
+
+    // Vincular consumo a reserva como anfitrión si se proporciona reservationId
+    if (validatedData.reservationId) {
+      // Buscar el HostTracking de esa reserva
+      let hostTracking = await prisma.hostTracking.findUnique({
+        where: { reservationId: validatedData.reservationId },
+      });
+      // Si no existe, crearlo
+      if (!hostTracking) {
+        hostTracking = await prisma.hostTracking.create({
+          data: {
+            businessId: validatedData.businessId || cliente.businessId,
+            reservationId: validatedData.reservationId,
+            clienteId: cliente.id,
+            reservationName: cliente.nombre,
+            tableNumber: undefined, // Se puede actualizar luego
+            reservationDate: new Date(), // Se puede actualizar luego
+            guestCount: 1,
+          },
+        });
+      } else {
+        // Si existe, incrementar el guestCount
+        await prisma.hostTracking.update({
+          where: { id: hostTracking.id },
+          data: {
+            guestCount: { increment: 1 },
+          },
+        });
+      }
+      // Crear GuestConsumo vinculado
+      await prisma.guestConsumo.create({
+        data: {
+          businessId: validatedData.businessId || cliente.businessId,
+          hostTrackingId: hostTracking.id,
+          consumoId: consumo.id,
+          guestCedula: cliente.cedula,
+          guestName: cliente.nombre,
+        },
+      });
+    }
 
     // Actualizar puntos del cliente (disponibles y acumulados)
     const clienteActualizado = await prisma.cliente.update({

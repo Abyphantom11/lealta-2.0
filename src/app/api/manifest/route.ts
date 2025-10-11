@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   // 🎯 Obtener business context de headers (inyectado por middleware)
-  const businessId = request.headers.get('x-business-id');
   const subdomain = request.headers.get('x-business-subdomain');
   
   // Fallback: Intentar desde query params si no hay headers

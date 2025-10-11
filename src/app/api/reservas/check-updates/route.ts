@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
           ]
         }
       });
-    } catch (e) {
+    } catch {
       business = await prisma.business.findUnique({
         where: { slug: businessIdOrSlug }
       });

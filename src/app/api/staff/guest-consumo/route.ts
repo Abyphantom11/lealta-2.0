@@ -46,6 +46,11 @@ export async function POST(request: NextRequest) {
             cedula: true,
           },
         },
+        reservation: {
+          select: {
+            businessId: true,
+          },
+        },
       },
     });
 
@@ -69,7 +74,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Verificar que el Consumo existe
+    // 2. Verificar que el Consumo existe y pertenece al mismo business
     const consumo = await prisma.consumo.findUnique({
       where: { id: data.consumoId },
       include: {
@@ -77,6 +82,7 @@ export async function POST(request: NextRequest) {
           select: {
             nombre: true,
             cedula: true,
+            businessId: true,
           },
         },
       },
@@ -93,7 +99,11 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Verificar aislamiento de business
-    if (consumo.businessId !== hostTracking.businessId) {
+    if (consumo.businessId !== hostTracking.reservation.businessId) {
+      console.error('❌ [GUEST CONSUMO] Business ID mismatch:', {
+        consumoBusinessId: consumo.businessId,
+        hostTrackingBusinessId: hostTracking.reservation.businessId,
+      });
       return NextResponse.json(
         {
           success: false,

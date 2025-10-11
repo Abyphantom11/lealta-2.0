@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Forzar renderizado dinámico (no estático)
+export const dynamic = 'force-dynamic';
+
 // GET - Obtener títulos de secciones
 export async function GET(request: NextRequest) {
   try {

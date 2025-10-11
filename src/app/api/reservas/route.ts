@@ -72,58 +72,163 @@ export async function GET(request: NextRequest) {
     
     console.log('✅ Business encontrado:', business.name, '(ID:', business.id + ')');
     
+    // Obtener parámetros de filtro opcionales
+    const cedula = searchParams.get('cedula');
+    const statusFilter = searchParams.get('status');
+    
+    // Construir filtros dinámicos
+    const whereClause: any = {
+      businessId: business.id
+    };
+    
+    // Filtrar por cédula si se proporciona
+    if (cedula) {
+      whereClause.customerPhone = cedula; // Asumimos que la cédula está en customerPhone
+    }
+    
+    // Filtrar por status si se proporciona (puede ser múltiple: "CONFIRMED,SEATED")
+    if (statusFilter) {
+      const statuses = statusFilter.split(',');
+      whereClause.status = {
+        in: statuses
+      };
+    }
+    
+    console.log('🔍 Filtros aplicados:', whereClause);
+    
     // Buscar reservas en la base de datos usando el ID real
-    const reservations = await prisma.reservation.findMany({
-      where: {
-        businessId: business.id
-      },
-      include: {
-        cliente: true,
-        service: true,
-        slot: true,
-        qrCodes: true,
-        promotor: true
-      },
-      orderBy: {
-        createdAt: 'asc' // ✅ Ordenar por orden de creación (más antiguas primero)
-      }
-    });
+    let reservations;
+    try {
+      reservations = await prisma.reservation.findMany({
+        where: whereClause,
+        include: {
+          cliente: true,
+          service: true,
+          slot: true,
+          qrCodes: true,
+          promotor: {
+            select: {
+              id: true,
+              nombre: true,
+              telefono: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'asc' // ✅ Ordenar por orden de creación (más antiguas primero)
+        }
+      });
+    } catch (includeError) {
+      console.error('❌ Error con includes, intentando sin promotor:', includeError);
+      // Intentar sin el include del promotor
+      reservations = await prisma.reservation.findMany({
+        where: whereClause,
+        include: {
+          cliente: true,
+          service: true,
+          slot: true,
+          qrCodes: true
+        },
+        orderBy: {
+          createdAt: 'asc'
+        }
+      });
+    }
+    
+    console.log(`✅ ${reservations.length} reservas encontradas`);
 
     // Mapear a nuestro formato de Reserva
     const reservas: Reserva[] = reservations.map(reservation => {
-      const metadata = (reservation.metadata as any) || {};
-      
-      return {
-        id: reservation.id,
-        cliente: {
-          id: reservation.cliente?.id || `temp-${Date.now()}`,
-          nombre: reservation.customerName,
-          telefono: reservation.customerPhone || undefined,
-          email: reservation.customerEmail || undefined
-        },
-        numeroPersonas: reservation.guestCount,
-        razonVisita: reservation.specialRequests || 'Reserva general',
-        beneficiosReserva: reservation.notes || 'Sin beneficios especiales',
-        promotor: {
-          id: reservation.promotorId || reservation.serviceId,
-          nombre: reservation.promotor?.nombre || reservation.service?.name || 'Sistema'
-        },
-        promotorId: reservation.promotorId || undefined, // ✅ Incluir promotorId para que se muestre en la tabla
-        fecha: reservation.slot?.date ? new Date(reservation.slot.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        hora: reservation.slot?.startTime ? 
-          new Date(reservation.slot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '19:00',
-        // ✅ CORREGIDO: Retornar formato correcto res-{id}
-        codigoQR: `res-${reservation.id}`,
-        asistenciaActual: reservation.qrCodes[0]?.scanCount || 0,
-        estado: mapPrismaStatusToReserva(reservation.status),
-        fechaCreacion: reservation.createdAt.toISOString(),
-        fechaModificacion: reservation.updatedAt.toISOString(),
-        mesa: metadata.mesa || '',
-        detalles: metadata.detalles || [],
-        comprobanteSubido: !!metadata.comprobanteUrl,
-        comprobanteUrl: metadata.comprobanteUrl || undefined,
-        registroEntradas: []
-      };
+      try {
+        const metadata = (reservation.metadata as any) || {};
+        
+        // Extraer nombre del promotor de forma segura
+        const promotorNombre = (reservation as any).promotor?.nombre || 
+                              reservation.service?.name || 
+                              'Sistema';
+        
+        // Procesar fecha de forma segura
+        let fecha = new Date().toISOString().split('T')[0];
+        if (reservation.slot?.date) {
+          try {
+            fecha = new Date(reservation.slot.date).toISOString().split('T')[0];
+          } catch (e) {
+            console.warn('⚠️ Error parseando fecha del slot:', e);
+          }
+        }
+        
+        // Procesar hora de forma segura
+        let hora = '19:00';
+        if (reservation.slot?.startTime) {
+          try {
+            hora = new Date(reservation.slot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+          } catch (e) {
+            console.warn('⚠️ Error parseando hora del slot:', e);
+          }
+        }
+        
+        return {
+          id: reservation.id,
+          cliente: {
+            id: reservation.cliente?.id || `temp-${Date.now()}`,
+            nombre: reservation.customerName || 'Sin nombre',
+            telefono: reservation.customerPhone || undefined,
+            email: reservation.customerEmail || undefined
+          },
+          numeroPersonas: reservation.guestCount || 1,
+          razonVisita: reservation.specialRequests || 'Reserva general',
+          beneficiosReserva: reservation.notes || 'Sin beneficios especiales',
+          promotor: {
+            id: reservation.promotorId || reservation.serviceId,
+            nombre: promotorNombre
+          },
+          promotorId: reservation.promotorId || undefined,
+          fecha,
+          hora,
+          codigoQR: `res-${reservation.id}`,
+          asistenciaActual: reservation.qrCodes?.[0]?.scanCount || 0,
+          estado: mapPrismaStatusToReserva(reservation.status),
+          fechaCreacion: reservation.createdAt?.toISOString() || new Date().toISOString(),
+          fechaModificacion: reservation.updatedAt?.toISOString() || new Date().toISOString(),
+          mesa: metadata.mesa || '',
+          detalles: metadata.detalles || [],
+          comprobanteSubido: !!metadata.comprobanteUrl,
+          comprobanteUrl: metadata.comprobanteUrl || undefined,
+          registroEntradas: []
+        };
+      } catch (mapError) {
+        console.error('❌ Error mapeando reserva:', reservation.id, mapError);
+        // Retornar una reserva mínima en caso de error
+        return {
+          id: reservation.id,
+          cliente: {
+            id: `temp-${Date.now()}`,
+            nombre: reservation.customerName || 'Error al cargar',
+            telefono: undefined,
+            email: undefined
+          },
+          numeroPersonas: reservation.guestCount || 1,
+          razonVisita: 'Error al cargar',
+          beneficiosReserva: 'Error al cargar',
+          promotor: {
+            id: reservation.serviceId,
+            nombre: 'Sistema'
+          },
+          promotorId: undefined,
+          fecha: new Date().toISOString().split('T')[0],
+          hora: '19:00',
+          codigoQR: `res-${reservation.id}`,
+          asistenciaActual: 0,
+          estado: 'En Progreso' as EstadoReserva,
+          fechaCreacion: new Date().toISOString(),
+          fechaModificacion: new Date().toISOString(),
+          mesa: '',
+          detalles: [],
+          comprobanteSubido: false,
+          comprobanteUrl: undefined,
+          registroEntradas: []
+        };
+      }
     });
 
     return NextResponse.json({ 
@@ -132,9 +237,17 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error fetching reservas:', error);
+    console.error('❌❌❌ Error fetching reservas:', error);
+    console.error('Error name:', (error as any)?.name);
+    console.error('Error message:', (error as any)?.message);
+    console.error('Error stack:', (error as any)?.stack);
+    
     return NextResponse.json(
-      { success: false, error: 'Error interno del servidor' },
+      { 
+        success: false, 
+        error: 'Error interno del servidor',
+        details: (error as any)?.message || 'Error desconocido'
+      },
       { status: 500 }
     );
   }
@@ -457,7 +570,13 @@ export async function POST(request: NextRequest) {
         promotorId: promotorId
       },
       include: {
-        promotor: true // ✅ Incluir datos del promotor para devolverlos
+        promotor: {
+          select: {
+            id: true,
+            nombre: true,
+            telefono: true
+          }
+        }
       }
     });
 
