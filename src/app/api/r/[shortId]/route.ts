@@ -197,6 +197,77 @@ export async function GET(
 
     // Intentar redirección a URL principal
     try {
+      // 🍎 DETECCIÓN SAFARI + TÚNEL ESPECÍFICO ig4gRl
+      const isSafari = userAgent.includes('Safari') && !userAgent.includes('Chrome');
+      const lhrPattern = /https?:\/\/[a-f0-9-]+\.lhr\.life/;
+      const ngrokPattern = /https?:\/\/[a-f0-9-]+\.eu\.ngrok\.io/;
+      const isCloudflareUrl = qrLink.targetUrl.includes('.cloudflareaccess.com') || 
+                             qrLink.targetUrl.includes('.trycloudflare.com') ||
+                             qrLink.targetUrl.includes('-tunnel.com') ||
+                             qrLink.targetUrl.includes('localhost:') ||
+                             lhrPattern.test(qrLink.targetUrl) ||
+                             ngrokPattern.test(qrLink.targetUrl);
+
+      // 🎯 LÓGICA ESPECÍFICA PARA ig4gRl
+      const isIG4gRlQR = shortId === 'ig4gRl';
+      const isCloudflareIG4gRl = isIG4gRlQR && qrLink.targetUrl.includes('loud-entity-fluid-trade.trycloudflare.com');
+
+      console.log('🔍 Detección:', {
+        isSafari,
+        isCloudflareUrl,
+        isIG4gRlQR,
+        isCloudflareIG4gRl,
+        shortId,
+        userAgent: userAgent.substring(0, 100),
+        targetUrl: qrLink.targetUrl
+      });
+
+      // Si es Safari y es el QR ig4gRl con túnel de Cloudflare cerrado, redirigir a la versión permanente
+      if (isSafari && isCloudflareIG4gRl) {
+        console.log('🍎 Safari detectado con QR ig4gRl de Cloudflare, redirigiendo a versión permanente');
+        const permanentUrl = 'https://lealta.app/r/ig4gRl';
+        
+        // Registrar la redirección específica de ig4gRl
+        try {
+          await prisma.qRClick.create({
+            data: {
+              qrLinkId: qrLink.id,
+              ipAddress: ip,
+              userAgent: `SAFARI_IG4GRL_FALLBACK: ${userAgent.substring(0, 350)}`,
+              referer: request.headers.get('referer') || null
+            }
+          });
+        } catch (fallbackError) {
+          console.error('⚠️ Error registrando click fallback ig4gRl:', fallbackError);
+        }
+        
+        console.log('🔄 Redirigiendo Safari desde ig4gRl Cloudflare a:', permanentUrl);
+        return NextResponse.redirect(permanentUrl, 302);
+      }
+
+      // Fallback general para otros túneles con Safari
+      if (isSafari && isCloudflareUrl && !isIG4gRlQR) {
+        console.log('🍎 Safari detectado con túnel Cloudflare general, redirigiendo a fallback');
+        const fallbackUrl = 'https://lealta.app/r/ig4gRl';
+        
+        // Registrar la redirección de fallback general
+        try {
+          await prisma.qRClick.create({
+            data: {
+              qrLinkId: qrLink.id,
+              ipAddress: ip,
+              userAgent: `SAFARI_GENERAL_FALLBACK: ${userAgent.substring(0, 350)}`,
+              referer: request.headers.get('referer') || null
+            }
+          });
+        } catch (fallbackError) {
+          console.error('⚠️ Error registrando click fallback general:', fallbackError);
+        }
+        
+        console.log('🔄 Redirigiendo Safari a fallback general:', fallbackUrl);
+        return NextResponse.redirect(fallbackUrl, 302);
+      }
+
       // Verificar que la URL es válida
       new URL(qrLink.targetUrl);
       

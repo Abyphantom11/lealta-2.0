@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// OPTIONS - Manejar preflight requests (importante para Safari)
+export async function OPTIONS() {
+  const response = new NextResponse(null, { status: 200 });
+  
+  response.headers.set('Access-Control-Allow-Origin', '*');
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
+  response.headers.set('Access-Control-Max-Age', '86400'); // 24 horas
+  
+  return response;
+}
+
 // GET - Obtener información específica de un QR link
 export async function GET(
   request: NextRequest,
@@ -37,16 +49,30 @@ export async function GET(
       expiresAt: qrLink.expiresAt?.toISOString()
     };
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       link: transformedLink
     });
+
+    // Headers para mejorar compatibilidad con Safari
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
+    
+    return response;
   } catch (error) {
     console.error('Error fetching QR link:', error);
-    return NextResponse.json(
+    const errorResponse = NextResponse.json(
       { success: false, message: 'Error interno del servidor' },
       { status: 500 }
     );
+    
+    // Headers para errores también
+    errorResponse.headers.set('Access-Control-Allow-Origin', '*');
+    errorResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
+    
+    return errorResponse;
   }
 }
 

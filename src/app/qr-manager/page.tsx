@@ -42,14 +42,30 @@ export default function QRManagerPage() {
 
   const loadLinks = async () => {
     try {
-      const response = await fetch('/api/qr-links');
+      // Mejorar compatibilidad con Safari
+      const response = await fetch('/api/qr-links', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        credentials: 'same-origin', // Importante para Safari
+        cache: 'no-cache'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       if (data.success) {
         setLinks(data.links);
+      } else {
+        throw new Error(data.message || 'Error en la respuesta del servidor');
       }
     } catch (error) {
       console.error('Error loading links:', error);
-      toast.error('Error cargando enlaces');
+      toast.error(`Error cargando enlaces: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     } finally {
       setLoading(false);
     }
@@ -67,12 +83,20 @@ export default function QRManagerPage() {
         // Modo edición
         const response = await fetch(`/api/qr-links/${editingLink.id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          credentials: 'same-origin',
           body: JSON.stringify({
             ...formData,
             isActive: editingLink.isActive
           })
         });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
         const data = await response.json();
         if (data.success) {
@@ -84,15 +108,23 @@ export default function QRManagerPage() {
           ));
           resetForm();
         } else {
-          toast.error(data.message || 'Error actualizando link');
+          throw new Error(data.message || 'Error actualizando link');
         }
       } else {
         // Modo creación
         const response = await fetch('/api/qr-links', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          credentials: 'same-origin',
           body: JSON.stringify(formData)
         });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
         const data = await response.json();
         if (data.success) {
@@ -134,17 +166,28 @@ export default function QRManagerPage() {
     try {
       const response = await fetch(`/api/qr-links/${linkId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        credentials: 'same-origin',
         body: JSON.stringify({ isActive: !currentStatus })
       });
 
-      if (response.ok) {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.success) {
         setLinks(prev => prev.map(link => 
           link.id === linkId 
             ? { ...link, isActive: !currentStatus }
             : link
         ));
         toast.success(`QR Link ${!currentStatus ? 'activado' : 'desactivado'}`);
+      } else {
+        throw new Error(data.message || 'Error actualizando estado');
       }
     } catch (error) {
       console.error('Error toggling link status:', error);
@@ -211,16 +254,27 @@ export default function QRManagerPage() {
 
     try {
       const response = await fetch(`/api/qr-links/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'Accept': 'application/json',
+        },
+        credentials: 'same-origin'
       });
 
-      if (response.ok) {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.success) {
         toast.success('Link eliminado');
         setLinks(prev => prev.filter(link => link.id !== id));
+      } else {
+        throw new Error(data.message || 'Error eliminando link');
       }
     } catch (error) {
       console.error('Error deleting link:', error);
-      toast.error('Error eliminando link');
+      toast.error(`Error eliminando link: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   };
 
