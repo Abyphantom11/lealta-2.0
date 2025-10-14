@@ -155,11 +155,19 @@ export async function PATCH(
     const { businessId } = params;
     const partialUpdate = await request.json();
 
-    // Obtener config actual
-    const business = await prisma.business.findUnique({
-      where: { id: businessId },
+    // Buscar business por ID o por slug
+    const business = await prisma.business.findFirst({
+      where: {
+        OR: [
+          { id: businessId },
+          { slug: businessId }
+        ]
+      },
       select: {
+        id: true,
         qrBrandingConfig: true,
+        qrMensajeBienvenida: true,
+        qrMostrarLogo: true,
       },
     });
 
@@ -170,19 +178,73 @@ export async function PATCH(
       );
     }
 
-    // Merge con config actual
+    // Deep merge con config actual usando DEFAULT como base
     const currentConfig = (business.qrBrandingConfig as Partial<QRBrandingConfig>) || {};
-    const updatedConfig = {
+    const updatedConfig: QRBrandingConfig = {
+      ...DEFAULT_QR_BRANDING,
       ...currentConfig,
       ...partialUpdate,
+      // Deep merge de objetos anidados
+      mensaje: {
+        ...DEFAULT_QR_BRANDING.mensaje,
+        ...(currentConfig.mensaje || {}),
+        ...(partialUpdate.mensaje || {}),
+      },
+      marco: {
+        ...DEFAULT_QR_BRANDING.marco,
+        ...(currentConfig.marco || {}),
+        ...(partialUpdate.marco || {}),
+      },
+      camposMostrados: {
+        ...DEFAULT_QR_BRANDING.camposMostrados,
+        ...(currentConfig.camposMostrados || {}),
+        ...(partialUpdate.camposMostrados || {}),
+      },
+      etiquetas: {
+        ...DEFAULT_QR_BRANDING.etiquetas,
+        ...(currentConfig.etiquetas || {}),
+        ...(partialUpdate.etiquetas || {}),
+      },
+      contacto: {
+        ...DEFAULT_QR_BRANDING.contacto,
+        ...(currentConfig.contacto || {}),
+        ...(partialUpdate.contacto || {}),
+      },
+      header: {
+        ...DEFAULT_QR_BRANDING.header,
+        ...(currentConfig.header || {}),
+        ...(partialUpdate.header || {}),
+      },
+      qr: {
+        ...DEFAULT_QR_BRANDING.qr,
+        ...(currentConfig.qr || {}),
+        ...(partialUpdate.qr || {}),
+      },
+      layout: {
+        ...DEFAULT_QR_BRANDING.layout,
+        ...(currentConfig.layout || {}),
+        ...(partialUpdate.layout || {}),
+      },
     };
 
-    // Actualizar
+    // Preparar datos para actualizar
+    const updateData: any = {
+      qrBrandingConfig: updatedConfig,
+    };
+
+    // Actualizar campos específicos si vienen en el body
+    if (partialUpdate.mensaje?.texto) {
+      updateData.qrMensajeBienvenida = partialUpdate.mensaje.texto;
+    }
+
+    if (partialUpdate.header?.mostrarLogo !== undefined) {
+      updateData.qrMostrarLogo = partialUpdate.header.mostrarLogo;
+    }
+
+    // Actualizar en base de datos
     await prisma.business.update({
-      where: { id: businessId },
-      data: {
-        qrBrandingConfig: updatedConfig,
-      },
+      where: { id: business.id },
+      data: updateData,
     });
 
     return NextResponse.json({
