@@ -14,7 +14,7 @@ import IOSInstallWrapper from '@/components/ios/IOSInstallWrapper';
  */
 export default function BusinessClientePage() {
   const params = useParams();
-  const businessSlug = params.businessId as string; // Slug de la URL
+  const businessSlug = params?.businessId as string; // Slug de la URL
   const [businessData, setBusinessData] = useState<any>(null); // Datos completos del business
   const [isValidBusiness, setIsValidBusiness] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
