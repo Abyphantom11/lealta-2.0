@@ -33,8 +33,7 @@ export default function RoleSwitch({
   // Determinar el rol real del usuario desde la sesión
   const userActualRole = user?.role || currentRole;
 
-  // Debug inicial - eliminar después
-  // console.log('🔍 RoleSwitch Debug:', {
+  // Role switch component
   //   userActualRole,
   //   currentRole,
   //   currentPath,
@@ -176,7 +175,7 @@ export default function RoleSwitch({
         ref={buttonRef}
         onClick={handleToggleDropdown}
         className="flex items-center space-x-2 px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-xl text-white hover:bg-gray-700/50 transition-all"
-        style={{ minWidth: '120px', backgroundColor: 'rgba(55, 65, 81, 0.8)' }} // Debug visibility
+        style={{ minWidth: '120px', backgroundColor: 'rgba(55, 65, 81, 0.8)' }}
       >
         <currentOption.icon className="w-4 h-4" />
         <span className="text-sm font-medium">{currentOption.label}</span>

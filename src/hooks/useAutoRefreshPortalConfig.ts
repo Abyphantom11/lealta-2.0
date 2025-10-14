@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getCurrentBusinessDay, type DayOfWeek } from '@/lib/business-day-utils';
+import { 
+  getCurrentBusinessDay, 
+  isItemVisibleInBusinessDay,
+  type DayOfWeek 
+} from '@/lib/business-day-utils';
 
 interface UseAutoRefreshOptions {
   businessId?: string;
@@ -71,16 +75,26 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
 
       if (response.ok) {
         const data = await response.json();
-        setConfig(data);
+        
+        // ✅ CORRECCIÓN: Extraer los datos reales de la respuesta de la API
+        const realData = data.data || data;
+        console.log('🔍 [useAutoRefreshPortalConfig] API response structure:', {
+          hasSuccess: !!data.success,
+          hasData: !!data.data,
+          topLevelKeys: Object.keys(data),
+          realDataKeys: Object.keys(realData)
+        });
+        
+        setConfig(realData); // ✅ Usar los datos reales, no toda la respuesta
         setLastUpdate(new Date());
         setLastFetchDay(currentDay); // ✅ Actualizar el día del último fetch
         
         console.log(`✅ Config v2 (DB) updated successfully at ${new Date().toLocaleTimeString()}`);
         console.log('🔍 Raw API data:', {
-          banners: data.banners?.length || 0,
-          promociones: (data.promociones || data.promotions)?.length || 0,
-          recompensas: (data.recompensas || data.rewards)?.length || 0,
-          favoritoDelDia: (data.favoritoDelDia || data.favorites)?.length || 0,
+          banners: realData.banners?.length || 0,
+          promociones: (realData.promociones || realData.promotions)?.length || 0,
+          recompensas: (realData.recompensas || realData.rewards)?.length || 0,
+          favoritoDelDia: (realData.favoritoDelDia || realData.favorites)?.length || 0,
           businessDay: currentDay
         });
       } else {
@@ -133,7 +147,7 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
     };
   }, [fetchConfig, refreshInterval, enabled, getCurrentBusinessDayKey, lastFetchDay]);
 
-  // ✅ NUEVA FUNCIÓN: Obtener promociones usando día comercial
+  // ✅ NUEVA FUNCIÓN: Obtener promociones usando día comercial y lógica centralizada
   const getPromocionesForBusinessDay = useCallback(async () => {
     if (!config?.promociones && !config?.promotions) return [];
     
@@ -141,13 +155,26 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
     const todasActivas = promociones.filter((p: any) => p.activo !== false) || [];
     
     try {
-      const diaComercial = await getCurrentBusinessDay(businessId);
-      return todasActivas.filter((p: any) => {
-        if (!p.dias || p.dias.length === 0) return true; // Sin restricción de días
-        return p.dias.includes(diaComercial);
-      });
+      // Filtrar usando la nueva lógica centralizada
+      const promocionesVisibles = [];
+      
+      for (const promo of todasActivas) {
+        // Convertir al formato DailyScheduledItem
+        const item = {
+          dia: promo.dia, // Usar dia singular
+          horaTermino: promo.horaTermino,
+          activo: promo.activo !== false
+        };
+        
+        const visible = await isItemVisibleInBusinessDay(item, businessId);
+        if (visible) {
+          promocionesVisibles.push(promo);
+        }
+      }
+      
+      return promocionesVisibles;
     } catch (error) {
-      console.error('Error obteniendo día comercial para promociones:', error);
+      console.error('Error obteniendo promociones para día comercial:', error);
       return todasActivas; // Fallback: mostrar todas las activas
     }
   }, [config, businessId]);
@@ -207,6 +234,113 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
     return banners.filter((b: any) => b.activo !== false) || [];
   }, [config]);
 
+  const getBannersForBusinessDay = useCallback(async () => {
+    console.log('🔍 [getBannersForBusinessDay] Iniciando función...');
+    console.log('🔍 [getBannersForBusinessDay] Config disponible:', !!config);
+    console.log('🔍 [getBannersForBusinessDay] BusinessId:', businessId);
+    
+    if (!config?.banners) {
+      console.log('❌ [getBannersForBusinessDay] No hay config.banners disponible');
+      console.log('🔍 [getBannersForBusinessDay] Config keys:', Object.keys(config || {}));
+      console.log('🔍 [getBannersForBusinessDay] Config completo:', config);
+      return [];
+    }
+    
+    const banners = config.banners || [];
+    console.log('🔍 [getBannersForBusinessDay] Banners raw del config:', banners.length);
+    
+    const todasActivas = banners.filter((b: any) => b.activo !== false && b.imagenUrl && b.imagenUrl.trim() !== '') || [];
+    console.log('🔍 [getBannersForBusinessDay] Banners activos con imagen:', todasActivas.length);
+    
+    if (todasActivas.length > 0) {
+      todasActivas.forEach((banner: any, idx: number) => {
+        console.log(`   ${idx + 1}. "${banner.titulo}" - Día: ${banner.dia} - Activo: ${banner.activo}`);
+      });
+    }
+
+    try {
+      // Filtrar usando la nueva lógica centralizada
+      const bannersVisibles = [];
+      
+      for (const banner of todasActivas) {
+        // Convertir al formato DailyScheduledItem
+        const item = {
+          dia: banner.dia,
+          horaPublicacion: banner.horaPublicacion,
+          activo: banner.activo !== false
+        };
+        
+        console.log(`🔍 [getBannersForBusinessDay] Verificando "${banner.titulo}" con día: ${banner.dia}`);
+        const visible = await isItemVisibleInBusinessDay(item, businessId);
+        console.log(`🔍 [getBannersForBusinessDay] "${banner.titulo}" visible: ${visible}`);
+        
+        if (visible) {
+          bannersVisibles.push(banner);
+        }
+      }
+      
+      console.log('✅ [getBannersForBusinessDay] Banners finales visibles:', bannersVisibles.length);
+      return bannersVisibles;
+    } catch (error) {
+      console.error('❌ [getBannersForBusinessDay] Error obteniendo banners para día comercial:', error);
+      return todasActivas; // Fallback: mostrar todos los activos
+    }
+  }, [config, businessId]);
+
+  // ✅ NUEVA FUNCIÓN: Obtener favorito del día usando lógica centralizada (como banners)
+  const getFavoritoForBusinessDay = useCallback(async () => {
+    console.log('🔍 [getFavoritoForBusinessDay] Iniciando función...');
+    console.log('🔍 [getFavoritoForBusinessDay] Config actual:', config);
+    
+    if (!config?.favoritoDelDia && !config?.favorites) {
+      console.log('❌ [getFavoritoForBusinessDay] No hay config.favoritoDelDia disponible');
+      console.log('🔍 [getFavoritoForBusinessDay] Keys del config:', Object.keys(config || {}));
+      return null;
+    }
+    
+    // El API devuelve favoritoDelDia como objeto único, no como array
+    let favoritos = [];
+    if (config.favoritoDelDia) {
+      // Si es un objeto único, convertirlo a array
+      favoritos = Array.isArray(config.favoritoDelDia) ? config.favoritoDelDia : [config.favoritoDelDia];
+    } else if (config.favorites) {
+      favoritos = Array.isArray(config.favorites) ? config.favorites : [config.favorites];
+    }
+    
+    console.log('🔍 [getFavoritoForBusinessDay] Favoritos procesados:', favoritos.length);
+    console.log('🔍 [getFavoritoForBusinessDay] Favoritos data:', favoritos);
+    
+    const todosActivos = favoritos.filter((f: any) => f && f.active !== false) || [];
+    console.log('🔍 [getFavoritoForBusinessDay] Favoritos activos:', todosActivos.length);
+
+    try {
+      // Filtrar usando la nueva lógica centralizada
+      for (const favorito of todosActivos) {
+        // Convertir al formato DailyScheduledItem
+        const item = {
+          dia: favorito.dia,
+          horaPublicacion: favorito.horaPublicacion,
+          activo: favorito.active !== false
+        };
+        
+        console.log(`🔍 [getFavoritoForBusinessDay] Verificando "${favorito.productName}" con día: ${favorito.dia}`);
+        const visible = await isItemVisibleInBusinessDay(item, businessId);
+        console.log(`🔍 [getFavoritoForBusinessDay] "${favorito.productName}" visible: ${visible}`);
+        
+        if (visible) {
+          console.log('✅ [getFavoritoForBusinessDay] Favorito encontrado:', favorito.productName);
+          return favorito;
+        }
+      }
+      
+      console.log('⚠️ [getFavoritoForBusinessDay] Ningún favorito visible para el día actual');
+      return null;
+    } catch (error) {
+      console.error('❌ [getFavoritoForBusinessDay] Error obteniendo favorito para día comercial:', error);
+      return todosActivos[0] || null; // Fallback: devolver el primero activo
+    }
+  }, [config, businessId]);
+
   return {
     config,
     isLoading,
@@ -215,7 +349,9 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
     getPromociones,
     getPromocionesForBusinessDay,
     getFavoritoDelDia,
+    getFavoritoForBusinessDay,
     getRecompensas,
     getBanners,
+    getBannersForBusinessDay,
   };
 };

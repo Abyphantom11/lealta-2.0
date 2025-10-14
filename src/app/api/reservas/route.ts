@@ -36,13 +36,56 @@ function mapReservaStatusToPrisma(estado: EstadoReserva): 'PENDING' | 'CONFIRMED
   }
 }
 
-// GET - Obtener todas las reservas
+// 🔥 OPTIMIZACIÓN: Función para calcular estadísticas en memoria (evita query separada)
+function calculateStats(reservas: Reserva[]) {
+  const hoy = new Date().toISOString().split('T')[0];
+  const reservasHoy = reservas.filter(r => r.fecha === hoy);
+  
+  // Calcular totales
+  const totalAsistentes = reservas.reduce((acc, r) => acc + (r.asistenciaActual || 0), 0);
+  const reservasCompletadas = reservas.filter(r => r.estado === 'Activa' || r.estado === 'En Camino');
+  const totalReservados = reservasCompletadas.reduce((acc, r) => acc + r.numeroPersonas, 0);
+  const promedioAsistencia = totalReservados > 0 ? (totalAsistentes / totalReservados) * 100 : 0;
+  
+  return {
+    totalReservas: reservas.length,
+    totalAsistentes,
+    promedioAsistencia: Math.round(promedioAsistencia),
+    reservasHoy: reservasHoy.length
+  };
+}
+
+// 🔥 OPTIMIZACIÓN: Función para extraer clientes únicos (evita query separada)
+function extractUniqueClients(reservas: Reserva[]) {
+  const clientesMap = new Map();
+  
+  reservas.forEach(reserva => {
+    if (reserva.cliente && reserva.cliente.id) {
+      clientesMap.set(reserva.cliente.id, {
+        id: reserva.cliente.id,
+        nombre: reserva.cliente.nombre,
+        telefono: reserva.cliente.telefono,
+        email: reserva.cliente.email,
+        totalReservas: (clientesMap.get(reserva.cliente.id)?.totalReservas || 0) + 1,
+        ultimaReserva: reserva.fecha
+      });
+    }
+  });
+  
+  return Array.from(clientesMap.values());
+}
+
+// GET - Obtener todas las reservas + datos adicionales opcionales
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const businessIdOrSlug = searchParams.get('businessId') || 'default-business-id';
     
-    console.log('📥 GET /api/reservas - businessId recibido:', businessIdOrSlug);
+    // 🔥 OPTIMIZACIÓN: Parámetros para combinar múltiples endpoints
+    const includeStats = searchParams.get('include')?.includes('stats') || false;
+    const includeClients = searchParams.get('include')?.includes('clients') || false;
+    
+    console.log('📥 GET /api/reservas - businessId:', businessIdOrSlug, 'include:', { stats: includeStats, clients: includeClients });
     
     // Intentar buscar el business por ID o por slug
     let business;
@@ -233,7 +276,15 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ 
       success: true, 
-      reservas 
+      reservas,
+      // 🔥 OPTIMIZACIÓN: Incluir stats en la misma respuesta si se solicita
+      ...(includeStats && {
+        stats: calculateStats(reservas)
+      }),
+      // 🔥 OPTIMIZACIÓN: Incluir datos de clientes únicos si se solicita
+      ...(includeClients && {
+        clients: extractUniqueClients(reservas)
+      })
     });
 
   } catch (error) {

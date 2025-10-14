@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Percent } from 'lucide-react';
 import { useAutoRefreshPortalConfig } from '@/hooks/useAutoRefreshPortalConfig';
@@ -28,11 +28,13 @@ export default function PromocionesSection({ businessId }: Readonly<PromocionesP
   const [sectionTitle, setSectionTitle] = useState('Promociones Especiales');
   
   // 🔄 Auto-refresh hook para sincronización admin → cliente
-  const { getPromociones, isLoading } = useAutoRefreshPortalConfig({
+  const { getPromocionesForBusinessDay, isLoading } = useAutoRefreshPortalConfig({
     businessId,
     refreshInterval: 15000, // 15 segundos para promociones (más frecuente)
     enabled: true
   });
+  
+
   
   // 📥 Cargar título personalizado
   const loadSectionTitle = useCallback(async () => {
@@ -51,37 +53,30 @@ export default function PromocionesSection({ businessId }: Readonly<PromocionesP
   
   useEffect(() => {
     loadSectionTitle();
-  }, [loadSectionTitle]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessId]);
 
-  // Obtener promociones para el día comercial actual con filtros (usa día comercial internamente)
-  const promociones = useMemo(() => {
-    const allPromociones = getPromociones(); // Ya incluye lógica de día comercial
-    
-    if (!allPromociones || allPromociones.length === 0) {
-      return [];
-    }
+  // Estados para promociones
+  const [promociones, setPromociones] = useState<Promocion[]>([]);
 
-    // Obtener hora actual para validaciones
-    const ahora = new Date();
-    const horaActual = ahora.getHours() * 60 + ahora.getMinutes();
-
-    // Filtrar promociones activas y validar horarios
-    const promocionesActivas = allPromociones.filter((p: any) => {
-      // Verificar estado activo
-      if (!p.activo) return false;
-
-      // Si tiene hora de término, verificar que no haya terminado
-      if (p.horaTermino) {
-        const [horas, minutos] = p.horaTermino.split(':').map(Number);
-        const horaTermino = horas * 60 + minutos;
-        return horaActual < horaTermino;
+  // Cargar promociones usando la nueva lógica centralizada
+  useEffect(() => {
+    const loadPromociones = async () => {
+      try {
+        const promocionesDelDia = await getPromocionesForBusinessDay();
+        setPromociones(promocionesDelDia);
+      } catch (error) {
+        console.error('Error cargando promociones del día:', error);
+        setPromociones([]);
       }
+    };
 
-      return true;
-    });
-
-    return promocionesActivas;
-  }, [getPromociones]);
+    loadPromociones();
+    
+    // Actualizar cada minuto para detectar cambios
+    const interval = setInterval(loadPromociones, 60000);
+    return () => clearInterval(interval);
+  }, [getPromocionesForBusinessDay, businessId]);
 
   if (isLoading || promociones.length === 0) return null;
 

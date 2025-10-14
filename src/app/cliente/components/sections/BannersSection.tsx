@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Bell, X } from 'lucide-react';
 import { browserNotifications } from '@/services/browserNotifications';
@@ -22,27 +22,33 @@ interface BannersProps {
 
 export default function BannersSection({ businessId }: BannersProps) {
   // 🔄 Auto-refresh hook para sincronización admin → cliente
-  const { getBanners, isLoading } = useAutoRefreshPortalConfig({
+  const { getBannersForBusinessDay, isLoading } = useAutoRefreshPortalConfig({
     businessId,
     refreshInterval: 10000, // 10 segundos para banners
     enabled: true
   });
 
-  // Obtener banners con filtros aplicados (usa día comercial internamente)
-  const banners = useMemo(() => {
-    const allBanners = getBanners();
+  // Estados para día comercial y banners
+  const [banners, setBanners] = useState<Banner[]>([]);
+
+  // Actualizar banners cuando cambie el día comercial
+  useEffect(() => {
+    const loadBanners = async () => {
+      try {
+        const bannersDelDia = await getBannersForBusinessDay();
+        setBanners(bannersDelDia);
+      } catch (error) {
+        console.error('❌ [BannersSection] Error cargando banners del día:', error);
+        setBanners([]);
+      }
+    };
+
+    loadBanners();
     
-    if (!allBanners || allBanners.length === 0) {
-      return [];
-    }
-
-    // Filtrar solo banners activos con imagen
-    const activeBanners = allBanners.filter(
-      (banner: Banner) => banner.activo && banner.imagenUrl && banner.imagenUrl.trim() !== ''
-    );
-
-    return activeBanners;
-  }, [getBanners]);
+    // Actualizar cada minuto para detectar cambios
+    const interval = setInterval(loadBanners, 60000);
+    return () => clearInterval(interval);
+  }, [getBannersForBusinessDay, businessId]);
 
   // Estados para UI
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(() => {
@@ -140,9 +146,8 @@ export default function BannersSection({ businessId }: BannersProps) {
           </motion.div>
         )}
 
-        {/* Banners normales - Solo mostrar si hay al menos uno con URL válida */}
+        {/* Banners normales - Mostrar todos con imagen por defecto si no tienen */}
         {banners
-          .filter((banner: Banner) => banner.imagenUrl && banner.imagenUrl.trim() !== '')
           .slice(0, 1)
           .map((banner: Banner, index: number) => (
             <div key={banner.id} className="mx-4">
@@ -159,11 +164,23 @@ export default function BannersSection({ businessId }: BannersProps) {
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 onClick={() => setSelectedBanner(banner)}
               >
-                <img
-                  src={banner.imagenUrl}
-                  alt={banner.titulo || 'Evento del día'}
-                  className="w-full h-48 object-cover rounded-xl"
-                />
+                {banner.imagenUrl ? (
+                  <img
+                    src={banner.imagenUrl}
+                    alt={banner.titulo || 'Evento del día'}
+                    className="w-full h-48 object-cover rounded-xl"
+                  />
+                ) : (
+                  <div className="w-full h-48 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl flex items-center justify-center">
+                    <div className="text-center text-white">
+                      <div className="text-6xl mb-2">🎉</div>
+                      <h3 className="text-xl font-bold">{banner.titulo}</h3>
+                      {banner.descripcion && (
+                        <p className="text-sm opacity-80 mt-1">{banner.descripcion}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </motion.div>
             </div>
           ))}

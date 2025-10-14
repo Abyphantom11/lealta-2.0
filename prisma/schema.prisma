@@ -93,6 +93,9 @@ model Business {
   // 🆕 Fidelización por Anfitrión
   hostTrackings       HostTracking[]       @relation("BusinessHostTracking")
   guestConsumos       GuestConsumo[]       @relation("BusinessGuestConsumos")
+  
+  // 🔗 QR Links Dinámicos
+  qrLinks             QRLink[]             @relation("BusinessQRLinks")
 }
 
 model User {
@@ -892,4 +895,64 @@ model GuestConsumo {
   @@index([businessId])
   @@index([hostTrackingId])
   @@index([consumoId])
+}
+
+// 🔗 QR LINKS DINÁMICOS: Sistema de QR con redirección modificable
+model QRLink {
+  id          String   @id @default(cuid())
+  shortId     String   @unique // ID corto para la URL (/r/shortId)
+  businessId  String? // Opcional - para QRs específicos de negocio
+  
+  // Información del QR
+  name        String // Nombre descriptivo del QR
+  description String? // Descripción opcional
+  
+  // URLs
+  targetUrl   String // URL principal de destino
+  backupUrl   String? // URL de backup si la principal falla
+  
+  // Configuración
+  isActive    Boolean  @default(true) // Si está activo o desactivado
+  expiresAt   DateTime? // Fecha de expiración opcional
+  
+  // Analytics
+  clickCount  Int      @default(0) // Contador de clicks
+  
+  // Metadata
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relaciones
+  business    Business? @relation("BusinessQRLinks", fields: [businessId], references: [id], onDelete: Cascade)
+  clicks      QRClick[] // Historial de clicks para analytics
+  
+  @@index([shortId])
+  @@index([businessId])
+  @@index([isActive])
+  @@index([expiresAt])
+}
+
+// 📊 ANALYTICS DE QR: Registro detallado de cada click
+model QRClick {
+  id         String   @id @default(cuid())
+  qrLinkId   String
+  
+  // Información del click
+  ipAddress  String
+  userAgent  String?
+  referer    String?
+  
+  // Geolocalización (opcional)
+  country    String?
+  city       String?
+  
+  // Metadata
+  clickedAt  DateTime @default(now())
+  
+  // Relaciones
+  qrLink     QRLink   @relation(fields: [qrLinkId], references: [id], onDelete: Cascade)
+  
+  @@index([qrLinkId])
+  @@index([clickedAt])
+  @@index([ipAddress])
 }

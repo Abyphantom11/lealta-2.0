@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { UserPlus } from 'lucide-react';
 import { useBranding } from '../branding/BrandingProvider';
 import { RegisterFormProps } from './auth.types';
-import { clientSession } from '@/utils/mobileStorage';
+import { improvedClientSession as clientSession } from '@/utils/improvedClientSession';
 import { logger } from '@/utils/logger';
 
 export const RegisterForm = ({ 

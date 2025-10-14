@@ -34,12 +34,12 @@ const FavoritoDelDiaManager: React.FC<FavoritoDelDiaManagerProps> = ({
   onToggle,
 }) => {
   const [selectedDay, setSelectedDay] = useState('lunes');
-  const [publishTime, setPublishTime] = useState('09:00');
+  const [publishTime, setPublishTime] = useState('04:00');
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
     imagenUrl: '',
-    horaPublicacion: '09:00',
+    horaPublicacion: '04:00',
   });
   const [uploading, setUploading] = useState(false);
 
@@ -132,17 +132,17 @@ const FavoritoDelDiaManager: React.FC<FavoritoDelDiaManagerProps> = ({
         nombre: favorito.nombre || '',
         descripcion: favorito.descripcion || '',
         imagenUrl: favorito.imagenUrl || '',
-        horaPublicacion: favorito.horaPublicacion || '09:00',
+        horaPublicacion: favorito.horaPublicacion || '04:00',
       });
-      setPublishTime(favorito.horaPublicacion || '09:00');
+      setPublishTime(favorito.horaPublicacion || '04:00');
     } else {
       setFormData({
         nombre: '',
         descripcion: '',
         imagenUrl: '',
-        horaPublicacion: '09:00',
+        horaPublicacion: '04:00',
       });
-      setPublishTime('09:00');
+      setPublishTime('04:00');
     }
   }, [selectedDay, favoritos]);
 
@@ -436,7 +436,7 @@ const FavoritoDelDiaManager: React.FC<FavoritoDelDiaManagerProps> = ({
               <p className="text-dark-300">
                 🕒 Hora:{' '}
                 <span className="text-white font-medium">
-                  {favoritoPorDia.horaPublicacion || '09:00'}
+                  {favoritoPorDia.horaPublicacion || '04:00'}
                 </span>
               </p>
               <p className="text-dark-300">

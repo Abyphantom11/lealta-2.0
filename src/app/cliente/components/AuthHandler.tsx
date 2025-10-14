@@ -6,8 +6,10 @@ import { RegisterForm } from './auth/RegisterForm';
 import { Dashboard } from './dashboard/Dashboard';
 import MenuDrawer from './MenuDrawer';
 import {
-  clientSession,
   levelStorage,
+  clientSession as improvedClientSession,
+} from '@/utils/improvedClientSession';
+import { 
   mobileStorage,
 } from '@/utils/mobileStorage';
 import { logger } from '@/utils/logger';
@@ -35,11 +37,11 @@ export default function AuthHandler({ businessId: propBusinessId }: Readonly<Aut
   const { notifyLevelUpManual } = useClientNotifications();
   
   // 🔥 USAR businessId del contexto o del prop, con fallback
-  const businessId = propBusinessId || contextBusinessId || 'cmfr2y0ia0000eyvw7ef3k20u';
+  const businessId = propBusinessId || contextBusinessId || 'cmgf5px5f0000eyy0elci9yds';
 
   // 🔥 VERIFICAR SI TENEMOS DATOS REALES DE CONFIGURACIÓN
+  // Aceptar cualquier nombre que no sea el fallback por defecto
   const hasRealBrandingData = brandingConfig.businessName && 
-                             brandingConfig.businessName !== 'Mi Negocio' && 
                              brandingConfig.businessName !== 'LEALTA' &&
                              brandingConfig.businessName.trim() !== '';
 
@@ -112,7 +114,7 @@ export default function AuthHandler({ businessId: propBusinessId }: Readonly<Aut
     logger.log('🚪 Cerrando sesión...');
 
     // Limpiar almacenamiento usando las nuevas utilidades
-    clientSession.clear();
+    improvedClientSession.clear();
     if (clienteData) {
       levelStorage.clear(clienteData.cedula);
     }
@@ -284,13 +286,12 @@ export default function AuthHandler({ businessId: propBusinessId }: Readonly<Aut
         // Actualizar datos después de verificar notificaciones
         setClienteData(data.cliente);
         
-        // 2. También refrescar configuración del portal para sincronizar cambios del admin
-        await loadPortalConfig();
+        // NO recargar portal config en cada polling - se carga solo al inicio
       }
     } catch (error) {
       console.error('❌ Error refrescando datos del cliente:', error);
     }
-  }, [cedula, clienteData, notifyLevelUpManual, businessId, loadPortalConfig]);
+  }, [cedula, clienteData, notifyLevelUpManual, businessId]); // Removido loadPortalConfig de dependencias
 
   // Configurar polling para refrescar datos automáticamente (con notificaciones en tiempo real)
   useEffect(() => {
@@ -332,10 +333,7 @@ export default function AuthHandler({ businessId: propBusinessId }: Readonly<Aut
         // Configurar entorno del navegador
         await setupEnvironment();
 
-        const savedSession = clientSession.load() as {
-          cedula: string;
-          timestamp: number;
-        } | null;
+        const savedSession = improvedClientSession.load();
         if (savedSession) {
           const { cedula: savedCedula, timestamp } = savedSession;
 
@@ -379,13 +377,13 @@ export default function AuthHandler({ businessId: propBusinessId }: Readonly<Aut
             } else {
               // Cliente no existe, limpiar sesión
               logger.warn('⚠️ Cliente no existe, limpiando sesión');
-              clientSession.clear();
+              improvedClientSession.clear();
               setStep('presentation'); // Asegurar que va a presentation si no hay sesión válida
             }
           } else {
             // Sesión expirada, limpiar
             logger.log('⏰ Sesión expirada, limpiando');
-            clientSession.clear();
+            improvedClientSession.clear();
             setStep('presentation'); // Asegurar que va a presentation si la sesión expiró
           }
         } else {
@@ -395,7 +393,7 @@ export default function AuthHandler({ businessId: propBusinessId }: Readonly<Aut
       } catch (error) {
         logger.error('❌ Error verificando sesión guardada:', error);
         // En caso de error, limpiar cualquier sesión corrupta
-        clientSession.clear();
+        improvedClientSession.clear();
         setStep('presentation'); // En caso de error, ir a presentation
       } finally {
         // Siempre establecer isInitialLoading a false al final
@@ -404,7 +402,8 @@ export default function AuthHandler({ businessId: propBusinessId }: Readonly<Aut
     };
 
     checkSavedSession();
-  }, [loadPortalConfig, businessId]); // Agregar businessId como dependencia
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessId]); // SOLO businessId - evita loop infinito con loadPortalConfig
   const getBackgroundStyle = () => {
     if (!isClient) return { backgroundColor: '#1a1a1a' }; // Fondo simple en el servidor
 
@@ -526,8 +525,16 @@ export default function AuthHandler({ businessId: propBusinessId }: Readonly<Aut
           );
           if (response.ok) {
             const data = await response.json();
-            setMenuProducts(data);
-            setActiveMenuSection('products');
+            console.log('🍽️ Datos recibidos del API productos:', data);
+            
+            // El API devuelve { success: true, productos: [...] }
+            if (data.success && Array.isArray(data.productos)) {
+              setMenuProducts(data.productos);
+              setActiveMenuSection('products');
+            } else {
+              console.error('❌ Estructura de datos inesperada:', data);
+              setMenuProducts([]);
+            }
           }
         }
       } catch (error) {
@@ -543,7 +550,7 @@ export default function AuthHandler({ businessId: propBusinessId }: Readonly<Aut
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const sessionData = clientSession.load();
+        const sessionData = improvedClientSession.load();
         if (sessionData?.cedula) {
           logger.log('📱 Sesión encontrada:', sessionData.cedula);
           setCedula(sessionData.cedula);
@@ -571,7 +578,7 @@ export default function AuthHandler({ businessId: propBusinessId }: Readonly<Aut
 
             // Las notificaciones se verificarán automáticamente con el useEffect
           } else {
-            clientSession.clear();
+            improvedClientSession.clear();
             setStep('presentation');
           }
         }
@@ -591,7 +598,8 @@ export default function AuthHandler({ businessId: propBusinessId }: Readonly<Aut
     if (step === 'dashboard') {
       loadMenuCategories();
     }
-  }, [step, loadMenuCategories]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
 
   // Helper functions para reducir complejidad cognitiva
   const updateClienteDataOnly = useCallback(async (cedula: string) => {

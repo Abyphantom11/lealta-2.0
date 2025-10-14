@@ -3,16 +3,15 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Star, X } from 'lucide-react';
 import { useAutoRefreshPortalConfig } from '@/hooks/useAutoRefreshPortalConfig';
-import { getCurrentBusinessDay, type DayOfWeek } from '@/lib/business-day-utils';
 
 interface FavoritoDelDia {
   id: string;
   dia: string;
-  nombre: string;
-  descripcion?: string;
-  imagenUrl?: string;
+  productName: string;
+  description?: string;
+  imageUrl?: string;
   horaPublicacion: string;
-  activo: boolean;
+  active: boolean;
 }
 
 interface FavoritoProps {
@@ -21,68 +20,53 @@ interface FavoritoProps {
 
 export default function FavoritoDelDiaSection({ businessId }: Readonly<FavoritoProps>) {
   // 🔄 Auto-refresh hook para sincronización admin → cliente  
-  const { getFavoritoDelDia, isLoading } = useAutoRefreshPortalConfig({
+  const { getFavoritoForBusinessDay, isLoading } = useAutoRefreshPortalConfig({
     businessId,
-    refreshInterval: 12000, // 12 segundos para favorito del día
+    refreshInterval: 10000, // 10 segundos para favorito del día (igual que banners)
     enabled: true
   });
-
-  // ✅ SOLUCIÓN: Obtener día comercial con hora de reseteo configurable
-  const [diaActual, setDiaActual] = useState<DayOfWeek>('domingo');
-  
-  useEffect(() => {
-    const updateBusinessDay = async () => {
-      try {
-        const businessDay = await getCurrentBusinessDay(businessId);
-        setDiaActual(businessDay);
-      } catch (error) {
-        console.error('Error obteniendo día comercial:', error);
-        // Fallback a día natural si falla
-        const diasSemana: DayOfWeek[] = [
-          'domingo', 'lunes', 'martes', 'miercoles', 
-          'jueves', 'viernes', 'sabado'
-        ];
-        setDiaActual(diasSemana[new Date().getDay()]);
-      }
-    };
-
-    updateBusinessDay();
-    
-    // Actualizar cada minuto para detectar cambios de día comercial
-    const interval = setInterval(updateBusinessDay, 60000);
-    
-    return () => clearInterval(interval);
-  }, [businessId]);
 
   // Estados para favorito del día
   const [favorito, setFavorito] = useState<FavoritoDelDia | null>(null);
   const [selectedFavorito, setSelectedFavorito] = useState<FavoritoDelDia | null>(null);
 
-  // Cargar favorito del día cuando cambia el día actual
+  // Cargar favorito del día usando la nueva lógica centralizada
   useEffect(() => {
     const loadFavorito = async () => {
       try {
-        const favoritoData = await getFavoritoDelDia(diaActual);
+        console.log('🔄 [FavoritoDelDiaSection] Iniciando loadFavorito...');
+        console.log('🔄 [FavoritoDelDiaSection] getFavoritoForBusinessDay function:', getFavoritoForBusinessDay);
+        
+        const favoritoData = await getFavoritoForBusinessDay();
+        console.log('🔄 [FavoritoDelDiaSection] Resultado de getFavoritoForBusinessDay:', favoritoData);
+        
         setFavorito(favoritoData);
       } catch (error) {
-        console.error('Error cargando favorito del día:', error);
+        console.error('❌ [FavoritoDelDiaSection] Error cargando favorito del día:', error);
         setFavorito(null);
       }
     };
 
-    if (diaActual) {
-      loadFavorito();
-    }
-  }, [getFavoritoDelDia, diaActual]);
+    loadFavorito();
+    
+    // Actualizar cada minuto para detectar cambios
+    const interval = setInterval(loadFavorito, 60000);
+    return () => clearInterval(interval);
+  }, [getFavoritoForBusinessDay, businessId]);
 
   // Si no hay favorito del día, no renderizar nada
-  if (isLoading || !favorito?.imagenUrl) return null;
+  if (isLoading || !favorito?.imageUrl) {
+    console.log('🔄 [FavoritoDelDiaSection] No renderizando:', { isLoading, favorito, hasImageUrl: !!favorito?.imageUrl });
+    return null;
+  }
+
+  console.log('✅ [FavoritoDelDiaSection] Renderizando favorito:', favorito);
 
   return (
     <div className="mx-4 mb-6 mt-6">
       <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
         <Star className="w-5 h-5 text-yellow-400" />
-        {favorito.nombre || 'Favorito del Día'}
+        {favorito.productName || 'Favorito del Día'}
       </h3>
 
       <div className="space-y-4">
@@ -94,8 +78,8 @@ export default function FavoritoDelDiaSection({ businessId }: Readonly<FavoritoP
           onClick={() => setSelectedFavorito(favorito)}
         >
           <img
-            src={favorito.imagenUrl}
-            alt={favorito.nombre}
+            src={favorito.imageUrl}
+            alt={favorito.productName}
             className="w-full h-48 object-cover rounded-xl"
           />
 
@@ -103,9 +87,9 @@ export default function FavoritoDelDiaSection({ businessId }: Readonly<FavoritoP
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent p-4">
             <div className="flex items-end justify-between">
               <div className="flex-1">
-                {favorito.descripcion && (
+                {favorito.description && (
                   <p className="text-white font-bold text-lg mb-2">
-                    {favorito.descripcion}
+                    {favorito.description}
                   </p>
                 )}
 
@@ -145,19 +129,19 @@ export default function FavoritoDelDiaSection({ businessId }: Readonly<FavoritoP
             </button>
 
             <img
-              src={selectedFavorito.imagenUrl}
-              alt={selectedFavorito.nombre}
+              src={selectedFavorito.imageUrl}
+              alt={selectedFavorito.productName}
               className="w-full h-64 object-cover"
             />
 
             <div className="p-6">
               <h3 className="text-xl font-bold text-white mb-3">
-                {selectedFavorito.nombre}
+                {selectedFavorito.productName}
               </h3>
 
-              {selectedFavorito.descripcion && (
+              {selectedFavorito.description && (
                 <p className="text-gray-300 text-base mb-4">
-                  {selectedFavorito.descripcion}
+                  {selectedFavorito.description}
                 </p>
               )}
 

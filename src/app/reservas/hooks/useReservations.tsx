@@ -238,36 +238,46 @@ export function useReservations(businessId?: string) {
     }
   }, [businessId, lastUpdateTimestamp, loadReservasFromAPI]);
 
-  // Polling inteligente con intervalo adaptativo
+  // 🔥 OPTIMIZACIÓN: Polling inteligente con intervalo adaptativo MEJORADO
   useEffect(() => {
     if (!businessId) return;
 
     // Carga inicial
     loadReservasFromAPI();
 
-    // Iniciar polling cada 8 segundos
+    // 🎯 REDUCIR EDGE REQUESTS: Polling cada 30 segundos (antes 8 segundos)
     const pollingInterval = setInterval(() => {
-      checkForUpdates();
-    }, 8000); // 8 segundos
+      // Solo hacer polling si la ventana está visible
+      if (!document.hidden) {
+        checkForUpdates();
+      }
+    }, 30000); // 🔥 30 segundos (reducción de -75% requests)
 
     return () => {
       clearInterval(pollingInterval);
     };
   }, [businessId, checkForUpdates, loadReservasFromAPI]);
 
-  // Pausar polling cuando el tab no está visible
+  // 🎯 OPTIMIZACIÓN: Pausar polling cuando el tab no está visible + refetch inteligente
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        // Tab vuelve a estar visible → refrescar inmediatamente
-        console.log('👁️ Tab visible nuevamente, verificando actualizaciones...');
-        checkForUpdates();
+        // Tab vuelve a estar visible → verificar solo si han pasado más de 30 segundos
+        const timeSinceLastUpdate = Date.now() - new Date(lastUpdateTimestamp).getTime();
+        const shouldCheck = timeSinceLastUpdate > 30000; // 30 segundos de threshold
+        
+        if (shouldCheck) {
+          console.log('👁️ Tab visible, verificando actualizaciones (última actualización hace', Math.round(timeSinceLastUpdate / 1000), 'segundos)...');
+          checkForUpdates();
+        } else {
+          console.log('👁️ Tab visible, pero datos recientes (hace', Math.round(timeSinceLastUpdate / 1000), 'segundos), no es necesario refetch');
+        }
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [checkForUpdates]);
+  }, [checkForUpdates, lastUpdateTimestamp]);
 
   const addReserva = async (reservaData: Omit<Reserva, 'id' | 'codigoQR' | 'estado' | 'fechaCreacion' | 'registroEntradas'>) => {
     try {

@@ -6,7 +6,7 @@ import { useRequireAuth } from '../../../hooks/useAuth';
 import PWALayout from '../../../components/layouts/PWALayout';
 
 // Importar el componente de staff completo
-import StaffPageContent from './StaffPageContent-full';
+import StaffPageContent from './StaffPageContent';
 
 /**
  * Página dinámica del panel de staff

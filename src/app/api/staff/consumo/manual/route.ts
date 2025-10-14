@@ -1,12 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import fs from 'fs/promises';
-import { join } from 'path';
-
-// 🔒 BUSINESS ISOLATION: Configuración por business
-function getPortalConfigPath(businessId: string): string {
-  return join(process.cwd(), 'config', 'portal', `portal-config-${businessId}.json`);
-}
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
@@ -158,21 +151,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 🔧 Obtener configuración de puntos dinámica POR BUSINESS
-    let puntosPorDolar = 4; // Valor por defecto actualizado para coincidir con config actual
+    // � MIGRADO: Obtener configuración de puntos desde PostgreSQL Database
+    let puntosPorDolar = 4; // Valor por defecto
     try {
-      const configPath = getPortalConfigPath(user.businessId);
-      const configContent = await fs.readFile(configPath, 'utf-8');
-      const config = JSON.parse(configContent);
-      puntosPorDolar = config.configuracionPuntos?.puntosPorDolar || 4;
-      console.log('✅ Configuración de puntos cargada para business:', {
-        businessId: user.businessId,
-        puntosPorDolar,
-        configPath,
-        fullConfig: config.configuracionPuntos
+      const puntosConfig = await prisma.puntosConfig.findUnique({
+        where: { businessId: user.businessId }
       });
+      
+      if (puntosConfig) {
+        puntosPorDolar = puntosConfig.puntosPorDolar;
+        console.log('✅ Configuración de puntos cargada desde DATABASE para business:', {
+          businessId: user.businessId,
+          puntosPorDolar,
+          source: 'PostgreSQL'
+        });
+      } else {
+        // Crear configuración por defecto en la DB
+        console.log('⚙️ Creando configuración por defecto en DATABASE para business:', user.businessId);
+        const newConfig = await prisma.puntosConfig.create({
+          data: {
+            businessId: user.businessId,
+            puntosPorDolar: 4,
+            bonusPorRegistro: 100,
+            maxPuntosPorDolar: 10,
+            maxBonusRegistro: 1000
+          }
+        });
+        puntosPorDolar = newConfig.puntosPorDolar;
+      }
     } catch (error) {
-      console.warn('⚠️ No se pudo cargar configuración de puntos, usando valor por defecto:', error);
+      console.warn('⚠️ Error cargando configuración de puntos desde DATABASE, usando valor por defecto:', error);
     }
 
     // Calcular puntos dinámicos por cada $1 gastado

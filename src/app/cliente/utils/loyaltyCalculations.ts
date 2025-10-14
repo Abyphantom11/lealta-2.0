@@ -34,7 +34,7 @@ export const calculateLoyaltyLevel = async (portalConfig: any, clienteData: Clie
     // Obtener businessId del portalConfig o usar default
     const businessId = portalConfig?.businessId || portalConfig?.settings?.businessId || 'default';
     puntosRequeridos = await getPuntosMinimosConfig(businessId);
-    console.log(`✅ [LOYALTY-CALC] Usando configuración central para ${businessId}:`, puntosRequeridos);
+    // Usar configuración central
   } catch (error) {
     console.error('❌ [LOYALTY-CALC] Error obteniendo configuración central:', error);
     // Fallback seguro

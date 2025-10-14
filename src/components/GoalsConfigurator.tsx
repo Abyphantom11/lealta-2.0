@@ -158,7 +158,7 @@ export default function GoalsConfigurator({ onClose, onSave }: Readonly<GoalsCon
         setTimeout(() => {
           window.dispatchEvent(new CustomEvent('forceStatsRefresh'));
           
-          // Forzar reload de la página si es necesario (para debugging)
+          // Reload page if necessary
           if (window.location.href.includes('debug=reload')) {
             window.location.reload();
           }
@@ -182,7 +182,7 @@ export default function GoalsConfigurator({ onClose, onSave }: Readonly<GoalsCon
   };
 
   const updateGoal = (field: keyof BusinessGoals, value: string) => {
-    // Permitir valores vacíos temporalmente para mejor UX
+    // Allow empty values for better UX
     const numericValue = value === '' ? 0 : parseFloat(value) || 0;
     setGoals(prev => ({ ...prev, [field]: numericValue }));
     

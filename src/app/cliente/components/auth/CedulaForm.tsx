@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { useBranding } from '../branding/BrandingProvider';
 import { CedulaFormProps } from './auth.types';
-import { clientSession, levelStorage } from '@/utils/mobileStorage';
+import { improvedClientSession as clientSession, levelStorage } from '@/utils/improvedClientSession';
 import { logger } from '@/utils/logger';
 
 export const CedulaForm = ({ 

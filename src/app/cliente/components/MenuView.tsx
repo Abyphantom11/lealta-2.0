@@ -23,7 +23,7 @@ const MenuView: React.FC<MenuViewProps> = ({
   const handleSearch = useCallback((query: string) => {
     if (!query.trim() || query.trim().length < 2) {
       // Si no hay búsqueda o es muy corta, limpiar filtros
-      setFilteredProducts(menuProducts);
+      setFilteredProducts(Array.isArray(menuProducts) ? menuProducts : []);
       return;
     }
     const searchLower = query.toLowerCase().trim();
@@ -33,11 +33,13 @@ const MenuView: React.FC<MenuViewProps> = ({
     const allProducts: any[] = [];
     
     // Recopilar productos de todas las categorías
-    allCategories.forEach((category: any) => {
-      if (category.productos && Array.isArray(category.productos)) {
-        allProducts.push(...category.productos);
-      }
-    });
+    if (Array.isArray(allCategories)) {
+      allCategories.forEach((category: any) => {
+        if (category.productos && Array.isArray(category.productos)) {
+          allProducts.push(...category.productos);
+        }
+      });
+    }
     
     // Búsqueda mejorada en todos los productos
     const filtered = allProducts.filter((product: any) => {
@@ -63,14 +65,15 @@ const MenuView: React.FC<MenuViewProps> = ({
     if (searchQuery && searchQuery.length >= 2) {
       handleSearch(searchQuery);
     } else {
-      setFilteredProducts(menuProducts);
+      // Asegurar que menuProducts sea un array antes de pasarlo
+      setFilteredProducts(Array.isArray(menuProducts) ? menuProducts : []);
     }
   }, [menuCategories, menuProducts, allCategories, handleSearch, searchQuery, setFilteredProducts]);
 
   if (searchQuery && searchQuery.length >= 2) {
     return (
       <MenuProductsView 
-        products={filteredProducts}
+        products={Array.isArray(filteredProducts) ? filteredProducts : []}
         isLoading={isLoadingMenu}
         searchQuery={searchQuery}
       />
@@ -90,7 +93,7 @@ const MenuView: React.FC<MenuViewProps> = ({
 
   return (
     <MenuProductsView 
-      products={menuProducts}
+      products={Array.isArray(menuProducts) ? menuProducts : []}
       isLoading={isLoadingMenu}
       searchQuery=""
     />

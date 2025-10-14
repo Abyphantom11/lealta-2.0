@@ -68,6 +68,12 @@ const MenuProductsView: React.FC<MenuProductsViewProps> = ({
   
   // ✅ OPTIMIZACIÓN: Memoizar la lista de productos para evitar re-renders innecesarios
   const productItems = useMemo(() => {
+    // Validar que products sea un array antes de usar map
+    if (!Array.isArray(products)) {
+      console.warn('MenuProductsView: products is not an array:', products);
+      return [];
+    }
+    
     return products.map((product: MenuItem) => (
       <ProductItem
         key={product.id}
@@ -94,14 +100,20 @@ const MenuProductsView: React.FC<MenuProductsViewProps> = ({
   }
   
   // Renderizar estado vacío
-  if (products.length === 0) {
+  if (!Array.isArray(products) || products.length === 0) {
+    const getErrorMessage = () => {
+      if (!Array.isArray(products)) return 'Error: Datos de productos inválidos';
+      if (searchQuery) return 'No se encontraron productos que coincidan con tu búsqueda';
+      return 'No hay productos disponibles en esta categoría';
+    };
+        
     return (
       <div>
         <h2 className="text-lg font-semibold text-white mb-4">
           {searchQuery ? `Resultados para "${searchQuery}"` : 'Productos'}
         </h2>
         <div className="text-center py-8">
-          <div className="text-gray-400 mb-2">
+          <div className="text-gray-400 mb-2">{getErrorMessage()}
             {searchQuery ? 'No se encontraron productos' : 'No hay productos disponibles'}
           </div>
           {searchQuery && (

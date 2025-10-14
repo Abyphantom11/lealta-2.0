@@ -4,6 +4,7 @@ import NotificationContainer from '@/components/ui/NotificationContainer';
 import RedirectInterceptor from '../components/RedirectInterceptor';
 import ServiceWorkerRegistration from '../components/ServiceWorkerRegistration';
 import { PWAProvider } from '../providers/PWAProvider';
+import { QueryProvider } from '../providers/QueryProvider';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -63,14 +64,16 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className={inter.className}>
-        <PWAProvider enableDebugLogs={false}>
-          <ServiceWorkerRegistration />
-          <RedirectInterceptor />
-          <div className="min-h-screen bg-gradient-to-br from-slate-950 via-gray-950 to-black">
-            {children}
-            <NotificationContainer />
-          </div>
-        </PWAProvider>
+        <QueryProvider>
+          <PWAProvider enableDebugLogs={false}>
+            <ServiceWorkerRegistration />
+            <RedirectInterceptor />
+            <div className="min-h-screen bg-gradient-to-br from-slate-950 via-gray-950 to-black">
+              {children}
+              <NotificationContainer />
+            </div>
+          </PWAProvider>
+        </QueryProvider>
       </body>
     </html>
   );

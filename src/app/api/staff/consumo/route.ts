@@ -5,8 +5,6 @@ import { put } from '@vercel/blob';
 import { geminiAnalyzer } from '../../../../lib/ai/gemini-analyzer';
 import { logger } from '@/utils/production-logger';
 import { getBlobStorageToken } from '@/lib/blob-storage-utils';
-import fs from 'fs/promises';
-import path from 'path';
 import { withAuth } from '@/middleware/requireAuth';
 
 // Forzar renderizado dinámico para esta ruta que usa autenticación
@@ -170,17 +168,34 @@ async function loadPuntosConfiguration(businessId?: string): Promise<number> {
       return 4; // Fallback por defecto
     }
 
-    // Leer configuración específica del business
-    const configPath = path.join(process.cwd(), 'config', 'portal', `portal-config-${businessId}.json`);
-    const configContent = await fs.readFile(configPath, 'utf-8');
-    const config = JSON.parse(configContent);
+    // 🔄 MIGRADO: Leer configuración desde PostgreSQL Database
+    const puntosConfig = await prisma.puntosConfig.findUnique({
+      where: { businessId }
+    });
     
-    const puntosPorDolar = config.configuracionPuntos?.puntosPorDolar || 4;
-    logger.debug('✅ Points configuration loaded for business:', { businessId, puntosPorDolar });
+    if (puntosConfig) {
+      logger.debug('✅ Points configuration loaded from DATABASE for business:', { 
+        businessId, 
+        puntosPorDolar: puntosConfig.puntosPorDolar 
+      });
+      return puntosConfig.puntosPorDolar;
+    }
+
+    // Fallback: Crear configuración por defecto en la DB
+    logger.info('⚙️ Creating default points config in DATABASE for business:', businessId);
+    const newConfig = await prisma.puntosConfig.create({
+      data: {
+        businessId,
+        puntosPorDolar: 4,
+        bonusPorRegistro: 100,
+        maxPuntosPorDolar: 10,
+        maxBonusRegistro: 1000
+      }
+    });
     
-    return puntosPorDolar;
+    return newConfig.puntosPorDolar;
   } catch (error) {
-    logger.warn('⚠️ Error loading points configuration, using default:', error);
+    logger.warn('⚠️ Error loading points configuration from DATABASE, using default:', error);
     return 4; // Fallback por defecto
   }
 }

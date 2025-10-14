@@ -193,6 +193,175 @@ export function getCurrentBusinessDaySync(
 }
 
 /**
+ * Interface para elementos que tienen configuración diaria
+ */
+export interface DailyScheduledItem {
+  dia: DayOfWeek;
+  horaInicio?: string; // Formato "HH:MM"
+  horaTermino?: string; // Formato "HH:MM"
+  horaPublicacion?: string; // Para compatibilidad con banners/favoritos
+  activo?: boolean;
+}
+
+/**
+ * Convierte hora en formato "HH:MM" a minutos desde medianoche
+ * @param timeString Hora en formato "HH:MM"
+ * @returns Minutos desde medianoche
+ */
+function timeStringToMinutes(timeString: string): number {
+  const [horas, minutos] = timeString.split(':').map(Number);
+  return horas * 60 + minutos;
+}
+
+/**
+ * Obtiene la hora de inicio efectiva para un elemento
+ */
+async function getEffectiveStartTime(
+  item: DailyScheduledItem,
+  businessId?: string
+): Promise<string> {
+  if (item.horaInicio) return item.horaInicio;
+  if (item.horaPublicacion) return item.horaPublicacion;
+  
+  const config = await getBusinessDayConfig(businessId);
+  return `${config.resetHour.toString().padStart(2, '0')}:${(config.resetMinute || 0).toString().padStart(2, '0')}`;
+}
+
+/**
+ * Verifica si el elemento ha pasado su hora de término
+ */
+async function isAfterEndTime(
+  item: DailyScheduledItem,
+  currentTimeInMinutes: number,
+  businessId?: string
+): Promise<boolean> {
+  if (!item.horaTermino) return false;
+  
+  const horaTerminoMinutos = timeStringToMinutes(item.horaTermino);
+  
+  // Lógica especial: si horaTermino < 6:00, se considera del día siguiente
+  if (horaTerminoMinutos < 6 * 60) {
+    const config = await getBusinessDayConfig(businessId);
+    const resetTimeInMinutes = config.resetHour * 60 + (config.resetMinute || 0);
+    return currentTimeInMinutes >= resetTimeInMinutes;
+  }
+  
+  return currentTimeInMinutes >= horaTerminoMinutos;
+}
+
+/**
+ * Determina si un elemento programado debe ser visible en el momento actual
+ * Centraliza la lógica de visibilidad para banners, promociones y favoritos
+ * @param item Elemento con configuración diaria
+ * @param businessId ID del negocio
+ * @param customDate Fecha personalizada para testing
+ * @returns true si el elemento debe ser visible
+ */
+export async function isItemVisibleInBusinessDay(
+  item: DailyScheduledItem,
+  businessId?: string,
+  customDate?: Date
+): Promise<boolean> {
+  const currentBusinessDay = await getCurrentBusinessDay(businessId, customDate);
+  
+  // Verificaciones básicas
+  if (item.dia !== currentBusinessDay || item.activo === false) {
+    return false;
+  }
+
+  const now = customDate || new Date();
+  const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
+  
+  // Verificar hora de inicio
+  const horaInicio = await getEffectiveStartTime(item, businessId);
+  const horaInicioMinutos = timeStringToMinutes(horaInicio);
+  if (currentTimeInMinutes < horaInicioMinutos) {
+    return false;
+  }
+
+  // Verificar hora de término
+  return !(await isAfterEndTime(item, currentTimeInMinutes, businessId));
+}
+
+/**
+ * Obtiene la hora de inicio efectiva para un elemento (versión síncrona)
+ */
+function getEffectiveStartTimeSync(
+  item: DailyScheduledItem,
+  businessId?: string
+): string {
+  if (item.horaInicio) return item.horaInicio;
+  if (item.horaPublicacion) return item.horaPublicacion;
+  
+  const config = configCache.get(businessId || 'default') || {
+    businessId: businessId || 'default',
+    resetHour: DEFAULT_RESET_HOUR,
+    resetMinute: 0
+  };
+  
+  return `${config.resetHour.toString().padStart(2, '0')}:${(config.resetMinute || 0).toString().padStart(2, '0')}`;
+}
+
+/**
+ * Verifica si el elemento ha pasado su hora de término (versión síncrona)
+ */
+function isAfterEndTimeSync(
+  item: DailyScheduledItem,
+  currentTimeInMinutes: number,
+  businessId?: string
+): boolean {
+  if (!item.horaTermino) return false;
+  
+  const horaTerminoMinutos = timeStringToMinutes(item.horaTermino);
+  
+  // Lógica especial: si horaTermino < 6:00, se considera del día siguiente
+  if (horaTerminoMinutos < 6 * 60) {
+    const config = configCache.get(businessId || 'default') || {
+      businessId: businessId || 'default',
+      resetHour: DEFAULT_RESET_HOUR,
+      resetMinute: 0
+    };
+    const resetTimeInMinutes = config.resetHour * 60 + (config.resetMinute || 0);
+    return currentTimeInMinutes >= resetTimeInMinutes;
+  }
+  
+  return currentTimeInMinutes >= horaTerminoMinutos;
+}
+
+/**
+ * Versión síncrona de isItemVisibleInBusinessDay usando configuración cacheada
+ * @param item Elemento con configuración diaria
+ * @param businessId ID del negocio
+ * @param customDate Fecha personalizada para testing
+ * @returns true si el elemento debe ser visible
+ */
+export function isItemVisibleInBusinessDaySync(
+  item: DailyScheduledItem,
+  businessId?: string,
+  customDate?: Date
+): boolean {
+  const currentBusinessDay = getCurrentBusinessDaySync(businessId, customDate);
+  
+  // Verificaciones básicas
+  if (item.dia !== currentBusinessDay || item.activo === false) {
+    return false;
+  }
+
+  const now = customDate || new Date();
+  const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
+  
+  // Verificar hora de inicio
+  const horaInicio = getEffectiveStartTimeSync(item, businessId);
+  const horaInicioMinutos = timeStringToMinutes(horaInicio);
+  if (currentTimeInMinutes < horaInicioMinutos) {
+    return false;
+  }
+
+  // Verificar hora de término
+  return !isAfterEndTimeSync(item, currentTimeInMinutes, businessId);
+}
+
+/**
  * Obtiene el rango de fechas para el día comercial actual
  * @param businessId ID del negocio
  * @param customDate Fecha de referencia

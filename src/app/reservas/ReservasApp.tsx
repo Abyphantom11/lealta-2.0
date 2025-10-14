@@ -5,7 +5,8 @@ import { Toaster, toast } from 'sonner';
 import { QrCode, FileText, Calendar as CalendarIcon, Users } from 'lucide-react';
 
 // Importar todos los componentes originales
-import { useReservations } from './hooks/useReservations';
+import { useReservasOptimized } from './hooks/useReservasOptimized';
+import { Reserva } from './types/reservation';
 import { ReservationTable } from './components/ReservationTable';
 import ReservationForm from './components/ReservationForm';
 import { ReservationConfirmation } from './components/ReservationConfirmation';
@@ -37,22 +38,62 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
   // Detectar si estamos en móvil
   const isMobile = useMediaQuery('(max-width: 768px)');
   
-  // Hook principal de reservas adaptado para businessId
+  // Hook principal de reservas optimizado con React Query
   const {
     reservas,
-    selectedDate,
-    setSelectedDate,
-    statusFilter,
-    addReserva,
-    updateReserva,
-    deleteReserva,
-    getReservasByDate,
-    getDashboardStats,
-    loadReservas,
-    isSyncing,
-    syncStatus,
-    forceRefresh,
-  } = useReservations(businessId);
+    stats: dashboardStats,
+    isLoading,
+    createReserva,
+    updateReserva: updateReservaOptimized,
+    deleteReserva: deleteReservaOptimized,
+    refetchReservas,
+    isCreating,
+    isUpdating,
+    isDeleting,
+  } = useReservasOptimized({ 
+    businessId, 
+    enabled: true, 
+    includeStats: true 
+  });
+
+  // Estados adicionales para compatibilidad con componentes existentes
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const statusFilter = 'Todos'; // Valor fijo por ahora, se puede hacer dinámico después
+
+  // 🔄 FUNCIONES ADAPTADORAS (para compatibilidad con componentes existentes)
+  const addReserva = createReserva;
+  const updateReserva = updateReservaOptimized;
+  const deleteReserva = deleteReservaOptimized;
+  const loadReservas = refetchReservas;
+  const forceRefresh = refetchReservas;
+  const isSyncing = isLoading || isCreating || isUpdating || isDeleting;
+  
+  // Extraer lógica del status para evitar ternario anidado
+  let syncStatus = 'idle';
+  if (isSyncing) {
+    syncStatus = 'updating';
+  } else if (isLoading) {
+    syncStatus = 'checking';
+  }
+
+  // Función para obtener reservas por fecha
+  const getReservasByDate = (date: Date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    return reservas.filter((reserva: Reserva) => {
+      const reservaDate = new Date(reserva.fecha).toISOString().split('T')[0];
+      return reservaDate === dateStr;
+    });
+  };
+
+  // Función para obtener estadísticas del dashboard
+  const getDashboardStats = () => {
+    return dashboardStats || {
+      total: reservas.length,
+      confirmadas: reservas.filter((r: any) => r.estado === 'Confirmada').length,
+      pendientes: reservas.filter((r: any) => r.estado === 'Pendiente').length,
+      canceladas: reservas.filter((r: any) => r.estado === 'Cancelada').length,
+    };
+  };
 
   // Estados para modales y vistas
   const [showForm, setShowForm] = useState(false);
@@ -113,7 +154,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
 
   // Handlers para la tabla de reservas
   const handleViewReserva = (id: string) => {
-    const reserva = reservas.find(r => r.id === id);
+    const reserva = reservas.find((r: Reserva) => r.id === id);
     if (reserva) {
       setSelectedReservaForDetails(reserva);
       setShowDetailsModal(true);
@@ -203,11 +244,11 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
 
   // Datos calculados
   const reservasDelDia = getReservasByDate(selectedDate);
-  const stats = getDashboardStats();
+  const currentStats = getDashboardStats();
 
   // Filtrar reservas por estado (el searchTerm se maneja dentro de ReservationTable)
   const reservasFiltradas = reservasDelDia
-    .filter(reserva => statusFilter === 'Todos' || reserva.estado === statusFilter);
+    .filter((reserva: Reserva) => statusFilter === 'Todos' || reserva.estado === statusFilter);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -322,7 +363,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
         {viewMode === 'dashboard' && (
           <div className="space-y-6">
             {/* Dashboard Stats */}
-            <DashboardStats stats={stats} />
+            <DashboardStats stats={currentStats} />
 
             {/* Toggle Reservas / Sin Reserva - Centrado */}
             <div className="bg-white rounded-lg shadow-sm p-4 flex items-center justify-center">

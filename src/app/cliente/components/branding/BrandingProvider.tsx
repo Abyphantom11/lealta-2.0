@@ -154,7 +154,8 @@ export const BrandingProvider = ({ children, businessId }: BrandingProviderProps
     // Cargar branding desde API
     loadBranding();
     
-  }, [loadBranding, loadFromLocalStorage]); // Agregar dependencias
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessId]); // SOLO businessId como dependencia - evita loop infinito
 
   // Quitar loading cuando se carga el branding inicial - OPTIMIZADO
   useEffect(() => {

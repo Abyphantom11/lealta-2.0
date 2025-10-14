@@ -9,7 +9,7 @@ import {
   Trophy,
   ArrowRight,
 } from 'lucide-react';
-import { clientSession } from '@/utils/mobileStorage';
+import { improvedClientSession as clientSession } from '@/utils/improvedClientSession';
 import { logger } from '@/utils/logger';
 import { calcularProgresoUnificado } from '@/lib/loyalty-progress';
 import { useVisitTracking } from '@/hooks/useVisitTracking';
