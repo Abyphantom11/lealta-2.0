@@ -207,9 +207,68 @@ export default function BrandedQRGenerator({
       currentY += 20;
       
       ctx.fillStyle = '#1a1a1a';
-      ctx.font = '600 18px system-ui';
-      ctx.fillText(detalle.value, config.layout.padding, currentY);
-      currentY += 32;
+      
+      // 🔧 Manejo especial para textos largos (como código de reserva)
+      const maxWidth = width - (config.layout.padding * 2);
+      
+      // Para código de reserva, usar fuente más pequeña
+      if (detalle.campo === 'codigoReserva') {
+        ctx.font = '600 14px monospace'; // Fuente monospace más pequeña
+      } else {
+        ctx.font = '600 18px system-ui';
+      }
+      
+      // Medir el texto
+      const textMetrics = ctx.measureText(detalle.value);
+      
+      // Si el texto es más ancho que el espacio disponible, dividirlo en líneas
+      if (textMetrics.width > maxWidth) {
+        const words = detalle.value.split(' ');
+        let line = '';
+        const lines: string[] = [];
+        
+        // Si no hay espacios (como en códigos), dividir por caracteres
+        if (words.length === 1) {
+          const chars = detalle.value.split('');
+          for (let i = 0; i < chars.length; i++) {
+            const testLine = line + chars[i];
+            const testWidth = ctx.measureText(testLine).width;
+            if (testWidth > maxWidth && i > 0) {
+              lines.push(line);
+              line = chars[i];
+            } else {
+              line = testLine;
+            }
+          }
+          if (line) lines.push(line);
+        } else {
+          // Dividir por palabras
+          for (let i = 0; i < words.length; i++) {
+            const testLine = line + words[i] + ' ';
+            const testWidth = ctx.measureText(testLine).width;
+            if (testWidth > maxWidth && i > 0) {
+              lines.push(line.trim());
+              line = words[i] + ' ';
+            } else {
+              line = testLine;
+            }
+          }
+          if (line.trim()) lines.push(line.trim());
+        }
+        
+        // Renderizar cada línea
+        lines.forEach((lineText, index) => {
+          ctx.fillText(lineText, config.layout.padding, currentY);
+          if (index < lines.length - 1) {
+            currentY += 18; // Espaciado entre líneas
+          }
+        });
+        currentY += 32;
+      } else {
+        // Si el texto cabe, renderizarlo normalmente
+        ctx.fillText(detalle.value, config.layout.padding, currentY);
+        currentY += 32;
+      }
       
       ctx.font = 'bold 16px system-ui';
     });
@@ -325,7 +384,7 @@ export default function BrandedQRGenerator({
           if (canShareFiles) {
             await navigator.share({
               title: `Reserva - ${config.header.nombreEmpresa}`,
-              text: `✅ Reserva confirmada\n\n👤 ${reserva.cliente.nombre}\n📅 ${typeof reserva.fecha === 'string' ? reserva.fecha : format(new Date(reserva.fecha), "d 'de' MMMM, yyyy", { locale: es })}\n⏰ ${reserva.hora}\n👥 ${reserva.numeroPersonas} ${reserva.numeroPersonas === 1 ? 'persona' : 'personas'}${reserva.mesa ? `\n🪑 Mesa ${reserva.mesa}` : ''}\n\n📱 Presenta este QR al llegar`,
+              text: `🍸 Reserva Confirmada\n\n👤 ${reserva.cliente.nombre}\n📅 ${typeof reserva.fecha === 'string' ? reserva.fecha : format(new Date(reserva.fecha), "d 'de' MMMM, yyyy", { locale: es })}\n⏰ ${reserva.hora}\n👥 ${reserva.numeroPersonas} ${reserva.numeroPersonas === 1 ? 'persona' : 'personas'}${reserva.mesa ? `\n🪑 Mesa ${reserva.mesa}` : ''}\n\n📱 Presenta este QR al llegar\n🅿️ Parqueadero gratuito e ilimitado dentro del edificio (S1, S2, S3, S4).\n🪪 Presentar cédula o pasaporte (en caso de pérdida, traer denuncia con respaldo).\n\n📍 Dirección: Diego de Almagro y Ponce Carrasco, Edificio Almagro 240, piso 13\n📎 Ubicación: https://g.co/kgs/KbKrU5N\n\n⏱️ Tiempo de espera: 10 minutos.\n❗ Para cambios o cancelaciones, avisarnos por este medio.\n\n✨ ¡Nos vemos pronto!`,
               files: [file],
             });
             onShare?.();

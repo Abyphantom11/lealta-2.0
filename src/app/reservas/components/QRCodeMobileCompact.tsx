@@ -55,16 +55,26 @@ export function QRCodeMobileCompact({ reserva, initialValue, onClose }: QRCodeMo
     
     try {
       // Crear el texto para compartir
-      const shareText = `🎯 Reserva Confirmada - ${reserva.cliente?.nombre || 'Cliente'}
+      const shareText = `� Reserva Confirmada - ${reserva.cliente?.nombre || 'Cliente'}
       
 📅 Fecha: ${format(formatFechaHora(reserva.fecha, reserva.hora), "dd/MM/yyyy", { locale: es })}
 ⏰ Hora: ${reserva.hora}
 👥 Personas: ${reserva.numeroPersonas || 0}
 ${reserva.razonVisita ? `📍 Servicio: ${reserva.razonVisita}` : ''}
 
+� Presenta este QR al llegar
+🅿️ Parqueadero gratuito e ilimitado dentro del edificio (S1, S2, S3, S4).
+🪪 Presentar cédula o pasaporte (en caso de pérdida, traer denuncia con respaldo).
+
+📍 Dirección: Diego de Almagro y Ponce Carrasco, Edificio Almagro 240, piso 13
+📎 Ubicación en Google Maps: https://g.co/kgs/KbKrU5N
+
+⏱️ Tiempo de espera: 10 minutos.
+❗ Para cambios o cancelaciones, avisarnos por este medio.
+
 🔗 Código QR: ${qrValue}
 
-Presenta este código QR al llegar al establecimiento.`;
+✨ ¡Nos vemos pronto!`;
 
       // Verificar si el navegador soporta Web Share API
       if (navigator.share) {
