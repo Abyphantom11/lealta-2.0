@@ -204,32 +204,52 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
   }, [config]);
 
   const getFavoritoDelDia = useCallback(async (diaActual?: string) => {
-    const favoritoData = config?.favoritoDelDia || config?.favorites || [];
-    if (!favoritoData || favoritoData.length === 0) return null;
+    debugLog('🔍 [getFavoritoDelDia] Iniciando...');
+    debugLog('🔍 [getFavoritoDelDia] Config:', config);
     
-    let diaParaBuscar = diaActual;
+    // ✅ CORRECCIÓN: favoritoDelDia es un OBJETO, no un array
+    const favoritoData = config?.favoritoDelDia;
     
-    // ✅ Si no se especifica día, usar día comercial
-    if (!diaParaBuscar) {
-      try {
-        diaParaBuscar = await getCurrentBusinessDay(businessId);
-      } catch (error) {
-        console.error('Error obteniendo día comercial para favorito:', error);
-        // Fallback a día natural
-        const diasSemana: DayOfWeek[] = [
-          'domingo', 'lunes', 'martes', 'miercoles', 
-          'jueves', 'viernes', 'sabado'
-        ];
-        diaParaBuscar = diasSemana[new Date().getDay()];
-      }
+    debugLog('🔍 [getFavoritoDelDia] favoritoData:', favoritoData);
+    debugLog('🔍 [getFavoritoDelDia] es objeto?:', typeof favoritoData === 'object' && !Array.isArray(favoritoData));
+    
+    // Si no hay favorito o es null, retornar null
+    if (!favoritoData) {
+      debugLog('⚠️ [getFavoritoDelDia] No hay favorito disponible');
+      return null;
     }
     
-    // Retornar el primer favorito activo que coincida con el día
-    const favorito = favoritoData.find(
-      (f: any) => f.activo !== false && (f.dia === diaParaBuscar || f.dia?.toLowerCase() === diaParaBuscar?.toLowerCase())
-    ) || favoritoData[0]; // Fallback al primero si no hay coincidencia exacta
+    // Si es un array (legacy), manejar como antes
+    if (Array.isArray(favoritoData)) {
+      debugLog('🔍 [getFavoritoDelDia] favoritoData es array (legacy)');
+      if (favoritoData.length === 0) return null;
+      
+      let diaParaBuscar = diaActual;
+      
+      if (!diaParaBuscar) {
+        try {
+          diaParaBuscar = await getCurrentBusinessDay(businessId);
+        } catch (error) {
+          console.error('Error obteniendo día comercial para favorito:', error);
+          const diasSemana: DayOfWeek[] = [
+            'domingo', 'lunes', 'martes', 'miercoles', 
+            'jueves', 'viernes', 'sabado'
+          ];
+          diaParaBuscar = diasSemana[new Date().getDay()];
+        }
+      }
+      
+      const favorito = favoritoData.find(
+        (f: any) => f.activo !== false && (f.dia === diaParaBuscar || f.dia?.toLowerCase() === diaParaBuscar?.toLowerCase())
+      ) || favoritoData[0];
+      
+      debugLog('✅ [getFavoritoDelDia] Favorito encontrado (array):', favorito);
+      return favorito;
+    }
     
-    return favorito;
+    // ✅ NUEVO: Si es un objeto (como lo devuelve config-v2), retornarlo directamente
+    debugLog('✅ [getFavoritoDelDia] Retornando favorito como objeto:', favoritoData);
+    return favoritoData;
   }, [config, businessId]);
 
   const getRecompensas = useCallback(() => {

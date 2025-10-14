@@ -1,4 +1,4 @@
-e de da#!/usr/bin/env node
+#!/usr/bin/env node
 
 /**
  * 🕐 ANÁLISIS: PROBLEMA DE TIMEZONE

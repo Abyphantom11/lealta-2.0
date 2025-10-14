@@ -50,21 +50,49 @@ export async function GET(request: NextRequest) {
     const currentDayName = await getCurrentBusinessDay(businessId);
     const targetDay = simulateDay || currentDayName;
     
+    // 🔍 DEBUG: Log detallado para diagnosticar
+    console.log('🔍 [CONFIG-V2] Debug info:', {
+      businessId,
+      currentDayName,
+      targetDay,
+      bannersRaw: banners.length,
+      promocionesRaw: promociones.length,
+      favoritosRaw: favoritos.length,
+      bannersDias: banners.map(b => ({ title: b.title, dia: b.dia, active: b.active })),
+      promocionesDias: promociones.map(p => ({ title: p.title, dia: p.dia, active: p.active })),
+      favoritosDias: favoritos.map(f => ({ name: f.productName, dia: f.dia, active: f.active }))
+    });
+    
     // Función auxiliar para verificar si un elemento debe mostrarse en el día actual
     const shouldShowInDay = (item: { dia: string | null }, day: string): boolean => {
-      return !item.dia || item.dia === day;
+      const result = !item.dia || item.dia === day;
+      console.log(`   shouldShowInDay: dia="${item.dia}" vs day="${day}" => ${result}`);
+      return result;
     };
     
     // Aplicar filtro de visibilidad por día
+    console.log('🔍 [CONFIG-V2] Filtrando por día...');
     const bannersFiltrados = banners.filter(banner => shouldShowInDay(banner, targetDay));
     const promocionesFiltradas = promociones.filter(promo => shouldShowInDay(promo, targetDay));
     const favoritosFiltrados = favoritos.filter(fav => shouldShowInDay(fav, targetDay));
+    
+    console.log('🔍 [CONFIG-V2] Después de filtrar por día:', {
+      bannersFiltrados: bannersFiltrados.length,
+      promocionesFiltradas: promocionesFiltradas.length,
+      favoritosFiltrados: favoritosFiltrados.length
+    });
 
     // Filtrar solo los activos para el cliente
     const bannersActivos = bannersFiltrados.filter(b => b.active);
     const promocionesActivas = promocionesFiltradas.filter(p => p.active);
     const recompensasActivas = recompensas.filter(r => r.active);
     const favoritosActivos = favoritosFiltrados.filter(f => f.active);
+    
+    console.log('🔍 [CONFIG-V2] Después de filtrar por activo:', {
+      bannersActivos: bannersActivos.length,
+      promocionesActivas: promocionesActivas.length,
+      favoritosActivos: favoritosActivos.length
+    });
 
     // Convertir a formato compatible con el cliente
     const responseData = {

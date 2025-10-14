@@ -88,6 +88,7 @@ export async function getBusinessDayConfig(businessId?: string): Promise<Busines
 
 /**
  * Calcula el día comercial actual basado en la hora de reseteo
+ * ✅ ARREGLADO: Usa timezone del negocio en lugar de UTC
  * @param businessId ID del negocio (opcional)
  * @param customDate Fecha personalizada para testing (opcional)
  * @returns Día comercial actual
@@ -98,10 +99,37 @@ export async function getCurrentBusinessDay(
 ): Promise<DayOfWeek> {
   try {
     const config = await getBusinessDayConfig(businessId);
+    
+    // ✅ CORRECCIÓN CRÍTICA: Usar timezone de Ecuador
+    // Por defecto usar America/Guayaquil (UTC-5) para negocios en Ecuador
+    const timezone = config.timezone || 'America/Guayaquil';
+    
+    // Obtener fecha/hora actual en el timezone del negocio
     const now = customDate || new Date();
     
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
+    // Convertir a hora local del negocio usando toLocaleString
+    const localTimeString = now.toLocaleString('en-US', { 
+      timeZone: timezone,
+      hour12: false,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    
+    // Parsear el string para obtener hora y minuto local
+    // Formato: "MM/DD/YYYY, HH:MM:SS"
+    const [datePart, timePart] = localTimeString.split(', ');
+    const [month, day, year] = datePart.split('/').map(Number);
+    const [hour, minute] = timePart.split(':').map(Number);
+    
+    // Crear fecha en el timezone local del negocio
+    const localDate = new Date(year, month - 1, day, hour, minute);
+    
+    const currentHour = hour;
+    const currentMinute = minute;
     const resetHour = config.resetHour;
     const resetMinute = config.resetMinute || 0;
     
@@ -113,32 +141,35 @@ export async function getCurrentBusinessDay(
     
     if (currentTimeInMinutes < resetTimeInMinutes) {
       // Antes de la hora de reseteo = día anterior
-      businessDay = new Date(now);
+      businessDay = new Date(localDate);
       businessDay.setDate(businessDay.getDate() - 1);
     } else {
       // Después de la hora de reseteo = día actual
-      businessDay = new Date(now);
+      businessDay = new Date(localDate);
     }
   
     const dayIndex = businessDay.getDay();
     const businessDayName = DAYS_OF_WEEK[dayIndex];
     
-    // Debug logging para desarrollo
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`🗓️ Business Day Calculation:`, {
-        businessId: businessId || 'default',
-        resetHour: `${resetHour}:${resetMinute.toString().padStart(2, '0')}`,
-        currentTime: `${currentHour}:${currentMinute.toString().padStart(2, '0')}`,
-        isAfterReset: currentTimeInMinutes >= resetTimeInMinutes,
-        naturalDay: DAYS_OF_WEEK[now.getDay()],
-        businessDay: businessDayName,
-        date: businessDay.toDateString()
-      });
-    }
+    // Debug logging SIEMPRE para diagnosticar timezone
+    console.log(`🗓️ [getCurrentBusinessDay] Calculation:`, {
+      businessId: businessId || 'default',
+      timezone,
+      serverTime: now.toISOString(),
+      localTime: localTimeString,
+      localHour: currentHour,
+      localMinute: currentMinute,
+      resetHour: `${resetHour}:${resetMinute.toString().padStart(2, '0')}`,
+      currentTime: `${currentHour}:${currentMinute.toString().padStart(2, '0')}`,
+      isAfterReset: currentTimeInMinutes >= resetTimeInMinutes,
+      naturalDay: DAYS_OF_WEEK[localDate.getDay()],
+      businessDay: businessDayName,
+      date: businessDay.toDateString()
+    });
     
     return businessDayName;
   } catch (error) {
-    console.error('Error obteniendo día comercial:', error);
+    console.error('❌ Error obteniendo día comercial:', error);
     // Fallback a día natural
     const now = customDate || new Date();
     return DAYS_OF_WEEK[now.getDay()];
