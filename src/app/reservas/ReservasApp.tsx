@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
 import { QrCode, FileText, Calendar as CalendarIcon, Users } from 'lucide-react';
 
@@ -18,6 +18,7 @@ import { PromotorManagement } from './components/PromotorManagement';
 import { AIReservationModal } from './components/AIReservationModal';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { SinReservaTable } from './components/SinReservaTable';
+import { RealtimeUpdateNotifier } from './components/RealtimeUpdateNotifier';
 import { SinReservaCounter } from './components/SinReservaCounter';
 import { SinReserva } from './types/sin-reserva';
 
@@ -47,6 +48,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
     updateReserva: updateReservaOptimized,
     deleteReserva: deleteReservaOptimized,
     refetchReservas,
+    updateReservaAsistencia, // ✅ Nueva función optimistic
     isCreating,
     isUpdating,
     isDeleting,
@@ -65,7 +67,31 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
   const updateReserva = updateReservaOptimized;
   const deleteReserva = deleteReservaOptimized;
   const loadReservas = refetchReservas;
-  const forceRefresh = refetchReservas;
+  
+  // ✅ OPTIMISTIC REFRESH: Actualización inmediata + refetch en background
+  const forceRefreshOptimistic = useCallback((reservaId?: string, nuevaAsistencia?: number) => {
+    // 1. Si tenemos datos específicos, actualizar inmediatamente
+    if (reservaId && nuevaAsistencia !== undefined) {
+      updateReservaAsistencia(reservaId, nuevaAsistencia);
+      toast.success('✓ Asistencia actualizada', { duration: 1500 });
+    }
+    
+    // 2. Refetch en background para confirmar
+    refetchReservas().catch(() => {
+      toast.error('❌ Error al sincronizar');
+    });
+  }, [updateReservaAsistencia, refetchReservas]);
+  
+  // Mantener forceRefresh original para otros casos
+  const forceRefresh = useCallback(async () => {
+    try {
+      await refetchReservas();
+      toast.success('✓ Datos actualizados', { duration: 1500 });
+    } catch (error) {
+      toast.error('❌ Error al actualizar datos');
+    }
+  }, [refetchReservas]);
+  
   const isSyncing = isLoading || isCreating || isUpdating || isDeleting;
   
   // Extraer lógica del status para evitar ternario anidado
@@ -233,9 +259,49 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
   };
 
   const handleQRScan = async (qrCode: string) => {
-    console.log('QR escaneado:', qrCode);
-    // Recargar reservas después del escaneo
-    await loadReservas();
+    console.log('🔍 QR escaneado:', qrCode);
+    
+    try {
+      // 1. Obtener información de la reserva escaneada
+      const qrInfoResponse = await fetch('/api/reservas/qr-scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          qrCode,
+          action: 'info',
+          businessId: businessId || 'default-business-id'
+        })
+      });
+
+      if (!qrInfoResponse.ok) {
+        throw new Error('Error al obtener información del QR');
+      }
+
+      const qrInfo = await qrInfoResponse.json();
+      console.log('📋 Info de QR:', qrInfo);
+
+      // 2. Obtener la asistencia actual de la base de datos
+      const asistenciaActual = qrInfo.incrementCount || 0;
+      
+      // 3. Actualizar inmediatamente la tabla (optimistic update)
+      forceRefreshOptimistic(qrInfo.reservaId, asistenciaActual);
+      
+      // 4. Mostrar notificación de éxito
+      toast.success(
+        `✅ Reserva de ${qrInfo.cliente?.nombre || 'Cliente'} - ${asistenciaActual}/${qrInfo.maxAsistencia} personas`,
+        { 
+          duration: 3000,
+          className: 'bg-green-600 text-white border-0',
+        }
+      );
+      
+      console.log('✅ Tabla actualizada automáticamente para reserva:', qrInfo.reservaId, 'nueva asistencia:', asistenciaActual);
+      
+    } catch (error) {
+      console.error('❌ Error procesando QR scan:', error);
+      // Fallback: recargar todas las reservas si hay error
+      await loadReservas();
+    }
   };
 
   const handleQRError = (error: string) => {
@@ -253,6 +319,13 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
   return (
     <div className="min-h-screen bg-gray-50">
       <Toaster position="top-right" richColors />
+      
+      {/* ✅ Notificador de actualizaciones en tiempo real */}
+      <RealtimeUpdateNotifier 
+        businessId={businessId || 'default-business-id'}
+        onUpdateDetected={refetchReservas}
+        enabled={true}
+      />
       
       {/* Contenedor principal con padding */}
       <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
@@ -419,6 +492,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
                 ) : (
                   <SinReservaTable
                     registros={sinReservas}
+                    selectedDate={selectedDate}
                     onDelete={handleDeleteSinReserva}
                   />
                 )}
@@ -433,6 +507,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
             {/* Contador Sin Reserva */}
             <SinReservaCounter
               businessId={businessId || 'default-business-id'}
+              selectedDate={selectedDate}
               onRegistroCreado={loadSinReservas}
             />
 
@@ -446,7 +521,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
                 businessId={businessId}
                 onScan={handleQRScan}
                 onError={handleQRError}
-                onRefreshNeeded={forceRefresh}
+                onRefreshNeeded={forceRefreshOptimistic}
               />
             </div>
           </div>

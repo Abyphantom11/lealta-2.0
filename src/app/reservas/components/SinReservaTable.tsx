@@ -9,11 +9,25 @@ import { SinReserva } from '../types/sin-reserva';
 
 interface SinReservaTableProps {
   registros: SinReserva[];
+  selectedDate?: Date; // Nueva prop para mostrar fecha seleccionada
   onDelete: (id: string) => void;
 }
 
-export function SinReservaTable({ registros, onDelete }: SinReservaTableProps) {
+export function SinReservaTable({ registros, selectedDate, onDelete }: Readonly<SinReservaTableProps>) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Filtrar registros por fecha seleccionada si está disponible
+  const registrosFiltrados = selectedDate 
+    ? registros.filter(registro => {
+        const fechaRegistro = registro.fecha;
+        const fechaSeleccionada = format(selectedDate, 'yyyy-MM-dd');
+        return fechaRegistro === fechaSeleccionada;
+      })
+    : registros;
+
+  // Calcular estadísticas
+  const totalPersonas = registrosFiltrados.reduce((sum, registro) => sum + registro.numeroPersonas, 0);
+  const esHoy = selectedDate ? format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') : true;
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Estás seguro de eliminar este registro?')) return;
@@ -28,14 +42,31 @@ export function SinReservaTable({ registros, onDelete }: SinReservaTableProps) {
 
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden">
+      {/* Header con información de fecha */}
+      {selectedDate && (
+        <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-800">
+              Sin Reserva - {format(selectedDate, 'PPPP', { locale: es })}
+            </h3>
+            <div className="flex items-center gap-4 text-sm text-gray-600">
+              <span>{registrosFiltrados.length} registro{registrosFiltrados.length !== 1 ? 's' : ''}</span>
+              <span>{totalPersonas} persona{totalPersonas !== 1 ? 's' : ''}</span>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Contenedor con altura fija y scroll */}
       <div className="overflow-auto" style={{ maxHeight: '600px', minHeight: '600px' }}>
         <table className="w-full border-collapse">
           <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                Fecha
-              </th>
+              {!selectedDate && (
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                  Fecha
+                </th>
+              )}
               <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
                 Hora
               </th>
@@ -51,15 +82,22 @@ export function SinReservaTable({ registros, onDelete }: SinReservaTableProps) {
             </tr>
           </thead>
           <tbody className="bg-white">
-            {registros.length === 0 ? (
+            {registrosFiltrados.length === 0 ? (
               <tr>
-                <td colSpan={5} className="text-center py-12 text-gray-500">
-                  <p className="text-lg">No hay registros sin reserva</p>
-                  <p className="text-sm mt-2">Los walk-ins aparecerán aquí</p>
+                <td colSpan={selectedDate ? 4 : 5} className="text-center py-12 text-gray-500">
+                  <p className="text-lg">
+                    {selectedDate 
+                      ? `No hay registros sin reserva para ${format(selectedDate, 'dd/MM/yyyy')}`
+                      : 'No hay registros sin reserva'
+                    }
+                  </p>
+                  <p className="text-sm mt-2">
+                    {esHoy ? 'Utiliza el contador para registrar personas' : 'Los walk-ins aparecerán aquí'}
+                  </p>
                 </td>
               </tr>
             ) : (
-              registros.map((registro) => {
+              registrosFiltrados.map((registro) => {
                 // ✅ Parsear fecha manualmente para evitar problemas de zona horaria
                 const [year, month, day] = registro.fecha.split('-').map(Number);
                 const fechaObj = new Date(year, month - 1, day);
@@ -70,9 +108,11 @@ export function SinReservaTable({ registros, onDelete }: SinReservaTableProps) {
                     key={registro.id}
                     className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
                   >
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {fechaFormateada}
-                    </td>
+                    {!selectedDate && (
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {fechaFormateada}
+                      </td>
+                    )}
                     <td className="px-4 py-3 text-sm text-gray-900">
                       {registro.hora}
                     </td>

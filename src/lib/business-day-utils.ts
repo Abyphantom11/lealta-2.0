@@ -232,13 +232,21 @@ async function isAfterEndTime(
   
   const horaTerminoMinutos = timeStringToMinutes(item.horaTermino);
   
-  // Lógica especial: si horaTermino < 6:00, se considera del día siguiente
+  // LÓGICA CORREGIDA: Si horaTermino es temprano (como 02:00), es del día siguiente
   if (horaTerminoMinutos < 6 * 60) {
-    const config = await getBusinessDayConfig(businessId);
-    const resetTimeInMinutes = config.resetHour * 60 + (config.resetMinute || 0);
-    return currentTimeInMinutes >= resetTimeInMinutes;
+    // Solo termina si ya pasamos a un nuevo día comercial
+    // Es decir, si la hora actual es >= 4:00 AM del día siguiente
+    
+    // Si estamos antes de las 6 AM (temprano), verificar si ya pasó la hora de término
+    if (currentTimeInMinutes < 6 * 60) {
+      return currentTimeInMinutes >= horaTerminoMinutos;
+    }
+    
+    // Si estamos después de las 6 AM, significa que aún no llegamos al término (que es temprano mañana)
+    return false;
   }
   
+  // Para horas de término normales del mismo día
   return currentTimeInMinutes >= horaTerminoMinutos;
 }
 
@@ -268,6 +276,14 @@ export async function isItemVisibleInBusinessDay(
   // Verificar hora de inicio
   const horaInicio = await getEffectiveStartTime(item, businessId);
   const horaInicioMinutos = timeStringToMinutes(horaInicio);
+  
+  // CASO ESPECIAL: Si estamos en horario temprano (0:00 - 4:00) y el día comercial coincide
+  // significa que el elemento debería estar visible desde el día anterior
+  if (currentTimeInMinutes < 4 * 60 && item.dia === currentBusinessDay) {
+    // No verificar hora de inicio en este caso, solo hora de término
+    return !(await isAfterEndTime(item, currentTimeInMinutes, businessId));
+  }
+  
   if (currentTimeInMinutes < horaInicioMinutos) {
     return false;
   }
@@ -307,17 +323,18 @@ function isAfterEndTimeSync(
   
   const horaTerminoMinutos = timeStringToMinutes(item.horaTermino);
   
-  // Lógica especial: si horaTermino < 6:00, se considera del día siguiente
+  // ✅ LÓGICA CORREGIDA: Si horaTermino es temprano (como 02:00), es del día siguiente
   if (horaTerminoMinutos < 6 * 60) {
-    const config = configCache.get(businessId || 'default') || {
-      businessId: businessId || 'default',
-      resetHour: DEFAULT_RESET_HOUR,
-      resetMinute: 0
-    };
-    const resetTimeInMinutes = config.resetHour * 60 + (config.resetMinute || 0);
-    return currentTimeInMinutes >= resetTimeInMinutes;
+    // Si estamos antes de las 6 AM (temprano), verificar si ya pasó la hora de término
+    if (currentTimeInMinutes < 6 * 60) {
+      return currentTimeInMinutes >= horaTerminoMinutos;
+    }
+    
+    // Si estamos después de las 6 AM, significa que aún no llegamos al término (que es temprano mañana)
+    return false;
   }
   
+  // Para horas de término normales del mismo día
   return currentTimeInMinutes >= horaTerminoMinutos;
 }
 
@@ -346,6 +363,14 @@ export function isItemVisibleInBusinessDaySync(
   // Verificar hora de inicio
   const horaInicio = getEffectiveStartTimeSync(item, businessId);
   const horaInicioMinutos = timeStringToMinutes(horaInicio);
+  
+  // CASO ESPECIAL: Si estamos en horario temprano (0:00 - 4:00) y el día comercial coincide
+  // significa que el elemento debería estar visible desde el día anterior
+  if (currentTimeInMinutes < 4 * 60 && item.dia === currentBusinessDay) {
+    // No verificar hora de inicio en este caso, solo hora de término
+    return !isAfterEndTimeSync(item, currentTimeInMinutes, businessId);
+  }
+  
   if (currentTimeInMinutes < horaInicioMinutos) {
     return false;
   }

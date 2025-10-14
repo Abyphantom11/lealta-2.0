@@ -86,10 +86,11 @@ export default function ReportsGenerator({ businessId, businessName }: Readonly<
         <div className="grid grid-cols-2 gap-4">
           {/* Selector de Mes */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="month-select" className="block text-sm font-medium text-gray-700 mb-2">
               Mes
             </label>
             <select
+              id="month-select"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -104,10 +105,11 @@ export default function ReportsGenerator({ businessId, businessName }: Readonly<
 
           {/* Selector de Año */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="year-select" className="block text-sm font-medium text-gray-700 mb-2">
               Año
             </label>
             <select
+              id="year-select"
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -192,6 +194,77 @@ export default function ReportsGenerator({ businessId, businessName }: Readonly<
               </p>
             </div>
           </div>
+
+          {/* 🆕 NUEVAS MÉTRICAS: Sin Reserva */}
+          {preview.metricas.sinReserva && (
+            <div className="bg-gradient-to-r from-cyan-50 to-teal-50 p-5 rounded-lg border-2 border-cyan-200">
+              <h4 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                🚶‍♂️ Clientes Sin Reserva (Walk-ins)
+              </h4>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                {/* Total Registros Sin Reserva */}
+                <div className="bg-white p-4 rounded-lg text-center shadow-sm">
+                  <p className="text-sm text-gray-600 mb-1">Total Registros</p>
+                  <p className="text-2xl font-bold text-cyan-600">
+                    {preview.metricas.sinReserva.totalRegistros}
+                  </p>
+                </div>
+
+                {/* Total Personas Sin Reserva */}
+                <div className="bg-white p-4 rounded-lg text-center shadow-sm">
+                  <p className="text-sm text-gray-600 mb-1">Total Personas</p>
+                  <p className="text-2xl font-bold text-teal-600">
+                    {preview.metricas.sinReserva.totalPersonas}
+                  </p>
+                </div>
+
+                {/* Promedio Diario */}
+                <div className="bg-white p-4 rounded-lg text-center shadow-sm">
+                  <p className="text-sm text-gray-600 mb-1">Promedio Diario</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {preview.metricas.sinReserva.promedioDiario.toFixed(1)}
+                  </p>
+                </div>
+
+                {/* Días con Registros */}
+                <div className="bg-white p-4 rounded-lg text-center shadow-sm">
+                  <p className="text-sm text-gray-600 mb-1">Días Activos</p>
+                  <p className="text-2xl font-bold text-emerald-600">
+                    {preview.metricas.sinReserva.diasConRegistros}
+                  </p>
+                </div>
+              </div>
+
+              {/* 📊 MÉTRICAS COMBINADAS */}
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <h5 className="font-semibold text-gray-800 mb-3">📊 Resumen Total del Mes</h5>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Total Personas Atendidas:</span>
+                    <span className="font-bold text-indigo-600 text-lg">
+                      {preview.metricas.generales.totalPersonasAtendidas || 
+                       (preview.metricas.generales.totalAsistentesReales + preview.metricas.sinReserva.totalPersonas)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Total Eventos:</span>
+                    <span className="font-bold text-purple-600 text-lg">
+                      {preview.metricas.generales.totalEventosAtendidos || 
+                       (preview.metricas.generales.totalReservas + preview.metricas.sinReserva.totalRegistros)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">% Sin Reserva:</span>
+                    <span className="font-bold text-cyan-600 text-lg">
+                      {((preview.metricas.sinReserva.totalPersonas / 
+                         (preview.metricas.generales.totalAsistentesReales + preview.metricas.sinReserva.totalPersonas)) * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Análisis por Asistencia */}
           <div className="bg-gray-50 p-4 rounded-lg">
@@ -307,13 +380,13 @@ export default function ReportsGenerator({ businessId, businessName }: Readonly<
           )}
 
           {/* Top 3 Rankings (Preview compacto) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Top Días */}
             <div className="bg-white border-2 border-blue-100 p-4 rounded-lg">
-              <h4 className="font-semibold text-gray-800 mb-2 text-sm">📅 Top 3 Días</h4>
+              <h4 className="font-semibold text-gray-800 mb-2 text-sm">📅 Top 3 Días (Reservas)</h4>
               <ul className="space-y-1 text-xs">
                 {preview.rankings.top5Dias.slice(0, 3).map((dia: any, idx: number) => (
-                  <li key={idx} className="flex justify-between">
+                  <li key={`dias-reservas-${dia.fecha}-${idx}`} className="flex justify-between">
                     <span className="text-gray-600">{dia.fecha}</span>
                     <span className="font-bold text-blue-600">{dia.cantidad}</span>
                   </li>
@@ -321,12 +394,27 @@ export default function ReportsGenerator({ businessId, businessName }: Readonly<
               </ul>
             </div>
 
+            {/* 🆕 Top Días Sin Reserva */}
+            {preview.rankings.top5DiasSinReserva && preview.rankings.top5DiasSinReserva.length > 0 && (
+              <div className="bg-white border-2 border-cyan-100 p-4 rounded-lg">
+                <h4 className="font-semibold text-gray-800 mb-2 text-sm">🚶‍♂️ Top 3 Días (Sin Reserva)</h4>
+                <ul className="space-y-1 text-xs">
+                  {preview.rankings.top5DiasSinReserva.slice(0, 3).map((dia: any, idx: number) => (
+                    <li key={`dias-sin-reserva-${dia.fecha}-${idx}`} className="flex justify-between">
+                      <span className="text-gray-600">{dia.fecha}</span>
+                      <span className="font-bold text-cyan-600">{dia.personas} personas</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {/* Top Clientes */}
             <div className="bg-white border-2 border-green-100 p-4 rounded-lg">
               <h4 className="font-semibold text-gray-800 mb-2 text-sm">👥 Top 3 Clientes</h4>
               <ul className="space-y-1 text-xs">
                 {preview.rankings.top5Clientes.slice(0, 3).map((cliente: any, idx: number) => (
-                  <li key={idx} className="flex justify-between">
+                  <li key={`cliente-${cliente.id || cliente.nombre}-${idx}`} className="flex justify-between">
                     <span className="text-gray-600 truncate">{cliente.nombre}</span>
                     <span className="font-bold text-green-600">{cliente.cantidad}</span>
                   </li>
@@ -339,7 +427,7 @@ export default function ReportsGenerator({ businessId, businessName }: Readonly<
               <h4 className="font-semibold text-gray-800 mb-2 text-sm">🕐 Top 3 Horarios</h4>
               <ul className="space-y-1 text-xs">
                 {preview.rankings.top5Horarios.slice(0, 3).map((horario: any, idx: number) => (
-                  <li key={idx} className="flex justify-between">
+                  <li key={`horario-${horario.horario}-${idx}`} className="flex justify-between">
                     <span className="text-gray-600">{horario.horario}</span>
                     <span className="font-bold text-purple-600">{horario.cantidad}</span>
                   </li>

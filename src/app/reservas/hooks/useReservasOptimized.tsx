@@ -31,16 +31,24 @@ const reservasAPI = {
   },
 
   createReserva: async (reservaData: Omit<Reserva, 'id' | 'codigoQR' | 'estado' | 'fechaCreacion' | 'registroEntradas'>, businessId?: string) => {
-    const response = await fetch('/api/reservas', {
+    // Construir la URL con el businessId como query parameter
+    const url = businessId ? `/api/reservas?businessId=${businessId}` : '/api/reservas';
+    
+    console.log('🚀 Creating reserva with URL:', url);
+    console.log('📋 Reserva data:', reservaData);
+    
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ ...reservaData, businessId: businessId }),
+      body: JSON.stringify(reservaData),
     });
     
     if (!response.ok) {
-      throw new Error('Error creating reserva');
+      const errorData = await response.text();
+      console.error('❌ Error creating reserva:', response.status, errorData);
+      throw new Error(`Error creating reserva: ${response.status} - ${errorData}`);
     }
     
     return response.json();
@@ -113,10 +121,10 @@ export function useReservasOptimized({
     queryKey: reservasQueryKeys.list(businessId || 'default'),
     queryFn: () => reservasAPI.fetchReservasWithStats(businessId || ''),
     enabled: enabled && includeStats,
-    staleTime: 5 * 60 * 1000, // 5 minutos fresh
-    gcTime: 10 * 60 * 1000, // 10 minutos en caché
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    staleTime: 1 * 60 * 1000, // 1 minuto fresh (reducido para QR updates)
+    gcTime: 5 * 60 * 1000, // 5 minutos en caché (reducido)
+    refetchOnWindowFocus: true, // Activado para capturar cambios
+    refetchOnMount: true,
   });
 
   // 🎯 Query simple solo para reservas (cuando no necesitamos stats)
@@ -124,8 +132,10 @@ export function useReservasOptimized({
     queryKey: reservasQueryKeys.list(businessId || 'default'),
     queryFn: () => reservasAPI.fetchReservas(businessId),
     enabled: enabled && !includeStats,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    staleTime: 1 * 60 * 1000, // 1 minuto fresh (reducido para QR updates)
+    gcTime: 5 * 60 * 1000, // 5 minutos en caché (reducido)
+    refetchOnWindowFocus: true, // Activado para capturar cambios
+    refetchOnMount: true,
   });
 
   // Seleccionar la query activa
@@ -198,8 +208,56 @@ export function useReservasOptimized({
     deleteMutation.mutate(id);
   };
 
-  const refetchReservas = () => {
-    queryClient.invalidateQueries({ queryKey: reservasQueryKeys.list(businessId || 'default') });
+  const refetchReservas = async () => {
+    // 🎯 Invalidar y forzar refetch inmediato para sincronización completa
+    await queryClient.invalidateQueries({ 
+      queryKey: reservasQueryKeys.list(businessId || 'default'),
+      refetchType: 'active'
+    });
+    
+    await queryClient.invalidateQueries({ 
+      queryKey: reservasQueryKeys.stats(businessId || 'default'),
+      refetchType: 'active'
+    });
+    
+    // Forzar refetch inmediato de la query activa
+    if (includeStats) {
+      await combinedQuery.refetch();
+    } else {
+      await reservasQuery.refetch();
+    }
+  };
+
+  // 🎯 OPTIMISTIC UPDATE: Actualizar cache local inmediatamente
+  const updateReservaAsistencia = (reservaId: string, nuevaAsistencia: number) => {
+    const queryKey = reservasQueryKeys.list(businessId || 'default');
+    
+    queryClient.setQueryData(queryKey, (oldData: any) => {
+      if (!oldData) return oldData;
+      
+      // Si es query combinada
+      if (oldData.reservas) {
+        return {
+          ...oldData,
+          reservas: oldData.reservas.map((reserva: any) => 
+            reserva.id === reservaId 
+              ? { ...reserva, asistenciaActual: nuevaAsistencia }
+              : reserva
+          )
+        };
+      }
+      
+      // Si es query simple de reservas
+      if (Array.isArray(oldData)) {
+        return oldData.map((reserva: any) => 
+          reserva.id === reservaId 
+            ? { ...reserva, asistenciaActual: nuevaAsistencia }
+            : reserva
+        );
+      }
+      
+      return oldData;
+    });
   };
 
   return {
@@ -219,6 +277,7 @@ export function useReservasOptimized({
     updateReserva,
     deleteReserva,
     refetchReservas,
+    updateReservaAsistencia, // ✅ Nueva función optimistic
     
     // 🔄 Estados de mutations
     isCreating: createMutation.isPending,

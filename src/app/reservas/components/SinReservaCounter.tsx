@@ -7,12 +7,16 @@ import { toast } from 'sonner';
 
 interface SinReservaCounterProps {
   businessId: string;
+  selectedDate?: Date; // Nueva prop opcional
   onRegistroCreado: () => void;
 }
 
-export function SinReservaCounter({ businessId, onRegistroCreado }: SinReservaCounterProps) {
+export function SinReservaCounter({ businessId, selectedDate, onRegistroCreado }: Readonly<SinReservaCounterProps>) {
   const [cantidad, setCantidad] = useState(1);
   const [isRegistering, setIsRegistering] = useState(false);
+
+  // Usar selectedDate si está disponible, sino usar la fecha actual
+  const fechaAUsar = selectedDate || new Date();
 
   const incrementar = () => {
     if (cantidad < 99) {
@@ -30,19 +34,19 @@ export function SinReservaCounter({ businessId, onRegistroCreado }: SinReservaCo
     setIsRegistering(true);
     
     try {
-      const now = new Date();
-      
-      // ✅ Formatear fecha en zona horaria local (no UTC)
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
+      // ✅ Usar fechaAUsar para generar fecha y hora
+      const year = fechaAUsar.getFullYear();
+      const month = String(fechaAUsar.getMonth() + 1).padStart(2, '0');
+      const day = String(fechaAUsar.getDate()).padStart(2, '0');
       const fecha = `${year}-${month}-${day}`; // YYYY-MM-DD local
       
+      // Para la hora siempre usar la hora actual
+      const now = new Date();
       const hours = String(now.getHours()).padStart(2, '0');
       const minutes = String(now.getMinutes()).padStart(2, '0');
       const hora = `${hours}:${minutes}`; // HH:mm local
 
-      console.log('📅 Registrando sin reserva:', { fecha, hora, now: now.toString() });
+      console.log('📅 Registrando sin reserva:', { fecha, hora, fechaSeleccionada: fechaAUsar.toString() });
 
       const response = await fetch(`/api/sin-reserva`, {
         method: 'POST',
@@ -89,6 +93,15 @@ export function SinReservaCounter({ businessId, onRegistroCreado }: SinReservaCo
           <UserPlus className="w-5 h-5 text-blue-600" />
           Sin Reserva
         </h3>
+        {selectedDate && (
+          <div className="text-sm text-gray-600">
+            📅 {fechaAUsar.toLocaleDateString('es-ES', { 
+              weekday: 'short', 
+              day: 'numeric', 
+              month: 'short' 
+            })}
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col items-center gap-4">

@@ -4,7 +4,7 @@ import { useState, useRef, useCallback } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Alert, AlertDescription } from "./ui/alert";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "./ui/dialog";
 import { Camera, CameraOff, RotateCcw, CheckCircle, AlertTriangle, Users } from "lucide-react";
 import jsQR from "jsqr";
 import { useIsClient } from "./hooks/useClient";
@@ -12,7 +12,7 @@ import { useIsClient } from "./hooks/useClient";
 interface QRScannerCleanProps {
   onScan: (qrCode: string) => Promise<void>;
   onError?: (error: string) => void;
-  onRefreshNeeded?: () => void; // Callback para refrescar datos después de escaneo
+  onRefreshNeeded?: (reservaId?: string, nuevaAsistencia?: number) => void; // ✅ OPTIMISTIC: Callback con datos específicos
   businessId?: string;
 }
 
@@ -311,10 +311,9 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
       
       setSuccess(`✅ ${data.message}. Total: ${nuevoActual}/${data.maxAsistencia}${excesoText}`);
       
-      // Notificar que se necesita refrescar los datos
+      // ✅ OPTIMISTIC: Notificar refrescar con datos específicos para actualización inmediata
       if (onRefreshNeeded) {
-        console.log('🔄 Disparando refresh después de escaneo exitoso');
-        onRefreshNeeded();
+        onRefreshNeeded(reservaDetectada.reservaId, nuevoActual);
       }
       
       // Cerrar diálogo y reiniciar escaneo
@@ -442,6 +441,9 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
               <Users className="h-5 w-5 text-blue-600" />
               Reserva Detectada - Registrar Asistencia
             </DialogTitle>
+            <DialogDescription className="text-sm text-gray-600">
+              Ajusta la cantidad de personas que asistieron a esta reserva.
+            </DialogDescription>
           </DialogHeader>
           
           {reservaDetectada && (

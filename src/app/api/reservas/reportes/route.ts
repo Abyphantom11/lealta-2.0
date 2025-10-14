@@ -87,7 +87,56 @@ export async function GET(request: NextRequest) {
     console.log(`📈 Total reservas encontradas: ${reservations.length}`);
 
     // ==========================================
-    // 1. MÉTRICAS GENERALES
+    // NUEVA SECCIÓN: DATOS SIN RESERVA
+    // ==========================================
+    const sinReservas = await prisma.sinReserva.findMany({
+      where: {
+        businessId,
+        fecha: {
+          gte: fechaInicio,
+          lt: fechaFin,
+        },
+      },
+      orderBy: {
+        fecha: 'asc',
+      },
+    });
+
+    console.log(`👥 Total registros sin reserva encontrados: ${sinReservas.length}`);
+
+    // Calcular estadísticas de sin reserva
+    const totalRegistrosSinReserva = sinReservas.length;
+    const totalPersonasSinReserva = sinReservas.reduce((sum, r) => sum + r.numeroPersonas, 0);
+    
+    // Agrupar por día para análisis
+    const sinReservaPorDia = sinReservas.reduce((acc, r) => {
+      const fecha = r.fecha.toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+      if (!acc[fecha]) {
+        acc[fecha] = { registros: 0, personas: 0 };
+      }
+      acc[fecha].registros++;
+      acc[fecha].personas += r.numeroPersonas;
+      return acc;
+    }, {} as Record<string, { registros: number; personas: number }>);
+
+    // Calcular promedio diario de personas sin reserva
+    const diasConSinReserva = Object.keys(sinReservaPorDia).length;
+    const promedioPersonasSinReservaPorDia = diasConSinReserva > 0 
+      ? Math.round((totalPersonasSinReserva / diasConSinReserva) * 100) / 100 
+      : 0;
+
+    // Top 5 días con más personas sin reserva
+    const top5DiasSinReserva = Object.entries(sinReservaPorDia)
+      .sort((a, b) => b[1].personas - a[1].personas)
+      .slice(0, 5)
+      .map(([fecha, data]) => ({ fecha, personas: data.personas, registros: data.registros }));
+
+    // ==========================================
+    // 1. MÉTRICAS GENERALES (ACTUALIZADAS)
     // ==========================================
     const totalReservas = reservations.length;
     const totalPersonasEsperadas = reservations.reduce((sum, r) => sum + r.guestCount, 0);
@@ -97,6 +146,10 @@ export async function GET(request: NextRequest) {
       const scanCount = r.qrCodes[0]?.scanCount || 0;
       return sum + scanCount;
     }, 0);
+
+    // ✅ NUEVAS MÉTRICAS: Totales combinados (Reservas + Sin Reserva)
+    const totalPersonasAtendidas = totalAsistentesReales + totalPersonasSinReserva;
+    const totalEventosAtendidos = totalReservas + totalRegistrosSinReserva;
     
     const porcentajeCumplimiento =
       totalPersonasEsperadas > 0
@@ -336,6 +389,14 @@ export async function GET(request: NextRequest) {
           totalPersonasEsperadas,
           totalAsistentesReales,
           porcentajeCumplimiento: parseFloat(porcentajeCumplimiento),
+          // ✅ NUEVAS MÉTRICAS SIN RESERVA
+          totalRegistrosSinReserva,
+          totalPersonasSinReserva,
+          promedioPersonasSinReservaPorDia,
+          diasConSinReserva,
+          // ✅ MÉTRICAS COMBINADAS
+          totalPersonasAtendidas, // Asistentes reales + Sin reserva
+          totalEventosAtendidos, // Total reservas + Total registros sin reserva
         },
         porAsistencia: {
           completadas,
@@ -351,14 +412,33 @@ export async function GET(request: NextRequest) {
         },
         porEstado,
         porPromotor: statsPromotores, // ✅ Estadísticas detalladas por promotor
+        // ✅ NUEVA SECCIÓN: SIN RESERVA
+        sinReserva: {
+          totalRegistros: totalRegistrosSinReserva,
+          totalPersonas: totalPersonasSinReserva,
+          promedioDiario: promedioPersonasSinReservaPorDia,
+          diasConRegistros: diasConSinReserva,
+          registrosPorDia: sinReservaPorDia,
+        },
       },
       rankings: {
         top5Dias,
         top5Clientes,
         top5Horarios,
         top5Promotores, // ✅ Top 5 promotores por cantidad de reservas
+        // ✅ NUEVOS RANKINGS SIN RESERVA
+        top5DiasSinReserva,
       },
       detalleReservas,
+      // ✅ NUEVA SECCIÓN: DETALLE SIN RESERVA
+      detalleSinReservas: sinReservas.map(sr => ({
+        id: sr.id,
+        fecha: sr.fecha.toLocaleDateString('es-ES'),
+        hora: sr.hora,
+        personas: sr.numeroPersonas,
+        notas: sr.notas || '',
+        registradoPor: sr.registradoPor || 'Sistema',
+      })),
     };
 
     console.log(`✅ Reporte generado exitosamente con ${totalReservas} reservas`);

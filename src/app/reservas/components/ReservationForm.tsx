@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -215,8 +215,12 @@ export default function ReservationForm({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px] w-full max-h-[90vh] overflow-y-auto mx-4 sm:mx-auto bg-white">
         <DialogHeader className="space-y-3 pb-4">
+          <DialogTitle className="text-lg sm:text-xl">Nueva Reserva</DialogTitle>
+          <DialogDescription className="text-sm text-gray-600">
+            Complete la información para crear una nueva reserva. Los campos marcados con * son obligatorios.
+          </DialogDescription>
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg sm:text-xl">Nueva Reserva</DialogTitle>
+            <div></div> {/* Espaciador */}
             <Button
               type="button"
               onClick={toggleExpressMode}

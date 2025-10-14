@@ -22,23 +22,26 @@ interface BannersProps {
 
 export default function BannersSection({ businessId }: BannersProps) {
   // 🔄 Auto-refresh hook para sincronización admin → cliente
-  const { getBannersForBusinessDay, isLoading } = useAutoRefreshPortalConfig({
+  const { getBanners, isLoading } = useAutoRefreshPortalConfig({
     businessId,
     refreshInterval: 10000, // 10 segundos para banners
     enabled: true
   });
 
-  // Estados para día comercial y banners
+  // Estados para banners - SIMPLIFICADO como recompensas
   const [banners, setBanners] = useState<Banner[]>([]);
 
-  // Actualizar banners cuando cambie el día comercial
+  // Actualizar banners usando la función simple (como recompensas)
   useEffect(() => {
-    const loadBanners = async () => {
+    const loadBanners = () => {
       try {
-        const bannersDelDia = await getBannersForBusinessDay();
-        setBanners(bannersDelDia);
+        const allBanners = getBanners();
+        const activeBanners = allBanners.filter(
+          (banner: Banner) => banner.activo && banner.imagenUrl && banner.imagenUrl.trim() !== ''
+        );
+        setBanners(activeBanners);
       } catch (error) {
-        console.error('❌ [BannersSection] Error cargando banners del día:', error);
+        console.error('❌ [BannersSection] Error cargando banners:', error);
         setBanners([]);
       }
     };
@@ -47,10 +50,9 @@ export default function BannersSection({ businessId }: BannersProps) {
     
     // Actualizar cada minuto para detectar cambios
     const interval = setInterval(loadBanners, 60000);
+    
     return () => clearInterval(interval);
-  }, [getBannersForBusinessDay, businessId]);
-
-  // Estados para UI
+  }, [getBanners]);  // Estados para UI
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(() => {
     // Verificar localStorage para persistir la decisión del usuario
     if (typeof window !== 'undefined') {

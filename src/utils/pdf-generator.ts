@@ -16,6 +16,14 @@ interface ReportData {
       totalPersonasEsperadas: number;
       totalAsistentesReales: number;
       porcentajeCumplimiento: number;
+      // ✅ NUEVAS MÉTRICAS SIN RESERVA
+      totalRegistrosSinReserva?: number;
+      totalPersonasSinReserva?: number;
+      promedioPersonasSinReservaPorDia?: number;
+      diasConSinReserva?: number;
+      // ✅ MÉTRICAS COMBINADAS
+      totalPersonasAtendidas?: number; // Asistentes reales + Sin reserva
+      totalEventosAtendidos?: number; // Total reservas + Total registros sin reserva
     };
     porAsistencia: {
       completadas: number;
@@ -49,12 +57,22 @@ interface ReportData {
       reservasCanceladas: number;
       porcentajeCumplimiento: number;
     }>;
+    // ✅ NUEVA SECCIÓN: SIN RESERVA
+    sinReserva?: {
+      totalRegistros: number;
+      totalPersonas: number;
+      promedioDiario: number;
+      diasConRegistros: number;
+      registrosPorDia: Array<{ fecha: string; registros: number; personas: number }>;
+    };
   };
   rankings: {
     top5Dias: Array<{ fecha: string; cantidad: number }>;
     top5Clientes: Array<{ id: string; nombre: string; cantidad: number }>;
     top5Horarios: Array<{ horario: string; cantidad: number }>;
     top5Promotores?: Array<{ id: string; nombre: string; cantidad: number; cumplimiento: number }>;
+    // ✅ NUEVOS RANKINGS SIN RESERVA
+    top5DiasSinReserva?: Array<{ fecha: string; personas: number; registros: number }>;
   };
   detalleReservas: Array<{
     id: string;
@@ -68,6 +86,15 @@ interface ReportData {
     estado: string;
     comprobante: string;
     promotor?: string;
+  }>;
+  // ✅ NUEVA SECCIÓN: DETALLE SIN RESERVA
+  detalleSinReservas?: Array<{
+    id: string;
+    fecha: string;
+    hora: string;
+    personas: number;
+    notas: string;
+    registradoPor: string;
   }>;
 }
 
@@ -143,6 +170,22 @@ export function generateReservationReport(
     ['Cumplimiento', `${data.metricas.generales.porcentajeCumplimiento.toFixed(1)}%`],
   ];
 
+  // ✅ Agregar métricas de sin reserva si están disponibles
+  if (data.metricas.sinReserva) {
+    metricasGenerales.push(
+      ['--- Sin Reserva (Walk-ins) ---', '---'],
+      ['Total Registros Sin Reserva', data.metricas.sinReserva.totalRegistros.toString()],
+      ['Total Personas Sin Reserva', data.metricas.sinReserva.totalPersonas.toString()],
+      ['Promedio Diario Sin Reserva', data.metricas.sinReserva.promedioDiario.toFixed(1)],
+      ['Días con Registros', data.metricas.sinReserva.diasConRegistros.toString()],
+      ['--- Totales Combinados ---', '---'],
+      ['Total Personas Atendidas', (data.metricas.generales.totalPersonasAtendidas || 
+        (data.metricas.generales.totalAsistentesReales + data.metricas.sinReserva.totalPersonas)).toString()],
+      ['Total Eventos Atendidos', (data.metricas.generales.totalEventosAtendidos || 
+        (data.metricas.generales.totalReservas + data.metricas.sinReserva.totalRegistros)).toString()],
+    );
+  }
+
   autoTable(doc, {
     startY: yPosition,
     head: [['Métrica', 'Valor']],
@@ -154,6 +197,14 @@ export function generateReservationReport(
       0: { cellWidth: 100 },
       1: { cellWidth: 70, halign: 'center', fontStyle: 'bold' },
     },
+    didParseCell: function(data) {
+      // ✅ Destacar las secciones separadoras
+      if (data.cell.text[0]?.includes('---')) {
+        data.cell.styles.fillColor = [240, 240, 240];
+        data.cell.styles.fontStyle = 'italic';
+        data.cell.styles.textColor = [100, 100, 100];
+      }
+    }
   });
 
   yPosition = (doc as any).lastAutoTable.finalY + 10;
@@ -337,7 +388,39 @@ export function generateReservationReport(
   yPosition = (doc as any).lastAutoTable.finalY + 12;
 
   // ==========================================
-  // 🎯 NUEVO: TOP 5 PROMOTORES
+  // � NUEVO: TOP 5 DÍAS SIN RESERVA
+  // ==========================================
+  if (data.rankings.top5DiasSinReserva && data.rankings.top5DiasSinReserva.length > 0) {
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Top 5 Dias con Mas Clientes Sin Reserva', 20, yPosition);
+    yPosition += 8;
+
+    const top5DiasSinReservaData = data.rankings.top5DiasSinReserva.map((d) => [
+      d.fecha,
+      d.registros.toString(),
+      d.personas.toString(),
+    ]);
+
+    autoTable(doc, {
+      startY: yPosition,
+      head: [['Fecha', 'Registros', 'Personas']],
+      body: top5DiasSinReservaData,
+      theme: 'grid',
+      headStyles: { fillColor: [26, 188, 156] }, // Color turquesa para sin reserva
+      margin: { left: 20, right: 20 },
+      columnStyles: {
+        0: { cellWidth: 80 },
+        1: { cellWidth: 45, halign: 'center', fontStyle: 'bold' },
+        2: { cellWidth: 45, halign: 'center', fontStyle: 'bold' },
+      },
+    });
+
+    yPosition = (doc as any).lastAutoTable.finalY + 12;
+  }
+
+  // ==========================================
+  // �🎯 NUEVO: TOP 5 PROMOTORES
   // ==========================================
   if (data.rankings.top5Promotores && data.rankings.top5Promotores.length > 0) {
     // Verificar si necesitamos nueva página
@@ -558,6 +641,70 @@ export function generateReservationReport(
   // Footer para la última página si no se dibujó
   const pageCount = doc.getNumberOfPages();
   doc.setPage(pageCount);
+  
+  // ==========================================
+  // 🆕 NUEVA PÁGINA: DETALLE SIN RESERVA
+  // ==========================================
+  if (data.detalleSinReservas && data.detalleSinReservas.length > 0) {
+    doc.addPage();
+    
+    // Header
+    doc.setFillColor(...primaryColor);
+    doc.rect(0, 0, 210, 25, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Detalle de Clientes Sin Reserva', 105, 15, { align: 'center' });
+
+    yPosition = 35;
+    doc.setTextColor(0, 0, 0);
+
+    // Tabla de registros sin reserva
+    const sinReservaData = data.detalleSinReservas.map((r) => [
+      r.fecha,
+      r.hora,
+      r.personas.toString(),
+      r.notas || 'Sin notas',
+      r.registradoPor || 'Sistema',
+    ]);
+
+    autoTable(doc, {
+      startY: yPosition,
+      head: [['Fecha', 'Hora', 'Personas', 'Notas', 'Registrado Por']],
+      body: sinReservaData,
+      theme: 'striped',
+      headStyles: { fillColor: [26, 188, 156], fontSize: 10 }, // Color turquesa
+      bodyStyles: { fontSize: 9 },
+      margin: { left: 10, right: 10 },
+      columnStyles: {
+        0: { cellWidth: 25 },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 20, halign: 'center', fontStyle: 'bold' },
+        3: { cellWidth: 70 },
+        4: { cellWidth: 30 },
+      },
+      didDrawPage: () => {
+        // Footer en cada página
+        const pageCount = doc.getNumberOfPages();
+        const currentPage = (doc as any).internal.getCurrentPageInfo().pageNumber;
+        
+        doc.setFontSize(8);
+        doc.setTextColor(...grayColor);
+        doc.text(
+          `Página ${currentPage} de ${pageCount} | Generado: ${new Date().toLocaleString('es-ES')}`,
+          105,
+          285,
+          { align: 'center' }
+        );
+        
+        // Línea de separación del footer
+        doc.setDrawColor(...grayColor);
+        doc.setLineWidth(0.3);
+        doc.line(20, 280, 190, 280);
+      },
+    });
+  }
+
   doc.setFontSize(8);
   doc.setTextColor(...grayColor);
   doc.text(

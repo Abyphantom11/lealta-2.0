@@ -4,13 +4,16 @@ import { format } from 'date-fns';
 
 export const dynamic = 'force-dynamic';
 
-// GET - Obtener todos los registros sin reserva
+// GET - Obtener registros sin reserva con filtros de fecha
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const businessIdOrSlug = searchParams.get('businessId') || 'default-business-id';
+    const fecha = searchParams.get('fecha'); // YYYY-MM-DD format
+    const mes = searchParams.get('mes'); // YYYY-MM format para reportes
+    const includeStats = searchParams.get('includeStats') === 'true';
     
-    console.log('📥 GET /api/sin-reserva - businessId recibido:', businessIdOrSlug);
+    console.log('📥 GET /api/sin-reserva - params:', { businessIdOrSlug, fecha, mes, includeStats });
     
     // Buscar el business por ID o slug
     let business;
@@ -40,13 +43,37 @@ export async function GET(request: NextRequest) {
     
     console.log('✅ Business encontrado:', business.name, '(ID:', business.id + ')');
     
+    // Construir filtros dinámicos
+    const whereClause: any = {
+      businessId: business.id
+    };
+    
+    if (fecha) {
+      // Filtrar por fecha específica
+      const fechaTarget = new Date(fecha + 'T00:00:00.000Z');
+      const fechaEnd = new Date(fecha + 'T23:59:59.999Z');
+      whereClause.fecha = {
+        gte: fechaTarget,
+        lte: fechaEnd
+      };
+      console.log(`🗓️ Filtrando por fecha: ${fecha}`);
+    } else if (mes) {
+      // Filtrar por mes para reportes
+      const [año, mesNum] = mes.split('-');
+      const inicioMes = new Date(parseInt(año), parseInt(mesNum) - 1, 1);
+      const finMes = new Date(parseInt(año), parseInt(mesNum), 0, 23, 59, 59, 999);
+      whereClause.fecha = {
+        gte: inicioMes,
+        lte: finMes
+      };
+      console.log(`📊 Filtrando por mes: ${mes} (${inicioMes.toISOString()} - ${finMes.toISOString()})`);
+    }
+    
     // Obtener registros sin reserva
     const sinReservas = await prisma.sinReserva.findMany({
-      where: {
-        businessId: business.id
-      },
+      where: whereClause,
       orderBy: {
-        createdAt: 'asc' // Orden de creación
+        createdAt: 'desc' // Más recientes primero
       }
     });
 
@@ -64,11 +91,76 @@ export async function GET(request: NextRequest) {
 
     console.log(`✅ ${registros.length} registros sin reserva encontrados`);
     
-    return NextResponse.json({ 
+    // Calcular estadísticas si se solicitan
+    let stats = null;
+    if (includeStats || mes) {
+      // Para reportes mensuales
+      if (mes) {
+        const [año, mesNum] = mes.split('-');
+        const inicioMes = new Date(parseInt(año), parseInt(mesNum) - 1, 1);
+        const finMes = new Date(parseInt(año), parseInt(mesNum), 0, 23, 59, 59, 999);
+        
+        // Obtener todos los registros del mes
+        const registrosMes = await prisma.sinReserva.findMany({
+          where: {
+            businessId: business.id,
+            fecha: {
+              gte: inicioMes,
+              lte: finMes
+            }
+          }
+        });
+
+        // Agrupar por días
+        const registrosPorDia = registrosMes.reduce((acc, registro) => {
+          const dia = format(new Date(registro.fecha), 'yyyy-MM-dd');
+          if (!acc[dia]) {
+            acc[dia] = { total: 0, registros: 0 };
+          }
+          acc[dia].total += registro.numeroPersonas;
+          acc[dia].registros += 1;
+          return acc;
+        }, {} as Record<string, { total: number; registros: number }>);
+
+        const diasConData = Object.keys(registrosPorDia).length;
+        const totalPersonas = registrosMes.reduce((sum, r) => sum + r.numeroPersonas, 0);
+        const promedioPersonasPorDia = diasConData > 0 ? totalPersonas / diasConData : 0;
+
+        stats = {
+          mes: mes,
+          totalRegistros: registrosMes.length,
+          totalPersonas: totalPersonas,
+          diasConRegistros: diasConData,
+          promedioPersonasPorDia: Math.round(promedioPersonasPorDia * 100) / 100,
+          registrosPorDia: registrosPorDia
+        };
+      } else {
+        // Para estadísticas generales
+        const totalPersonas = registros.reduce((sum, r) => sum + r.numeroPersonas, 0);
+        const hoy = format(new Date(), 'yyyy-MM-dd');
+        const registrosHoy = registros.filter(r => r.fecha === hoy);
+        const personasHoy = registrosHoy.reduce((sum, r) => sum + r.numeroPersonas, 0);
+
+        stats = {
+          totalRegistros: registros.length,
+          totalPersonas: totalPersonas,
+          registrosHoy: registrosHoy.length,
+          personasHoy: personasHoy
+        };
+      }
+    }
+    
+    const response: any = { 
       success: true, 
       registros,
       count: registros.length
-    });
+    };
+    
+    if (stats) {
+      response.stats = stats;
+    }
+    
+    return NextResponse.json(response);
     
   } catch (error) {
     console.error('❌ Error en GET /api/sin-reserva:', error);
