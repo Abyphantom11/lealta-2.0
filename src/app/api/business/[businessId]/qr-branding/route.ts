@@ -10,8 +10,14 @@ export async function GET(
   try {
     const { businessId } = params;
 
-    const business = await prisma.business.findUnique({
-      where: { id: businessId },
+    // Buscar business por ID o por slug
+    const business = await prisma.business.findFirst({
+      where: {
+        OR: [
+          { id: businessId },
+          { slug: businessId }
+        ]
+      },
       select: {
         qrBrandingConfig: true,
         qrMensajeBienvenida: true,

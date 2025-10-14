@@ -21,8 +21,6 @@ async function getBannersFromConfig(businessId: string) {
     const configData = fs.readFileSync(configPath, 'utf8');
     const config = JSON.parse(configData);
     
-    console.log(`📂 [BANNERS] Leyendo banners desde: ${configPath}`);
-    console.log(`📊 [BANNERS] Encontrados: ${config.banners?.length || 0} banners`);
     
     return config.banners || [];
   } catch (error) {
@@ -44,7 +42,6 @@ export async function GET(request: NextRequest) {
     }
 
     // 🎯 PRIORIDAD CORREGIDA: Usar base de datos primero (fuente de verdad)
-    console.log(`📊 [BANNERS] Consultando banners desde BD para ${businessId}`);
     const banners = await prisma.portalBanner.findMany({
       where: {
         businessId,
@@ -56,7 +53,6 @@ export async function GET(request: NextRequest) {
     });
 
     if (banners.length > 0) {
-      console.log(`✅ [BANNERS] Usando ${banners.length} banners desde base de datos`);
       // Transformar a formato compatible con cliente
       const bannersFormatted = banners.map(banner => ({
         id: banner.id,
@@ -77,10 +73,8 @@ export async function GET(request: NextRequest) {
     }
     
     // Fallback: usar configuración JSON solo si no hay datos en BD
-    console.log(`📁 [BANNERS] No hay banners en BD, usando configuración JSON como fallback`);
     const configBanners = await getBannersFromConfig(businessId);
     
-    console.log(`✅ [BANNERS] Fallback: ${configBanners.length} banners desde configuración`);
     return NextResponse.json({ banners: configBanners });
   } catch (error) {
     console.error('Error obteniendo banners:', error);

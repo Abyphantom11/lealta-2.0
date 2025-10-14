@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Star, X } from 'lucide-react';
 import { useAutoRefreshPortalConfig } from '@/hooks/useAutoRefreshPortalConfig';
+import { debugLog } from '@/lib/debug-utils';
 
 interface FavoritoDelDia {
   id: string;
@@ -34,11 +35,11 @@ export default function FavoritoDelDiaSection({ businessId }: Readonly<FavoritoP
   useEffect(() => {
     const loadFavorito = async () => {
       try {
-        console.log('🔄 [FavoritoDelDiaSection] Iniciando loadFavorito...');
-        console.log('🔄 [FavoritoDelDiaSection] getFavoritoForBusinessDay function:', getFavoritoForBusinessDay);
+        debugLog('🔄 [FavoritoDelDiaSection] Iniciando loadFavorito...');
+        debugLog('🔄 [FavoritoDelDiaSection] getFavoritoForBusinessDay function:', getFavoritoForBusinessDay);
         
         const favoritoData = await getFavoritoForBusinessDay();
-        console.log('🔄 [FavoritoDelDiaSection] Resultado de getFavoritoForBusinessDay:', favoritoData);
+        debugLog('🔄 [FavoritoDelDiaSection] Resultado de getFavoritoForBusinessDay:', favoritoData);
         
         setFavorito(favoritoData);
       } catch (error) {
@@ -56,11 +57,11 @@ export default function FavoritoDelDiaSection({ businessId }: Readonly<FavoritoP
 
   // Si no hay favorito del día, no renderizar nada
   if (isLoading || !favorito?.imageUrl) {
-    console.log('🔄 [FavoritoDelDiaSection] No renderizando:', { isLoading, favorito, hasImageUrl: !!favorito?.imageUrl });
+    debugLog('🔄 [FavoritoDelDiaSection] No renderizando:', { isLoading, favorito, hasImageUrl: !!favorito?.imageUrl });
     return null;
   }
 
-  console.log('✅ [FavoritoDelDiaSection] Renderizando favorito:', favorito);
+  debugLog('✅ [FavoritoDelDiaSection] Renderizando favorito:', favorito);
 
   return (
     <div className="mx-4 mb-6 mt-6">

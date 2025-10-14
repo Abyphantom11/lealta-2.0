@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { debugLog } from '@/lib/debug-utils';
 
 interface DebugBannersProps {
   businessId?: string;
@@ -15,8 +16,8 @@ export default function DebugBannersSection({ businessId }: DebugBannersProps) {
   useEffect(() => {
     const fetchDirectly = async () => {
       try {
-        console.log('🔍 [DEBUG COMPONENT] Fetching directly from API...');
-        console.log('🔍 [DEBUG COMPONENT] BusinessId:', businessId);
+        debugLog('🔍 [DEBUG COMPONENT] Fetching directly from API...');
+        debugLog('🔍 [DEBUG COMPONENT] BusinessId:', businessId);
         
         const timestamp = new Date().getTime();
         const dayKey = new Date().toDateString();
@@ -38,7 +39,7 @@ export default function DebugBannersSection({ businessId }: DebugBannersProps) {
         }
         
         const data = await response.json();
-        console.log('✅ [DEBUG COMPONENT] API Response:', data);
+        debugLog('✅ [DEBUG COMPONENT] API Response:', data);
         
         setApiData(data);
         setError(null);

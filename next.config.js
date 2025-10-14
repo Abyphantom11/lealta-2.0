@@ -32,6 +32,44 @@ const nextConfig = {
     formats: ['image/webp'],
   },
   
+  // 🔄 CLOUDFLARE QR LEGACY SUPPORT - Interceptar URL que va a morir
+  async rewrites() {
+    return [
+      // Interceptar solicitudes específicas de Cloudflare QR legacy
+      {
+        source: '/cloudflare-qr-legacy',
+        destination: '/api/cloudflare-qr-legacy'
+      }
+    ];
+  },
+  
+  // Headers para manejar solicitudes cross-origin del QR legacy
+  async headers() {
+    return [
+      {
+        source: '/api/cloudflare-qr-legacy',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*'
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET, POST, PUT, DELETE, OPTIONS'
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'Content-Type, Authorization'
+          },
+          {
+            key: 'X-Legacy-QR-Support',
+            value: 'cloudflare-tunnel-migration'
+          }
+        ]
+      }
+    ];
+  },
+
   output: 'standalone',
 };
 

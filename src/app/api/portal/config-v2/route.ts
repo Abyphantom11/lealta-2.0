@@ -28,11 +28,6 @@ export async function GET(request: NextRequest) {
     
     const simulateDay = searchParams.get('simulateDay');
     
-    console.log(`📋 Portal config v2 (PostgreSQL) request DEBUG:`);
-    console.log(`   🏢 Header businessId: ${businessIdFromHeader || 'null'}`);
-    console.log(`   🔗 Query businessId: ${businessIdFromQuery || 'null'}`);
-    console.log(`   ✅ Final businessId: ${businessId}`);
-    
     // Obtener datos desde PostgreSQL
     const [banners, promociones, recompensas, favoritos, portalConfig] = await Promise.all([
       prisma.portalBanner.findMany({
@@ -60,15 +55,9 @@ export async function GET(request: NextRequest) {
     const currentDayName = await getCurrentBusinessDay(businessId);
     const targetDay = simulateDay || currentDayName;
     
-    console.log(`🗓️ Aplicando filtro de día: ${targetDay} (simulateDay: ${simulateDay || 'none'}, businessDay: ${currentDayName})`);
-    console.log(`🕐 [BUSINESS DAY DEBUG] Hora actual: ${new Date().getHours()}:${new Date().getMinutes()}`);
-    console.log(`🕐 [BUSINESS DAY DEBUG] BusinessId: ${businessId}`);
-    
     // Función auxiliar para verificar si un elemento debe mostrarse en el día actual
     const shouldShowInDay = (item: { dia: string | null }, day: string): boolean => {
-      const result = !item.dia || item.dia === day;
-      console.log(`🔍 [FILTER DEBUG] Item día: "${item.dia}" | Target día: "${day}" | Resultado: ${result}`);
-      return result;
+      return !item.dia || item.dia === day;
     };
     
     // Aplicar filtro de visibilidad por día
@@ -81,20 +70,6 @@ export async function GET(request: NextRequest) {
     const promocionesActivas = promocionesFiltradas.filter(p => p.active);
     const recompensasActivas = recompensas.filter(r => r.active);
     const favoritosActivos = favoritosFiltrados.filter(f => f.active);
-
-    // 🔍 DEBUG DETALLADO PARA FAVORITOS
-    console.log(`🔍 [FAVORITOS DEBUG] Total encontrados en DB: ${favoritos.length}`);
-    favoritos.forEach((fav, idx) => {
-      console.log(`   ${idx + 1}. ID: ${fav.id} | Día: ${fav.dia} | Activo: ${fav.active} | Nombre: ${fav.productName}`);
-    });
-    console.log(`🔍 [FAVORITOS DEBUG] Filtrados por día (${targetDay}): ${favoritosFiltrados.length}`);
-    favoritosFiltrados.forEach((fav, idx) => {
-      console.log(`   ${idx + 1}. ID: ${fav.id} | Día: ${fav.dia} | Activo: ${fav.active} | Nombre: ${fav.productName}`);
-    });
-    console.log(`🔍 [FAVORITOS DEBUG] Activos finales: ${favoritosActivos.length}`);
-    favoritosActivos.forEach((fav, idx) => {
-      console.log(`   ${idx + 1}. ID: ${fav.id} | Día: ${fav.dia} | Activo: ${fav.active} | Nombre: ${fav.productName}`);
-    });
 
     // Convertir a formato compatible con el cliente
     const responseData = {
@@ -150,15 +125,6 @@ export async function GET(request: NextRequest) {
         favoritos: favoritosActivos.length
       }
     };
-
-    console.log(`✅ Portal config v2 loaded from PostgreSQL:`, {
-      businessId,
-      banners: bannersActivos.length,
-      promociones: promocionesActivas.length,
-      recompensas: recompensasActivas.length,
-      favoritos: favoritosActivos.length,
-      simulateDay: simulateDay || 'none'
-    });
 
     return NextResponse.json({
       success: true,

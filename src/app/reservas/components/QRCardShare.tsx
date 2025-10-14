@@ -38,6 +38,24 @@ export function QRCardShare({ reserva, businessId }: QRCardShareProps) {
   // Cargar configuración del negocio
   useEffect(() => {
     const loadConfig = async () => {
+      if (!businessId || businessId.trim() === '') {
+        console.error('❌ No businessId provided to QRCardShare');
+        // Usar diseño por defecto inmediatamente
+        setCardDesign({
+          backgroundColor: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%)',
+          borderColor: '#2a2a2a',
+          borderWidth: 1,
+          borderRadius: 20,
+          padding: 40,
+          shadowColor: '#000000',
+          shadowSize: 'xl',
+          headerColor: '#ffffff',
+          textColor: '#9ca3af',
+        });
+        setIsLoading(false);
+        return;
+      }
+
       try {
         console.log('🔍 QRCardShare - businessId:', businessId);
         const url = `/api/business/${businessId}/qr-branding`;
@@ -104,24 +122,7 @@ export function QRCardShare({ reserva, businessId }: QRCardShareProps) {
       }
     };
 
-    if (businessId) {
-      loadConfig();
-    } else {
-      console.error('❌ No businessId provided to QRCardShare');
-      // Si no hay businessId, usar diseño por defecto inmediatamente
-      setCardDesign({
-        backgroundColor: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%)',
-        borderColor: '#2a2a2a',
-        borderWidth: 1,
-        borderRadius: 20,
-        padding: 40,
-        shadowColor: '#000000',
-        shadowSize: 'xl',
-        headerColor: '#ffffff',
-        textColor: '#9ca3af',
-      });
-      setIsLoading(false);
-    }
+    loadConfig();
   }, [businessId]);
 
   // Generar imagen del QR Card con mejor manejo de errores

@@ -10,7 +10,7 @@ const reservasAPI = {
   // 🔥 Query combinada: Reservas + Stats + Clients en una sola request
   fetchReservasWithStats: async (businessId: string) => {
     const url = businessId 
-      ? `/api/reservas?business_id=${businessId}&include=stats,clients`
+      ? `/api/reservas?businessId=${businessId}&include=stats,clients`
       : `/api/reservas?include=stats,clients`;
     
     const response = await fetch(url);
@@ -22,7 +22,7 @@ const reservasAPI = {
 
   // 🎯 Request individual para casos específicos
   fetchReservas: async (businessId?: string) => {
-    const url = businessId ? `/api/reservas?business_id=${businessId}` : '/api/reservas';
+    const url = businessId ? `/api/reservas?businessId=${businessId}` : '/api/reservas';
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error('Error fetching reservas');
@@ -36,7 +36,7 @@ const reservasAPI = {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ ...reservaData, business_id: businessId }),
+      body: JSON.stringify({ ...reservaData, businessId: businessId }),
     });
     
     if (!response.ok) {
@@ -76,7 +76,7 @@ const reservasAPI = {
 
   // 📊 Endpoint para solo estadísticas (caché separado)
   fetchStats: async (businessId?: string) => {
-    const url = businessId ? `/api/reservas/stats?business_id=${businessId}` : '/api/reservas/stats';
+    const url = businessId ? `/api/reservas/stats?businessId=${businessId}` : '/api/reservas/stats';
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error('Error fetching stats');
@@ -86,7 +86,7 @@ const reservasAPI = {
 
   // 🔄 Verificar actualizaciones (para polling inteligente)
   checkUpdates: async (businessId: string, lastUpdate: string) => {
-    const response = await fetch(`/api/reservas/updates?business_id=${businessId}&since=${lastUpdate}`);
+    const response = await fetch(`/api/reservas/updates?businessId=${businessId}&since=${lastUpdate}`);
     if (!response.ok) {
       throw new Error('Error checking updates');
     }

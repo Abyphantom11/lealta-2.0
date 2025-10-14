@@ -4,6 +4,7 @@ import {
   isItemVisibleInBusinessDay,
   type DayOfWeek 
 } from '@/lib/business-day-utils';
+import { debugLog } from '@/lib/debug-utils';
 
 interface UseAutoRefreshOptions {
   businessId?: string;
@@ -54,11 +55,11 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
       const dayChanged = lastFetchDay !== '' && currentDay !== lastFetchDay;
       
       if (dayChanged) {
-        console.log(`�️ DÍA COMERCIAL CAMBIÓ: ${lastFetchDay} → ${currentDay}`);
-        console.log('🔄 Forzando cache-bust para obtener datos frescos...');
+        debugLog(`�️ DÍA COMERCIAL CAMBIÓ: ${lastFetchDay} → ${currentDay}`);
+        debugLog('🔄 Forzando cache-bust para obtener datos frescos...');
       }
       
-      console.log(`�🔄 Auto-refresh: Fetching portal config v2 for ${configBusinessId} at ${new Date().toLocaleTimeString()}`);
+      debugLog(`�🔄 Auto-refresh: Fetching portal config v2 for ${configBusinessId} at ${new Date().toLocaleTimeString()}`);
       
       const response = await fetch(
         `/api/portal/config-v2?businessId=${configBusinessId}&t=${timestamp}&dayKey=${currentDay}`,
@@ -78,7 +79,7 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
         
         // ✅ CORRECCIÓN: Extraer los datos reales de la respuesta de la API
         const realData = data.data || data;
-        console.log('🔍 [useAutoRefreshPortalConfig] API response structure:', {
+        debugLog('🔍 [useAutoRefreshPortalConfig] API response structure:', {
           hasSuccess: !!data.success,
           hasData: !!data.data,
           topLevelKeys: Object.keys(data),
@@ -89,8 +90,8 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
         setLastUpdate(new Date());
         setLastFetchDay(currentDay); // ✅ Actualizar el día del último fetch
         
-        console.log(`✅ Config v2 (DB) updated successfully at ${new Date().toLocaleTimeString()}`);
-        console.log('🔍 Raw API data:', {
+        debugLog(`✅ Config v2 (DB) updated successfully at ${new Date().toLocaleTimeString()}`);
+        debugLog('🔍 Raw API data:', {
           banners: realData.banners?.length || 0,
           promociones: (realData.promociones || realData.promotions)?.length || 0,
           recompensas: (realData.recompensas || realData.rewards)?.length || 0,
@@ -124,10 +125,10 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
       
       // Si el día cambió, forzar refresh inmediato
       if (lastFetchDay !== '' && currentDay !== lastFetchDay) {
-        console.log('🗓️ ¡CAMBIO DE DÍA COMERCIAL DETECTADO!');
-        console.log(`   Anterior: ${lastFetchDay}`);
-        console.log(`   Actual: ${currentDay}`);
-        console.log('🔄 Refrescando configuración automáticamente...');
+        debugLog('🗓️ ¡CAMBIO DE DÍA COMERCIAL DETECTADO!');
+        debugLog(`   Anterior: ${lastFetchDay}`);
+        debugLog(`   Actual: ${currentDay}`);
+        debugLog('🔄 Refrescando configuración automáticamente...');
         fetchConfig(false);
       }
     }, 60000); // Verificar cada minuto
@@ -235,26 +236,26 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
   }, [config]);
 
   const getBannersForBusinessDay = useCallback(async () => {
-    console.log('🔍 [getBannersForBusinessDay] Iniciando función...');
-    console.log('🔍 [getBannersForBusinessDay] Config disponible:', !!config);
-    console.log('🔍 [getBannersForBusinessDay] BusinessId:', businessId);
+    debugLog('🔍 [getBannersForBusinessDay] Iniciando función...');
+    debugLog('🔍 [getBannersForBusinessDay] Config disponible:', !!config);
+    debugLog('🔍 [getBannersForBusinessDay] BusinessId:', businessId);
     
     if (!config?.banners) {
-      console.log('❌ [getBannersForBusinessDay] No hay config.banners disponible');
-      console.log('🔍 [getBannersForBusinessDay] Config keys:', Object.keys(config || {}));
-      console.log('🔍 [getBannersForBusinessDay] Config completo:', config);
+      debugLog('❌ [getBannersForBusinessDay] No hay config.banners disponible');
+      debugLog('🔍 [getBannersForBusinessDay] Config keys:', Object.keys(config || {}));
+      debugLog('🔍 [getBannersForBusinessDay] Config completo:', config);
       return [];
     }
     
     const banners = config.banners || [];
-    console.log('🔍 [getBannersForBusinessDay] Banners raw del config:', banners.length);
+    debugLog('🔍 [getBannersForBusinessDay] Banners raw del config:', banners.length);
     
     const todasActivas = banners.filter((b: any) => b.activo !== false && b.imagenUrl && b.imagenUrl.trim() !== '') || [];
-    console.log('🔍 [getBannersForBusinessDay] Banners activos con imagen:', todasActivas.length);
+    debugLog('🔍 [getBannersForBusinessDay] Banners activos con imagen:', todasActivas.length);
     
     if (todasActivas.length > 0) {
       todasActivas.forEach((banner: any, idx: number) => {
-        console.log(`   ${idx + 1}. "${banner.titulo}" - Día: ${banner.dia} - Activo: ${banner.activo}`);
+        debugLog(`   ${idx + 1}. "${banner.titulo}" - Día: ${banner.dia} - Activo: ${banner.activo}`);
       });
     }
 
@@ -270,16 +271,16 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
           activo: banner.activo !== false
         };
         
-        console.log(`🔍 [getBannersForBusinessDay] Verificando "${banner.titulo}" con día: ${banner.dia}`);
+        debugLog(`🔍 [getBannersForBusinessDay] Verificando "${banner.titulo}" con día: ${banner.dia}`);
         const visible = await isItemVisibleInBusinessDay(item, businessId);
-        console.log(`🔍 [getBannersForBusinessDay] "${banner.titulo}" visible: ${visible}`);
+        debugLog(`🔍 [getBannersForBusinessDay] "${banner.titulo}" visible: ${visible}`);
         
         if (visible) {
           bannersVisibles.push(banner);
         }
       }
       
-      console.log('✅ [getBannersForBusinessDay] Banners finales visibles:', bannersVisibles.length);
+      debugLog('✅ [getBannersForBusinessDay] Banners finales visibles:', bannersVisibles.length);
       return bannersVisibles;
     } catch (error) {
       console.error('❌ [getBannersForBusinessDay] Error obteniendo banners para día comercial:', error);
@@ -289,12 +290,12 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
 
   // ✅ NUEVA FUNCIÓN: Obtener favorito del día usando lógica centralizada (como banners)
   const getFavoritoForBusinessDay = useCallback(async () => {
-    console.log('🔍 [getFavoritoForBusinessDay] Iniciando función...');
-    console.log('🔍 [getFavoritoForBusinessDay] Config actual:', config);
+    debugLog('🔍 [getFavoritoForBusinessDay] Iniciando función...');
+    debugLog('🔍 [getFavoritoForBusinessDay] Config actual:', config);
     
     if (!config?.favoritoDelDia && !config?.favorites) {
-      console.log('❌ [getFavoritoForBusinessDay] No hay config.favoritoDelDia disponible');
-      console.log('🔍 [getFavoritoForBusinessDay] Keys del config:', Object.keys(config || {}));
+      debugLog('❌ [getFavoritoForBusinessDay] No hay config.favoritoDelDia disponible');
+      debugLog('🔍 [getFavoritoForBusinessDay] Keys del config:', Object.keys(config || {}));
       return null;
     }
     
@@ -307,11 +308,11 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
       favoritos = Array.isArray(config.favorites) ? config.favorites : [config.favorites];
     }
     
-    console.log('🔍 [getFavoritoForBusinessDay] Favoritos procesados:', favoritos.length);
-    console.log('🔍 [getFavoritoForBusinessDay] Favoritos data:', favoritos);
+    debugLog('🔍 [getFavoritoForBusinessDay] Favoritos procesados:', favoritos.length);
+    debugLog('🔍 [getFavoritoForBusinessDay] Favoritos data:', favoritos);
     
     const todosActivos = favoritos.filter((f: any) => f && f.active !== false) || [];
-    console.log('🔍 [getFavoritoForBusinessDay] Favoritos activos:', todosActivos.length);
+    debugLog('🔍 [getFavoritoForBusinessDay] Favoritos activos:', todosActivos.length);
 
     try {
       // Filtrar usando la nueva lógica centralizada
@@ -323,17 +324,17 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
           activo: favorito.active !== false
         };
         
-        console.log(`🔍 [getFavoritoForBusinessDay] Verificando "${favorito.productName}" con día: ${favorito.dia}`);
+        debugLog(`🔍 [getFavoritoForBusinessDay] Verificando "${favorito.productName}" con día: ${favorito.dia}`);
         const visible = await isItemVisibleInBusinessDay(item, businessId);
-        console.log(`🔍 [getFavoritoForBusinessDay] "${favorito.productName}" visible: ${visible}`);
+        debugLog(`🔍 [getFavoritoForBusinessDay] "${favorito.productName}" visible: ${visible}`);
         
         if (visible) {
-          console.log('✅ [getFavoritoForBusinessDay] Favorito encontrado:', favorito.productName);
+          debugLog('✅ [getFavoritoForBusinessDay] Favorito encontrado:', favorito.productName);
           return favorito;
         }
       }
       
-      console.log('⚠️ [getFavoritoForBusinessDay] Ningún favorito visible para el día actual');
+      debugLog('⚠️ [getFavoritoForBusinessDay] Ningún favorito visible para el día actual');
       return null;
     } catch (error) {
       console.error('❌ [getFavoritoForBusinessDay] Error obteniendo favorito para día comercial:', error);

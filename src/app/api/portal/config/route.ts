@@ -12,13 +12,11 @@ export async function GET(request: NextRequest) {
     const businessId = searchParams.get('businessId') || 'default';
     const simulateDay = searchParams.get('simulateDay');
     
-    console.log(`📋 Portal config público request for business: ${businessId}`);
     
     // Leer configuración desde archivo JSON
     const configPath = path.join(process.cwd(), 'config', 'portal', `portal-config-${businessId}.json`);
     
     if (!fs.existsSync(configPath)) {
-      console.log(`⚠️ Config file not found: ${configPath}`);
       // Devolver configuración por defecto
       return NextResponse.json({
         success: true,

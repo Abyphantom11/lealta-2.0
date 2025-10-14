@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
 import { Alert, AlertDescription } from "./ui/alert";
 import { CheckCircle } from "lucide-react";
 import { QRCardShare } from "./QRCardShare";
@@ -22,34 +22,14 @@ export function ReservationConfirmation({
 }: Readonly<ReservationConfirmationProps>) {
   const [showSuccess, setShowSuccess] = useState(false);
   const params = useParams();
-  const businessNameOrId = params.businessId as string;
-  const [actualBusinessId, setActualBusinessId] = useState<string>(businessNameOrId);
+  const businessSlug = (params?.businessId as string) || '';
 
-  // Resolver nombre de negocio a ID
+  // Resolver nombre de negocio a ID si es necesario
   useEffect(() => {
-    const resolveBusinessId = async () => {
-      if (!businessNameOrId) return;
-      
-      // Si parece un ID (empieza con 'cm' y es largo), usarlo directamente
-      if (businessNameOrId.startsWith('cm') && businessNameOrId.length > 20) {
-        setActualBusinessId(businessNameOrId);
-        return;
-      }
-      
-      // Si parece un nombre, convertirlo a ID
-      try {
-        const response = await fetch(`/api/businesses/by-name/${encodeURIComponent(businessNameOrId)}`);
-        if (response.ok) {
-          const data = await response.json();
-          setActualBusinessId(data.id);
-        }
-      } catch (error) {
-        console.error('Error resolviendo businessId:', error);
-      }
-    };
-    
-    resolveBusinessId();
-  }, [businessNameOrId]);
+    if (!businessSlug) {
+      console.warn('⚠️ No businessSlug found in params');
+    }
+  }, [businessSlug]);
 
   useEffect(() => {
     if (isOpen && reserva) {
@@ -78,6 +58,9 @@ export function ReservationConfirmation({
             <CheckCircle className="h-5 w-5" />
             ¡Reserva Confirmada!
           </DialogTitle>
+          <DialogDescription className="text-gray-600">
+            Tu reserva ha sido confirmada exitosamente. Aquí tienes tu código QR de entrada.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">
@@ -92,23 +75,31 @@ export function ReservationConfirmation({
           )}
           
           {/* QR Card Personalizado */}
-          <QRCardShare
-            reserva={{
-              id: reserva.id,
-              cliente: {
-                id: reserva.cliente.id,
-                nombre: reserva.cliente.nombre,
-                telefono: reserva.cliente.telefono || '',
-                email: reserva.cliente.email || '',
-              },
-              fecha: reserva.fecha,
-              hora: reserva.hora,
-              numeroPersonas: reserva.numeroPersonas,
-              razonVisita: reserva.razonVisita || 'Reserva',
-              qrToken: reserva.codigoQR || `RES-${reserva.id}`,
-            }}
-            businessId={actualBusinessId}
-          />
+          {businessSlug ? (
+            <QRCardShare
+              reserva={{
+                id: reserva.id,
+                cliente: {
+                  id: reserva.cliente.id,
+                  nombre: reserva.cliente.nombre,
+                  telefono: reserva.cliente.telefono || '',
+                  email: reserva.cliente.email || '',
+                },
+                fecha: reserva.fecha,
+                hora: reserva.hora,
+                numeroPersonas: reserva.numeroPersonas,
+                razonVisita: reserva.razonVisita || 'Reserva',
+                qrToken: reserva.codigoQR || `RES-${reserva.id}`,
+              }}
+              businessId={businessSlug}
+            />
+          ) : (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-amber-800 text-sm">
+                ⚠️ No se pudo cargar la configuración del QR. Contacta con soporte.
+              </p>
+            </div>
+          )}
           
           {/* Botón de cierre */}
           <div className="flex justify-center pt-2">

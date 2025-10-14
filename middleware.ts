@@ -5,8 +5,26 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const host = request.headers.get('host') || '';
+  const referer = request.headers.get('referer') || '';
   
-  // � QR REDIRECT - Interceptar rutas /r/[shortId] y redirigir a API
+  // 🔄 CLOUDFLARE QR INTERCEPTOR - Para QR específico que va a morir
+  // Interceptar la URL exacta de Cloudflare: loud-entity-fluid-trade.trycloudflare.com/r/ig4gRl
+  if (host.includes('loud-entity-fluid-trade.trycloudflare.com') || 
+      referer.includes('loud-entity-fluid-trade.trycloudflare.com') ||
+      request.url.includes('loud-entity-fluid-trade.trycloudflare.com')) {
+    
+    console.log('🌩️ Cloudflare QR intercepted (will die soon):', request.url);
+    
+    // Si es específicamente el path /r/ig4gRl, redirigir a lealta.app
+    if (pathname === '/r/ig4gRl') {
+      const lealtaUrl = 'https://lealta.app/r/ig4gRl';
+      console.log(`🔄 Redirecting dying Cloudflare QR -> ${lealtaUrl}`);
+      return NextResponse.redirect(lealtaUrl, 301);
+    }
+  }
+  
+  // 🔗 QR REDIRECT - Interceptar rutas /r/[shortId] y redirigir a API
   if (pathname.startsWith('/r/') && pathname.length > 3) {
     const shortId = pathname.substring(3); // Remover "/r/"
     
@@ -17,7 +35,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.rewrite(apiUrl);
   }
   
-  // �🔄 BYPASS TEMPORAL - Sin rate limiting hasta resolver Upstash
+  // 🔄 BYPASS TEMPORAL - Sin rate limiting hasta resolver Upstash
   console.log(`🔄 [EMERGENCY MIDDLEWARE] Processing: ${pathname}`);
   
   // Solo logging básico, sin validaciones complejas

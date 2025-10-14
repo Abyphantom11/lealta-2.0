@@ -27,6 +27,7 @@ import { IdCard } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useClientNotifications } from '@/services/clientNotificationService';
 import PWANotificationTrigger from '@/components/pwa/PWANotificationTrigger';
+import { debugLog } from '@/lib/debug-utils';
 
 interface AuthHandlerProps {
   readonly businessId?: string;
@@ -525,7 +526,7 @@ export default function AuthHandler({ businessId: propBusinessId }: Readonly<Aut
           );
           if (response.ok) {
             const data = await response.json();
-            console.log('🍽️ Datos recibidos del API productos:', data);
+            debugLog('🍽️ Datos recibidos del API productos:', data);
             
             // El API devuelve { success: true, productos: [...] }
             if (data.success && Array.isArray(data.productos)) {
