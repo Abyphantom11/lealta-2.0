@@ -61,10 +61,14 @@ export async function GET(request: NextRequest) {
     const targetDay = simulateDay || currentDayName;
     
     console.log(`🗓️ Aplicando filtro de día: ${targetDay} (simulateDay: ${simulateDay || 'none'}, businessDay: ${currentDayName})`);
+    console.log(`🕐 [BUSINESS DAY DEBUG] Hora actual: ${new Date().getHours()}:${new Date().getMinutes()}`);
+    console.log(`🕐 [BUSINESS DAY DEBUG] BusinessId: ${businessId}`);
     
     // Función auxiliar para verificar si un elemento debe mostrarse en el día actual
     const shouldShowInDay = (item: { dia: string | null }, day: string): boolean => {
-      return !item.dia || item.dia === day;
+      const result = !item.dia || item.dia === day;
+      console.log(`🔍 [FILTER DEBUG] Item día: "${item.dia}" | Target día: "${day}" | Resultado: ${result}`);
+      return result;
     };
     
     // Aplicar filtro de visibilidad por día

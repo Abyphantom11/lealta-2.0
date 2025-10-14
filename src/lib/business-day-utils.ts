@@ -97,13 +97,6 @@ export async function getCurrentBusinessDay(
   customDate?: Date
 ): Promise<DayOfWeek> {
   try {
-    // ✅ Verificar si estamos en el navegador
-    if (typeof window === 'undefined') {
-      // En servidor, usar día natural por defecto
-      const now = customDate || new Date();
-      return DAYS_OF_WEEK[now.getDay()];
-    }
-    
     const config = await getBusinessDayConfig(businessId);
     const now = customDate || new Date();
     

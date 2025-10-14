@@ -1,0 +1,231 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e6]:
+        - generic [ref=e7]:
+          - img [ref=e9]
+          - generic [ref=e19]: lealta
+        - generic [ref=e20]:
+          - link "Iniciar Sesión" [ref=e21] [cursor=pointer]:
+            - /url: /login
+            - button "Iniciar Sesión" [ref=e22]:
+              - img [ref=e23]
+              - text: Iniciar Sesión
+          - link "Registrarse" [ref=e26] [cursor=pointer]:
+            - /url: /signup
+            - button "Registrarse" [ref=e27]:
+              - img [ref=e28]
+              - text: Registrarse
+    - generic [ref=e36]:
+      - generic [ref=e37]:
+        - generic [ref=e38]:
+          - img [ref=e39]
+          - text: Plataforma Web Enterprise
+        - heading "Plataforma de Inteligencia y Escalabilidad Comercial" [level=1] [ref=e42]:
+          - text: Plataforma de Inteligencia
+          - text: y Escalabilidad
+          - text: Comercial
+        - paragraph [ref=e43]:
+          - text: Transforma tu negocio en una organización data-driven con inteligencia artificial, análisis predictivo y escalabilidad sin límites.
+          - text: Diseñada para crecer contigo, desde el primer día.
+        - generic [ref=e44]:
+          - link "Comenzar Prueba Gratis" [ref=e45] [cursor=pointer]:
+            - /url: /signup
+            - button "Comenzar Prueba Gratis" [ref=e46]:
+              - img [ref=e47]
+              - text: Comenzar Prueba Gratis
+              - img [ref=e50]
+          - button "Conocer Más" [ref=e52] [cursor=pointer]:
+            - img [ref=e53]
+            - text: Conocer Más
+      - generic [ref=e58]:
+        - generic [ref=e59]:
+          - generic [ref=e60]: IA
+          - generic [ref=e61]: Nativa Incluida
+        - generic [ref=e62]:
+          - generic [ref=e63]: 24h
+          - generic [ref=e64]: Para Implementar
+        - generic [ref=e65]:
+          - generic [ref=e66]: ∞
+          - generic [ref=e67]: Escalabilidad
+        - generic [ref=e68]:
+          - generic [ref=e69]: 100%
+          - generic [ref=e70]: Personalizable
+    - generic [ref=e72]:
+      - generic [ref=e73]:
+        - heading "¿Tu negocio está listo para crecer sin límites?" [level=2] [ref=e74]
+        - paragraph [ref=e75]: Una plataforma construida pensando en el crecimiento. Tecnología avanzada con la simplicidad que necesitas.
+      - generic [ref=e76]:
+        - generic [ref=e77]:
+          - img [ref=e79]
+          - heading "IA Enterprise-Grade" [level=3] [ref=e87]
+          - paragraph [ref=e88]: Reconocimiento automático de productos, análisis predictivo y automatización inteligente incluida desde el primer día.
+        - generic [ref=e89]:
+          - img [ref=e91]
+          - heading "Escalabilidad Sin Límites" [level=3] [ref=e94]
+          - paragraph [ref=e95]: De 1 a 1000+ ubicaciones en la misma plataforma. Crecer sin cambiar de sistema.
+        - generic [ref=e96]:
+          - img [ref=e98]
+          - heading "Implementación Instantánea" [level=3] [ref=e100]
+          - paragraph [ref=e101]: Setup en 24 horas, no meses. Tu equipo productivo desde el primer día.
+    - generic [ref=e103]:
+      - generic [ref=e104]:
+        - heading "Módulos que crecen contigo" [level=2] [ref=e105]
+        - paragraph [ref=e106]: Arquitectura modular enterprise que se adapta a tu crecimiento empresarial
+      - generic [ref=e107]:
+        - generic [ref=e108]:
+          - img [ref=e110]
+          - heading "Staff Intelligence" [level=3] [ref=e115]
+          - paragraph [ref=e116]: IA para reconocimiento de productos y automatización de procesos
+          - generic [ref=e117]:
+            - generic [ref=e118]:
+              - img [ref=e119]
+              - generic [ref=e122]: OCR Avanzado
+            - generic [ref=e123]:
+              - img [ref=e124]
+              - generic [ref=e127]: IA Predictiva
+            - generic [ref=e128]:
+              - img [ref=e129]
+              - generic [ref=e132]: Automatización
+        - generic [ref=e133]:
+          - img [ref=e135]
+          - heading "Customer Experience" [level=3] [ref=e137]
+          - paragraph [ref=e138]: Experiencia premium para tus clientes más exigentes
+          - generic [ref=e139]:
+            - generic [ref=e140]:
+              - img [ref=e141]
+              - generic [ref=e144]: Portal Premium
+            - generic [ref=e145]:
+              - img [ref=e146]
+              - generic [ref=e149]: Fidelización IA
+            - generic [ref=e150]:
+              - img [ref=e151]
+              - generic [ref=e154]: Analytics 360°
+        - generic [ref=e155]:
+          - img [ref=e157]
+          - heading "Business Analytics" [level=3] [ref=e159]
+          - paragraph [ref=e160]: Dashboards enterprise con insights accionables
+          - generic [ref=e161]:
+            - generic [ref=e162]:
+              - img [ref=e163]
+              - generic [ref=e166]: Dashboards Real-time
+            - generic [ref=e167]:
+              - img [ref=e168]
+              - generic [ref=e171]: Predictive Analytics
+            - generic [ref=e172]:
+              - img [ref=e173]
+              - generic [ref=e176]: ROI Tracking
+        - generic [ref=e177]:
+          - img [ref=e179]
+          - heading "Multi-Location" [level=3] [ref=e183]
+          - paragraph [ref=e184]: Control centralizado de operaciones distribuidas
+          - generic [ref=e185]:
+            - generic [ref=e186]:
+              - img [ref=e187]
+              - generic [ref=e190]: Control Central
+            - generic [ref=e191]:
+              - img [ref=e192]
+              - generic [ref=e195]: Reporting Global
+            - generic [ref=e196]:
+              - img [ref=e197]
+              - generic [ref=e200]: Escalabilidad
+    - generic [ref=e203]:
+      - heading "¿Listo para transformar tu negocio?" [level=2] [ref=e204]
+      - paragraph [ref=e205]: Plataforma diseñada para escalar sin límites. Tu negocio merece herramientas de siguiente nivel.
+      - link "Comenzar Ahora" [ref=e206] [cursor=pointer]:
+        - /url: /signup
+        - button "Comenzar Ahora" [ref=e207]:
+          - img [ref=e208]
+          - text: Comenzar Ahora
+          - img [ref=e211]
+    - contentinfo [ref=e213]:
+      - generic [ref=e214]:
+        - generic [ref=e215]:
+          - generic [ref=e216]:
+            - paragraph [ref=e217]: Plataforma de inteligencia comercial diseñada para escalar sin límites.
+            - generic [ref=e218]:
+              - generic [ref=e219]: Hecho con
+              - img [ref=e220]
+              - generic [ref=e222]: para emprendedores
+          - generic [ref=e223]:
+            - heading "Plataforma" [level=3] [ref=e224]
+            - list [ref=e225]:
+              - listitem [ref=e226]:
+                - link "Comenzar gratis" [ref=e227] [cursor=pointer]:
+                  - /url: /signup
+              - listitem [ref=e228]:
+                - link "Iniciar sesión" [ref=e229] [cursor=pointer]:
+                  - /url: /login
+              - listitem [ref=e230]: Documentación
+              - listitem [ref=e231]: API
+          - generic [ref=e232]:
+            - heading "Legal" [level=3] [ref=e233]
+            - list [ref=e234]:
+              - listitem [ref=e235]:
+                - link "Términos y Condiciones" [ref=e236] [cursor=pointer]:
+                  - /url: /legal/terminos
+                  - img [ref=e237]
+                  - text: Términos y Condiciones
+              - listitem [ref=e240]:
+                - link "Políticas de Privacidad" [ref=e241] [cursor=pointer]:
+                  - /url: /legal/privacidad
+                  - img [ref=e242]
+                  - text: Políticas de Privacidad
+              - listitem [ref=e244]:
+                - generic [ref=e245]:
+                  - img [ref=e246]
+                  - text: Términos de Servicio
+          - generic [ref=e249]:
+            - heading "Contacto" [level=3] [ref=e250]
+            - list [ref=e251]:
+              - listitem [ref=e252]:
+                - link "hola@lealta.com" [ref=e253] [cursor=pointer]:
+                  - /url: mailto:hola@lealta.com
+                  - img [ref=e254]
+                  - text: hola@lealta.com
+            - generic [ref=e257]:
+              - link "GitHub" [ref=e258] [cursor=pointer]:
+                - /url: "#"
+                - img [ref=e259]
+              - link "Twitter" [ref=e262] [cursor=pointer]:
+                - /url: "#"
+                - img [ref=e263]
+              - link "LinkedIn" [ref=e265] [cursor=pointer]:
+                - /url: "#"
+                - img [ref=e266]
+        - generic [ref=e271]:
+          - paragraph [ref=e272]: © 2025 lealta. Todos los derechos reservados.
+          - generic [ref=e274]: Versión 2.0
+    - generic [ref=e275]:
+      - generic [ref=e277]:
+        - generic [ref=e278]:
+          - img [ref=e279]
+          - heading "Cookies" [level=3] [ref=e281]
+        - button [ref=e282] [cursor=pointer]:
+          - img [ref=e283]
+      - generic [ref=e286]:
+        - paragraph [ref=e287]: Usamos cookies para mejorar tu experiencia. Al continuar navegando, aceptas nuestro uso de cookies.
+        - generic [ref=e288]:
+          - button "Aceptar todas" [ref=e289] [cursor=pointer]
+          - generic [ref=e290]:
+            - button "Personalizar" [ref=e291] [cursor=pointer]:
+              - img [ref=e292]
+              - text: Personalizar
+            - button "Solo necesarias" [ref=e295] [cursor=pointer]
+        - generic [ref=e296]:
+          - link "Privacidad" [ref=e297] [cursor=pointer]:
+            - /url: /legal/privacidad
+            - img [ref=e298]
+            - text: Privacidad
+          - generic [ref=e300]: •
+          - link "Términos" [ref=e301] [cursor=pointer]:
+            - /url: /legal/terminos
+  - generic [ref=e302]:
+    - img [ref=e304]
+    - button "Open Tanstack query devtools" [ref=e352] [cursor=pointer]:
+      - img [ref=e353]
+  - alert [ref=e401]
+```

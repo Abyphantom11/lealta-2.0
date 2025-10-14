@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "incremental": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@/components/*": ["./src/components/*"],
+      "@/lib/*": ["./src/lib/*"],
+      "@/utils/*": ["./src/utils/*"]
+    }
+  },
+  "exclude": ["node_modules", ".next", "**/*.test.ts", "**/*.test.tsx"]
+}

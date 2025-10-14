@@ -200,6 +200,7 @@ function LoginContent() {
             <input
               type="email"
               required
+              data-testid="email-input"
               className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
               placeholder="admin@lealta.com"
               value={formData.email}
@@ -218,6 +219,7 @@ function LoginContent() {
               <input
                 type={showPassword ? 'text' : 'password'}
                 required
+                data-testid="password-input"
                 className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 pr-12"
                 placeholder="••••••••"
                 value={formData.password}
@@ -244,6 +246,7 @@ function LoginContent() {
             whileTap={{ scale: 0.98 }}
             type="submit"
             disabled={isLoading}
+            data-testid="login-button"
             className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
           >
             {isLoading ? (
