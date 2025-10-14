@@ -7,7 +7,12 @@ const prisma = new PrismaClient();
 // GET - Obtener promociones del portal
 export async function GET(request: NextRequest) {
   try {
-    const businessId = getBusinessIdFromRequest(request);
+    const { searchParams } = new URL(request.url);
+    
+    // 🔧 FIX: Priorizar query parameter para producción
+    const businessIdFromQuery = searchParams.get('businessId');
+    const businessIdFromHeader = getBusinessIdFromRequest(request);
+    const businessId = businessIdFromQuery || businessIdFromHeader;
     
     if (!businessId) {
       return NextResponse.json(
@@ -15,6 +20,8 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    console.log(`🏢 [PROMOCIONES] Using businessId: ${businessId} (from: ${businessIdFromQuery ? 'query' : 'header'})`);
 
     const promociones = await prisma.portalPromocion.findMany({
       where: {

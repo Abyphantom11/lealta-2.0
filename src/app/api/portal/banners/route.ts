@@ -32,7 +32,12 @@ async function getBannersFromConfig(businessId: string) {
 // GET - Obtener banners del portal
 export async function GET(request: NextRequest) {
   try {
-    const businessId = getBusinessIdFromRequest(request);
+    const { searchParams } = new URL(request.url);
+    
+    // 🔧 FIX: Priorizar query parameter para producción
+    const businessIdFromQuery = searchParams.get('businessId');
+    const businessIdFromHeader = getBusinessIdFromRequest(request);
+    const businessId = businessIdFromQuery || businessIdFromHeader;
     
     if (!businessId) {
       return NextResponse.json(
@@ -40,6 +45,8 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    console.log(`🏢 [BANNERS] Using businessId: ${businessId} (from: ${businessIdFromQuery ? 'query' : 'header'})`);
 
     // 🎯 PRIORIDAD CORREGIDA: Usar base de datos primero (fuente de verdad)
     const banners = await prisma.portalBanner.findMany({

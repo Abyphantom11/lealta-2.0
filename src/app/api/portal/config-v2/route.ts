@@ -16,15 +16,38 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     
-    // 🔍 DEBUG: Obtener businessId del header (middleware) o query parameter como fallback
-    const businessIdFromHeader = getBusinessIdFromRequest(request);
+    // � FIX: Obtener businessId del query parameter PRIMERO (para producción)
+    // El middleware de emergencia no configura headers, así que priorizamos query param
     const businessIdFromQuery = searchParams.get('businessId');
+    const businessIdFromHeader = getBusinessIdFromRequest(request);
     
-    let businessId = businessIdFromHeader;
-    if (!businessId) {
-      businessId = businessIdFromQuery;
+    let businessId = businessIdFromQuery || businessIdFromHeader;
+    
+    // 🚨 IMPORTANTE: Sin businessId válido, retornar error
+    if (!businessId || businessId === 'default') {
+      console.error('❌ No businessId provided in query or header');
+      return NextResponse.json({
+        success: false,
+        error: 'BusinessId requerido',
+        data: {
+          nombreEmpresa: 'Mi Negocio',
+          tarjetas: [],
+          nivelesConfig: {},
+          banners: [],
+          promociones: [],
+          recompensas: [],
+          favoritoDelDia: null,
+          sectionTitles: {
+            banners: 'Ofertas Especiales',
+            promociones: 'Promociones',
+            recompensas: 'Recompensas',
+            tarjetas: 'Beneficios'
+          }
+        }
+      }, { status: 400 });
     }
-    businessId = businessId || 'default';
+    
+    console.log(`🏢 Using businessId: ${businessId} (from: ${businessIdFromQuery ? 'query' : 'header'})`);
     
     const simulateDay = searchParams.get('simulateDay');
     
