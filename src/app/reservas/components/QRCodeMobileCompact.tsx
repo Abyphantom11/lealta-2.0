@@ -67,7 +67,7 @@ ${reserva.razonVisita ? `📍 Servicio: ${reserva.razonVisita}` : ''}
 🪪 Presentar cédula o pasaporte (en caso de pérdida, traer denuncia con respaldo).
 
 📍 Dirección: Diego de Almagro y Ponce Carrasco, Edificio Almagro 240, piso 13
-📎 Ubicación en Google Maps: https://g.co/kgs/KbKrU5N
+📎 Google Maps: \`https://g.co/kgs/KbKrU5N\`
 
 ⏱️ Tiempo de espera: 10 minutos.
 ❗ Para cambios o cancelaciones, avisarnos por este medio.

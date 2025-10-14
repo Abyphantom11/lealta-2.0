@@ -216,7 +216,7 @@ export function QRCardShare({ reserva, businessId }: QRCardShareProps) {
         `🅿️ *Parqueadero gratuito e ilimitado* dentro del edificio (S1, S2, S3, S4).\n` +
         `🪪 Presentar cédula o pasaporte (en caso de pérdida, traer denuncia con respaldo).\n\n` +
         `📍 *Dirección:* Diego de Almagro y Ponce Carrasco, Edificio Almagro 240, piso 13\n` +
-        `📎 *Ubicación en Google Maps:* https://g.co/kgs/KbKrU5N\n\n` +
+        `📎 *Google Maps:* \`https://g.co/kgs/KbKrU5N\`\n\n` +
         `⏱️ *Tiempo de espera:* 10 minutos.\n` +
         `❗ Para cambios o cancelaciones, avisarnos por este medio.\n\n` +
         `✨ ¡Nos vemos pronto!`;
