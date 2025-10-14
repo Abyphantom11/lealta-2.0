@@ -144,11 +144,44 @@ export async function PUT(
 ) {
   try {
     const { id } = params;
-    const updates = await request.json();
     const { searchParams } = new URL(request.url);
     const businessIdOrSlug = searchParams.get('businessId');
     
-    console.log('📝 PUT /api/reservas/[id] - Datos recibidos:', {
+    // Log inicial
+    console.log('🔄 PUT /api/reservas/[id] - Inicio:', {
+      id,
+      businessIdOrSlug,
+      method: request.method,
+      url: request.url,
+      headers: Object.fromEntries(request.headers.entries())
+    });
+
+    // Validar que tenemos un body
+    const rawBody = await request.text();
+    console.log('📄 Raw body received:', rawBody);
+    
+    if (!rawBody || rawBody.trim() === '') {
+      console.error('❌ Body vacío recibido');
+      return NextResponse.json(
+        { error: 'Body de la petición está vacío' },
+        { status: 400 }
+      );
+    }
+
+    // Intentar parsear JSON
+    let updates;
+    try {
+      updates = JSON.parse(rawBody);
+      console.log('✅ JSON parseado exitosamente:', updates);
+    } catch (parseError) {
+      console.error('❌ Error parseando JSON:', parseError);
+      return NextResponse.json(
+        { error: 'JSON inválido en el body', details: parseError.message },
+        { status: 400 }
+      );
+    }
+    
+    console.log('📝 PUT /api/reservas/[id] - Datos validados:', {
       id,
       businessIdOrSlug,
       updates: JSON.stringify(updates, null, 2)
@@ -163,8 +196,17 @@ export async function PUT(
     }
 
     if (!businessIdOrSlug) {
+      console.error('❌ BusinessId faltante en PUT request:', {
+        url: request.url,
+        searchParams: Object.fromEntries(searchParams.entries()),
+        method: request.method
+      });
       return NextResponse.json(
-        { error: 'businessId es requerido' },
+        { 
+          error: 'businessId es requerido como query parameter',
+          example: '/api/reservas/ID?businessId=YOUR_BUSINESS_ID',
+          receivedUrl: request.url
+        },
         { status: 400 }
       );
     }

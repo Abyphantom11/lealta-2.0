@@ -346,6 +346,21 @@ export function useReservations(businessId?: string) {
 
   const updateReserva = async (id: string, updates: Partial<Reserva>) => {
     try {
+      // ✅ Validar que tenemos businessId antes de proceder
+      if (!businessId) {
+        const error = 'BusinessId es requerido para actualizar reservas';
+        console.error('❌ Error de validación:', error);
+        toast.error(`❌ ${error}`, {
+          className: 'bg-red-600 text-white border-0',
+          style: {
+            backgroundColor: '#dc2626 !important',
+            color: 'white !important',
+            border: 'none !important',
+          },
+        });
+        throw new Error(error);
+      }
+
       // 🎯 Actualización optimista para cambios de estado (para UI instantánea)
       if (updates.estado) {
         setReservas(prev => 
@@ -355,10 +370,11 @@ export function useReservations(businessId?: string) {
         );
       }
 
-      const queryString = businessId ? `?businessId=${businessId}` : '';
+      const queryString = `?businessId=${businessId}`;
       const apiUrl = `/api/reservas/${id}${queryString}`;
       console.log('📤 Enviando actualización:', {
         url: apiUrl,
+        businessId,
         updates: JSON.stringify(updates, null, 2)
       });
       

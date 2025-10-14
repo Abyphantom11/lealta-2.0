@@ -54,8 +54,14 @@ const reservasAPI = {
     return response.json();
   },
 
-  updateReserva: async (id: string, reservaData: Partial<Reserva>) => {
-    const response = await fetch(`/api/reservas/${id}`, {
+  updateReserva: async (id: string, reservaData: Partial<Reserva>, businessId?: string) => {
+    // ✅ Incluir businessId como query parameter
+    const url = businessId ? `/api/reservas/${id}?businessId=${businessId}` : `/api/reservas/${id}`;
+    
+    console.log('🔄 Updating reserva with URL:', url);
+    console.log('📋 Update data:', reservaData);
+    
+    const response = await fetch(url, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -64,19 +70,28 @@ const reservasAPI = {
     });
     
     if (!response.ok) {
-      throw new Error('Error updating reserva');
+      const errorData = await response.json().catch(() => ({}));
+      console.error('❌ Error updating reserva:', response.status, errorData);
+      throw new Error(`Error updating reserva: ${errorData.error || response.statusText}`);
     }
     
     return response.json();
   },
 
-  deleteReserva: async (id: string) => {
-    const response = await fetch(`/api/reservas/${id}`, {
+  deleteReserva: async (id: string, businessId?: string) => {
+    // ✅ Incluir businessId como query parameter
+    const url = businessId ? `/api/reservas/${id}?businessId=${businessId}` : `/api/reservas/${id}`;
+    
+    console.log('🗑️ Deleting reserva with URL:', url);
+    
+    const response = await fetch(url, {
       method: 'DELETE',
     });
     
     if (!response.ok) {
-      throw new Error('Error deleting reserva');
+      const errorData = await response.json().catch(() => ({}));
+      console.error('❌ Error deleting reserva:', response.status, errorData);
+      throw new Error(`Error deleting reserva: ${errorData.error || response.statusText}`);
     }
     
     return response.json();
@@ -160,7 +175,7 @@ export function useReservasOptimized({
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Reserva> }) =>
-      reservasAPI.updateReserva(id, data),
+      reservasAPI.updateReserva(id, data, businessId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: reservasQueryKeys.list(businessId || 'default') });
       queryClient.invalidateQueries({ queryKey: reservasQueryKeys.stats(businessId || 'default') });
@@ -174,7 +189,7 @@ export function useReservasOptimized({
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => reservasAPI.deleteReserva(id),
+    mutationFn: (id: string) => reservasAPI.deleteReserva(id, businessId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: reservasQueryKeys.list(businessId || 'default') });
       queryClient.invalidateQueries({ queryKey: reservasQueryKeys.stats(businessId || 'default') });
