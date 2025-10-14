@@ -137,6 +137,228 @@ export async function GET(
   }
 }
 
+// Helper functions for PUT request processing
+async function parseRequestBody(request: NextRequest) {
+  const rawBody = await request.text();
+  console.log('📄 Raw body received:', rawBody);
+  
+  if (!rawBody || rawBody.trim() === '') {
+    throw new Error('EMPTY_BODY');
+  }
+
+  try {
+    const updates = JSON.parse(rawBody);
+    console.log('✅ JSON parseado exitosamente:', updates);
+    return updates;
+  } catch (parseError) {
+    console.error('❌ Error parseando JSON:', parseError);
+    throw new Error('INVALID_JSON');
+  }
+}
+
+async function validateRequestParams(id: string, businessIdOrSlug: string, updates: any, request: NextRequest) {
+  if (!id || typeof id !== 'string') {
+    throw new Error('INVALID_ID');
+  }
+
+  if (!businessIdOrSlug) {
+    console.error('❌ BusinessId faltante en PUT request:', {
+      url: request.url,
+      method: request.method
+    });
+    throw new Error('MISSING_BUSINESS_ID');
+  }
+
+  if (!updates || typeof updates !== 'object') {
+    throw new Error('INVALID_UPDATES');
+  }
+}
+
+async function findBusinessByIdOrSlug(businessIdOrSlug: string) {
+  let business;
+  try {
+    business = await prisma.business.findFirst({
+      where: {
+        OR: [
+          { id: businessIdOrSlug },
+          { slug: businessIdOrSlug }
+        ]
+      }
+    });
+  } catch {
+    business = await prisma.business.findUnique({
+      where: { slug: businessIdOrSlug }
+    });
+  }
+
+  if (!business) {
+    throw new Error('BUSINESS_NOT_FOUND');
+  }
+  
+  return business.id;
+}
+
+async function validateAndGetPromotorId(updates: any, currentReservation: any) {
+  let promotorId = currentReservation?.promotorId;
+  const newPromotorId = updates.promotorId || updates.promotor?.id;
+  
+  if (newPromotorId) {
+    console.log('🔍 Validando promotor:', newPromotorId);
+    const promotorExists = await prisma.promotor.findUnique({
+      where: { id: newPromotorId }
+    });
+    
+    if (!promotorExists) {
+      console.error('❌ Promotor no encontrado:', newPromotorId);
+      throw new Error('PROMOTOR_NOT_FOUND');
+    }
+    console.log('✅ Promotor válido:', promotorExists.nombre);
+    promotorId = newPromotorId;
+  }
+
+  return promotorId;
+}
+
+function prepareUpdateData(updates: any, currentMetadata: any, promotorId: string, currentReservation: any) {
+  const newMetadata = {
+    ...currentMetadata,
+    ...(updates.mesa !== undefined && { mesa: updates.mesa }),
+    ...(updates.detalles !== undefined && { detalles: updates.detalles }),
+  };
+
+  const updateData: any = {};
+  
+  if (updates.cliente?.nombre !== undefined) updateData.customerName = updates.cliente.nombre;
+  if (updates.cliente?.telefono !== undefined) updateData.customerPhone = updates.cliente.telefono;
+  if (updates.cliente?.email !== undefined) updateData.customerEmail = updates.cliente.email;
+  if (updates.numeroPersonas !== undefined) updateData.guestCount = updates.numeroPersonas;
+  if (updates.razonVisita !== undefined) updateData.specialRequests = updates.razonVisita;
+  if (updates.beneficiosReserva !== undefined) updateData.notes = updates.beneficiosReserva;
+  if (updates.estado !== undefined) updateData.status = mapReservaStatusToPrisma(updates.estado);
+  if (Object.keys(newMetadata).length > 0) updateData.metadata = newMetadata;
+  if (promotorId !== currentReservation?.promotorId) updateData.promotorId = promotorId;
+
+  return updateData;
+}
+
+function formatReservaResponse(updatedReservation: any) {
+  const metadata = updatedReservation.metadata || {};
+  return {
+    id: updatedReservation.id,
+    businessId: updatedReservation.businessId,
+    cliente: {
+      id: updatedReservation.clienteId || '',
+      nombre: updatedReservation.customerName,
+      telefono: updatedReservation.customerPhone || undefined,
+      email: updatedReservation.customerEmail || undefined,
+    },
+    numeroPersonas: updatedReservation.guestCount,
+    razonVisita: updatedReservation.specialRequests || '',
+    beneficiosReserva: updatedReservation.notes || '',
+    promotor: {
+      id: updatedReservation.promotorId || '',
+      nombre: updatedReservation.promotor?.nombre || 'Sistema'
+    },
+    fecha: updatedReservation.reservedAt.toISOString().split('T')[0],
+    hora: updatedReservation.reservedAt.toLocaleTimeString('es-ES', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    }),
+    codigoQR: updatedReservation.qrCodes[0]?.qrToken || '',
+    asistenciaActual: updatedReservation.qrCodes[0]?.scanCount || 0,
+    estado: mapPrismaStatusToReserva(updatedReservation.status),
+    fechaCreacion: updatedReservation.createdAt.toISOString(),
+    fechaModificacion: updatedReservation.updatedAt.toISOString(),
+    mesa: metadata.mesa || '',
+    detalles: metadata.detalles || [],
+    comprobanteSubido: !!metadata.comprobanteUrl,
+    comprobanteUrl: metadata.comprobanteUrl || undefined,
+  };
+}
+
+function handlePutError(error: unknown) {
+  console.error('❌ Error updating reserva:', error);
+  
+  if (error instanceof Error) {
+    console.error('Error message:', error.message);
+    
+    // Handle specific custom errors
+    switch (error.message) {
+      case 'EMPTY_BODY':
+        return NextResponse.json(
+          { error: 'Body de la petición está vacío' },
+          { status: 400 }
+        );
+      case 'INVALID_JSON':
+        return NextResponse.json(
+          { error: 'JSON inválido en el body' },
+          { status: 400 }
+        );
+      case 'INVALID_ID':
+        return NextResponse.json(
+          { error: 'ID de reserva inválido' },
+          { status: 400 }
+        );
+      case 'MISSING_BUSINESS_ID':
+        return NextResponse.json(
+          { 
+            error: 'businessId es requerido como query parameter',
+            example: '/api/reservas/ID?businessId=YOUR_BUSINESS_ID'
+          },
+          { status: 400 }
+        );
+      case 'INVALID_UPDATES':
+        return NextResponse.json(
+          { error: 'Datos de actualización inválidos' },
+          { status: 400 }
+        );
+      case 'BUSINESS_NOT_FOUND':
+        return NextResponse.json(
+          { error: 'Business no encontrado' },
+          { status: 404 }
+        );
+      case 'PROMOTOR_NOT_FOUND':
+        return NextResponse.json(
+          { error: 'Promotor no encontrado' },
+          { status: 400 }
+        );
+    }
+  }
+  
+  // Handle Prisma errors
+  if (error && typeof error === 'object' && 'code' in error) {
+    const prismaError = error as any;
+    console.error('Prisma error code:', prismaError.code);
+    console.error('Prisma error meta:', prismaError.meta);
+    
+    if (prismaError.code === 'P2002') {
+      return NextResponse.json(
+        { success: false, error: 'Violación de restricción única' },
+        { status: 400 }
+      );
+    }
+    
+    if (prismaError.code === 'P2025') {
+      return NextResponse.json(
+        { success: false, error: 'Reserva no encontrada' },
+        { status: 404 }
+      );
+    }
+    
+    if (prismaError.code?.startsWith('P2')) {
+      return NextResponse.json(
+        { success: false, error: 'Error de validación de datos', details: prismaError.message },
+        { status: 400 }
+      );
+    }
+  }
+  
+  return NextResponse.json(
+    { success: false, error: 'Error al actualizar la reserva', details: error instanceof Error ? error.message : 'Error desconocido' },
+    { status: 500 }
+  );
+}
+
 // PUT /api/reservas/[id] - Actualizar una reserva
 export async function PUT(
   request: NextRequest,
@@ -152,34 +374,12 @@ export async function PUT(
       id,
       businessIdOrSlug,
       method: request.method,
-      url: request.url,
-      headers: Object.fromEntries(request.headers.entries())
+      url: request.url
     });
 
-    // Validar que tenemos un body
-    const rawBody = await request.text();
-    console.log('📄 Raw body received:', rawBody);
-    
-    if (!rawBody || rawBody.trim() === '') {
-      console.error('❌ Body vacío recibido');
-      return NextResponse.json(
-        { error: 'Body de la petición está vacío' },
-        { status: 400 }
-      );
-    }
-
-    // Intentar parsear JSON
-    let updates;
-    try {
-      updates = JSON.parse(rawBody);
-      console.log('✅ JSON parseado exitosamente:', updates);
-    } catch (parseError) {
-      console.error('❌ Error parseando JSON:', parseError);
-      return NextResponse.json(
-        { error: 'JSON inválido en el body', details: parseError.message },
-        { status: 400 }
-      );
-    }
+    // Parse and validate request
+    const updates = await parseRequestBody(request);
+    await validateRequestParams(id, businessIdOrSlug!, updates, request);
     
     console.log('📝 PUT /api/reservas/[id] - Datos validados:', {
       id,
@@ -187,162 +387,30 @@ export async function PUT(
       updates: JSON.stringify(updates, null, 2)
     });
 
-    // Validaciones básicas
-    if (!id || typeof id !== 'string') {
-      return NextResponse.json(
-        { error: 'ID de reserva inválido' },
-        { status: 400 }
-      );
-    }
-
-    if (!businessIdOrSlug) {
-      console.error('❌ BusinessId faltante en PUT request:', {
-        url: request.url,
-        searchParams: Object.fromEntries(searchParams.entries()),
-        method: request.method
-      });
-      return NextResponse.json(
-        { 
-          error: 'businessId es requerido como query parameter',
-          example: '/api/reservas/ID?businessId=YOUR_BUSINESS_ID',
-          receivedUrl: request.url
-        },
-        { status: 400 }
-      );
-    }
-
-    // Validar que updates sea un objeto válido
-    if (!updates || typeof updates !== 'object') {
-      return NextResponse.json(
-        { error: 'Datos de actualización inválidos' },
-        { status: 400 }
-      );
-    }
-
-    // Buscar el business por ID o slug
-    let business;
-    try {
-      business = await prisma.business.findFirst({
-        where: {
-          OR: [
-            { id: businessIdOrSlug },
-            { slug: businessIdOrSlug }
-          ]
-        }
-      });
-    } catch {
-      business = await prisma.business.findUnique({
-        where: { slug: businessIdOrSlug }
-      });
-    }
-
-    if (!business) {
-      return NextResponse.json(
-        { error: 'Business no encontrado' },
-        { status: 404 }
-      );
-    }
-    
-    const businessId = business.id;
-
-    // Preparar metadata para campos adicionales (mesa, etc.)
+    // Find business and current reservation
+    const businessId = await findBusinessByIdOrSlug(businessIdOrSlug!);
     const currentReservation = await prisma.reservation.findUnique({
       where: { id }
     });
     
     const currentMetadata = (currentReservation?.metadata as any) || {};
-    const newMetadata = {
-      ...currentMetadata,
-      ...(updates.mesa !== undefined && { mesa: updates.mesa }),
-      ...(updates.detalles !== undefined && { detalles: updates.detalles }),
-    };
-
-    // Validar promotorId si se proporciona
-    let promotorId = currentReservation?.promotorId;
-    // ✅ Leer promotorId desde ambos lugares para compatibilidad
-    const newPromotorId = updates.promotorId || updates.promotor?.id;
     
-    if (newPromotorId) {
-      console.log('🔍 Validando promotor:', newPromotorId);
-      const promotorExists = await prisma.promotor.findUnique({
-        where: { id: newPromotorId }
-      });
-      
-      if (!promotorExists) {
-        console.error('❌ Promotor no encontrado:', newPromotorId);
-        return NextResponse.json(
-          { error: 'Promotor no encontrado' },
-          { status: 400 }
-        );
-      }
-      console.log('✅ Promotor válido:', promotorExists.nombre);
-      promotorId = newPromotorId;
-    }
-
-    console.log('💾 Actualizando reserva con promotorId:', promotorId);
-
-    // Filtrar solo los campos que realmente queremos actualizar
-    const updateData: any = {};
-    
-    // Solo agregar campos que están definidos para evitar problemas con Prisma
-    if (updates.cliente?.nombre !== undefined) updateData.customerName = updates.cliente.nombre;
-    if (updates.cliente?.telefono !== undefined) updateData.customerPhone = updates.cliente.telefono;
-    if (updates.cliente?.email !== undefined) updateData.customerEmail = updates.cliente.email;
-    if (updates.numeroPersonas !== undefined) updateData.guestCount = updates.numeroPersonas;
-    if (updates.razonVisita !== undefined) updateData.specialRequests = updates.razonVisita;
-    if (updates.beneficiosReserva !== undefined) updateData.notes = updates.beneficiosReserva;
-    if (updates.estado !== undefined) updateData.status = mapReservaStatusToPrisma(updates.estado);
-    if (Object.keys(newMetadata).length > 0) updateData.metadata = newMetadata;
-    if (promotorId !== currentReservation?.promotorId) updateData.promotorId = promotorId;
+    // Validate promotor and prepare update data
+    const promotorId = await validateAndGetPromotorId(updates, currentReservation);
+    const updateData = prepareUpdateData(updates, currentMetadata, promotorId, currentReservation);
 
     console.log('📝 Datos a actualizar:', JSON.stringify(updateData, null, 2));
+    console.log('💾 Actualizando reserva con promotorId:', promotorId);
 
-    // Actualizar la reserva en Prisma
+    // Update reservation
     const updatedReservation = await prisma.reservation.update({
-      where: {
-        id,
-        businessId
-      },
+      where: { id, businessId },
       data: updateData,
-      include: {
-        qrCodes: true,
-        promotor: true
-      }
+      include: { qrCodes: true, promotor: true }
     });
 
-    // Formatear respuesta
-    const metadata = (updatedReservation.metadata as any) || {};
-    const reserva = {
-      id: updatedReservation.id,
-      businessId: updatedReservation.businessId,
-      cliente: {
-        id: updatedReservation.clienteId || '',
-        nombre: updatedReservation.customerName,
-        telefono: updatedReservation.customerPhone || undefined,
-        email: updatedReservation.customerEmail || undefined,
-      },
-      numeroPersonas: updatedReservation.guestCount,
-      razonVisita: updatedReservation.specialRequests || '',
-      beneficiosReserva: updatedReservation.notes || '',
-      promotor: {
-        id: updatedReservation.promotorId || '',
-        nombre: updatedReservation.promotor?.nombre || 'Sistema'
-      },
-      fecha: updatedReservation.reservedAt.toISOString().split('T')[0],
-      hora: updatedReservation.reservedAt.toLocaleTimeString('es-ES', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      }),
-      codigoQR: updatedReservation.qrCodes[0]?.qrToken || '',
-      asistenciaActual: updatedReservation.qrCodes[0]?.scanCount || 0,
-      estado: mapPrismaStatusToReserva(updatedReservation.status),
-      fechaCreacion: updatedReservation.createdAt.toISOString(),
-      fechaModificacion: updatedReservation.updatedAt.toISOString(),
-      mesa: metadata.mesa || '',
-      detalles: metadata.detalles || [],
-      comprobanteSubido: !!metadata.comprobanteUrl,
-      comprobanteUrl: metadata.comprobanteUrl || undefined,
-    };
+    // Format and return response
+    const reserva = formatReservaResponse(updatedReservation);
 
     return NextResponse.json({ 
       success: true,
@@ -351,47 +419,7 @@ export async function PUT(
     });
 
   } catch (error) {
-    console.error('❌ Error updating reserva:', error);
-    
-    // Log más detallado del error
-    if (error instanceof Error) {
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-    }
-    
-    // Si es un error de Prisma, proporcionar más detalles
-    if (error && typeof error === 'object' && 'code' in error) {
-      console.error('Prisma error code:', (error as any).code);
-      console.error('Prisma error meta:', (error as any).meta);
-      
-      // Errores específicos de Prisma
-      if ((error as any).code === 'P2002') {
-        return NextResponse.json(
-          { success: false, error: 'Violación de restricción única' },
-          { status: 400 }
-        );
-      }
-      
-      if ((error as any).code === 'P2025') {
-        return NextResponse.json(
-          { success: false, error: 'Reserva no encontrada' },
-          { status: 404 }
-        );
-      }
-      
-      // Otros errores de validación de Prisma
-      if ((error as any).code?.startsWith('P2')) {
-        return NextResponse.json(
-          { success: false, error: 'Error de validación de datos', details: (error as any).message },
-          { status: 400 }
-        );
-      }
-    }
-    
-    return NextResponse.json(
-      { success: false, error: 'Error al actualizar la reserva', details: error instanceof Error ? error.message : 'Error desconocido' },
-      { status: 500 }
-    );
+    return handlePutError(error);
   }
 }
 

@@ -16,6 +16,7 @@ import { DashboardStats } from './components/DashboardStats';
 import { Header } from './components/Header';
 import { PromotorManagement } from './components/PromotorManagement';
 import { AIReservationModal } from './components/AIReservationModal';
+import { ReservationEditModal } from './components/ReservationEditModal';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { SinReservaTable } from './components/SinReservaTable';
 import { RealtimeUpdateNotifier } from './components/RealtimeUpdateNotifier';
@@ -128,6 +129,8 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedReservaForDetails, setSelectedReservaForDetails] = useState<any>(null);
   const [showPromotorManagement, setShowPromotorManagement] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedReservaForEdit, setSelectedReservaForEdit] = useState<Reserva | null>(null);
   
   // Estados para sin reserva
   const [showSinReserva, setShowSinReserva] = useState(false); // Toggle entre reservas y sin reserva
@@ -188,9 +191,19 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
   };
 
   const handleDeleteReserva = async (id: string) => {
-    if (confirm('¿Estás seguro de que quieres eliminar esta reserva?')) {
-      await deleteReserva(id);
+    if (confirm('¿Estás seguro de que quieres cancelar esta reserva?\n\nLa reserva se marcará como "Cancelada por el cliente" y no se eliminará.')) {
+      // En lugar de eliminar, cambiar el estado a "Reserva Caída" 
+      // y actualizar la razón de visita para indicar cancelación
+      await updateReserva(id, { 
+        estado: 'Reserva Caída',
+        razonVisita: 'Cancelado por el cliente'
+      });
     }
+  };
+
+  const handleEditReserva = (reserva: Reserva) => {
+    setSelectedReservaForEdit(reserva);
+    setShowEditModal(true);
   };
 
   const handleUploadComprobante = async (id: string, archivo: File) => {
@@ -474,6 +487,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
                 onDateSelect={setSelectedDate}
                 onViewReserva={handleViewReserva}
                 onDeleteReserva={handleDeleteReserva}
+                onEditReserva={handleEditReserva}
                 onUploadComprobante={handleUploadComprobante}
                 onEstadoChange={handleEstadoChange}
                 onMesaChange={handleMesaChange}
@@ -589,6 +603,24 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
         <PromotorManagement
           businessId={businessId}
           onClose={() => setShowPromotorManagement(false)}
+        />
+      )}
+
+      {/* Modal de edición de reserva para móvil */}
+      {showEditModal && selectedReservaForEdit && (
+        <ReservationEditModal
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedReservaForEdit(null);
+          }}
+          reserva={selectedReservaForEdit}
+          onUpdate={async (id: string, updates: Partial<Reserva>) => {
+            await updateReserva(id, updates);
+            setShowEditModal(false);
+            setSelectedReservaForEdit(null);
+            toast.success('Reserva actualizada correctamente');
+          }}
         />
       )}
 

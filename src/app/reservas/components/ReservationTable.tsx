@@ -22,6 +22,7 @@ interface ReservationTableProps {
   onDateSelect: (date: Date) => void;
   onViewReserva: (id: string) => void;
   onDeleteReserva: (id: string) => void; // Nueva función para borrar reserva
+  onEditReserva?: (reserva: Reserva) => void; // Nueva función para editar reserva en móvil
   onUploadComprobante: (id: string, archivo: File) => void; // Nueva función para subir comprobante
   onRemoveComprobante?: (id: string) => void; // Nueva función para quitar comprobante
   onEstadoChange: (id: string, nuevoEstado: Reserva['estado']) => void;
@@ -41,6 +42,7 @@ export function ReservationTable({
   onDateSelect,
   onViewReserva,
   onDeleteReserva, // Nueva función para borrar
+  onEditReserva, // Nueva función para editar en móvil
   onUploadComprobante, // Nueva función para subir comprobante
   onRemoveComprobante, // Nueva función para quitar comprobante
   onEstadoChange,
@@ -646,6 +648,7 @@ export function ReservationTable({
                 key={reserva.id}
                 reserva={reserva}
                 onView={() => onViewReserva(reserva.id)}
+                onEdit={onEditReserva ? () => onEditReserva(reserva) : undefined}
               />
             ))
           ) : (

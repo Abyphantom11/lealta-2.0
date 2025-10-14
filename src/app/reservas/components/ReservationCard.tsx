@@ -1,7 +1,7 @@
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { Calendar, Clock, Users, CheckCircle, Eye } from "lucide-react";
+import { Calendar, Clock, Users, CheckCircle, Eye, Edit } from "lucide-react";
 import { Reserva } from "../types/reservation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -9,6 +9,7 @@ import { es } from "date-fns/locale";
 interface ReservationCardProps {
   reserva: Reserva;
   onView: () => void;
+  onEdit?: () => void; // ✅ Nueva prop para editar
 }
 
 const getEstadoVariant = (estado: Reserva['estado']) => {
@@ -41,7 +42,7 @@ const getEstadoColor = (estado: Reserva['estado']) => {
   }
 };
 
-export const ReservationCard = ({ reserva, onView }: ReservationCardProps) => {
+export const ReservationCard = ({ reserva, onView, onEdit }: ReservationCardProps) => {
   return (
     <Card className={`mb-3 border-l-4 ${getEstadoColor(reserva.estado)} hover:shadow-md transition-shadow`}>
       <CardContent className="p-4">
@@ -82,19 +83,10 @@ export const ReservationCard = ({ reserva, onView }: ReservationCardProps) => {
           <div className="flex items-center gap-2">
             <CheckCircle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <span className="text-xs text-muted-foreground">
-              Promotor: {reserva.razonVisita}
+              Promotor: {reserva.promotor?.nombre || 'Sistema'}
             </span>
           </div>
         </div>
-
-        {/* Información adicional */}
-        {reserva.beneficiosReserva && (
-          <div className="mb-3">
-            <p className="text-sm text-muted-foreground">
-              <span className="font-medium">Beneficios:</span> {reserva.beneficiosReserva}
-            </p>
-          </div>
-        )}
 
         {/* Botón de acción - optimizado para móvil */}
         <div className="flex gap-2 mt-4">
@@ -108,6 +100,18 @@ export const ReservationCard = ({ reserva, onView }: ReservationCardProps) => {
             <Eye className="mr-2 h-4 w-4" />
             Ver Detalles
           </Button>
+          {onEdit && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onEdit} 
+              className="flex-1 min-h-[44px] text-xs sm:text-sm font-medium border-blue-200 text-blue-600 hover:bg-blue-50"
+              title="Editar reserva"
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              Editar
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

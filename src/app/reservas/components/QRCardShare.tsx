@@ -5,7 +5,7 @@ import { Button } from "./ui/button";
 import { Download, MessageCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import QRCard from "./QRCard";
-import html2canvas from 'html2canvas';
+import html2canvas from "html2canvas";
 
 // Tipo compatible con ambas interfaces de Reserva
 interface QRCardReserva {
