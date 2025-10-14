@@ -41,8 +41,6 @@ export async function GET(
       );
     }
 
-    console.log(`✅ Business validated: ${business.name} (${business.id})`);
-
     return NextResponse.json({
       id: business.id,
       name: business.name,

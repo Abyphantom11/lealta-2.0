@@ -1,78 +1,29 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Download } from 'lucide-react';
-import { canInstallPWA, installPWA, isPWAInstalled } from '@/services/pwaService';
-import { useClientNotifications } from '@/services/clientNotificationService';
+import { useState } from 'react';
+import { Smartphone } from 'lucide-react';
+import { usePWAContext } from '@/providers/PWAProvider';
+import { installPWA } from '@/services/PWAController';
 
 export default function PWAInstallButton() {
-  const [canInstall, setCanInstall] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
+  const { state, isInitialized } = usePWAContext();
   const [isInstalling, setIsInstalling] = useState(false);
-  const { addNotification } = useClientNotifications();
-
-  useEffect(() => {
-    // Verificar estado inicial
-    setIsInstalled(isPWAInstalled());
-    setCanInstall(canInstallPWA());
-
-    // Escuchar cambios en la disponibilidad de instalación
-    const checkInstallability = () => {
-      setCanInstall(canInstallPWA());
-      setIsInstalled(isPWAInstalled());
-    };
-
-    // Verificar cada 2 segundos si se puede instalar
-    const interval = setInterval(checkInstallability, 2000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   const handleInstall = async () => {
-    if (isInstalling) return;
+    if (!state.deferredPrompt || isInstalling) return;
     
     setIsInstalling(true);
-    
     try {
-      const success = await installPWA();
-      
-      if (success) {
-        addNotification({
-          tipo: 'general',
-          titulo: 'Aplicación instalada',
-          mensaje: '¡Perfecto! Ya puedes acceder desde tu pantalla de inicio',
-          leida: false
-        });
-        setCanInstall(false);
-        setIsInstalled(true);
-      } else {
-        addNotification({
-          tipo: 'general',
-          titulo: 'Instalación disponible',
-          mensaje: 'Para instalar, usa el menú de tu navegador > "Agregar a pantalla de inicio"',
-          leida: false
-        });
-      }
+      await installPWA();
     } catch (error) {
-      console.error('Error al instalar PWA:', error);
-      addNotification({
-        tipo: 'general',
-        titulo: 'Error al instalar',
-        mensaje: 'Intenta instalar desde el menú del navegador',
-        leida: false
-      });
+      console.error('❌ Error instalando PWA:', error);
     } finally {
       setIsInstalling(false);
     }
   };
 
-  // No mostrar si ya está instalada
-  if (isInstalled) {
-    return null;
-  }
-
-  // No mostrar si no se puede instalar
-  if (!canInstall) {
+  // No mostrar si no está inicializado o no es instalable
+  if (!isInitialized || !state.isInstallable || state.isInstalled || !state.deferredPrompt) {
     return null;
   }
 
@@ -80,11 +31,19 @@ export default function PWAInstallButton() {
     <button
       onClick={handleInstall}
       disabled={isInstalling}
-      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg transition-colors duration-200 text-sm font-medium"
-      aria-label="Instalar aplicación en pantalla de inicio"
+      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
     >
-      <Download size={16} />
-      {isInstalling ? 'Instalando...' : 'Agregar al inicio'}
+      {isInstalling ? (
+        <>
+          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          Instalando...
+        </>
+      ) : (
+        <>
+          <Smartphone className="w-4 h-4" />
+          Instalar App
+        </>
+      )}
     </button>
   );
 }

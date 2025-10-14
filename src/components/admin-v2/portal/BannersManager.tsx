@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import notificationService from '@/lib/notificationService';
-import { Upload, Clock, Eye, EyeOff, Trash2, Save } from 'lucide-react';
+import { Clock, Eye, EyeOff, Trash2, Save } from 'lucide-react';
 
 interface BannersManagerProps {
   banners: Banner[];
@@ -22,39 +22,7 @@ interface Banner {
   activo?: boolean;
 }
 
-interface FileUploadHook {
-  selectedFile: File | null;
-  handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  resetFile: () => void;
-}
-
-// Hook personalizado para manejo de archivos
-const useFileUpload = (
-  setFormData: React.Dispatch<React.SetStateAction<any>>
-): FileUploadHook => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      // Crear preview
-      const reader = new FileReader();
-      reader.onload = e => {
-        const imageUrl = e.target?.result as string;
-        setFormData((prev: any) => ({ ...prev, imagenUrl: imageUrl }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const resetFile = () => {
-    setSelectedFile(null);
-    setFormData((prev: any) => ({ ...prev, imagenUrl: '' }));
-  };
-
-  return { selectedFile, handleFileChange, resetFile };
-};
+// ❌ ELIMINADO: Hook personalizado obsoleto - usar useImageUpload unificado
 
 /**
  * Componente para gestionar banners diarios del portal
@@ -78,8 +46,54 @@ const BannersManager: React.FC<BannersManagerProps> = ({
     horaPublicacion: '04:00',
   });
   const [uploading, setUploading] = useState(false);
-  const { selectedFile, handleFileChange, resetFile } =
-    useFileUpload(setFormData);
+
+  // ✅ Handler simplificado - upload directo sin hook
+  const handleCarouselImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // ✅ Validación igual que BrandingManager
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      notificationService.error({ message: 'Solo se permiten archivos JPG, PNG o WebP' });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) { // 5MB igual que BrandingManager
+      notificationService.error({ message: 'El archivo debe ser menor a 5MB' });
+      return;
+    }
+
+    try {
+      // ✅ UPLOAD DIRECTO - sin usar el estado del hook
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const uploadResponse = await fetch('/api/admin/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        throw new Error(errorData.error || `Error HTTP: ${uploadResponse.status}`);
+      }
+
+      const uploadResult = await uploadResponse.json();
+      const imageUrl = uploadResult.fileUrl;
+
+      // ✅ Actualizar formData directamente
+      setFormData(prev => ({ ...prev, imagenUrl: imageUrl }));
+      notificationService.success({ message: '✅ Imagen del banner actualizada' });
+      
+    } catch (error) {
+      console.error('❌ Banner direct upload error:', error);
+      notificationService.error({ message: 'Error al procesar la imagen' });
+    } finally {
+      // Limpiar input para permitir cargar la misma imagen nuevamente
+      event.target.value = '';
+    }
+  };
 
   // Helper functions para evitar ternarios anidados
   const getButtonText = () => {
@@ -121,20 +135,32 @@ const BannersManager: React.FC<BannersManagerProps> = ({
     domingo: 'Domingo',
   };
 
-  // Encontrar banner para el día seleccionado
-  const bannerPorDia = banners.find((b: Banner) => b.dia === selectedDay);
+  // ✅ ESTABILIZAR bannerPorDia con useMemo para evitar recálculo innecesario
+  const bannerPorDia = useMemo(() => 
+    banners.find((b: Banner) => b.dia === selectedDay),
+    [banners, selectedDay]
+  );
+
+  // ✅ CREAR DEPENDENCIAS ESTABLES para useEffect
+  const bannerFormData = useMemo(() => ({
+    id: bannerPorDia?.id,
+    titulo: bannerPorDia?.titulo || '',
+    descripcion: bannerPorDia?.descripcion || '',
+    imagenUrl: bannerPorDia?.imagenUrl || '',
+    horaPublicacion: bannerPorDia?.horaPublicacion || '04:00',
+  }), [bannerPorDia]);
 
   // Actualizar formulario cuando cambia el día o el banner
   useEffect(() => {
     if (bannerPorDia) {
       setFormData({
         dia: selectedDay,
-        titulo: bannerPorDia.titulo || '',
-        descripcion: bannerPorDia.descripcion || '',
-        imagenUrl: bannerPorDia.imagenUrl || '',
-        horaPublicacion: bannerPorDia.horaPublicacion || '04:00',
+        titulo: bannerFormData.titulo,
+        descripcion: bannerFormData.descripcion,
+        imagenUrl: bannerFormData.imagenUrl,
+        horaPublicacion: bannerFormData.horaPublicacion,
       });
-      setPublishTime(bannerPorDia.horaPublicacion || '04:00');
+      setPublishTime(bannerFormData.horaPublicacion);
     } else {
       setFormData({
         dia: selectedDay,
@@ -145,61 +171,51 @@ const BannersManager: React.FC<BannersManagerProps> = ({
       });
       setPublishTime('04:00');
     }
-  }, [selectedDay, bannerPorDia]);
+  }, [selectedDay, bannerPorDia, bannerFormData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploading(true);
 
-    let imageUrl = formData.imagenUrl;
+    try {
+      const dataToSubmit: Banner = {
+        id: bannerPorDia?.id || `banner_${selectedDay}_${Date.now()}`,
+        dia: selectedDay,
+        titulo: formData.titulo,
+        descripcion: formData.descripcion,
+        imagenUrl: formData.imagenUrl, // Ya actualizada por el callback del upload
+        horaPublicacion: publishTime,
+        activo: bannerPorDia?.activo ?? true,
+      };
 
-    // Si hay un archivo seleccionado, intentar subirlo
-    if (selectedFile) {
-      try {
-        const formDataUpload = new FormData();
-        formDataUpload.append('file', selectedFile);
-
-        const uploadResponse = await fetch('/api/admin/upload', {
-          method: 'POST',
-          body: formDataUpload,
+      if (bannerPorDia) {
+        // ✅ Pasar solo las propiedades que cambiaron (Partial<Banner>)
+        const updates: Partial<Banner> = {
+          titulo: formData.titulo,
+          descripcion: formData.descripcion,
+          imagenUrl: formData.imagenUrl,
+          horaPublicacion: publishTime,
+        };
+        onUpdate(bannerPorDia.id!, updates);
+        notificationService.success({
+          message: `Banner del ${diasCompletos[selectedDay as keyof typeof diasCompletos]} actualizado exitosamente`
         });
-
-        if (uploadResponse.ok) {
-          const uploadData = await uploadResponse.json();
-          imageUrl = uploadData.fileUrl;
-        } else {
-          console.warn('Error uploading file, using base64');
-          // Mantener la imagen base64 como fallback
-        }
-      } catch (error) {
-        console.error('Error uploading file:', error);
-        // Mantener la imagen base64 como fallback
+      } else {
+        onAdd(dataToSubmit);
+        notificationService.success({
+          message: `Banner del ${diasCompletos[selectedDay as keyof typeof diasCompletos]} creado exitosamente`
+        });
       }
+    } catch (error) {
+      console.error('Error al guardar banner:', error);
+      notificationService.error({ message: 'Error al guardar banner' });
+    } finally {
+      setUploading(false);
     }
-
-    const dataToSubmit: Banner = {
-      id: bannerPorDia?.id || `banner_${selectedDay}_${Date.now()}`,
-      dia: selectedDay,
-      titulo: formData.titulo,
-      descripcion: formData.descripcion,
-      imagenUrl: imageUrl,
-      horaPublicacion: publishTime,
-      activo: true,
-    };
-
-    if (bannerPorDia?.id) {
-      onUpdate(bannerPorDia.id, dataToSubmit);
-    } else {
-      onAdd(dataToSubmit);
-    }
-
-    resetFile();
-    setUploading(false);
   };
 
   const handleDayChange = (newDay: string) => {
     setSelectedDay(newDay);
-    resetFile(); // Limpiar archivo seleccionado al cambiar de día
   };
 
   return (
@@ -312,41 +328,76 @@ const BannersManager: React.FC<BannersManagerProps> = ({
           </div>
 
           {/* Imagen del banner */}
+          {/* 🎯 IMAGEN DEL BANNER - Patrón exacto de BrandingManager */}
           <div>
-            <label
-              htmlFor="bannerImage"
-              className="block text-sm font-medium text-dark-300 mb-2"
-            >
-              <Upload className="w-4 h-4 inline mr-1" />
+            <label htmlFor="banner-upload" className="block text-sm font-medium text-white mb-2">
               Imagen del Banner
             </label>
-            <input
-              id="bannerImage"
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded text-white file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-primary-600 file:text-white hover:file:bg-primary-700"
-              required={!bannerPorDia?.imagenUrl}
-            />
-            <p className="text-xs text-dark-400 mt-1">
-              Formatos: JPG, PNG, WebP. Tamaño recomendado: 400x250px
+            <p className="text-xs text-dark-400 mb-3">
+              Formatos soportados: JPG, PNG, WebP. Tamaño máximo: 2MB
             </p>
-          </div>
+            
+            <div className="grid grid-cols-1 gap-2">
+              {/* Mostrar imagen actual O recién subida */}
+              {(formData.imagenUrl || bannerPorDia?.imagenUrl) && (
+                <div className="relative group">
+                  <img
+                    src={formData.imagenUrl || bannerPorDia?.imagenUrl}
+                    alt="Banner actual"
+                    className="w-full h-32 object-cover rounded-lg border border-dark-600"
+                    onError={(e) => {
+                      // ✅ PROTECCIÓN: Mostrar placeholder si la imagen falla
+                      (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiBmaWxsPSIjMzc0MTUxIi8+Cjx0ZXh0IHg9IjEyIiB5PSIxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgZmlsbD0iIzlDQTNBRiIgZm9udC1zaXplPSI4Ij5FcnJvcjwvdGV4dD4KPHN2Zz4K';
+                      console.warn('❌ Error cargando imagen del banner:', formData.imagenUrl || bannerPorDia?.imagenUrl);
+                    }}
+                  />
+                  <div className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                    Banner {diasCompletos[selectedDay as keyof typeof diasCompletos]}
+                  </div>
+                  {/* Botón para cambiar imagen superpuesto */}
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <input
+                      type="file"
+                      id="banner-upload-change"
+                      accept="image/*"
+                      onChange={handleCarouselImageUpload}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                    />
+                    <span className="text-white text-xs">Cambiar imagen</span>
+                  </div>
+                </div>
+              )}
 
-          {/* Vista previa de imagen */}
-          {(formData.imagenUrl || bannerPorDia?.imagenUrl) && (
-            <div>
-              <p className="text-sm text-dark-300 mb-2">Vista previa:</p>
-              <div className="relative">
-                <img
-                  src={formData.imagenUrl || bannerPorDia?.imagenUrl}
-                  alt="Preview"
-                  className="w-full h-32 object-cover rounded-lg border border-dark-600"
-                />
-                {/* Removed text overlay on image preview */}
-              </div>
+              {/* Botón para agregar imagen - solo si NO hay imagen */}
+              {!(formData.imagenUrl || bannerPorDia?.imagenUrl) && (
+                <div className="relative">
+                  <input
+                    type="file"
+                    id="banner-upload"
+                    accept="image/*"
+                    onChange={handleCarouselImageUpload}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                  />
+                  <div className="w-full h-32 border-2 border-dashed border-dark-600 rounded-lg flex flex-col items-center justify-center text-dark-400 hover:border-primary-500 hover:text-primary-400 transition-colors cursor-pointer">
+                    <svg
+                      className="w-6 h-6 mb-1"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 4v16m8-8H4"
+                      />
+                    </svg>
+                    <span className="text-xs">Agregar imagen</span>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          </div>
 
           {/* Botones de acción */}
           <div className="flex space-x-3 pt-4">

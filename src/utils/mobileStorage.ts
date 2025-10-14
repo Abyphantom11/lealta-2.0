@@ -2,9 +2,9 @@
 import { logger } from './logger';
 
 interface StorageData<T = unknown> {
-  data: T;
-  timestamp: number;
-  expires?: number;
+  readonly data: T;
+  readonly timestamp: number;
+  readonly expires?: number;
 }
 
 class MobileStorage {
@@ -19,6 +19,8 @@ class MobileStorage {
   }
   
   private initializeOperaFallback() {
+    // TEMPORALMENTE DESHABILITADO - Causaba errores de webpack en móvil
+    /* 
     const userAgent = navigator.userAgent;
     const isOpera = userAgent.includes('OPR/') || userAgent.includes('Opera/');
     const swBlocked = !('serviceWorker' in navigator);
@@ -35,6 +37,7 @@ class MobileStorage {
         logger.error('❌ Error inicializando Opera fallback:', error);
       });
     }
+    */
   }
   
   // Detectar si estamos en un dispositivo móvil

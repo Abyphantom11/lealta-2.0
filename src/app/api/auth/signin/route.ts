@@ -4,6 +4,7 @@ import { compare } from 'bcryptjs';
 import { z } from 'zod';
 import { randomBytes } from 'crypto';
 import { UserWithBusiness, SessionData } from '../../../../types/api-routes';
+import { logger } from '@/utils/production-logger';
 
 // Forzar renderizado dinámico para esta ruta que usa headers y cookies
 export const dynamic = 'force-dynamic';
@@ -23,19 +24,18 @@ async function getBusinessFromRequest(request: NextRequest) {
   const host = request.headers.get('host') || '';
   console.log('🔍 getBusinessFromRequest - Host:', host);
 
-  // Extraer subdomain o usar un business por defecto para desarrollo
-  if (host.includes('localhost') || host.includes('127.0.0.1') || host.includes('trycloudflare.com')) {
-    console.log('🔍 getBusinessFromRequest - Modo desarrollo/túnel detectado');
-    // Para desarrollo local y túnel, usar el primer business o crear uno de demo
+  // Para desarrollo local y dominio principal de producción
+  if (host.includes('localhost') || host.includes('127.0.0.1') || host === 'lealta.app') {
+    // Para desarrollo local y dominio principal, usar el primer business o crear uno de demo
     const business =
       (await prisma.business.findFirst()) ??
       (await prisma.business.create({
         data: {
-          name: 'Demo Business',
-          slug: 'demo-business',
+          name: 'Lealta Demo',
+          slug: 'demo',
           subdomain: 'demo',
           settings: {
-            contactEmail: 'demo@lealta.com',
+            contactEmail: 'demo@lealta.app',
           },
         },
       }));
@@ -44,7 +44,7 @@ async function getBusinessFromRequest(request: NextRequest) {
     return business;
   }
 
-  // Para producción, extraer del subdomain
+  // Para subdominio de producción, extraer del subdomain
   const subdomain = host.split('.')[0];
   console.log('🔍 getBusinessFromRequest - Buscando subdomain:', subdomain);
   const business = await prisma.business.findUnique({
@@ -61,7 +61,8 @@ async function findUser(email: string, request: NextRequest) {
   const isLocalDevelopment =
     host.includes('localhost') || 
     host.includes('127.0.0.1') ||
-    host.includes('trycloudflare.com');
+    host.includes('trycloudflare.com') ||
+    host === 'lealta.app'; // ✅ AGREGADO: Dominio principal de producción
 
   if (isLocalDevelopment) {
     // En desarrollo local, buscar usuario por email sin restricción de business
@@ -141,7 +142,8 @@ function validateUser(user: UserWithBusiness | null, request: NextRequest): asse
   const isLocalDevelopment =
     host.includes('localhost') || 
     host.includes('127.0.0.1') ||
-    host.includes('trycloudflare.com');
+    host.includes('trycloudflare.com') ||
+    host === 'lealta.app'; // ✅ AGREGADO: Dominio principal de producción
 
   if (!isLocalDevelopment && !user.business.isActive) {
     throw new Error('Business inactivo');
@@ -276,9 +278,9 @@ export async function POST(request: NextRequest) {
 
     // En este punto sabemos que user no es nulo
     // Verify password
-    const isValid = await compare(password, user!.passwordHash);
+    const isValid = await compare(password, user.passwordHash);
     if (!isValid) {
-      await handleInvalidPassword(user!);
+      await handleInvalidPassword(user);
       throw new Error('Credenciales inválidas');
     }
 
@@ -286,7 +288,7 @@ export async function POST(request: NextRequest) {
     const { sessionToken } = await createUserSession(user);
     return createResponse(user, sessionToken);
   } catch (error) {
-    console.error('Sign in error:', error);
+    logger.error('❌ Sign in error:', error);
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(

@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import AdminV2Page from '../../../components/admin-v2/AdminV2Page';
+import PWALayout from '../../../components/layouts/PWALayout';
 
 /**
  * Página dinámica del panel de administración
@@ -19,16 +20,12 @@ export default function BusinessAdminPage() {
     // Validar que el businessId existe y es válido
     const validateBusiness = async () => {
       try {
-        console.log(`🔍 Validating business from URL: ${businessId}`);
-        
         // Verificar que el business existe
         const response = await fetch(`/api/businesses/${businessId}/validate`);
         if (response.ok) {
-          const businessData = await response.json();
-          console.log(`✅ Business validated:`, businessData);
+          await response.json();
           setIsValidBusiness(true);
         } else {
-          console.log(`❌ Business validation failed for: ${businessId}`);
           // Redirect a login si no es válido
           window.location.href = `/login?error=invalid-business&message=El negocio no es válido o no existe`;
         }
@@ -53,10 +50,10 @@ export default function BusinessAdminPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-800 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Validando negocio {businessId}...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
+          <p className="text-white">Validando negocio {businessId}...</p>
         </div>
       </div>
     );
@@ -64,7 +61,11 @@ export default function BusinessAdminPage() {
 
   // Business context válido
   if (isValidBusiness) {
-    return <AdminV2Page businessId={businessId} />;
+    return (
+      <PWALayout>
+        <AdminV2Page businessId={businessId} />
+      </PWALayout>
+    );
   }
 
   // Fallback - no debería llegar aquí por la validación anterior

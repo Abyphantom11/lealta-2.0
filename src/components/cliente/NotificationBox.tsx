@@ -27,11 +27,6 @@ const NotificationBox: React.FC<NotificationBoxProps> = ({
     forceCleanStorage,
   } = useClientNotifications(clienteId);
 
-  // Debug logs
-  console.log('🔔 NotificationBox - clienteId:', clienteId);
-  console.log('🔔 NotificationBox - notifications count:', notifications.length);
-  console.log('🔔 NotificationBox - notifications:', notifications);
-
   const getIconoTipo = (tipo: string) => {
     switch (tipo) {
       case 'promocion': return '🎉';
@@ -202,15 +197,20 @@ const NotificationBox: React.FC<NotificationBoxProps> = ({
                               {notificacion.mensaje}
                             </p>
                             
-                            {/* Botón especial para notificaciones PWA */}
+                            {/* Botón especial para notificaciones PWA - ✅ HABILITADO */}
                             {notificacion.tipo === 'pwa' && !notificacion.leida && (
-                              <button
-                                type="button"
-                                className="mt-2 w-full bg-transparent border-none p-0 m-0"
-                                onClick={(e) => e.stopPropagation()}
-                              >
+                              <div className="mt-3 space-y-2">
                                 <PWAInstallButton />
-                              </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    markAsRead(notificacion.id);
+                                  }}
+                                  className="w-full text-xs text-gray-400 hover:text-gray-300 transition-colors py-1"
+                                >
+                                  Recordar más tarde
+                                </button>
+                              </div>
                             )}
                           </div>
 

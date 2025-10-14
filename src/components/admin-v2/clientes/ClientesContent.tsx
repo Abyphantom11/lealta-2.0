@@ -9,14 +9,113 @@ import {
 } from 'lucide-react';
 import { Cliente } from '@/types/admin';
 
+// ✅ OPTIMIZACIÓN: Componente memoizado para items individuales de clientes
+interface ClienteItemProps {
+  cliente: Cliente;
+  getClientInitials: (nombre: string) => string;
+  getColorNivel: (nivel: string) => string;
+}
+
+const ClienteItem = React.memo<ClienteItemProps>(({ cliente, getClientInitials, getColorNivel }) => {
+  // Función para calcular nivel automático
+  const calcularNivelAutomatico = (client: Cliente) => {
+    const { puntos, totalGastado = 0, totalVisitas = 0 } = client;
+
+    if (puntos >= 5000 && totalGastado >= 8000 && totalVisitas >= 50) {
+      return 'Diamante';
+    } else if (puntos >= 3000 && totalGastado >= 5000 && totalVisitas >= 30) {
+      return 'Platino';
+    } else if (puntos >= 500 && totalGastado >= 1500 && totalVisitas >= 10) {
+      return 'Oro';
+    } else if (puntos >= 100 && totalGastado >= 500 && totalVisitas >= 5) {
+      return 'Plata';
+    } else {
+      return 'Bronce';
+    }
+  };
+
+  return (
+    <tr
+      key={cliente.id}
+      className="border-b border-dark-800/50 hover:bg-dark-800/30 transition-colors"
+    >
+      <td className="py-4">
+        <div className="flex items-center space-x-3">
+          <div className="w-8 h-8 bg-gradient-to-r from-primary-600 to-purple-600 rounded-full flex items-center justify-center">
+            <span className="text-white font-semibold text-xs">
+              {getClientInitials(cliente.nombre)}
+            </span>
+          </div>
+          <span className="text-white">{cliente.nombre}</span>
+        </div>
+      </td>
+      <td className="py-4 text-dark-300">{cliente.cedula}</td>
+      <td className="py-4">
+        <div className="text-dark-300 text-sm">
+          <div>{cliente.telefono}</div>
+          <div className="text-dark-500">{cliente.correo}</div>
+        </div>
+      </td>
+      <td className="py-4 text-success-400 font-semibold">
+        {cliente.puntos} pts
+      </td>
+      <td className="py-4 text-dark-300">
+        {new Date(cliente.registeredAt).toLocaleDateString('es-ES')}
+      </td>
+      <td className="py-4">
+        {cliente.tarjetaLealtad ? (
+          <div className="flex flex-col">
+            <span
+              className={`text-sm font-medium ${
+                cliente.tarjetaLealtad.activa
+                  ? getColorNivel(cliente.tarjetaLealtad.nivel)
+                  : 'text-red-400'
+              }`}
+            >
+              {cliente.tarjetaLealtad.nivel}
+            </span>
+            <span className="text-xs text-dark-400">
+              {cliente.tarjetaLealtad.asignacionManual
+                ? 'Manual'
+                : 'Automático'}
+            </span>
+          </div>
+        ) : (
+          <div className="flex flex-col">
+            <span className={`text-sm font-medium ${getColorNivel(calcularNivelAutomatico(cliente))}`}>
+              {calcularNivelAutomatico(cliente)}
+            </span>
+            <span className="text-xs text-dark-500">
+              Calculado
+            </span>
+          </div>
+        )}
+      </td>
+      <td className="py-4">
+        <span className="px-2 py-1 rounded-full text-xs bg-success-500/20 text-success-400">
+          Activo
+        </span>
+      </td>
+      <td className="py-4">
+        <button className="text-dark-400 hover:text-white transition-colors">
+          <MoreVertical className="w-4 h-4" />
+        </button>
+      </td>
+    </tr>
+  );
+});
+
+ClienteItem.displayName = 'ClienteItem';
+
 interface ClientesContentProps {
   className?: string;
+  businessId?: string; // Agregar businessId como prop
 }
 
 /**
  * Componente principal de gestión de clientes
  */
-const ClientesContent: React.FC<ClientesContentProps> = ({ className = '' }) => {
+const ClientesContent: React.FC<ClientesContentProps> = ({ className = '', businessId }) => {
   // Estados principales
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [filteredClientes, setFilteredClientes] = useState<Cliente[]>([]);
@@ -35,21 +134,33 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '' }) => 
   useEffect(() => {
     const fetchClientes = async () => {
       try {
-        const response = await fetch('/api/cliente/lista');
+        console.log('🔍 ClientesContent: Fetching clientes...');
+        
+        // ✅ SIMPLIFICADO: La API usa session.businessId automáticamente
+        // No necesitamos pasar businessId como parámetro
+        const response = await fetch('/api/cliente/lista', { 
+          credentials: 'include', // ✅ CRÍTICO: Incluir cookies de sesión
+          cache: 'no-store', // ✅ No cachear para obtener datos frescos
+        });
+        
         const data = await response.json();
+        
         if (data.success) {
+          console.log('✅ Clientes cargados:', data.clientes.length);
           setClientes(data.clientes);
           setFilteredClientes(data.clientes);
+        } else {
+          console.error('❌ CLIENTES: Error en respuesta:', data.error);
         }
       } catch (error) {
-        console.error('Error cargando clientes:', error);
+        console.error('❌ CLIENTES: Error cargando clientes:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchClientes();
-  }, []);
+  }, []); // ✅ Sin dependencias - solo cargar una vez al montar
 
   // Cargar historial de canjes cuando se active esa pestaña
   useEffect(() => {
@@ -134,35 +245,17 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '' }) => 
     return () => clearTimeout(debounceTimer);
   }, [searchTerm, filterClientsLocally, searchClientesAPI]);
 
-  // Función para obtener iniciales del cliente
-  const getClientInitials = (nombre: string) => {
+  // ✅ OPTIMIZACIÓN: Memoizar funciones para evitar re-renders
+  const getClientInitials = useCallback((nombre: string) => {
     return nombre
       .split(' ')
       .map((n: string) => n[0])
       .join('')
       .slice(0, 2);
-  };
+  }, []);
 
-  // Función para calcular nivel de tarjeta automáticamente basado en métricas
-  const calcularNivelAutomatico = (cliente: Cliente) => {
-    const { puntos, totalGastado = 0, totalVisitas = 0 } = cliente;
-
-    // Criterios para niveles (basados en tu configuración del dashboard)
-    if (puntos >= 5000 && totalGastado >= 8000 && totalVisitas >= 50) {
-      return 'Diamante';
-    } else if (puntos >= 3000 && totalGastado >= 5000 && totalVisitas >= 30) {
-      return 'Platino';
-    } else if (puntos >= 500 && totalGastado >= 1500 && totalVisitas >= 10) {
-      return 'Oro';
-    } else if (puntos >= 100 && totalGastado >= 500 && totalVisitas >= 5) {
-      return 'Plata';
-    } else {
-      return 'Bronce';
-    }
-  };
-
-  // Función para obtener el color del nivel de tarjeta
-  const getColorNivel = (nivel: string) => {
+  // ✅ OPTIMIZACIÓN: Memoizar función de colores
+  const getColorNivel = useCallback((nivel: string) => {
     switch (nivel) {
       case 'Diamante':
         return 'text-cyan-400';
@@ -177,7 +270,7 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '' }) => 
       default:
         return 'text-dark-400';
     }
-  };
+  }, []);
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -324,75 +417,14 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '' }) => 
                       );
                     }
 
-                    // Clientes data
+                    // ✅ OPTIMIZACIÓN: Usar componente memoizado para cada cliente
                     return filteredClientes.map(client => (
-                      <tr
+                      <ClienteItem
                         key={client.id}
-                        className="border-b border-dark-800/50 hover:bg-dark-800/30 transition-colors"
-                      >
-                        <td className="py-4">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 bg-gradient-to-r from-primary-600 to-purple-600 rounded-full flex items-center justify-center">
-                              <span className="text-white font-semibold text-xs">
-                                {getClientInitials(client.nombre)}
-                              </span>
-                            </div>
-                            <span className="text-white">{client.nombre}</span>
-                          </div>
-                        </td>
-                        <td className="py-4 text-dark-300">{client.cedula}</td>
-                        <td className="py-4">
-                          <div className="text-dark-300 text-sm">
-                            <div>{client.telefono}</div>
-                            <div className="text-dark-500">{client.correo}</div>
-                          </div>
-                        </td>
-                        <td className="py-4 text-success-400 font-semibold">
-                          {client.puntos} pts
-                        </td>
-                        <td className="py-4 text-dark-300">
-                          {new Date(client.registeredAt).toLocaleDateString('es-ES')}
-                        </td>
-                        <td className="py-4">
-                          {client.tarjetaLealtad ? (
-                            <div className="flex flex-col">
-                              <span
-                                className={`text-sm font-medium ${
-                                  client.tarjetaLealtad.activa
-                                    ? getColorNivel(client.tarjetaLealtad.nivel)
-                                    : 'text-red-400'
-                                }`}
-                              >
-                                {client.tarjetaLealtad.nivel}
-                              </span>
-                              <span className="text-xs text-dark-400">
-                                {client.tarjetaLealtad.asignacionManual
-                                  ? 'Manual'
-                                  : 'Auto'}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col">
-                              <span className={`text-sm font-medium ${getColorNivel(calcularNivelAutomatico(client))}`}>
-                                {calcularNivelAutomatico(client)}
-                              </span>
-                              <span className="text-xs text-dark-500">
-                                Calculado
-                              </span>
-                            </div>
-                          )}
-                        </td>
-                        <td className="py-4">
-                          <span className="px-2 py-1 rounded-full text-xs bg-success-500/20 text-success-400">
-                            Activo
-                          </span>
-                        </td>
-                        <td className="py-4">
-                          <button className="p-1 hover:bg-dark-700 rounded transition-colors">
-                            <MoreVertical className="w-4 h-4 text-dark-400" />
-                          </button>
-                        </td>
-                      </tr>
+                        cliente={client}
+                        getClientInitials={getClientInitials}
+                        getColorNivel={getColorNivel}
+                      />
                     ));
                   })()}
                 </tbody>

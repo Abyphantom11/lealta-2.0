@@ -51,7 +51,7 @@ export async function validateUserSession(sessionCookie: string): Promise<AdminS
       return null;
     }
 
-    // Mapear roles de la base de datos
+    // Mapear roles de la base de datos con permisos consistentes
     let role: 'admin' | 'staff' | 'superadmin';
     let permissions: string[] = [];
 
@@ -62,11 +62,19 @@ export async function validateUserSession(sessionCookie: string): Promise<AdminS
         break;
       case 'ADMIN':
         role = 'admin';
-        permissions = ['manage_business', 'manage_clients', 'manage_staff', 'view_analytics'];
+        permissions = [
+          'users.create', 'users.read', 'users.update', 
+          'clients.manage', 'consumos.manage', 'reports.view',
+          'locations.read', 'read', 'write', 'admin'
+        ];
         break;
       case 'STAFF':
         role = 'staff';
-        permissions = ['view_clients', 'manage_consumos'];
+        permissions = [
+          'clients.read', 'clients.create', 
+          'consumos.create', 'consumos.read',
+          'read' // Agregar permiso genérico de lectura
+        ];
         break;
       default:
         return null; // Rol no válido para admin

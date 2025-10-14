@@ -1,10 +1,7 @@
+// ========================================
+// 📦 SECCIÓN: IMPORTS Y DEPENDENCIAS (1-18)
+// ========================================
 'use client';
-
-/**
- * Componente de contenido de Staff COMPLETO
- * Recibe businessId como prop para contexto
- * Contiene toda la funcionalidad del staff original
- */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
@@ -28,46 +25,33 @@ import {
   UserPlus,
   Copy,
 } from 'lucide-react';
+import logger from '@/lib/logger';
+import HostSearchModal from '@/components/staff/HostSearchModal';
+import GuestConsumoToggle from '@/components/staff/GuestConsumoToggle';
+import type { HostSearchResult } from '@/types/host-tracking';
 
-interface StaffPageContentProps {
-  businessId: string;
-}
+// ========================================
+// 🔧 SECCIÓN: INTERFACES Y TIPOS (19-100)
+// ========================================
 
-// Tipos para el sistema (copiados del original)
-interface NotificationType {
+// Type for notifications
+type NotificationType = {
   type: 'success' | 'error' | 'info';
   message: string;
-}
+} | null;
 
-interface RecentTicket {
-  id: string;
-  cliente: string;
-  cedula: string;
-  monto: number | string;
-  puntos: number;
-  hora: string;
-  items: string[];
-  tipo?: string;
-}
-
-interface TodayStats {
-  ticketsProcessed: number;
-  totalPoints: number;
-  uniqueCustomers: number;
-  totalAmount: number;
-}
-
+// Types for customer info
 interface CustomerInfo {
   id: string;
-  cedula: string;
   nombre: string;
+  cedula: string;
+  puntos: number;
   email?: string;
   telefono?: string;
-  puntos: number;
-  nivel: string;
-  ultimaVisita?: string | null;
+  nivel?: string;
   totalGastado?: number;
   frecuencia?: string;
+  ultimaVisita?: string | null;
 }
 
 // Types for product data
@@ -77,8 +61,8 @@ interface Product {
   precio: number;
   cantidad: number;
   categoria?: string;
-  name?: string;
-  price?: number;
+  name?: string; // Para compatibilidad con diferentes formatos
+  price?: number; // Para compatibilidad con diferentes formatos
 }
 
 interface EditableProduct {
@@ -120,10 +104,53 @@ interface AIResult {
   };
 }
 
+// Types for recent tickets and stats
+interface RecentTicket {
+  id: string;
+  cliente: string;
+  cedula: string;
+  productos: string[];
+  total: number;
+  puntos: number;
+  fecha: string;
+  monto: number;
+  items: string[];
+  hora: string;
+  tipo?: string;
+}
+
+interface TodayStats {
+  ticketsProcessed: number;
+  totalPoints: number;
+  uniqueCustomers: number;
+  totalAmount: number;
+}
+
+// Types for consumption data
+interface ConsumoData {
+  id?: string;
+  cliente:
+    | string
+    | {
+        cedula: string;
+        nombre: string;
+      };
+  cedula: string;
+  productos: Product[];
+  total: number;
+  puntos: number;
+  fecha: string;
+  tipo?: string;
+}
+
+interface StaffPageContentProps {
+  businessId: string;
+}
+
 // Por ahora, vamos a crear un componente básico
 // TODO: Migrar toda la funcionalidad del staff page original
 export default function StaffPageContent({ businessId }: StaffPageContentProps) {
-  const { user, loading, logout } = useRequireAuth('STAFF');
+  const { user, loading } = useRequireAuth('STAFF');
 
   if (loading) {
     return (

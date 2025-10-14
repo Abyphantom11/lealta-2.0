@@ -6,43 +6,70 @@ export const dynamic = 'force-dynamic';
 
 const prisma = new PrismaClient();
 
-// GET - Obtener productos por categoría para el cliente
+// GET - Obtener productos del menú (público)
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const categoriaId = searchParams.get('categoriaId');
-
-    console.log(
-      `📋 GET /api/menu/productos - Obteniendo productos para categoría: ${categoriaId}`
-    );
-
-    if (!categoriaId) {
-      console.log('❌ ID de categoría no proporcionado');
+    console.log('🍽️ Menu-productos público GET');
+    
+    // Obtener business ID del header
+    const businessId = request.headers.get('x-business-id');
+    
+    if (!businessId) {
       return NextResponse.json(
-        { error: 'ID de categoría es requerido' },
+        { error: 'Business ID es requerido' },
         { status: 400 }
       );
     }
+    
+    console.log('🏢 BusinessId:', businessId);
 
-    // Obtener productos de la categoría especificada
+    // 🔍 Obtener categoriaId del query string
+    const { searchParams } = new URL(request.url);
+    const categoriaId = searchParams.get('categoriaId');
+    
+    console.log('📂 CategoriaId solicitada:', categoriaId);
+
+    // Construir filtro dinámico
+    const whereFilter: any = {
+      category: {
+        businessId: businessId,
+      },
+      disponible: true, // Solo productos disponibles para clientes
+    };
+    
+    // 🎯 FILTRO POR CATEGORÍA: Si se especifica categoriaId, filtrar por ella
+    if (categoriaId) {
+      whereFilter.categoryId = categoriaId;
+      console.log('🔍 Filtrando productos por categoría:', categoriaId);
+    } else {
+      console.log('📋 Obteniendo TODOS los productos del business');
+    }
+
     const productos = await prisma.menuProduct.findMany({
-      where: {
-        categoryId: categoriaId,
-        disponible: true,
+      where: whereFilter,
+      include: {
+        category: {
+          select: {
+            id: true,
+            nombre: true,
+          },
+        },
       },
       orderBy: {
-        orden: 'asc',
+        nombre: 'asc',
       },
     });
 
-    console.log(
-      `✅ Se encontraron ${productos.length} productos para la categoría ${categoriaId}`
-    );
-    return NextResponse.json(productos);
+    console.log(`✅ Encontrados ${productos.length} productos`);
+
+    return NextResponse.json({
+      success: true,
+      productos,
+    });
   } catch (error) {
     console.error('❌ Error obteniendo productos:', error);
     return NextResponse.json(
-      { error: 'Error obteniendo productos de menú' },
+      { error: 'Error interno del servidor' },
       { status: 500 }
     );
   }

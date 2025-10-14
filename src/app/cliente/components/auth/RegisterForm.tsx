@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { UserPlus } from 'lucide-react';
 import { useBranding } from '../branding/BrandingProvider';
 import { RegisterFormProps } from './auth.types';
-import { clientSession } from '@/utils/mobileStorage';
+import { improvedClientSession as clientSession } from '@/utils/improvedClientSession';
 import { logger } from '@/utils/logger';
 
 export const RegisterForm = ({ 
@@ -37,8 +37,6 @@ export const RegisterForm = ({
     setIsLoading(true);
     setError('');
     try {
-      console.log('🔄 Registrando cliente con businessId:', businessId);
-      
       const response = await fetch('/api/cliente/registro', {
         method: 'POST',
         headers: { 
@@ -63,6 +61,9 @@ export const RegisterForm = ({
         logger.log('💾 Sesión guardada para nuevo cliente:', cedula.trim());
         
         setStep('dashboard');
+
+        // Disparar evento de login exitoso para PWA iOS
+        window.dispatchEvent(new CustomEvent('client-logged-in'));
       } else {
         setError(data.error || 'Error al registrar el cliente');
       }

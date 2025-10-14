@@ -49,9 +49,6 @@ export default function ProductosTendenciasChart() {
       if (response.ok) {
         const result = await response.json();
         setData(result);
-        console.log('📊 Datos de tendencias cargados:', result);
-        console.log('📊 Primer producto:', result.productos?.[0]);
-        console.log('📊 Ventas semana primer producto:', result.productos?.[0]?.ventasSemana);
       } else {
         console.error('Error fetching tendencias data:', response.status);
       }
@@ -114,7 +111,12 @@ export default function ProductosTendenciasChart() {
     );
   }
 
-  const maxValue = Math.max(...currentProduct.ventasSemana.map(v => v.ingresos || 0), 1); // Evitar división por 0
+  // 🛡️ VALIDACIÓN: Asegurar datos válidos para evitar NaN
+  const validVentas = currentProduct.ventasSemana.filter(v => 
+    v && typeof v.ingresos === 'number' && !isNaN(v.ingresos) && v.ingresos >= 0
+  );
+  const maxValue = validVentas.length > 0 ? 
+    Math.max(...validVentas.map(v => v.ingresos), 1) : 1;
 
   // Colores para cada producto (estilo trading)
   const productColors = [
@@ -269,13 +271,14 @@ export default function ProductosTendenciasChart() {
               </defs>
 
               {/* Área bajo la curva */}
-              {currentProduct.ventasSemana.length > 1 && (
+              {validVentas.length > 1 && (
                 <motion.path
                   initial={{ pathLength: 0 }}
                   animate={{ pathLength: 1 }}
                   transition={{ duration: 1.5, ease: "easeInOut" }}
-                  d={`M ${currentProduct.ventasSemana.map((venta, index) => {
-                    const x = (index / (currentProduct.ventasSemana.length - 1)) * 380 + 10;
+                  d={`M ${validVentas.map((venta, index) => {
+                    const x = validVentas.length > 1 ? 
+                      (index / (validVentas.length - 1)) * 380 + 10 : 200;
                     const y = 190 - (venta.ingresos / maxValue) * 180;
                     return `${x} ${y}`;
                   }).join(' L ')} L 390 190 L 10 190 Z`}
@@ -284,13 +287,14 @@ export default function ProductosTendenciasChart() {
               )}
 
               {/* Línea principal */}
-              {currentProduct.ventasSemana.length > 1 && (
+              {validVentas.length > 1 && (
                 <motion.path
                   initial={{ pathLength: 0 }}
                   animate={{ pathLength: 1 }}
                   transition={{ duration: 1.5, ease: "easeInOut" }}
-                  d={`M ${currentProduct.ventasSemana.map((venta, index) => {
-                    const x = (index / (currentProduct.ventasSemana.length - 1)) * 380 + 10;
+                  d={`M ${validVentas.map((venta, index) => {
+                    const x = validVentas.length > 1 ? 
+                      (index / (validVentas.length - 1)) * 380 + 10 : 200;
                     const y = 190 - (venta.ingresos / maxValue) * 180;
                     return `${x} ${y}`;
                   }).join(' L ')}`}
@@ -302,8 +306,9 @@ export default function ProductosTendenciasChart() {
               )}
 
               {/* Puntos de datos */}
-              {currentProduct.ventasSemana.map((venta, index) => {
-                const x = (index / (currentProduct.ventasSemana.length - 1)) * 380 + 10;
+              {validVentas.map((venta, index) => {
+                const x = validVentas.length > 1 ? 
+                  (index / (validVentas.length - 1)) * 380 + 10 : 200;
                 const y = 190 - (venta.ingresos / maxValue) * 180;
                 
                 return (
@@ -328,8 +333,8 @@ export default function ProductosTendenciasChart() {
 
             {/* Etiquetas del eje X */}
             <div className="absolute bottom-0 left-0 right-0 flex justify-between px-2">
-              {currentProduct.ventasSemana.map((venta, index) => {
-                if (index % 2 === 0 || index === currentProduct.ventasSemana.length - 1) {
+              {validVentas.map((venta, index) => {
+                if (index % 2 === 0 || index === validVentas.length - 1) {
                   return (
                     <span key={index} className="text-xs text-gray-500">
                       {formatDate(venta.fecha)}

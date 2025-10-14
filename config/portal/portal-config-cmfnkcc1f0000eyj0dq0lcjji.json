@@ -1,0 +1,230 @@
+{
+  "banners": [
+    {
+      "id": "banner-1",
+      "title": "¡Ofertas Especiales!",
+      "description": "Descubre nuestras promociones exclusivas",
+      "imageUrl": "https://images.unsplash.com/photo-1567306301408-9b74779a11af",
+      "linkUrl": "/promociones",
+      "isActive": true,
+      "order": 1,
+      "createdAt": "2025-10-11T17:00:00.000Z",
+      "updatedAt": "2025-10-11T17:00:00.000Z"
+    },
+    {
+      "id": "banner-2", 
+      "title": "Nuevos Sabores",
+      "description": "Prueba nuestros platos recién añadidos al menú",
+      "imageUrl": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c",
+      "linkUrl": "/menu",
+      "isActive": true,
+      "order": 2,
+      "createdAt": "2025-10-11T17:00:00.000Z",
+      "updatedAt": "2025-10-11T17:00:00.000Z"
+    }
+  ],
+  "promociones": [
+    {
+      "id": "promo-1",
+      "title": "2x1 en Bebidas",
+      "description": "Lleva dos bebidas y paga solo una",
+      "discount": 50,
+      "imageUrl": "https://images.unsplash.com/photo-1551538827-9c037cb4f32a",
+      "isActive": true,
+      "validFrom": "2025-10-11T00:00:00.000Z",
+      "validTo": "2025-10-25T23:59:59.000Z",
+      "createdAt": "2025-10-11T17:00:00.000Z",
+      "updatedAt": "2025-10-11T17:00:00.000Z"
+    },
+    {
+      "id": "promo-2",
+      "title": "Descuento Estudiantes",
+      "description": "15% de descuento presentando credencial estudiantil",
+      "discount": 15,
+      "imageUrl": "https://images.unsplash.com/photo-1523906834658-6e24ef2386f9",
+      "isActive": true,
+      "validFrom": "2025-10-11T00:00:00.000Z", 
+      "validTo": "2025-12-31T23:59:59.000Z",
+      "createdAt": "2025-10-11T17:00:00.000Z",
+      "updatedAt": "2025-10-11T17:00:00.000Z"
+    }
+  ],
+  "recompensas": [
+    {
+      "id": "reward-1",
+      "title": "Café Gratis",
+      "description": "Canjea 100 puntos por un café de cualquier tamaño",
+      "pointsCost": 100,
+      "category": "bebidas",
+      "imageUrl": "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085",
+      "isActive": true,
+      "stock": 100,
+      "availableFrom": "2025-10-11T00:00:00.000Z",
+      "availableTo": "2025-12-31T23:59:59.000Z",
+      "createdAt": "2025-10-11T17:00:00.000Z",
+      "updatedAt": "2025-10-11T17:00:00.000Z"
+    },
+    {
+      "id": "reward-2",
+      "title": "Postre Especial",
+      "description": "Canjea 250 puntos por nuestro postre de la casa",
+      "pointsCost": 250,
+      "category": "postres",
+      "imageUrl": "https://images.unsplash.com/photo-1563805042-7684c019e1cb",
+      "isActive": true,
+      "stock": 50,
+      "availableFrom": "2025-10-11T00:00:00.000Z",
+      "availableTo": "2025-12-31T23:59:59.000Z",
+      "createdAt": "2025-10-11T17:00:00.000Z",
+      "updatedAt": "2025-10-11T17:00:00.000Z"
+    }
+  ],
+  "favoritoDelDia": {
+    "lunes": {
+      "id": "fav-lunes",
+      "title": "Favorito Lunes",
+      "description": "Especial de los lunes - Burger Clásica",
+      "price": 15.99,
+      "originalPrice": 19.99,
+      "imageUrl": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd",
+      "active": true,
+      "dayOfWeek": "lunes",
+      "createdAt": "2025-10-11T17:00:00.000Z",
+      "updatedAt": "2025-10-11T17:00:00.000Z"
+    },
+    "martes": {
+      "id": "fav-martes",
+      "title": "Favorito Martes",
+      "description": "Especial de los martes - Pasta Italiana",
+      "price": 12.99,
+      "originalPrice": 16.99,
+      "imageUrl": "https://images.unsplash.com/photo-1621996346565-e3dbc353d30e",
+      "active": true,
+      "dayOfWeek": "martes",
+      "createdAt": "2025-10-11T17:00:00.000Z",
+      "updatedAt": "2025-10-11T17:00:00.000Z"
+    },
+    "miercoles": {
+      "id": "fav-miercoles",
+      "title": "Favorito Miércoles",
+      "description": "Especial de los miércoles - Tacos Especiales",
+      "price": 10.99,
+      "originalPrice": 14.99,
+      "imageUrl": "https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b",
+      "active": true,
+      "dayOfWeek": "miercoles",
+      "createdAt": "2025-10-11T17:00:00.000Z",
+      "updatedAt": "2025-10-11T17:00:00.000Z"
+    },
+    "jueves": {
+      "id": "fav-jueves",
+      "title": "Favorito Jueves",
+      "description": "Especial de los jueves - Pizza Margarita",
+      "price": 13.99,
+      "originalPrice": 17.99,
+      "imageUrl": "https://images.unsplash.com/photo-1565958011703-44f9829ba187",
+      "active": true,
+      "dayOfWeek": "jueves",
+      "createdAt": "2025-10-11T17:00:00.000Z",
+      "updatedAt": "2025-10-11T17:00:00.000Z"
+    },
+    "viernes": {
+      "id": "fav-viernes",
+      "title": "Favorito Viernes",
+      "description": "Especial de los viernes - Sushi Roll",
+      "price": 18.99,
+      "originalPrice": 23.99,
+      "imageUrl": "https://images.unsplash.com/photo-1579584425555-c3ce17fd4351",
+      "active": true,
+      "dayOfWeek": "viernes",
+      "createdAt": "2025-10-11T17:00:00.000Z",
+      "updatedAt": "2025-10-11T17:00:00.000Z"
+    },
+    "sabado": {
+      "id": "fav-sabado",
+      "title": "Favorito Sábado",
+      "description": "Especial de los sábados - Parrillada Familiar",
+      "price": 29.99,
+      "originalPrice": 39.99,
+      "imageUrl": "https://images.unsplash.com/photo-1558030006-450675393462",
+      "active": true,
+      "dayOfWeek": "sabado",
+      "createdAt": "2025-10-11T17:00:00.000Z",
+      "updatedAt": "2025-10-11T17:00:00.000Z"
+    },
+    "domingo": {
+      "id": "fav-domingo",
+      "title": "Favorito Domingo",
+      "description": "Especial de los domingos - Brunch Completo",
+      "price": 16.99,
+      "originalPrice": 21.99,
+      "imageUrl": "https://images.unsplash.com/photo-1482049016688-2d3e1b311543",
+      "active": true,
+      "dayOfWeek": "domingo",
+      "createdAt": "2025-10-11T17:00:00.000Z",
+      "updatedAt": "2025-10-11T17:00:00.000Z"
+    }
+  },
+  "tarjetas": [
+    {
+      "id": "card-bronze",
+      "name": "Bronce",
+      "level": "BRONCE",
+      "pointsRequired": 0,
+      "benefits": ["5% descuento", "Puntos por compras"],
+      "color": "#CD7F32",
+      "isActive": true
+    },
+    {
+      "id": "card-silver",
+      "name": "Plata",
+      "level": "PLATA",
+      "pointsRequired": 500,
+      "benefits": ["10% descuento", "Puntos dobles", "Ofertas exclusivas"],
+      "color": "#C0C0C0",
+      "isActive": true
+    },
+    {
+      "id": "card-gold",
+      "name": "Oro",
+      "level": "ORO",
+      "pointsRequired": 1500,
+      "benefits": ["15% descuento", "Puntos triples", "Acceso VIP"],
+      "color": "#FFD700",
+      "isActive": true
+    }
+  ],
+  "nombreEmpresa": "Casa Sabor Demo",
+  "nivelesConfig": {
+    "BRONCE": {
+      "nombrePersonalizado": "Bronce",
+      "textoCalidad": "Miembro Inicial",
+      "colores": {
+        "gradiente": ["#8B4513", "#CD853F"]
+      }
+    },
+    "PLATA": {
+      "nombrePersonalizado": "Plata",
+      "textoCalidad": "Miembro Preferente",
+      "colores": {
+        "gradiente": ["#708090", "#C0C0C0"]
+      }
+    },
+    "ORO": {
+      "nombrePersonalizado": "Oro",
+      "textoCalidad": "Miembro VIP",
+      "colores": {
+        "gradiente": ["#B8860B", "#FFD700"]
+      }
+    }
+  },
+  "sectionTitles": {
+    "banners": "Ofertas Especiales",
+    "promociones": "Promociones",
+    "recompensas": "Recompensas",
+    "tarjetas": "Beneficios"
+  },
+  "version": "1.0.0",
+  "lastUpdated": "2025-10-11T17:00:00.000Z",
+  "businessId": "cmfnkcc1f0000eyj0dq0lcjji"
+}

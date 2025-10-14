@@ -1,0 +1,378 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+import { Reserva, EstadoReserva } from '../../reservas-new/types/reservation';
+import crypto from 'crypto';
+
+const prisma = new PrismaClient();
+
+// Indicar a Next.js que esta ruta es dinámica
+export const dynamic = 'force-dynamic';
+
+// Función para generar código QR único
+function generateQRCode(): string {
+  return `QR-${Date.now()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+}
+
+// Función para mapear estado de Prisma a nuestro tipo
+function mapPrismaStatusToReserva(status: string): EstadoReserva {
+  switch (status) {
+    case 'CONFIRMED': return 'Activa';
+    case 'IN_PROGRESS': return 'En Progreso';
+    case 'COMPLETED': return 'En Camino';
+    case 'CANCELLED': return 'Reserva Caída';
+    default: return 'Activa';
+  }
+}
+
+// Función para mapear nuestro estado a Prisma
+function mapReservaStatusToPrisma(estado: EstadoReserva): string {
+  switch (estado) {
+    case 'Activa': return 'CONFIRMED';
+    case 'En Progreso': return 'IN_PROGRESS';
+    case 'En Camino': return 'COMPLETED';
+    case 'Reserva Caída': return 'CANCELLED';
+    default: return 'CONFIRMED';
+  }
+}
+
+// GET - Obtener todas las reservas
+export async function GET(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const businessId = searchParams.get('businessId') || 'default-business-id';
+    
+    // Buscar reservas en la base de datos
+    const reservations = await prisma.reservation.findMany({
+      where: {
+        businessId: businessId
+      },
+      include: {
+        cliente: true,
+        service: true,
+        slot: true,
+        qrCodes: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    // Mapear a nuestro formato de Reserva
+    const reservas: Reserva[] = reservations.map(reservation => ({
+      id: reservation.id,
+      cliente: {
+        id: reservation.cliente?.id || `temp-${Date.now()}`,
+        nombre: reservation.customerName,
+        telefono: reservation.customerPhone || undefined,
+        email: reservation.customerEmail || undefined
+      },
+      numeroPersonas: reservation.guestCount,
+      razonVisita: reservation.specialRequests || 'Reserva general',
+      beneficiosReserva: reservation.notes || 'Sin beneficios especiales',
+      promotor: {
+        id: reservation.serviceId,
+        nombre: reservation.service?.name || 'Servicio General'
+      },
+      fecha: reservation.slot?.date ? new Date(reservation.slot.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      hora: reservation.slot?.startTime ? 
+        new Date(reservation.slot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '19:00',
+      codigoQR: reservation.qrCodes[0]?.qrToken || generateQRCode(),
+      asistenciaActual: reservation.qrCodes[0]?.scanCount || 0,
+      estado: mapPrismaStatusToReserva(reservation.status),
+      fechaCreacion: reservation.createdAt.toISOString(),
+      fechaModificacion: reservation.updatedAt.toISOString(),
+      registroEntradas: []
+    }));
+
+    return NextResponse.json({ 
+      success: true, 
+      reservas 
+    });
+
+  } catch (error) {
+    console.error('Error fetching reservas:', error);
+    return NextResponse.json(
+      { success: false, error: 'Error interno del servidor' },
+      { status: 500 }
+    );
+  }
+}
+      nombre: cliente.nombre,
+      telefono: cliente.telefono || undefined,
+      correo: cliente.correo || undefined
+    },
+    
+    // Fechas
+    reservedAt: reservation.reservedAt.toISOString(),
+    confirmedAt: reservation.confirmedAt?.toISOString(),
+    checkedInAt: reservation.checkedInAt?.toISOString(),
+    completedAt: reservation.completedAt?.toISOString(),
+    cancelledAt: reservation.cancelledAt?.toISOString(),
+    
+    // QR Code info
+    qrToken: qrCode?.qrToken,
+    qrData: qrCode?.qrData,
+    qrExpiresAt: qrCode?.expiresAt?.toISOString(),
+    qrUsedAt: qrCode?.usedAt?.toISOString(),
+    scanCount: qrCode?.scanCount || 0,
+    
+    // Campos de compatibilidad con el ejemplo
+    numeroPersonas: reservation.guestCount,
+    razonVisita: reservation.specialRequests || 'Reserva general',
+    beneficiosReserva: reservation.notes || 'Sin beneficios especiales',
+    promotor: {
+      id: service?.id || 'default',
+      nombre: service?.name || 'Servicio General'
+    },
+    fecha: slot ? new Date(slot.date).toISOString().split('T')[0] : '',
+    hora: slot?.startTime ? new Date(slot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '19:00',
+    codigoQR: qrCode?.qrToken || '',
+    asistenciaActual: qrCode?.scanCount || 0,
+    estado: reservation.status,
+    fechaCreacion: reservation.reservedAt.toISOString(),
+    fechaModificacion: reservation.updatedAt.toISOString(),
+    registroEntradas: [] // TODO: implementar desde audit logs
+  };
+}
+
+// GET /api/reservas - Obtener todas las reservas del negocio
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.businessId) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    const businessId = session.user.businessId;
+    const { searchParams } = new URL(request.url);
+    const fecha = searchParams.get('fecha'); // YYYY-MM-DD opcional
+
+    const whereClause: any = { businessId };
+
+    // Filtrar por fecha si se proporciona
+    if (fecha) {
+      const startDate = new Date(fecha);
+      const endDate = new Date(fecha);
+      endDate.setDate(endDate.getDate() + 1);
+
+      whereClause.slot = {
+        date: {
+          gte: startDate,
+          lt: endDate
+        }
+      };
+    }
+
+    const reservations = await prisma.reservation.findMany({
+      where: whereClause,
+      include: {
+        cliente: true,
+        service: true,
+        slot: true,
+        qrCodes: {
+          where: { status: 'ACTIVE' },
+          take: 1
+        }
+      },
+      orderBy: [
+        { slot: { date: 'desc' } },
+        { slot: { startTime: 'desc' } }
+      ]
+    });
+
+    const reservas = await Promise.all(
+      reservations.map(mapReservationToReserva)
+    );
+
+    return NextResponse.json(reservas);
+
+  } catch (error) {
+    console.error('Error obteniendo reservas:', error);
+    return NextResponse.json(
+      { error: 'Error interno del servidor' },
+      { status: 500 }
+    );
+  }
+}
+
+// POST /api/reservas - Crear nueva reserva
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.businessId) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    const businessId = session.user.businessId;
+    const body: CrearReservaRequest = await request.json();
+
+    // Validaciones básicas
+    if (!body.customerName || !body.customerEmail || !body.guestCount) {
+      return NextResponse.json(
+        { error: 'Faltan campos obligatorios' },
+        { status: 400 }
+      );
+    }
+
+    // Buscar o crear servicio por defecto
+    let service = await prisma.reservationService.findFirst({
+      where: { businessId, isActive: true }
+    });
+
+    if (!service) {
+      // Crear servicio por defecto
+      service = await prisma.reservationService.create({
+        data: {
+          businessId,
+          name: 'Servicio General',
+          description: 'Servicio de reservas general',
+          capacity: 50,
+          duration: 120,
+          isActive: true
+        }
+      });
+    }
+
+    // Buscar o crear slot para la fecha/hora
+    const slotDate = new Date(body.fecha);
+    const [hours, minutes] = body.hora.split(':').map(Number);
+    const startTime = new Date(slotDate);
+    startTime.setHours(hours, minutes, 0, 0);
+    
+    const endTime = new Date(startTime);
+    endTime.setHours(endTime.getHours() + 2); // 2 horas por defecto
+
+    let slot = await prisma.reservationSlot.findFirst({
+      where: {
+        businessId,
+        serviceId: service.id,
+        date: slotDate,
+        startTime: startTime
+      }
+    });
+
+    if (!slot) {
+      // Crear slot
+      slot = await prisma.reservationSlot.create({
+        data: {
+          businessId,
+          serviceId: service.id,
+          date: slotDate,
+          startTime: startTime,
+          endTime: endTime,
+          capacity: 50,
+          status: 'AVAILABLE'
+        }
+      });
+    }
+
+    // Buscar o crear cliente
+    let cliente;
+    if (body.clienteId) {
+      cliente = await prisma.cliente.findUnique({
+        where: { id: body.clienteId }
+      });
+    }
+
+    if (!cliente) {
+      // Buscar por email
+      cliente = await prisma.cliente.findFirst({
+        where: {
+          businessId,
+          correo: body.customerEmail
+        }
+      });
+
+      if (!cliente) {
+        // Crear nuevo cliente
+        cliente = await prisma.cliente.create({
+          data: {
+            businessId,
+            cedula: `CLI-${Date.now()}`, // Temporal
+            nombre: body.customerName,
+            correo: body.customerEmail,
+            telefono: body.customerPhone || ''
+          }
+        });
+      }
+    }
+
+    // Generar número de reserva único
+    const reservationCount = await prisma.reservation.count({
+      where: { businessId }
+    });
+    const reservationNumber = `RES-${new Date().getFullYear()}-${String(reservationCount + 1).padStart(3, '0')}`;
+
+    // Crear la reserva
+    const reservation = await prisma.reservation.create({
+      data: {
+        businessId,
+        clienteId: cliente.id,
+        serviceId: service.id,
+        slotId: slot.id,
+        reservationNumber,
+        status: 'CONFIRMED',
+        guestCount: body.guestCount,
+        customerName: body.customerName,
+        customerEmail: body.customerEmail,
+        customerPhone: body.customerPhone,
+        specialRequests: body.specialRequests || body.razonVisita,
+        notes: body.notes || body.beneficiosReserva
+      },
+      include: {
+        cliente: true,
+        service: true,
+        slot: true
+      }
+    });
+
+    // Crear código QR
+    const qrToken = generateQRToken();
+    const qrData = JSON.stringify({
+      reservationId: reservation.id,
+      businessId,
+      qrToken
+    });
+
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24); // 24 horas de validez
+
+    await prisma.reservationQRCode.create({
+      data: {
+        businessId,
+        reservationId: reservation.id,
+        qrToken,
+        qrData,
+        status: 'ACTIVE',
+        expiresAt
+      }
+    });
+
+    // Mapear y retornar la reserva creada
+    const reservaCompleta = await prisma.reservation.findUnique({
+      where: { id: reservation.id },
+      include: {
+        cliente: true,
+        service: true,
+        slot: true,
+        qrCodes: {
+          where: { status: 'ACTIVE' },
+          take: 1
+        }
+      }
+    });
+
+    const reserva = await mapReservationToReserva(reservaCompleta);
+
+    return NextResponse.json(reserva, { status: 201 });
+
+  } catch (error) {
+    console.error('Error creando reserva:', error);
+    return NextResponse.json(
+      { error: 'Error interno del servidor' },
+      { status: 500 }
+    );
+  }
+}

@@ -119,12 +119,13 @@ function generateId(): string {
 
 // Función para almacenamiento temporal de transacciones
 async function saveTransactionToDatabase(
-  _: TransaccionAnalizada
+  transaccion: TransaccionAnalizada
 ): Promise<void> {
   // En un MVP, guardamos en memoria/localStorage simulado
   // En producción: implementar guardado real en PostgreSQL/MongoDB
 
-  // Se ha eliminado console.log por recomendación de SonarQube
+  // TODO: Implementar guardado real en base de datos
+  console.log('Guardando transacción:', transaccion.id);
 
   // Simular delay de base de datos
   await new Promise(resolve => setTimeout(resolve, 100));

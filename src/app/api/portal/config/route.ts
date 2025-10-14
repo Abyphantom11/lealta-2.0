@@ -1,42 +1,99 @@
-import { NextResponse, NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
+// Configurar como ruta dinámica
+export const dynamic = 'force-dynamic';
+
+// API pública para obtener configuración del portal (solo lectura)
 export async function GET(request: NextRequest) {
   try {
-    // Obtener businessId del query param para rutas públicas
-    const url = new URL(request.url);
-    const businessId = url.searchParams.get('businessId') || 'default';
+    const { searchParams } = new URL(request.url);
+    const businessId = searchParams.get('businessId') || 'default';
+    const simulateDay = searchParams.get('simulateDay');
     
-    console.log(`📋 Portal config request for business: ${businessId}`);
     
-    // Usar archivo específico del negocio si existe
-    let configPath = path.join(process.cwd(), `portal-config-${businessId}.json`);
+    // Leer configuración desde archivo JSON
+    const configPath = path.join(process.cwd(), 'config', 'portal', `portal-config-${businessId}.json`);
     
-    // Fallback al archivo general si no existe el específico
     if (!fs.existsSync(configPath)) {
-      configPath = path.join(process.cwd(), 'portal-config.json');
-      console.log(`⚠️ Business portal config not found for ${businessId}, using fallback`);
-    } else {
-      console.log(`✅ Using business-specific portal config for ${businessId}`);
+      // Devolver configuración por defecto
+      return NextResponse.json({
+        success: true,
+        data: {
+          nombreEmpresa: 'Mi Negocio',
+          tarjetas: [],
+          nivelesConfig: {},
+          banners: [],
+          promociones: [],
+          recompensas: [],
+          sectionTitles: {
+            banners: 'Ofertas Especiales',
+            promociones: 'Promociones', 
+            recompensas: 'Recompensas',
+            tarjetas: 'Beneficios'
+          }
+        }
+      });
     }
 
-    if (!fs.existsSync(configPath)) {
-      return NextResponse.json(
-        { error: 'Archivo de configuración no encontrado' },
-        { status: 404 }
-      );
+    const fileContent = fs.readFileSync(configPath, 'utf8');
+    const config = JSON.parse(fileContent);
+
+    // Si hay simulación de día, aplicar configuración específica
+    if (simulateDay) {
+      const dayConfig = config.dayConfigs?.[simulateDay];
+      if (dayConfig) {
+        // Aplicar configuración del día simulado
+        Object.assign(config, dayConfig);
+      }
     }
 
-    const configData = fs.readFileSync(configPath, 'utf8');
-    const config = JSON.parse(configData);
+    // Estructura de respuesta consistente
+    const responseData = {
+      nombreEmpresa: config.nombreEmpresa || 'Mi Negocio',
+      tarjetas: config.tarjetas || [],
+      nivelesConfig: config.nivelesConfig || {},
+      banners: config.banners || [],
+      promociones: config.promociones || [],
+      recompensas: config.recompensas || [],
+      sectionTitles: config.sectionTitles || {
+        banners: 'Ofertas Especiales',
+        promociones: 'Promociones',
+        recompensas: 'Recompensas', 
+        tarjetas: 'Beneficios'
+      },
+      favoritoDelDia: config.favoritoDelDia || null,
+      // Solo incluir datos públicos, no datos sensibles de admin
+      lastUpdated: config.lastUpdated || new Date().toISOString()
+    };
 
-    console.log(`📋 Portal config loaded for business ${businessId}`);
-    return NextResponse.json(config);
+    return NextResponse.json({
+      success: true,
+      data: responseData
+    });
+
   } catch (error) {
-    console.error('Error leyendo configuración del portal:', error);
+    console.error('❌ Error in portal config público:', error);
     return NextResponse.json(
-      { error: 'Error leyendo configuración del portal' },
+      { 
+        success: false, 
+        error: 'Error interno del servidor',
+        data: {
+          nombreEmpresa: 'Mi Negocio',
+          tarjetas: [],
+          nivelesConfig: {},
+          banners: [],
+          promociones: [],
+          recompensas: [],
+          sectionTitles: {
+            banners: 'Ofertas Especiales',
+            promociones: 'Promociones',
+            recompensas: 'Recompensas',
+            tarjetas: 'Beneficios'
+          }
+        }
+      },
       { status: 500 }
     );
   }

@@ -238,27 +238,6 @@ export default function SuperAdminDashboard() {
           </button>
         </div>
 
-        {/* Alerts */}
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-red-500/20 border border-red-500 text-red-100 px-4 py-3 rounded-lg mb-6"
-          >
-            {error}
-          </motion.div>
-        )}
-
-        {success && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-green-500/20 border border-green-500 text-green-100 px-4 py-3 rounded-lg mb-6"
-          >
-            {success}
-          </motion.div>
-        )}
-
         {/* Create User Form */}
         {showCreateForm && (
           <motion.div

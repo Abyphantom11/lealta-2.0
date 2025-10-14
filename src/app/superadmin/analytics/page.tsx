@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { AnalyticsData, TransaccionAnalizada } from '@/types/analytics';
 import {
   BarChart,
@@ -42,6 +42,11 @@ export default function SuperAdminAnalytics() {
   const loadAnalyticsData = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
+      // Simular un delay mínimo para mostrar el skeleton
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       // En MVP: datos mock, en producción: await fetch('/api/analytics/dashboard')
       const mockData: AnalyticsData = {
         transaccionesHoy: 47,
@@ -149,12 +154,61 @@ export default function SuperAdminAnalytics() {
     }
   };
 
+  // Memoización de datos de gráficos para optimizar performance
+  const chartData = useMemo(() => {
+    if (!analytics) return { productosData: [], ventasData: [] };
+    
+    return {
+      productosData: analytics.productosTop || [],
+      ventasData: analytics.ventasPorHora || []
+    };
+  }, [analytics]);
+
+  // Mostrar loading skeleton mientras cargan los datos
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Cargando analytics...</p>
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              📊 Analytics Super Admin
+            </h1>
+            <p className="text-gray-600">
+              Dashboard inteligente con análisis automático de POS
+            </p>
+          </div>
+
+          {/* Loading Skeleton */}
+          <div className="space-y-6">
+            {/* Skeleton para métricas */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={`metric-skeleton-${i}`} className="bg-white rounded-lg shadow-sm p-6">
+                  <div className="flex items-center">
+                    <div className="bg-gray-200 rounded-full w-12 h-12 mr-4 animate-pulse"></div>
+                    <div className="space-y-2">
+                      <div className="bg-gray-200 h-4 w-24 rounded animate-pulse"></div>
+                      <div className="bg-gray-300 h-6 w-16 rounded animate-pulse"></div>
+                      <div className="bg-gray-200 h-3 w-20 rounded animate-pulse"></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Skeleton para gráficos */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {[...Array(2)].map((_, i) => (
+                <div key={`chart-skeleton-${i}`} className="bg-white p-6 rounded-lg shadow-sm">
+                  <div className="bg-gray-200 h-6 w-40 rounded mb-4 animate-pulse"></div>
+                  <div className="bg-gray-100 h-64 rounded animate-pulse flex items-center justify-center">
+                    <div className="text-gray-400">📊</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -220,34 +274,53 @@ export default function SuperAdminAnalytics() {
           </div>
         </div>
 
+        {/* Error State */}
+        {error && !loading && (
+          <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+            <div className="text-red-500 text-6xl mb-4">⚠️</div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Error cargando datos</h3>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <button
+              onClick={() => {
+                setError(null);
+                loadAnalyticsData();
+                loadRecentTransactions();
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              🔄 Reintentar
+            </button>
+          </div>
+        )}
+
         {analytics && (
           <>
             {/* Métricas Principales */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <MetricCard
                 title="Transacciones Hoy"
-                value={analytics.transaccionesHoy}
-                subtitle={`+${analytics.transaccionesHoy - analytics.transaccionesAyer} vs ayer`}
+                value={analytics.transaccionesHoy || 0}
+                subtitle={`+${(analytics.transaccionesHoy || 0) - (analytics.transaccionesAyer || 0)} vs ayer`}
                 icon="📊"
                 color="blue"
               />
               <MetricCard
                 title="Puntos Generados"
-                value={analytics.puntosGenerados.toLocaleString()}
+                value={(analytics.puntosGenerados || 0).toLocaleString()}
                 subtitle="Total del día"
                 icon="⭐"
                 color="yellow"
               />
               <MetricCard
                 title="Ingresos Totales"
-                value={`$${analytics.ingresosTotales.toLocaleString()}`}
+                value={`$${(analytics.ingresosTotales || 0).toLocaleString()}`}
                 subtitle="Pesos mexicanos"
                 icon="💰"
                 color="green"
               />
               <MetricCard
                 title="Promedio/Transacción"
-                value={`$${Math.round(analytics.ingresosTotales / analytics.transaccionesHoy)}`}
+                value={`$${analytics.transaccionesHoy > 0 ? Math.round((analytics.ingresosTotales || 0) / analytics.transaccionesHoy) : 0}`}
                 subtitle="Ticket promedio"
                 icon="🎯"
                 color="purple"
@@ -262,17 +335,29 @@ export default function SuperAdminAnalytics() {
                   🏆 Productos Más Vendidos
                 </h3>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={analytics.productosTop}>
+                  <BarChart data={chartData.productosData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis
                       dataKey="nombre"
                       angle={-45}
                       textAnchor="end"
                       height={100}
+                      interval={0}
                     />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="ventas" fill="#3B82F6" />
+                    <YAxis 
+                      domain={[0, 'dataMax + 5']}
+                    />
+                    <Tooltip 
+                      formatter={(value: any, name: string) => [
+                        typeof value === 'number' && !isNaN(value) ? value : 0,
+                        name
+                      ]}
+                    />
+                    <Bar 
+                      dataKey="ventas" 
+                      fill="#3B82F6"
+                      radius={[4, 4, 0, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -283,16 +368,32 @@ export default function SuperAdminAnalytics() {
                   ⏰ Ventas por Hora
                 </h3>
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={analytics.ventasPorHora}>
+                  <LineChart data={chartData.ventasData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="hora" />
-                    <YAxis />
-                    <Tooltip />
+                    <XAxis 
+                      dataKey="hora"
+                      domain={[8, 20]}
+                      type="number"
+                      scale="linear"
+                      tickFormatter={(value) => `${value}:00`}
+                    />
+                    <YAxis 
+                      domain={[0, 'dataMax + 2']}
+                    />
+                    <Tooltip 
+                      formatter={(value: any, name: string) => [
+                        typeof value === 'number' && !isNaN(value) ? value : 0,
+                        name
+                      ]}
+                      labelFormatter={(hour) => `${hour}:00`}
+                    />
                     <Line
                       type="monotone"
                       dataKey="ventas"
                       stroke="#10B981"
-                      strokeWidth={2}
+                      strokeWidth={3}
+                      dot={{ fill: '#10B981', strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 6, stroke: '#10B981', strokeWidth: 2 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>

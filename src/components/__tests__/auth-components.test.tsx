@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { vi } from 'vitest';
 
 // Mock authentication hook interface
 interface User {
@@ -23,25 +24,25 @@ interface AuthHook {
 let mockAuthState: AuthHook = {
   user: null,
   loading: false,
-  signIn: jest.fn(),
-  signOut: jest.fn(),
-  checkSession: jest.fn(),
+  signIn: vi.fn(),
+  signOut: vi.fn(),
+  checkSession: vi.fn(),
 };
 
 const useAuth = (): AuthHook => mockAuthState;
 
 // Mock Next.js router
-const mockPush = jest.fn();
-jest.mock('next/navigation', () => ({
+const mockPush = vi.fn();
+vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
-    replace: jest.fn(),
-    prefetch: jest.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
   }),
 }));
 
 // Mock fetch
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 // Simple test component that uses authentication
 const TestAuthComponent = () => {
@@ -71,17 +72,17 @@ const TestAuthComponent = () => {
 
 describe('Authentication Components', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockPush.mockClear();
-    (fetch as jest.MockedFunction<typeof fetch>).mockClear();
+    (fetch as any).mockClear();
     
     // Reset mock state
     mockAuthState = {
       user: null,
       loading: false,
-      signIn: jest.fn(),
-      signOut: jest.fn(),
-      checkSession: jest.fn(),
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+      checkSession: vi.fn(),
     };
   });
 
@@ -89,9 +90,9 @@ describe('Authentication Components', () => {
     mockAuthState = {
       user: null,
       loading: true,
-      signIn: jest.fn(),
-      signOut: jest.fn(),
-      checkSession: jest.fn(),
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+      checkSession: vi.fn(),
     };
 
     render(<TestAuthComponent />);
@@ -102,9 +103,9 @@ describe('Authentication Components', () => {
     mockAuthState = {
       user: null,
       loading: false,
-      signIn: jest.fn(),
-      signOut: jest.fn(),
-      checkSession: jest.fn(),
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+      checkSession: vi.fn(),
     };
 
     render(<TestAuthComponent />);
@@ -124,9 +125,9 @@ describe('Authentication Components', () => {
     mockAuthState = {
       user: mockUser,
       loading: false,
-      signIn: jest.fn(),
-      signOut: jest.fn(),
-      checkSession: jest.fn(),
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+      checkSession: vi.fn(),
     };
 
     render(<TestAuthComponent />);
@@ -136,13 +137,13 @@ describe('Authentication Components', () => {
   });
 
   it('should call signIn when Sign In button is clicked', async () => {
-    const mockSignIn = jest.fn();
+    const mockSignIn = vi.fn();
     mockAuthState = {
       user: null,
       loading: false,
       signIn: mockSignIn,
-      signOut: jest.fn(),
-      checkSession: jest.fn(),
+      signOut: vi.fn(),
+      checkSession: vi.fn(),
     };
 
     render(<TestAuthComponent />);
@@ -154,7 +155,7 @@ describe('Authentication Components', () => {
   });
 
   it('should call signOut when Sign Out button is clicked', async () => {
-    const mockSignOut = jest.fn();
+    const mockSignOut = vi.fn();
     const mockUser = {
       id: '1',
       name: 'John Doe',
@@ -166,9 +167,9 @@ describe('Authentication Components', () => {
     mockAuthState = {
       user: mockUser,
       loading: false,
-      signIn: jest.fn(),
+      signIn: vi.fn(),
       signOut: mockSignOut,
-      checkSession: jest.fn(),
+      checkSession: vi.fn(),
     };
 
     render(<TestAuthComponent />);

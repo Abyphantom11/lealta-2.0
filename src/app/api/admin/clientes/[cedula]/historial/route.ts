@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { EstadisticasMensual } from '../../../../../../types/api-routes';
+import { withAuth } from '../../../../../../middleware/requireAuth';
 
 const prisma = new PrismaClient();
 
@@ -8,40 +9,46 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { cedula: string } }
 ) {
-  try {
-    // ✅ AUTENTICACIÓN RESTAURADA - Usar middleware unificado
-    const { requireAuth } = await import('../../../../../../lib/auth/unified-middleware');
-    
-    const auth = await requireAuth(request, {
-      role: 'ADMIN',
-      permission: 'clients.manage',
-      allowSuperAdmin: true
-    });
+  // Configuración específica para SuperAdmin
+  const authConfig = {
+    requiredPermission: 'read',
+    allowedRoles: ['superadmin', 'admin', 'staff'] as const,
+    requireBusinessOwnership: false, // SuperAdmin puede acceder a cualquier business
+    logAccess: true
+  };
 
-    if (auth.error) {
-      return auth.error;
-    }
+  return withAuth(request, async (session) => {
+    try {
+      console.log('✅ Usuario autenticado:', {
+        userId: session.userId,
+        userRole: session.role,
+        businessId: session.businessId,
+        cedula: params.cedula,
+      });
 
-    const { user } = auth;
-    console.log('✅ Usuario autenticado:', {
-      userId: user.id,
-      userRole: user.role,
-      businessId: user.businessId,
-      cedula: params.cedula,
-    });
+      const { cedula } = params;
 
-    const { cedula } = params;
+      // SuperAdmin: Si no tiene businessId, usar el especificado en query params
+      // Admins normales: Solo su business
+      const targetBusinessId = session.role === 'superadmin' 
+        ? (request.nextUrl.searchParams.get('businessId') || session.businessId)
+        : session.businessId;
 
-    if (!cedula) {
-      return NextResponse.json({ error: 'Cédula requerida' }, { status: 400 });
-    }
+      if (!cedula) {
+        return NextResponse.json({ error: 'Cédula requerida' }, { status: 400 });
+      }
 
-    // Buscar cliente (filtrado por business del usuario autenticado)
-    const cliente = await prisma.cliente.findFirst({
-      where: { 
+      // Construir filtros de búsqueda - SIEMPRE incluir businessId para isolation
+      const whereCondition: any = { 
         cedula,
-        businessId: user.businessId // ✅ Filtrar por business del usuario
-      },
+        businessId: targetBusinessId // ✅ SIEMPRE filtrar por business para isolation
+      };
+
+      console.log('🔍 Condiciones de búsqueda:', whereCondition);
+
+    // Buscar cliente
+    const cliente = await prisma.cliente.findFirst({
+      where: whereCondition,
       include: {
         tarjetaLealtad: true, // ✨ Agregar información de tarjeta de lealtad
         consumos: {
@@ -229,4 +236,5 @@ export async function GET(
   } finally {
     await prisma.$disconnect();
   }
+  }, authConfig);
 }

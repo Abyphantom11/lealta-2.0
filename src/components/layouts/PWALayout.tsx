@@ -1,37 +1,21 @@
 'use client';
 
 import { useEffect } from 'react';
-import { initializePWA } from '@/services/pwaService';
-import PWAInstallPrompt from '@/components/ui/PWAInstallPrompt';
 
 interface PWALayoutProps {
-  children: React.ReactNode;
-  showInstallPrompt?: boolean;
-  promptPosition?: 'top' | 'bottom' | 'floating';
+  readonly children: React.ReactNode;
 }
 
-export default function PWALayout({ 
-  children, 
-  showInstallPrompt = true, 
-  promptPosition = 'bottom' 
-}: PWALayoutProps) {
+export default function PWALayout({ children }: PWALayoutProps) {
   useEffect(() => {
-    // Inicializar PWA cuando el componente se monta
-    initializePWA();
+    // ✅ PWA COMPLETAMENTE DESHABILITADO
+    // initializePWA(); // COMENTADO - NO INICIALIZAR PWA
   }, []);
 
   return (
     <>
       {children}
-      
-      {/* PWA Install Prompt global */}
-      {showInstallPrompt && (
-        <PWAInstallPrompt 
-          variant="auto" 
-          showOnLogin={false} 
-          position={promptPosition} 
-        />
-      )}
+      {/* PWA Install Prompt deshabilitado - funcionalidad removida temporalmente */}
     </>
   );
 }

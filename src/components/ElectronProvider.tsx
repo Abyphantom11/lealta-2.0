@@ -53,68 +53,37 @@ export function ElectronProvider({
 }: Readonly<{ children: React.ReactNode }>) {
   const { isElectron } = useElectron();
   
-  // 🔥 VERIFICAR SI ESTAMOS EN UNA RUTA PÚBLICA ANTES DE USAR AUTH
-  const [isPublicRoute, setIsPublicRoute] = useState(true); // Por defecto público para evitar flash
-  const [authData, setAuthData] = useState<any>(null);
+  // 🔥 DESHABILITAR useAuth COMPLETAMENTE EN ElectronProvider
+  // useAuth se ejecutará solo en páginas que realmente lo necesiten
+  // No en layout global que afecta todas las rutas
   
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const currentPath = window.location.pathname;
-      const isClientPublicRoute = /^\/[a-zA-Z0-9_-]+\/cliente(\/|$)/.test(currentPath);
-      const isGeneralPublicRoute = ['/', '/login', '/signup', '/register', '/demo', '/pricing', '/about', '/terms', '/privacy', '/contact', '/help', '/support', '/docs'].includes(currentPath);
-      const isPublic = isClientPublicRoute || isGeneralPublicRoute;
-      setIsPublicRoute(isPublic);
-      
-      // Solo hacer verificación de auth si NO es ruta pública
-      if (!isPublic) {
-        // Llamar a auth manualmente para rutas protegidas
-        const checkAuth = async () => {
-          try {
-            const response = await fetch('/api/auth/me');
-            if (response.ok) {
-              const userData = await response.json();
-              setAuthData(userData);
-            }
-          } catch (error) {
-            console.log('Auth check failed in ElectronProvider:', error);
-          }
-        };
-        checkAuth();
-      }
-    }
-  }, []);
-  
-  // Solo usar los datos de auth si NO estamos en una ruta pública
-  const user = isPublicRoute ? null : authData?.user;
+  // � Por ahora, sin autenticación global en ElectronProvider
+  const user = null;
 
-  // Función helper para obtener URLs con slug correcto
+  // Función helper para obtener URLs (simplificada sin auth)
   const getUrlWithSlug = useCallback((path: string): string => {
-    if (!user?.business) {
-      console.warn('No hay business disponible para redirección');
-      return '/login'; // Fallback a login si no hay business
-    }
-    
-    // Usar subdomain como slug principal (ajustar según tu estructura)
-    const slug = user.business.subdomain;
-    return `/${slug}${path}`;
-  }, [user]);
+    // Para ElectronProvider simplificado, usar rutas genéricas
+    // La autenticación será manejada por cada página individualmente
+    console.warn('ElectronProvider: Sin business disponible, usando ruta genérica para:', path);
+    return '/login'; // Fallback a login
+  }, []);
 
   useEffect(() => {
-    if (isElectron && window.electronAPI && user) {
-      // Listen for menu actions
+    if (isElectron && window.electronAPI) {
+      // Listen for menu actions - simplificado sin auth
       window.electronAPI.onMenuAction((event, action) => {
         switch (action) {
           case 'new-client':
-            window.location.href = getUrlWithSlug('/admin'); // ✅ Con slug correcto
+            window.location.href = '/login'; // Redirect genérico
             break;
           case 'capture-consumption':
-            window.location.href = getUrlWithSlug('/staff');
+            window.location.href = '/login';
             break;
           case 'dashboard':
-            window.location.href = getUrlWithSlug('/admin'); // ✅ Con slug correcto
+            window.location.href = '/login'; 
             break;
           case 'reports':
-            window.location.href = getUrlWithSlug('/superadmin');
+            window.location.href = '/login';
             break;
           default:
             // Unknown menu action - silent fallback

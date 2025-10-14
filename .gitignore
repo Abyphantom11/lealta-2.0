@@ -38,8 +38,26 @@ lerna-debug.log*
 # Local env files (keep .env.example for reference)
 .env
 .env*.local
+.env.production
 .env.postgres
+.env.neon
+.env.development
+.env.staging
+.env.optimization
+.env.free-hosting
 !.env.example
+!.env.production.template
+!.env.postgres.template
+!.env.optimization.template
+!.env.free-hosting.template
+
+# Security: Files with real credentials
+VERCEL_ENV_VARIABLES.txt
+VERCEL_ENV_VARS.txt
+SECURITY_INCIDENT_REPORT.md
+BLOB_STORAGE_RESOLUTION_COMPLETE.md
+test-prod-connection.js
+vercel-build-fix.js
 
 # Vercel
 .vercel
@@ -164,6 +182,8 @@ dist
 # Uploads
 public/uploads/*
 !public/uploads/.gitkeep
+!public/uploads/*/
+!public/uploads/*/.gitkeep
 
 # SonarQube
 .sonarqube/
@@ -172,3 +192,6 @@ public/uploads/*
 # Temporary files
 *.tmp
 *.temp
+
+# Sentry Config File
+.env.sentry-build-plugin

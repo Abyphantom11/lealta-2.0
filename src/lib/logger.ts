@@ -14,10 +14,10 @@ interface LogEntry {
 
 // Configuración del logger
 const config = {
-  // Nivel mínimo que se mostrará - en producción suele ser 'info' o superior
-  minLevel: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
-  // Habilitar/deshabilitar completamente el logging
-  enabled: true,
+  // Nivel mínimo que se mostrará - en producción suele ser 'warn' o superior  
+  minLevel: process.env.NODE_ENV === 'production' ? 'warn' : 'debug',
+  // Habilitar/deshabilitar completamente el logging en producción
+  enabled: process.env.NODE_ENV !== 'production',
   // Colores para los diferentes niveles (solo en desarrollo)
   colors: {
     debug: '#6b7280',
@@ -64,9 +64,13 @@ function createLogEntry(
 /**
  * Guarda entrada de log (placeholder para futura integración con servicios)
  */
-function saveLogEntry(_entry: LogEntry): void {
+function saveLogEntry(entry: LogEntry): void {
   // En el futuro aquí podríamos enviar logs a un servicio externo
-  // Por ahora es solo un placeholder
+  // Por ahora solo validamos en desarrollo
+  if (process.env.NODE_ENV === 'development' && entry) {
+    // Podrías guardar en localStorage, IndexedDB, o enviar a un servicio
+    // localStorage.setItem(`log-${entry.timestamp}`, JSON.stringify(entry));
+  }
 }
 
 /**

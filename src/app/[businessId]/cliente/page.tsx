@@ -3,7 +3,10 @@
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { BrandingProvider } from '../../cliente/components/branding/BrandingProvider';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import AuthHandler from '../../cliente/components/AuthHandler';
+import DynamicManifest from '@/components/DynamicManifest';
+import IOSInstallWrapper from '@/components/ios/IOSInstallWrapper';
 
 /**
  * Página dinámica del portal cliente
@@ -11,7 +14,7 @@ import AuthHandler from '../../cliente/components/AuthHandler';
  */
 export default function BusinessClientePage() {
   const params = useParams();
-  const businessSlug = params.businessId as string; // Slug de la URL
+  const businessSlug = params?.businessId as string; // Slug de la URL
   const [businessData, setBusinessData] = useState<any>(null); // Datos completos del business
   const [isValidBusiness, setIsValidBusiness] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -20,16 +23,12 @@ export default function BusinessClientePage() {
     // Validar que el businessId existe y es válido
     const validateBusiness = async () => {
       try {
-        console.log(`🔍 Cliente - Validating business for: ${businessSlug}`);
-        
         const response = await fetch(`/api/businesses/${businessSlug}/validate`);
         if (response.ok) {
           const businessInfo = await response.json();
-          console.log(`✅ Cliente - Business validated:`, businessInfo);
           setBusinessData(businessInfo); // Guardar datos completos incluido el ID real
           setIsValidBusiness(true);
         } else {
-          console.log(`❌ Cliente - Business validation failed: ${businessSlug}`);
           window.location.href = `/login?error=invalid-business&message=El negocio no es válido o no existe`;
         }
       } catch (error) {
@@ -48,13 +47,13 @@ export default function BusinessClientePage() {
     }
   }, [businessSlug]);
 
-  // Loading state
+  // Loading state - mostrar loading optimizado
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-100">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando portal cliente {businessSlug}...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-300 text-sm">Validando negocio...</p>
         </div>
       </div>
     );
@@ -62,10 +61,14 @@ export default function BusinessClientePage() {
 
   // Business context válido - usar el portal completo
   if (isValidBusiness && businessData) {
-    console.log('✅ Rendering client with business data:', businessData);
     return (
       <BrandingProvider businessId={businessData.id}>
-        <AuthHandler businessId={businessData.id} />
+        <ThemeProvider businessId={businessData.id}>
+          <DynamicManifest businessSlug={businessSlug} />
+          {/* ✅ Guía de instalación iOS - solo se muestra después de login */}
+          <IOSInstallWrapper businessName={businessData.name} />
+          <AuthHandler businessId={businessData.id} />
+        </ThemeProvider>
       </BrandingProvider>
     );
   }

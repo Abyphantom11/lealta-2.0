@@ -1,76 +1,89 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { PrismaClient } from '@prisma/client';
+import { getBusinessIdFromRequest } from '@/lib/business-utils';
 
-const BRANDING_FILE = path.join(process.cwd(), 'branding-config.json');
+const prisma = new PrismaClient();
 
 export async function GET(request: NextRequest) {
   try {
-    // 🔥 CRÍTICO: Obtener businessId para business isolation
-    const url = new URL(request.url);
-    const businessId = url.searchParams.get('businessId') || 'default';
+    // console.log('🎨 GET /api/branding - Request received');
     
-    console.log(`🎨 Branding request for business: ${businessId}`);
+    // 🔥 CRÍTICO: Obtener businessId del query param (para rutas públicas) o headers (para rutas autenticadas)
+    const queryBusinessId = request.nextUrl.searchParams.get('businessId');
+    const headerBusinessId = getBusinessIdFromRequest(request);
     
-    // Usar archivo específico del negocio
-    const businessBrandingFile = path.join(process.cwd(), `branding-config-${businessId}.json`);
-    const fallbackBrandingFile = BRANDING_FILE; // branding-config.json
+    const businessId = queryBusinessId || headerBusinessId;
     
-    let brandingFile = businessBrandingFile;
+    // console.log('🎨 GET - BusinessId sources:', {
+    //   queryBusinessId,
+    //   headerBusinessId,
+    //   finalBusinessId: businessId,
+    //   fullUrl: request.url
+    // });
     
-    // Si no existe el archivo específico, usar el general como fallback
-    if (!fs.existsSync(businessBrandingFile)) {
-      console.log(`⚠️ Business-specific branding not found for ${businessId}, using fallback`);
-      brandingFile = fallbackBrandingFile;
+    if (!businessId) {
+      console.error('❌ GET - Missing business ID');
+      return NextResponse.json(
+        { error: 'Business ID requerido' },
+        { status: 400 }
+      );
+    }
+    
+    // console.log(`🎨 Branding request for business: ${businessId}`);
+    
+    // Obtener información del business
+    const business = await prisma.business.findUnique({
+      where: { id: businessId }
+    });
+
+    if (!business) {
+      return NextResponse.json(
+        { 
+          error: 'Negocio no encontrado',
+          businessId: businessId
+        },
+        { status: 404 }
+      );
     }
 
-    if (fs.existsSync(brandingFile)) {
-      const data = fs.readFileSync(brandingFile, 'utf8');
-      const branding = JSON.parse(data);
-      
-      console.log(`✅ Branding loaded for business ${businessId}:`, {
-        businessName: branding.businessName,
-        hasImages: branding.carouselImages?.length > 0
-      });
-      
-      return NextResponse.json(branding);
-    } else {
-      // Si no existe branding-config.json, intentar obtener el nombre desde portal-config específico del business
-      const businessPortalFile = path.join(process.cwd(), `portal-config-${businessId}.json`);
-      const fallbackPortalFile = path.join(process.cwd(), 'portal-config.json');
-      
-      let businessName = 'Mi Empresa'; // Fallback final
-      let portalConfigFile = businessPortalFile;
-      
-      // Intentar archivo específico del business primero
-      if (!fs.existsSync(businessPortalFile)) {
-        portalConfigFile = fallbackPortalFile;
-        console.log(`⚠️ Business portal config not found for ${businessId}, using fallback`);
-      }
+    // console.log(`🎨 GET - Business found:`, {
+    //   id: business.id,
+    //   name: business.name,
+    //   slug: business.slug
+    // });
 
-      try {
-        if (fs.existsSync(portalConfigFile)) {
-          const portalData = fs.readFileSync(portalConfigFile, 'utf8');
-          const portalConfig = JSON.parse(portalData);
-          businessName = portalConfig.nombreEmpresa || businessName;
-          console.log(`📋 Business name from portal config: ${businessName}`);
-        }
-      } catch (portalError) {
-        console.warn('No se pudo leer portal-config.json:', portalError);
-      }
+    // Obtener configuración de branding desde la nueva tabla BrandingConfig
+    const brandingConfig = await prisma.brandingConfig.findUnique({
+      where: { businessId }
+    });
 
-      // Valores por defecto sin imágenes hardcodeadas
-      const defaultBranding = {
-        businessName,
-        primaryColor: '#2563EB',
-        carouselImages: [], // Sin imágenes hasta que el admin las configure
-      };
+    // console.log(`🔍 Branding config from database:`, brandingConfig);
       
-      console.log(`🎨 Default branding created for business ${businessId}:`, defaultBranding);
-      return NextResponse.json(defaultBranding);
-    }
+    const finalConfig = {
+      businessName: brandingConfig?.businessName || business.name || '',
+      primaryColor: brandingConfig?.primaryColor || '#8B5CF6',
+      secondaryColor: brandingConfig?.secondaryColor || '#7C3AED',
+      accentColor: brandingConfig?.accentColor || '#F59E0B',
+      logoUrl: brandingConfig?.logoUrl || '',
+      carouselImages: brandingConfig?.carouselImages || []
+    };
+
+    console.log(`✅ GET - Final branding config:`, {
+      businessName: finalConfig.businessName,
+      primaryColor: finalConfig.primaryColor,
+      carouselImagesCount: finalConfig.carouselImages.length,
+      source: 'database'
+    });
+
+    console.log(`✅ Branding loaded from DATABASE for business ${businessId}:`, {
+      businessName: finalConfig.businessName,
+      carouselImagesCount: finalConfig.carouselImages.length,
+      source: 'database'
+    });
+    
+    return NextResponse.json(finalConfig);
   } catch (error) {
-    console.error('Error loading branding:', error);
+    console.error('Error loading branding from database:', error);
     return NextResponse.json(
       { error: 'Error loading branding' },
       { status: 500 }
@@ -80,29 +93,105 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const branding = await request.json();
+    console.log('🔥 POST /api/branding - Iniciando request');
+    
+    let branding;
+    try {
+      branding = await request.json();
+    } catch (jsonError) {
+      console.error('❌ Error parsing JSON:', jsonError);
+      return NextResponse.json(
+        { error: 'Invalid JSON format' },
+        { status: 400 }
+      );
+    }
+    
+    console.log('📦 Branding data received:', {
+      businessName: branding?.businessName,
+      primaryColor: branding?.primaryColor,
+      carouselImagesCount: branding?.carouselImages?.length || 0,
+      businessIdInBody: branding?.businessId
+    });
+    
+    // 🔥 CRÍTICO: Obtener businessId de múltiples fuentes
+    const queryBusinessId = request.nextUrl.searchParams.get('businessId');
+    const headerBusinessId = getBusinessIdFromRequest(request);
+    const bodyBusinessId = branding?.businessId;
+    
+    // Prioridad: query > header > body
+    const businessId = queryBusinessId || headerBusinessId || bodyBusinessId;
+    
+    console.log('🏢 Business ID sources:', {
+      queryBusinessId,
+      headerBusinessId,
+      bodyBusinessId,
+      finalBusinessId: businessId
+    });
+    
+    if (!businessId) {
+      console.error('❌ Missing business ID from all sources');
+      return NextResponse.json(
+        { error: 'Business ID requerido' },
+        { status: 400 }
+      );
+    }
 
     // Validar datos
     if (!branding.businessName || !branding.primaryColor) {
+      console.error('❌ Missing required fields:', {
+        hasBusinessName: !!branding.businessName,
+        hasPrimaryColor: !!branding.primaryColor
+      });
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    // Asegurar que carouselImages existe como array
-    if (!branding.carouselImages) {
-      branding.carouselImages = [];
+    // Verificar que el business existe
+    const business = await prisma.business.findUnique({
+      where: { id: businessId }
+    });
+
+    if (!business) {
+      console.error('❌ Business not found:', businessId);
+      return NextResponse.json(
+        { error: 'Business not found' },
+        { status: 404 }
+      );
     }
 
-    // Guardar en archivo
-    fs.writeFileSync(BRANDING_FILE, JSON.stringify(branding, null, 2));
+    // Crear o actualizar la configuración de branding
+    const brandingData = {
+      businessId,
+      businessName: branding.businessName,
+      primaryColor: branding.primaryColor,
+      secondaryColor: branding.secondaryColor || '#7C3AED',
+      accentColor: branding.accentColor || '#F59E0B',
+      logoUrl: branding.logoUrl || '',
+      carouselImages: branding.carouselImages || []
+    };
 
-    // Se ha eliminado console.log por recomendación de SonarQube
+    const savedBranding = await prisma.brandingConfig.upsert({
+      where: { businessId },
+      update: brandingData,
+      create: brandingData
+    });
 
-    return NextResponse.json({ success: true, branding });
+    console.log('✅ Branding saved successfully:', {
+      id: savedBranding.id,
+      businessName: savedBranding.businessName,
+      primaryColor: savedBranding.primaryColor,
+      carouselImagesCount: savedBranding.carouselImages.length
+    });
+
+    return NextResponse.json({
+      success: true,
+      branding: savedBranding
+    });
+
   } catch (error) {
-    console.error('Error saving branding:', error);
+    console.error('Error saving branding to database:', error);
     return NextResponse.json(
       { error: 'Error saving branding' },
       { status: 500 }

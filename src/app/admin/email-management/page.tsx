@@ -77,13 +77,12 @@ const EMAIL_TEMPLATES: EmailTemplate[] = [
 ];
 
 export default function EmailManagementPage() {
-  const [activeTemplate, setActiveTemplate] = useState<string>('');
   const [testEmail, setTestEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'system' | 'business' | 'customer'>('all');
 
-  const sendTestEmail = async (templateType: string) => {
+  const sendTestEmail = async () => {
     if (!testEmail) {
       setResult({ success: false, message: 'Por favor ingresa un email de prueba' });
       return;
@@ -260,7 +259,7 @@ export default function EmailManagementPage() {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setActiveTemplate(template.type)}
+                    onClick={() => {/* Ver detalles - funcionalidad futura */}}
                     className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                     title="Ver detalles"
                   >
@@ -287,7 +286,7 @@ export default function EmailManagementPage() {
                 </span>
 
                 <button
-                  onClick={() => sendTestEmail(template.type)}
+                  onClick={() => sendTestEmail()}
                   disabled={isLoading || !testEmail}
                   className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg disabled:opacity-50 transition-all duration-200 flex items-center text-sm"
                 >

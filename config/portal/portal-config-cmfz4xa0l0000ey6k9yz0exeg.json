@@ -1,0 +1,78 @@
+{
+  "tarjetas": [],
+  "nombreEmpresa": "Mi Negocio",
+  "nivelesConfig": {
+    "Bronce": {
+      "colores": {
+        "gradiente": [
+          "#CD7F32",
+          "#8B4513"
+        ]
+      },
+      "textoDefault": "Cliente Inicial",
+      "condiciones": {
+        "puntosMinimos": 0,
+        "gastosMinimos": 0,
+        "visitasMinimas": 0
+      }
+    },
+    "Plata": {
+      "colores": {
+        "gradiente": [
+          "#C0C0C0",
+          "#808080"
+        ]
+      },
+      "textoDefault": "Cliente Frecuente",
+      "condiciones": {
+        "puntosMinimos": 100,
+        "gastosMinimos": 500,
+        "visitasMinimas": 5
+      }
+    },
+    "Oro": {
+      "colores": {
+        "gradiente": [
+          "#FFD700",
+          "#FFA500"
+        ]
+      },
+      "textoDefault": "Cliente VIP",
+      "condiciones": {
+        "puntosMinimos": 500,
+        "gastosMinimos": 1500,
+        "visitasMinimas": 10
+      }
+    },
+    "Diamante": {
+      "colores": {
+        "gradiente": [
+          "#B9F2FF",
+          "#00CED1"
+        ]
+      },
+      "textoDefault": "Cliente Elite",
+      "condiciones": {
+        "puntosMinimos": 1500,
+        "gastosMinimos": 3000,
+        "visitasMinimas": 15
+      }
+    },
+    "Platino": {
+      "colores": {
+        "gradiente": [
+          "#E5E4E2",
+          "#C0C0C0"
+        ]
+      },
+      "textoDefault": "Cliente Exclusivo",
+      "condiciones": {
+        "puntosMinimos": 3000,
+        "gastosMinimos": 5000,
+        "visitasMinimas": 30
+      }
+    }
+  },
+  "lastUpdated": "2025-10-01T08:30:07.664Z",
+  "version": "2.0.0"
+}

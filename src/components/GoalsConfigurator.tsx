@@ -152,15 +152,13 @@ export default function GoalsConfigurator({ onClose, onSave }: Readonly<GoalsCon
         const customEvent = new CustomEvent('goalsUpdated', {
           detail: data.goals
         });
-        console.log('🎯 Disparando evento goalsUpdated:', data.goals);
         window.dispatchEvent(customEvent);
 
         // También forzar un refresh de las estadísticas directamente
         setTimeout(() => {
-          console.log('🔄 Forzando refresh del dashboard después de 500ms');
           window.dispatchEvent(new CustomEvent('forceStatsRefresh'));
           
-          // Forzar reload de la página si es necesario (para debugging)
+          // Reload page if necessary
           if (window.location.href.includes('debug=reload')) {
             window.location.reload();
           }
@@ -184,7 +182,7 @@ export default function GoalsConfigurator({ onClose, onSave }: Readonly<GoalsCon
   };
 
   const updateGoal = (field: keyof BusinessGoals, value: string) => {
-    // Permitir valores vacíos temporalmente para mejor UX
+    // Allow empty values for better UX
     const numericValue = value === '' ? 0 : parseFloat(value) || 0;
     setGoals(prev => ({ ...prev, [field]: numericValue }));
     

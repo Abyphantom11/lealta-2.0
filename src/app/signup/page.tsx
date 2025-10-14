@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from '../../components/motion';
 import {
   Building,
@@ -11,7 +11,6 @@ import {
   User,
   Phone,
   Globe,
-  ArrowLeft,
   Sparkles,
   ArrowRight,
   CheckCircle,
@@ -20,10 +19,11 @@ import {
   Shield,
 } from 'lucide-react';
 import Link from 'next/link';
-import { LealtaLogo } from '../../components/LealtaLogo';
 import { EmailVerificationModal } from '../../components/EmailVerificationModal';
+import AuthHeader from '../../components/ui/AuthHeader';
 
 export default function SignupPage() {
+  const [isMounted, setIsMounted] = useState(false);
   const [formData, setFormData] = useState({
     // Datos de la empresa
     businessName: '',
@@ -41,6 +41,7 @@ export default function SignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   
   // Estados para verificación de email
   const [showVerificationModal, setShowVerificationModal] = useState(false);
@@ -48,12 +49,23 @@ export default function SignupPage() {
   const [verificationId, setVerificationId] = useState('');
   const [requireVerification] = useState(false); // 🚫 TEMPORALMENTE DESACTIVADO - Reactivar después del lanzamiento
 
+  // Solucionar hidratación
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
     // Validaciones básicas
+    if (!acceptedTerms) {
+      setError('Debes aceptar los términos y condiciones para continuar');
+      setIsLoading(false);
+      return;
+    }
+
     if (formData.adminPassword !== formData.confirmPassword) {
       setError('Las contraseñas no coinciden');
       setIsLoading(false);
@@ -83,7 +95,7 @@ export default function SignupPage() {
 
       if (response.ok) {
         // Redirigir al login con mensaje de éxito
-        window.location.href = '/login?message=Empresa registrada exitosamente';
+        window.location.href = '/login?message=Negocio registrado exitosamente';
       } else {
         setError(data.error || 'Error al registrar la empresa');
       }
@@ -110,37 +122,70 @@ export default function SignupPage() {
     }, 100);
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black flex items-center justify-center p-4">
-      {/* Background Elements */}
-      <div className="absolute inset-0 opacity-20">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-emerald-500/20 rounded-full blur-3xl transform -translate-x-1/2 -translate-y-1/2" />
+  // Mostrar contenido estático hasta que esté montado
+  if (!isMounted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black">
+        <AuthHeader showBackButton={true} />
+        <div className="container mx-auto px-4 py-8">
+          <div className="relative w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div className="flex flex-col justify-center space-y-6">
+              <div>
+                <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">
+                  <span className="bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                    Transforma
+                  </span>
+                  <br />
+                  tu negocio hoy
+                </h1>
+                <p className="text-xl text-gray-400 mb-6">
+                  Plataforma de inteligencia comercial diseñada para escalar sin límites
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col justify-center">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold text-white mb-4">Registrar</h2>
+                <p className="text-gray-400">Crea tu cuenta y comienza a gestionar tu negocio</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+    );
+  }
 
-      <div className="relative w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black">
+      {/* Header con navegación optimizada */}
+      <AuthHeader showBackButton={true} />
+
+      {/* Contenido principal */}
+      <div className="flex items-center justify-center p-4 pt-0">
+        {/* Background Elements */}
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl" />
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
+          <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-emerald-500/20 rounded-full blur-3xl transform -translate-x-1/2 -translate-y-1/2" />
+        </div>
+
+        <div className="relative w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
         {/* Left Column - Benefits */}
         <motion.div
           initial={{ opacity: 0, x: -50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8 }}
-          className="space-y-8"
+          className="flex flex-col justify-center space-y-6"
         >
           <div>
-            <LealtaLogo size={60} className="mb-6" animated />
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-              <span className="bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                lealta
-              </span>
-              <br />
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">
               <span className="bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
                 Transforma
               </span>
               <br />
               tu negocio hoy
             </h1>
-            <p className="text-xl text-gray-400 mb-8">
+            <p className="text-xl text-gray-400 mb-6">
               Plataforma de inteligencia comercial diseñada para escalar sin límites
             </p>
           </div>
@@ -172,16 +217,10 @@ export default function SignupPage() {
           initial={{ opacity: 0, x: 50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
+          className="flex flex-col justify-center"
         >
-          <div className="text-center mb-6">
-            <Link
-              href="/"
-              className="inline-flex items-center text-gray-400 hover:text-white mb-4 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Volver al inicio
-            </Link>
-            <h2 className="text-2xl font-bold text-white mb-2">Registrar</h2>
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold text-white mb-4">Registrar</h2>
             <p className="text-gray-400">Crea tu cuenta y comienza a gestionar tu negocio</p>
           </div>
 
@@ -202,7 +241,7 @@ export default function SignupPage() {
             </motion.div>
           )}
 
-          {/* Sección: Datos de la Empresa */}
+          {/* Sección: Datos del Negocio */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-white border-b border-gray-700 pb-2">
               Información de la Empresa
@@ -344,6 +383,7 @@ export default function SignupPage() {
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
                     required
                     className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 pr-12"
                     placeholder="••••••••"
@@ -377,6 +417,7 @@ export default function SignupPage() {
                 <div className="relative">
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
                     required
                     className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 pr-12"
                     placeholder="••••••••"
@@ -404,12 +445,57 @@ export default function SignupPage() {
             </div>
           </div>
 
+          {/* Términos y Condiciones */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="flex items-start space-x-3 mb-6"
+          >
+            <button
+              type="button"
+              onClick={() => setAcceptedTerms(!acceptedTerms)}
+              className={`flex-shrink-0 w-5 h-5 rounded border-2 transition-all duration-200 ${
+                acceptedTerms
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 border-blue-600'
+                  : 'border-gray-400 hover:border-gray-300'
+              } flex items-center justify-center mt-0.5`}
+            >
+              {acceptedTerms && (
+                <CheckCircle className="w-3 h-3 text-white" />
+              )}
+            </button>
+            <div className="text-sm text-gray-400 leading-relaxed">
+              <span>He leído y acepto los </span>
+              <Link
+                href="/legal/terminos"
+                target="_blank"
+                className="text-blue-400 hover:text-blue-300 underline transition-colors"
+              >
+                Términos y Condiciones
+              </Link>
+              <span> y las </span>
+              <Link
+                href="/legal/privacidad"
+                target="_blank"
+                className="text-blue-400 hover:text-blue-300 underline transition-colors"
+              >
+                Políticas de Privacidad
+              </Link>
+              <span> de lealta.</span>
+            </div>
+          </motion.div>
+
           <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: acceptedTerms && !isLoading ? 1.02 : 1 }}
+            whileTap={{ scale: acceptedTerms && !isLoading ? 0.98 : 1 }}
             type="submit"
-            disabled={isLoading}
-            className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
+            disabled={isLoading || !acceptedTerms}
+            className={`w-full px-6 py-4 font-semibold rounded-lg shadow-lg transition-all duration-200 flex items-center justify-center ${
+              acceptedTerms && !isLoading
+                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-xl'
+                : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+            }`}
           >
             {isLoading ? (
               <div className="flex items-center justify-center space-x-2">
@@ -419,7 +505,7 @@ export default function SignupPage() {
             ) : (
               <>
                 <Sparkles className="w-5 h-5 mr-2" />
-                Comenzar Prueba Gratuita de 14 Días
+                Registrar
                 <ArrowRight className="w-5 h-5 ml-2" />
               </>
             )}
@@ -468,6 +554,7 @@ export default function SignupPage() {
           </p>
         </motion.div>
         </motion.div>
+      </div>
       </div>
       
       {/* Email Verification Modal */}

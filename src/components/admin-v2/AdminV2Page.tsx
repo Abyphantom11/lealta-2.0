@@ -31,6 +31,20 @@ const getCurrentBusinessFromUrl = (): string | null => {
   return null;
 };
 
+// Convertir nombre de negocio a ID
+const getBusinessIdFromName = async (businessName: string): Promise<string | null> => {
+  try {
+    const response = await fetch(`/api/businesses/by-name/${encodeURIComponent(businessName)}`);
+    if (response.ok) {
+      const data = await response.json();
+      return data.id;
+    }
+  } catch (error) {
+    console.error('Error obteniendo ID del negocio:', error);
+  }
+  return null;
+};
+
 const validateBusinessAccess = async (businessId: string) => {
   try {
     const response = await fetch(`/api/businesses/${businessId}/validate`);
@@ -95,27 +109,52 @@ const getBorderColorClass = (type: NivelTarjeta): string => {
  * - Migrar de SQLite a PostgreSQL para producción
  */
 export default function AdminV2Page({ businessId }: AdminV2PageProps = {}) {
-  // � BUSINESS CONTEXT - Usar businessId de props o detectar desde URL
-  const currentBusinessId = businessId || getCurrentBusinessFromUrl();
+  // BUSINESS CONTEXT - Usar businessId de props o detectar desde URL
+  const businessNameOrId = businessId || getCurrentBusinessFromUrl();
+  const [actualBusinessId, setActualBusinessId] = useState<string | null>(businessNameOrId);
+  
+  // Convertir nombre a ID si es necesario
+  useEffect(() => {
+    const resolveBusinessId = async () => {
+      if (!businessNameOrId) {
+        console.warn('⚠️ AdminV2: No hay businessNameOrId disponible');
+        return;
+      }
+      
+      // Si parece un ID (empieza con 'cm' y es largo), usarlo directamente
+      if (businessNameOrId.startsWith('cm') && businessNameOrId.length > 20) {
+        setActualBusinessId(businessNameOrId);
+        return;
+      }
+      
+      // Si parece un nombre, convertirlo a ID
+      const id = await getBusinessIdFromName(businessNameOrId);
+      if (id) {
+        setActualBusinessId(id);
+      } else {
+        console.error('❌ AdminV2: No se pudo resolver el ID del negocio');
+      }
+    };
+    
+    resolveBusinessId();
+  }, [businessNameOrId]);
   
   // 🚫 VALIDACIÓN DE BUSINESS CONTEXT
   useEffect(() => {
     const currentPath = window.location.pathname;
     
     // Si no tenemos businessId y estamos en ruta legacy, redirigir
-    if (!currentBusinessId && (currentPath === '/admin' || (currentPath.startsWith('/admin/') && !currentPath.includes('/business')))) {
-      console.log('🚫 Admin: Sin business context, redirigiendo a login');
-      
+    if (!businessNameOrId && (currentPath === '/admin' || (currentPath.startsWith('/admin/') && !currentPath.includes('/business')))) {
       const redirectUrl = '/login?error=no-business&message=No se pudo determinar el negocio. Inicia sesión nuevamente.';
       window.location.href = redirectUrl;
       return;
     }
     
     // Si tenemos businessId, validar que existe
-    if (currentBusinessId) {
-      validateBusinessAccess(currentBusinessId);
+    if (actualBusinessId) {
+      validateBusinessAccess(actualBusinessId);
     }
-  }, [currentBusinessId]);
+  }, [businessNameOrId, actualBusinessId]);
 
   const { user, loading, logout, isAuthenticated } = useRequireAuth('ADMIN');
   const [activeSection, setActiveSection] = useState<AdminSection>('dashboard');
@@ -250,12 +289,14 @@ export default function AdminV2Page({ businessId }: AdminV2PageProps = {}) {
         {/* Content Area - Renderización condicional de componentes modulares */}
         <main className="flex-1 p-6 bg-gradient-to-br from-dark-950 via-dark-900 to-dark-800 overflow-auto">
           {activeSection === 'dashboard' && <DashboardContent />}
-          {activeSection === 'clientes' && <ClientesContent />}
+          {activeSection === 'clientes' && (
+            <ClientesContent businessId={actualBusinessId || undefined} />
+          )}
           {activeSection === 'menu' && <MenuContent />}
           {activeSection === 'portal' && (
             <PortalContent showNotification={showNotification} />
           )}
-          {activeSection === 'configuracion' && <ConfiguracionContent />}
+          {activeSection === 'configuracion' && <ConfiguracionContent businessId={actualBusinessId || undefined} />}
         </main>
         {/* Sistema de notificaciones mejorado */}
         {notification.show && (

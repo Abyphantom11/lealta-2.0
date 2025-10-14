@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { z } from 'zod';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
+import { put } from '@vercel/blob';
 import { geminiAnalyzer } from '../../../../lib/ai/gemini-analyzer';
-import fs from 'fs';
-
-const PORTAL_CONFIG_PATH = join(process.cwd(), 'portal-config.json');
+import { logger } from '@/utils/production-logger';
+import { getBlobStorageToken } from '@/lib/blob-storage-utils';
+import { withAuth } from '@/middleware/requireAuth';
 
 // Forzar renderizado dinámico para esta ruta que usa autenticación
 export const dynamic = 'force-dynamic';
@@ -59,7 +58,7 @@ function validateFormData(formData: FormData) {
   });
 }
 
-// Helper function to save image
+// Helper function to save image to Vercel Blob
 async function saveImageFile(image: File): Promise<{ filepath: string; publicUrl: string }> {
   // ⚠️ VALIDACIÓN DE MEMORIA CRÍTICA - Prevenir allocation failed
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB máximo
@@ -67,27 +66,40 @@ async function saveImageFile(image: File): Promise<{ filepath: string; publicUrl
     throw new Error(`Archivo demasiado grande: ${Math.round(image.size / 1024 / 1024)}MB. Máximo permitido: 10MB`);
   }
 
-  console.log(`📁 Procesando imagen: ${Math.round(image.size / 1024)}KB`);
+  // ⚠️ VALIDACIÓN DE TIPO MIME CRÍTICA - Prevenir corrupción
+  const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+  if (!allowedMimeTypes.includes(image.type)) {
+    throw new Error(`Tipo de archivo no válido: ${image.type}. Tipos permitidos: ${allowedMimeTypes.join(', ')}`);
+  }
 
-  const bytes = await image.arrayBuffer();
-  const buffer = Buffer.from(bytes);
+  logger.debug(`📁 Processing consumption image: ${Math.round(image.size / 1024)}KB, type: ${image.type}`);
 
   const timestamp = Date.now();
   const randomString = Math.random().toString(36).substring(2, 8);
-  const filename = `${timestamp}-${randomString}.jpg`;
+  // Preservar la extensión original del archivo
+  const fileExtension = image.name.split('.').pop() || 'jpg';
+  const filename = `consumos/${timestamp}-${randomString}.${fileExtension}`;
 
-  const uploadDir = join(process.cwd(), 'public', 'uploads');
-  await mkdir(uploadDir, { recursive: true });
+  // 🔥 UPLOAD A VERCEL BLOB STORAGE - CON TOKEN CENTRALIZADO
+  const token = getBlobStorageToken();
+  
+  if (!token) {
+    throw new Error('No valid blob storage token available');
+  }
+  
+  const blob = await put(filename, image, {
+    access: 'public',
+    token: token,
+  });
 
-  const filepath = join(uploadDir, filename);
-  await writeFile(filepath, buffer);
-
-  const publicUrl = `/uploads/${filename}`;
-  return { filepath, publicUrl };
+  return { 
+    filepath: blob.url, // URL de Vercel Blob
+    publicUrl: blob.url 
+  };
 }
 
 // Helper function to process image with Gemini AI
-async function processImageWithGemini(filepath: string): Promise<{
+async function processImageWithGemini(imageUrl: string): Promise<{
   ocrText: string;
   productos: Array<{ name: string; price?: number; line: string }>;
   total: number;
@@ -95,15 +107,18 @@ async function processImageWithGemini(filepath: string): Promise<{
   confianza: number;
 }> {
   try {
-    const imageBuffer = fs.readFileSync(filepath);
+    // Descargar imagen desde Vercel Blob
+    logger.debug('📥 Downloading image from Vercel Blob:', imageUrl);
+    const response = await fetch(imageUrl);
+    const imageBuffer = Buffer.from(await response.arrayBuffer());
     const mimeType = 'image/jpeg';
 
-    console.log('🤖 Procesando imagen con Gemini AI...');
+    logger.debug('🤖 Processing image with Gemini AI...');
 
     // Analizar con Gemini
     const analysis = await geminiAnalyzer.analyzeImage(imageBuffer, mimeType);
 
-    console.log('✅ Análisis completado:', {
+    logger.info('✅ Gemini analysis completed:', {
       total: analysis.total,
       productos: analysis.productos.length,
       confianza: analysis.confianza,
@@ -126,7 +141,7 @@ async function processImageWithGemini(filepath: string): Promise<{
     };
 
   } catch (error) {
-    console.error('❌ Error en procesamiento con Gemini:', error);
+    logger.error('❌ Error in Gemini AI processing:', error);
 
     // Fallback values si falla el análisis
     return {
@@ -146,19 +161,43 @@ async function processImageWithGemini(filepath: string): Promise<{
 }
 
 // Helper functions para reducir complejidad cognitiva
-async function loadPuntosConfiguration(): Promise<number> {
-  let puntosPorDolar = 4;
-
+async function loadPuntosConfiguration(businessId?: string): Promise<number> {
   try {
-    const configContent = await fs.promises.readFile(PORTAL_CONFIG_PATH, 'utf-8');
-    const config = JSON.parse(configContent);
-    puntosPorDolar = config.configuracionPuntos?.puntosPorDolar || 4;
-    console.log('✅ Configuración de puntos cargada (OCR):', { puntosPorDolar });
-  } catch (error) {
-    console.warn('⚠️ No se pudo cargar configuración de puntos, usando valor por defecto:', error);
-  }
+    if (!businessId) {
+      logger.warn('⚠️ No businessId provided, using default points configuration');
+      return 4; // Fallback por defecto
+    }
 
-  return puntosPorDolar;
+    // 🔄 MIGRADO: Leer configuración desde PostgreSQL Database
+    const puntosConfig = await prisma.puntosConfig.findUnique({
+      where: { businessId }
+    });
+    
+    if (puntosConfig) {
+      logger.debug('✅ Points configuration loaded from DATABASE for business:', { 
+        businessId, 
+        puntosPorDolar: puntosConfig.puntosPorDolar 
+      });
+      return puntosConfig.puntosPorDolar;
+    }
+
+    // Fallback: Crear configuración por defecto en la DB
+    logger.info('⚙️ Creating default points config in DATABASE for business:', businessId);
+    const newConfig = await prisma.puntosConfig.create({
+      data: {
+        businessId,
+        puntosPorDolar: 4,
+        bonusPorRegistro: 100,
+        maxPuntosPorDolar: 10,
+        maxBonusRegistro: 1000
+      }
+    });
+    
+    return newConfig.puntosPorDolar;
+  } catch (error) {
+    logger.warn('⚠️ Error loading points configuration from DATABASE, using default:', error);
+    return 4; // Fallback por defecto
+  }
 }
 
 async function createConsumo(cliente: any, validatedData: any, analysis: any, montoFinal: number, puntosGenerados: number, publicUrl: string) {
@@ -199,11 +238,28 @@ async function updateClientePuntos(cliente: any, puntosGenerados: number) {
 
 async function syncTarjetaPuntos(clienteActualizado: any) {
   if (clienteActualizado.tarjetaLealtad) {
+    // 🎯 LÓGICA CORREGIDA: Para tarjetas manuales, mantener progreso correcto
+    const esAsignacionManual = clienteActualizado.tarjetaLealtad.asignacionManual;
+    const puntosProgresoActual = clienteActualizado.tarjetaLealtad.puntosProgreso || 0;
+    const puntosAcumulados = clienteActualizado.puntosAcumulados || 0;
+    
+    let nuevoPuntosProgreso;
+    
+    if (esAsignacionManual) {
+      // Para tarjetas manuales: si los puntos acumulados superan el progreso actual, usar acumulados
+      // Esto permite que el progreso crezca con nuevos consumos
+      nuevoPuntosProgreso = Math.max(puntosProgresoActual, puntosAcumulados);
+    } else {
+      // Para tarjetas automáticas: usar siempre puntos acumulados
+      nuevoPuntosProgreso = puntosAcumulados;
+    }
+    
     await prisma.tarjetaLealtad.update({
       where: { clienteId: clienteActualizado.id },
-      data: { puntosProgreso: clienteActualizado.puntosAcumulados }
+      data: { puntosProgreso: nuevoPuntosProgreso }
     });
-    console.log(`📊 PuntosProgreso actualizados a ${clienteActualizado.puntosAcumulados}`);
+    
+    logger.debug(`📊 Points progress updated: ${puntosProgresoActual} → ${nuevoPuntosProgreso} (manual: ${esAsignacionManual}, accumulated: ${puntosAcumulados})`);
   }
 }
 
@@ -220,33 +276,49 @@ async function triggerLevelEvaluation(cliente: any) {
       return evaluacionData;
     }
   } catch (error) {
-    console.warn('⚠️ Error disparando evaluación automática:', error);
+    logger.warn('⚠️ Error triggering automatic level evaluation:', error);
   }
   return null;
 }
 
+/**
+ * 🔒 POST /api/staff/consumo - Registrar consumo con análisis de imagen AI
+ * Requiere autenticación: ADMIN, STAFF o SUPERADMIN
+ */
 export async function POST(request: NextRequest) {
-  try {
-    const formData = await request.formData();
-    const validatedData = validateFormData(formData);
-    const image = formData.get('image') as File;
+  return withAuth(request, async (session) => {
+    try {
+      const formData = await request.formData();
+      const validatedData = validateFormData(formData);
+      const image = formData.get('image') as File;
 
-    if (!image) {
-      return NextResponse.json({ success: false, error: 'No se recibió ninguna imagen' }, { status: 400 });
-    }
+      // 🔐 SECURITY: Validar business ownership
+      const businessId = validatedData.businessId || 'cmfr2y0ia0000eyvw7ef3k20u';
+      if (session.businessId !== businessId && session.role !== 'superadmin') {
+        logger.warn(`❌ AUTH DENIED: User ${session.userId} (${session.role}) tried to register consumption for different business`);
+        return NextResponse.json(
+          { success: false, error: 'No tiene permiso para registrar consumos en este negocio' },
+          { status: 403 }
+        );
+      }
 
-    if (!image.type.startsWith('image/')) {
-      return NextResponse.json({ success: false, error: 'El archivo debe ser una imagen' }, { status: 400 });
+      if (!image) {
+        return NextResponse.json({ success: false, error: 'No se recibió ninguna imagen' }, { status: 400 });
+      }
+
+      if (!image.type.startsWith('image/')) {
+        return NextResponse.json({ success: false, error: 'El archivo debe ser una imagen' }, { status: 400 });
     }
 
     if (image.size > 10 * 1024 * 1024) {
       return NextResponse.json({ success: false, error: 'La imagen es demasiado grande (máximo 10MB)' }, { status: 400 });
     }
 
+    // Buscar cliente usando la clave compuesta businessId + cedula
     const cliente = await prisma.cliente.findUnique({
       where: { 
         businessId_cedula: {
-          businessId: validatedData.businessId || '',
+          businessId: validatedData.businessId || 'cmfr2y0ia0000eyvw7ef3k20u', // fallback business
           cedula: validatedData.cedula
         }
       }
@@ -260,10 +332,10 @@ export async function POST(request: NextRequest) {
     const analysis = await processImageWithGemini(filepath);
 
     if (analysis.confianza < 0.3) {
-      console.log('⚠️ Confianza baja en el análisis:', analysis.confianza);
+      logger.warn('⚠️ Low confidence in analysis:', analysis.confianza);
     }
 
-    const puntosPorDolar = await loadPuntosConfiguration();
+    const puntosPorDolar = await loadPuntosConfiguration(validatedData.businessId || 'cmfr2y0ia0000eyvw7ef3k20u');
     const montoFinal = analysis.total > 0 ? analysis.total : parseFloat(validatedData.monto);
     const puntosGenerados = Math.floor(montoFinal * puntosPorDolar);
 
@@ -274,16 +346,19 @@ export async function POST(request: NextRequest) {
     const evaluacionData = await triggerLevelEvaluation(cliente);
 
     if (evaluacionData?.actualizado) {
-      console.log(`🆙 ¡Cliente ascendió automáticamente de ${evaluacionData.nivelAnterior} a ${evaluacionData.nivelNuevo}!`);
+      logger.info(`🆙 Client automatically promoted from ${evaluacionData.nivelAnterior} to ${evaluacionData.nivelNuevo}!`);
     }
 
-    console.log('✅ Consumo registrado exitosamente:', {
+    logger.info('✅ Consumption registered successfully:', {
       consumoId: consumo.id,
       cliente: cliente.cedula,
       puntos: puntosGenerados,
       monto: montoFinal,
       confianza: analysis.confianza
     });
+
+    // 📊 LOG DE AUDITORÍA
+    logger.info(`💰 Consumo registrado por: ${session.role} (${session.userId}) - Cliente: ${cliente.cedula} - Monto: $${montoFinal} - Puntos: ${puntosGenerados}`);
 
     return NextResponse.json({
       success: true,
@@ -305,8 +380,8 @@ export async function POST(request: NextRequest) {
       }
     });
 
-  } catch (error) {
-    console.error('Error en registro de consumo:', error);
+  } catch (error: unknown) {
+    logger.error('❌ Error in consumption registration:', error);
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -320,4 +395,9 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+  }, {
+    allowedRoles: ['admin', 'staff', 'superadmin'], // Staff puede registrar consumos
+    requireBusinessOwnership: true,
+    logAccess: true
+  });
 }

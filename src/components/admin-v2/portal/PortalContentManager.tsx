@@ -1,8 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Smartphone, Eye, Gift } from 'lucide-react';
-import notificationService from '@/lib/notificationService';
 
 // Importar componentes ya creados
 import BannersManager from './BannersManager';
@@ -13,6 +12,7 @@ import TarjetaCompacta from './TarjetaCompacta';
 import AsignacionTarjetas from './AsignacionTarjetas';
 import TarjetaEditor from './TarjetaEditor';
 import BrandingManager from './BrandingManager';
+import ThemeEditor from './ThemeEditor';
 import { SharedBrandingConfig } from './shared-branding-types';
 import { Tarjeta } from './types';
 
@@ -30,6 +30,7 @@ interface PortalContentManagerProps {
     value: string | string[]
   ) => Promise<void>;
   showNotification: (message: string, type: NivelTarjeta) => void;
+  businessId?: string; // ID del negocio para el sistema de temas
 }
 
 interface GeneralConfig {
@@ -127,7 +128,9 @@ type ConfigurableItemType =
   | 'promociones'
   | 'recompensas'
   | 'favoritoDelDia'
-  | 'eventos';
+  | 'eventos'
+  | 'tarjetas'
+  | 'nombreEmpresa';
 
 // Funciones helper para manejar tipos de datos
 const getPromocionesList = (promociones: any): Promocion[] => {
@@ -176,7 +179,153 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
   brandingConfig,
   handleBrandingChange,
   showNotification,
+  businessId = 'cmgewmtue0000eygwq8taawak', // ID del business "momo"
 }) => {
+  
+  // 🆕 Estado para datos reales de vista previa desde BD
+  const [previewData, setPreviewData] = useState<any>(null);
+  
+  // 🎨 Estado para gestión de temas
+  const [currentTheme, setCurrentTheme] = useState<'moderno' | 'elegante' | 'sencillo'>('moderno');
+  const [isLoadingTheme, setIsLoadingTheme] = useState(true);
+  
+  // 🔥 TIMEOUT DE SEGURIDAD: Si después de 2 segundos no se carga, mostrar de todos modos
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (isLoadingTheme) {
+        console.warn('⏱️ Timeout de carga de tema - mostrando con tema por defecto');
+        setIsLoadingTheme(false);
+      }
+    }, 2000);
+    
+    return () => clearTimeout(timeout);
+  }, [isLoadingTheme]);
+  
+  // 🎨 Cargar el tema actual del negocio
+  const loadCurrentTheme = useCallback(async () => {
+    // 🔥 SIEMPRE establecer un tema por defecto y quitar loading
+    setCurrentTheme('moderno');
+    setIsLoadingTheme(false);
+    
+    if (!businessId || businessId === 'default' || businessId === 'cmgewmtue0000eygwq8taawak') {
+      console.warn('⚠️ businessId no válido o por defecto para cargar tema:', businessId);
+      return;
+    }
+    
+    try {
+      console.log('🎨 Cargando tema para businessId:', businessId);
+      const response = await fetch(`/api/business/${businessId}/client-theme`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Tema cargado:', data.theme);
+        setCurrentTheme(data.theme || 'moderno');
+      } else {
+        console.warn('⚠️ No se pudo cargar el tema, usando moderno por defecto');
+      }
+    } catch (error) {
+      console.error('❌ Error cargando tema:', error);
+    }
+  }, [businessId]);
+  
+  // 🎨 Manejar cambio de tema
+  const handleThemeChange = useCallback(async (newTheme: 'moderno' | 'elegante' | 'sencillo') => {
+    setCurrentTheme(newTheme);
+    
+    // Forzar recarga de la vista previa con el nuevo tema
+    if (previewMode === 'portal' || previewMode === 'portal-refresh') {
+      setTimeout(() => {
+        setPreviewMode('portal-refresh');
+        setTimeout(() => setPreviewMode('portal'), 100);
+      }, 300);
+    }
+  }, [previewMode, setPreviewMode]);
+  
+  // 🆕 Función para cargar datos reales para vista previa (con soporte para simulación de días)
+  const loadPreviewData = useCallback(async (simulatedDay?: string) => {
+    try {
+      // Obtener día simulado desde window si no se pasa como parámetro
+      const dayToSimulate = simulatedDay || (window as any).portalPreviewDay;
+      
+      console.log('🔄 Cargando datos de vista previa...', { 
+        businessId, 
+        previewMode, 
+        simulatedDay: dayToSimulate 
+      });
+      
+      // Construir URL con parámetro de día simulado si existe
+      const url = dayToSimulate 
+        ? `/api/portal/config-v2?businessId=${businessId}&simulateDay=${dayToSimulate}`
+        : `/api/portal/config-v2?businessId=${businessId}`;
+      
+      const response = await fetch(url, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Datos de vista previa cargados:', {
+          hasBanners: !!data.banners,
+          bannersCount: data.banners?.length || 0,
+          hasPromociones: !!data.promociones,
+          promocionesCount: data.promociones?.length || 0,
+          hasRecompensas: !!data.recompensas,
+          recompensasCount: data.recompensas?.length || 0,
+          simulatedDay: dayToSimulate,
+          fullData: data, // 🔍 Ver todos los datos
+        });
+        setPreviewData(data);
+        console.log('🔍 previewData actualizado:', data);
+      } else {
+        console.error('❌ Error response:', response.status, await response.text());
+      }
+    } catch (error) {
+      console.error('❌ Error loading preview data:', error);
+    }
+  }, [businessId, previewMode]);
+  
+  // 🔄 Cargar tema al montar el componente
+  useEffect(() => {
+    loadCurrentTheme();
+  }, [loadCurrentTheme]);
+  
+  // 🆕 Cargar datos de vista previa SIEMPRE (no solo en modo portal)
+  useEffect(() => {
+    loadPreviewData();
+    
+    // Escuchar eventos de actualización
+    const handlePromocionesUpdate = () => {
+      console.log('📥 Evento promocionesUpdated recibido, recargando vista previa...');
+      loadPreviewData();
+    };
+    
+    const handleContentUpdate = () => {
+      console.log('📥 Evento contentUpdated recibido, recargando vista previa...');
+      loadPreviewData();
+    };
+    
+    window.addEventListener('promocionesUpdated', handlePromocionesUpdate);
+    window.addEventListener('contentUpdated', handleContentUpdate);
+    
+    // Recargar cada 10 segundos
+    const interval = setInterval(loadPreviewData, 10000);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('promocionesUpdated', handlePromocionesUpdate);
+      window.removeEventListener('contentUpdated', handleContentUpdate);
+    };
+  }, [loadPreviewData]);
+  
+  // 🆕 Efecto adicional para recargar cuando cambias a modo portal
+  useEffect(() => {
+    if (previewMode === 'portal') {
+      loadPreviewData();
+    }
+  }, [previewMode, loadPreviewData]);
+  
   // Función para renderizar contenido de vista previa
   const renderPreviewContent = () => {
     if (previewMode === 'login') {
@@ -249,10 +398,10 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
           config={{
             nivelesConfig: config.nivelesConfig || {},
             empresa: config.empresa || {
-              nombre: config.nombreEmpresa || 'LEALTA',
+              nombre: config.nombreEmpresa || 'Mi Negocio',
             },
             nombreEmpresa:
-              config.nombreEmpresa || config.empresa?.nombre || 'LEALTA',
+              config.nombreEmpresa || config.empresa?.nombre || 'Mi Negocio',
           }}
         />
       );
@@ -268,13 +417,6 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
   // Función para sincronización manual
   const handleSyncToClient = async () => {
     try {
-      console.log(
-        '🔄 Admin - Sincronizando configuración completa con el cliente'
-      );
-      console.log('📊 Promociones a sincronizar:', config.promociones);
-      console.log('📊 Banners a sincronizar:', config.banners);
-      console.log('📊 Favoritos a sincronizar:', config.favoritoDelDia);
-
       const response = await fetch('/api/admin/portal-config', {
         method: 'PUT',
         headers: {
@@ -313,13 +455,14 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
     }
   };
 
-  const addItem = (type: ConfigurableItemType, item: ConfigurableItem) => {
+  const addItem = async (type: ConfigurableItemType, item: ConfigurableItem) => {
     const newItem = {
       ...item,
       id: item.id || `${type}_${Date.now()}`,
       activo: true,
     };
 
+    // 🆕 Actualizar estado local primero para UI responsiva
     setConfig((prev: GeneralConfig): GeneralConfig => {
       // Caso especial para favoritoDelDia
       if (type === 'favoritoDelDia') {
@@ -347,18 +490,34 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
         }
       }
 
-      return {
+      const newConfig = {
         ...prev,
         [type]: [...(prev[type] || []), newItem],
       };
+
+      return newConfig;
     });
+
+    // 🆕 Guardar inmediatamente en PostgreSQL
+    try {
+      await handleSyncToClient();
+      // 🆕 Recargar datos de vista previa inmediatamente
+      await loadPreviewData();
+      // 🔄 Disparar evento global de actualización
+      window.dispatchEvent(new CustomEvent('contentUpdated', { detail: { type, businessId } }));
+      showNotification(`✅ ${type} agregado y sincronizado con el cliente`, 'success');
+    } catch (error) {
+      console.error('Error sincronizando con cliente:', error);
+      showNotification(`❌ Error sincronizando ${type}`, 'error');
+    }
   };
 
-  const updateItem = (
+  const updateItem = async (
     type: ConfigurableItemType,
     itemId: string,
     updates: Partial<ConfigurableItem>
   ) => {
+    // 🆕 Actualizar estado local primero para UI responsiva
     setConfig((prev: GeneralConfig): GeneralConfig => {
       if (type === 'favoritoDelDia') {
         const currentFavoritos = Array.isArray(prev.favoritoDelDia)
@@ -375,16 +534,47 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
         };
       }
 
-      return {
+      // 🎯 NUEVO: Manejo especial para tarjetas (usar nivel como ID)
+      if (type === 'tarjetas') {
+        const currentTarjetas = Array.isArray(prev.tarjetas)
+          ? prev.tarjetas
+          : [];
+
+        return {
+          ...prev,
+          tarjetas: currentTarjetas.map((tarjeta: any) =>
+            tarjeta.nivel === itemId ? { ...tarjeta, ...updates } : tarjeta
+          ),
+        };
+      }
+      // Actualizar el item específico según el tipo
+      const newConfig = {
         ...prev,
-        [type]: (prev[type] || []).map((item: { id?: string }) =>
-          item.id === itemId ? { ...item, ...updates } : item
-        ),
+        [type]: Array.isArray(prev[type])
+          ? (prev[type] as any[]).map((item: { id?: string }) =>
+              item.id === itemId ? { ...item, ...updates } : item
+            )
+          : prev[type],
       };
+
+      return newConfig;
     });
+
+    // 🆕 Guardar inmediatamente en PostgreSQL
+    try {
+      await handleSyncToClient();
+      // 🆕 Recargar datos de vista previa inmediatamente
+      await loadPreviewData();
+      // 🔄 Disparar evento global de actualización
+      window.dispatchEvent(new CustomEvent('contentUpdated', { detail: { type, businessId } }));
+      showNotification(`✅ ${type} actualizado y sincronizado con el cliente`, 'success');
+    } catch (error) {
+      console.error('Error sincronizando con cliente:', error);
+      showNotification(`❌ Error sincronizando ${type}`, 'error');
+    }
   };
 
-  const deleteItem = (type: ConfigurableItemType, itemId: string) => {
+  const deleteItem = async (type: ConfigurableItemType, itemId: string) => {
     // Usar notificationService para confirmar la eliminación
     const itemTypeNames: Record<ConfigurableItemType, string> = {
       banners: 'banner',
@@ -392,11 +582,19 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
       favoritoDelDia: 'favorito del día',
       recompensas: 'recompensa',
       eventos: 'evento',
+      tarjetas: 'tarjeta',
+      nombreEmpresa: 'nombre de empresa',
     };
 
     const itemName = itemTypeNames[type] || 'elemento';
 
-    // Primero eliminamos directamente
+    // 🚫 No permitir eliminar tarjetas o nombre de empresa
+    if (type === 'tarjetas' || type === 'nombreEmpresa') {
+      showNotification(`❌ No se puede eliminar ${itemName}`, 'error');
+      return;
+    }
+
+    // 🆕 Actualizar estado local primero para UI responsiva
     setConfig((prev: GeneralConfig): GeneralConfig => {
       if (type === 'favoritoDelDia') {
         const currentFavoritos = Array.isArray(prev.favoritoDelDia)
@@ -412,23 +610,55 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
         };
       }
 
-      return {
+      // Para arrays normales
+      const currentArray = Array.isArray(prev[type]) ? prev[type] as any[] : [];
+      const newConfig = {
         ...prev,
-        [type]: (prev[type] || []).filter(
+        [type]: currentArray.filter(
           (item: { id?: string }) => item.id !== itemId
         ),
       };
+
+      return newConfig;
     });
 
-    // Luego mostramos la notificación de confirmación
-    notificationService.success({
-      title: 'Elemento eliminado',
-      message: `El ${itemName} ha sido eliminado correctamente.`,
-      duration: 4000,
-    });
+    // 🆕 Guardar inmediatamente en PostgreSQL
+    try {
+      await handleSyncToClient();
+      // 🆕 Recargar datos de vista previa inmediatamente
+      await loadPreviewData();
+      // 🔄 Disparar evento global de actualización
+      window.dispatchEvent(new CustomEvent('contentUpdated', { detail: { type, businessId } }));
+      showNotification(`✅ ${itemName} eliminado y sincronizado con el cliente`, 'success');
+    } catch (error) {
+      console.error('Error sincronizando con cliente:', error);
+      showNotification(`❌ Error sincronizando ${itemName}`, 'error');
+    }
   };
 
-  const toggleActive = (type: ConfigurableItemType, itemId: string) => {
+  const updateNombreEmpresa = async (nombreEmpresa: string) => {
+    setConfig((prev: GeneralConfig): GeneralConfig => ({
+      ...prev,
+      nombreEmpresa,
+    }));
+
+    try {
+      await handleSyncToClient();
+      await loadPreviewData();
+      showNotification('✅ Nombre de empresa actualizado', 'success');
+    } catch (error) {
+      console.error('Error actualizando nombre de empresa:', error);
+      showNotification('❌ Error actualizando nombre de empresa', 'error');
+    }
+  };
+
+  const toggleActive = async (type: ConfigurableItemType, itemId: string) => {
+    // 🚫 No permitir toggle para tarjetas o nombre de empresa
+    if (type === 'tarjetas' || type === 'nombreEmpresa') {
+      return;
+    }
+    
+    // 🆕 Actualizar estado local primero para UI responsiva
     setConfig((prev: GeneralConfig): GeneralConfig => {
       if (type === 'favoritoDelDia') {
         const currentFavoritos = Array.isArray(prev.favoritoDelDia)
@@ -443,20 +673,33 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
         };
       }
 
-      return {
+      // Para arrays normales
+      const currentArray = Array.isArray(prev[type]) ? prev[type] as any[] : [];
+      const newConfig = {
         ...prev,
-        [type]: (prev[type] || []).map(
+        [type]: currentArray.map(
           (item: { id?: string; activo?: boolean }) =>
             item.id === itemId ? { ...item, activo: !item.activo } : item
         ),
       };
+
+      return newConfig;
     });
+
+    // 🆕 Guardar inmediatamente en PostgreSQL
+    try {
+      await handleSyncToClient();
+      // 🆕 Recargar datos de vista previa inmediatamente
+      await loadPreviewData();
+      showNotification(`✅ ${type} actualizado y sincronizado con el cliente`, 'success');
+    } catch (error) {
+      console.error('Error sincronizando con cliente:', error);
+      showNotification(`❌ Error sincronizando ${type}`, 'error');
+    }
   };
 
-  // Función auxiliar para cambiar el día simulado y reducir complejidad
+  // Función auxiliar para cambiar el día simulado y recargar datos
   const handleDaySimulation = (diaSimulado: string, setPreviewMode: any) => {
-    console.log('🔄 Cambiando día simulado a:', diaSimulado);
-
     try {
       // Primero limpiamos cualquier valor anterior y notificamos el cambio
       delete (window as any).portalPreviewDay;
@@ -465,6 +708,11 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
       setTimeout(() => {
         // Actualizar la variable global con el nuevo valor
         (window as any).portalPreviewDay = diaSimulado;
+
+        console.log(`🗓️ Simulando día: ${diaSimulado}`);
+
+        // ✅ RECARGAR datos de la API con el día simulado
+        loadPreviewData(diaSimulado);
 
         // Disparar un evento para notificar a los componentes del cambio
         const event = new CustomEvent('portalPreviewDayChanged', {
@@ -479,8 +727,6 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
         } catch (innerError) {
           console.warn('Error disparando eventos adicionales:', innerError);
         }
-
-        console.log('✅ Eventos de simulación enviados correctamente');
 
         // Forzar re-render del administrador
         setPreviewMode('portal-refresh');
@@ -618,12 +864,21 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
                 const diaParaMostrar = window.portalPreviewDay || diaActual;
 
                 // Filtrar banners por día seleccionado y actividad
-                const bannersDia = (config.banners || []).filter(
+                // 🆕 USAR DATOS REALES DE BD EN LUGAR DEL ESTADO LOCAL
+                const bannersReales = previewData?.banners || config.banners || [];
+                console.log('🎨 Renderizando banners:', {
+                  previewDataExists: !!previewData,
+                  bannersFromPreview: previewData?.banners?.length || 0,
+                  bannersFromConfig: config.banners?.length || 0,
+                  bannersRealesLength: bannersReales.length,
+                  diaParaMostrar,
+                });
+                const bannersDia = bannersReales.filter(
                   (b: Banner) =>
                     b.activo &&
                     b.imagenUrl &&
                     b.imagenUrl.trim() !== '' &&
-                    b.dia === diaParaMostrar
+                    (b.dia === diaParaMostrar || !b.dia) // Sin restricción de día o día específico
                 );
 
                 return bannersDia.length > 0 ? (
@@ -676,14 +931,21 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
                 const diaParaMostrar = window.portalPreviewDay || diaActual;
 
                 // Filtrar promociones por día seleccionado y actividad
-                const promocionesDia = getPromocionesList(
-                  config.promociones
-                ).filter(
+                // 🆕 USAR DATOS REALES DE BD EN LUGAR DEL ESTADO LOCAL
+                const promocionesReales = previewData?.promociones || config.promociones || [];
+                console.log('🎁 Renderizando promociones:', {
+                  previewDataExists: !!previewData,
+                  promocionesFromPreview: previewData?.promociones?.length || 0,
+                  promocionesFromConfig: config.promociones?.length || 0,
+                  promocionesRealesLength: promocionesReales.length,
+                  diaParaMostrar,
+                });
+                const promocionesDia = promocionesReales.filter(
                   (p: Promocion) =>
                     p.activo &&
                     p.titulo &&
                     p.descripcion &&
-                    p.dia === diaParaMostrar
+                    (p.dia === diaParaMostrar || !p.dia) // Sin restricción de día o día específico
                 );
 
                 return (
@@ -742,8 +1004,10 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
                 const diaParaMostrar = window.portalPreviewDay || diaActual;
 
                 // En modo simulación, mostrar favorito del día simulado aunque esté inactivo
-                const favoritoHoy = Array.isArray(config.favoritoDelDia)
-                  ? config.favoritoDelDia.find((f: FavoritoDelDia) => {
+                // 🆕 USAR DATOS REALES DE BD EN LUGAR DEL ESTADO LOCAL
+                const favoritosReales = previewData?.favoritoDelDia || config.favoritoDelDia || [];
+                const favoritoHoy = Array.isArray(favoritosReales)
+                  ? favoritosReales.find((f: FavoritoDelDia) => {
                       // Si hay día simulado, mostrar ese específico independiente del estado activo
                       if (window.portalPreviewDay) {
                         return (
@@ -765,8 +1029,8 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
                 // Solo usar fallback si no hay simulación de día
                 const favoritoFallback =
                   !window.portalPreviewDay &&
-                  Array.isArray(config.favoritoDelDia)
-                    ? config.favoritoDelDia.find(
+                  Array.isArray(favoritosReales)
+                    ? favoritosReales.find(
                         (f: FavoritoDelDia) =>
                           f.activo && f.imagenUrl && f.imagenUrl.trim() !== ''
                       )
@@ -831,44 +1095,46 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
               })()}
 
               {/* Recompensas */}
-              {getRecompensasList(config.recompensas).filter(
-                (r: Recompensa) => r.activo && r.nombre && r.puntosRequeridos
-              ).length > 0 && (
-                <div className="mx-4 mb-3">
-                  <h3 className="text-white font-semibold text-sm mb-2">
-                    Recompensas
-                  </h3>
-                  <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg p-3">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Gift className="w-4 h-4 text-white" />
-                      <span className="text-white font-medium text-sm">
-                        Programa de Puntos
-                      </span>
-                    </div>
-                    <div className="flex overflow-x-auto space-x-2 pb-1">
-                      {getRecompensasList(config.recompensas)
-                        .filter(
-                          (r: Recompensa) =>
-                            r.activo && r.nombre && r.puntosRequeridos
-                        )
-                        .slice(0, 3)
-                        .map((recompensa: Recompensa) => (
-                          <div
-                            key={recompensa.id}
-                            className="bg-white/20 rounded-lg p-2 min-w-[120px]"
-                          >
-                            <div className="text-white font-medium text-xs">
-                              {recompensa.nombre}
+              {(() => {
+                // 🆕 USAR DATOS REALES DE BD EN LUGAR DEL ESTADO LOCAL
+                const recompensasReales = previewData?.recompensas || config.recompensas || [];
+                const recompensasActivas = getRecompensasList(recompensasReales).filter(
+                  (r: Recompensa) => r.activo && r.nombre && r.puntosRequeridos
+                );
+                
+                return recompensasActivas.length > 0 && (
+                  <div className="mx-4 mb-3">
+                    <h3 className="text-white font-semibold text-sm mb-2">
+                      Recompensas
+                    </h3>
+                    <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg p-3">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Gift className="w-4 h-4 text-white" />
+                        <span className="text-white font-medium text-sm">
+                          Programa de Puntos
+                        </span>
+                      </div>
+                      <div className="flex overflow-x-auto space-x-2 pb-1">
+                        {recompensasActivas
+                          .slice(0, 3)
+                          .map((recompensa: Recompensa) => (
+                            <div
+                              key={recompensa.id}
+                              className="bg-white/20 rounded-lg p-2 min-w-[120px]"
+                            >
+                              <div className="text-white font-medium text-xs">
+                                {recompensa.nombre}
+                              </div>
+                              <div className="text-white font-bold text-xs">
+                                {recompensa.puntosRequeridos} pts
+                              </div>
                             </div>
-                            <div className="text-white font-bold text-xs">
-                              {recompensa.puntosRequeridos} pts
-                            </div>
-                          </div>
-                        ))}
+                          ))}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Estado vacío */}
               {!config.banners?.filter(
@@ -902,97 +1168,88 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
       {/* Panel de Edición */}
       <div className="premium-card">
         {activeTab === 'preview' && previewMode === 'login' && (
-          <BrandingManager
-            brandingConfig={brandingConfig}
-            handleBrandingChange={handleBrandingChange}
-            showNotification={showNotification}
-          />
+          <div className="text-center py-8">
+            <Eye className="w-12 h-12 mx-auto mb-4 text-primary-500" />
+            <h4 className="text-lg font-semibold text-white mb-2">
+              Vista Previa del Branding
+            </h4>
+            <p className="text-dark-400 mb-4">
+              Esta vista muestra cómo se verá el branding configurado en la pantalla de acceso.
+            </p>
+            <div className="bg-dark-800 rounded-lg p-4 text-left">
+              <h5 className="text-white font-medium mb-2">
+                Configuración Actual:
+              </h5>
+              <ul className="space-y-1 text-sm text-dark-300">
+                <li>
+                  • Nombre del Negocio: {brandingConfig.businessName || 'No configurado'}
+                </li>
+                <li>
+                  • Color Primario: {brandingConfig.primaryColor || 'No configurado'}
+                </li>
+                <li>
+                  • Imágenes del Carrusel: {(brandingConfig.carouselImages?.length ?? 0)} imagen(es)
+                </li>
+              </ul>
+              <div className="mt-3 pt-3 border-t border-dark-600">
+                <p className="text-xs text-dark-400">
+                  💡 Para editar el branding, usa la pestaña "Branding" en el menú principal.
+                </p>
+              </div>
+            </div>
+          </div>
         )}
 
         {activeTab === 'preview' && previewMode === 'tarjetas' && (
           <div className="space-y-6">
-            {/* Orden EXACTO del admin original: AsignacionTarjetas primero */}
+            {/* Solo Asignación Manual de Tarjetas en vista previa */}
             <AsignacionTarjetas
               showNotification={(message: string, type: any) =>
                 showNotification(message, type)
               }
-            />
-
-            {/* Gestión de tarjetas separada - como en admin original */}
-            <TarjetaEditor
-              config={config}
-              setConfig={(newConfig) => setConfig(newConfig)}
-              showNotification={(message: string, type: any) =>
-                showNotification(message, type)
-              }
+              tarjetasConfig={config.tarjetas || []}
             />
           </div>
         )}
 
         {activeTab === 'preview' && previewMode === 'portal' && (
-          <div className="text-center py-8">
-            <Eye className="w-12 h-12 mx-auto mb-4 text-primary-500" />
-            <h4 className="text-lg font-semibold text-white mb-2">
-              Vista Previa en Tiempo Real
-            </h4>
-            <p className="text-dark-400 mb-4">
-              Esta vista muestra cómo verán los clientes tu portal. Los cambios
-              se reflejan automáticamente.
-            </p>
-            <div className="bg-dark-800 rounded-lg p-4 text-left">
-              <h5 className="text-white font-medium mb-2">
-                Elementos Activos:
-              </h5>
-              <ul className="space-y-1 text-sm text-dark-300">
-                <li>
-                  •{' '}
-                  {
-                    (config.banners || []).filter((b: Banner) => b.activo)
-                      .length
-                  }{' '}
-                  Banners activos
-                </li>
-                <li>
-                  •{' '}
-                  {
-                    getPromocionesList(config.promociones).filter(
-                      (p: Promocion) => p.activo
-                    ).length
-                  }{' '}
-                  Promociones activas
-                </li>
-                <li>
-                  • {isFavoritoActivo(config.favoritoDelDia) ? '1' : '0'}{' '}
-                  Favorito del día activo
-                </li>
-                <li>
-                  •{' '}
-                  {
-                    getRecompensasList(config.recompensas).filter(
-                      (r: Recompensa) => r.activo
-                    ).length
-                  }{' '}
-                  Recompensas activas
-                </li>
-              </ul>
-            </div>
-          </div>
+          <>
+            {isLoadingTheme ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+                <span className="ml-4 text-dark-400">Cargando configuración de tema...</span>
+              </div>
+            ) : (
+              <ThemeEditor 
+                businessId={businessId}
+                currentTheme={currentTheme}
+                onThemeChange={async (theme) => {
+                  await handleThemeChange(theme);
+                  showNotification(`Vista previa del tema "${theme}" actualizada`, 'info');
+                }}
+                promociones={previewData?.promociones || config.promociones || []}
+                recompensas={previewData?.recompensas || config.recompensas || []}
+              />
+            )}
+          </>
         )}
 
         {activeTab === 'banners' && (
-          <BannersManager
-            banners={config.banners || []}
-            onAdd={(banner: Banner) => addItem('banners', banner)}
-            onUpdate={(id: string, updates: Partial<Banner>) =>
-              updateItem('banners', id, updates)
-            }
-            onDelete={(id: string) => deleteItem('banners', id)}
-            onToggle={(id: string) => toggleActive('banners', id)}
-          />
+          <div className="max-h-[80vh] overflow-y-auto">
+            <BannersManager
+              banners={config.banners || []}
+              onAdd={(banner: Banner) => addItem('banners', banner)}
+              onUpdate={(id: string, updates: Partial<Banner>) =>
+                updateItem('banners', id, updates)
+              }
+              onDelete={(id: string) => deleteItem('banners', id)}
+              onToggle={(id: string) => toggleActive('banners', id)}
+            />
+          </div>
         )}
 
         {activeTab === 'promociones' && (
-          <div>
+          <div className="max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-white">Promociones</h2>
               <button
@@ -1023,65 +1280,93 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
               }
               onDelete={(id: string) => deleteItem('promociones', id)}
               onToggle={(id: string) => toggleActive('promociones', id)}
+              businessId={businessId}
             />
           </div>
         )}
 
         {activeTab === 'favorito' && (
-          <FavoritoDelDiaManager
-            favoritos={getFavoritosList(config.favoritoDelDia)}
-            onUpdate={(favorito: FavoritoDelDia) => {
-              const currentFavoritos = Array.isArray(config.favoritoDelDia)
-                ? config.favoritoDelDia
-                : [];
+          <div className="max-h-[80vh] overflow-y-auto">
+            <FavoritoDelDiaManager
+              favoritos={getFavoritosList(config.favoritoDelDia)}
+              onUpdate={(favorito: FavoritoDelDia) => {
+                const currentFavoritos = Array.isArray(config.favoritoDelDia)
+                  ? config.favoritoDelDia
+                  : [];
 
-              const existingFavorito = currentFavoritos.find(
-                (f: FavoritoDelDia) => f.dia === favorito.dia
-              );
+                const existingFavorito = currentFavoritos.find(
+                  (f: FavoritoDelDia) => f.dia === favorito.dia
+                );
 
-              if (existingFavorito) {
-                const existingId = getFavoritoProperty(
-                  existingFavorito,
-                  'id'
-                ) as string;
-                updateItem('favoritoDelDia', existingId, favorito);
-              } else {
-                addItem('favoritoDelDia', favorito);
-              }
-              showNotification(
-                'Favorito del día actualizado correctamente',
-                'success'
-              );
-            }}
-            onDelete={(favoritoId: string) => {
-              deleteItem('favoritoDelDia', favoritoId);
-              showNotification(
-                'Favorito del día eliminado correctamente',
-                'success'
-              );
-            }}
-            onToggle={(favoritoId: string) => {
-              toggleActive('favoritoDelDia', favoritoId);
-              showNotification(
-                'Estado del favorito del día actualizado',
-                'success'
-              );
-            }}
-          />
+                if (existingFavorito) {
+                  const existingId = getFavoritoProperty(
+                    existingFavorito,
+                    'id'
+                  ) as string;
+                  updateItem('favoritoDelDia', existingId, favorito);
+                } else {
+                  addItem('favoritoDelDia', favorito);
+                }
+                showNotification(
+                  'Favorito del día actualizado correctamente',
+                  'success'
+                );
+              }}
+              onDelete={(favoritoId: string) => {
+                deleteItem('favoritoDelDia', favoritoId);
+                showNotification(
+                  'Favorito del día eliminado correctamente',
+                  'success'
+                );
+              }}
+              onToggle={(favoritoId: string) => {
+                toggleActive('favoritoDelDia', favoritoId);
+                showNotification(
+                  'Estado del favorito del día actualizado',
+                  'success'
+                );
+              }}
+            />
+          </div>
+        )}
+
+        {activeTab === 'branding' && (
+          <div className="xl:col-span-2">
+            <BrandingManager
+              brandingConfig={brandingConfig}
+              handleBrandingChange={handleBrandingChange}
+              showNotification={showNotification}
+            />
+          </div>
         )}
 
         {activeTab === 'recompensas' && (
-          <RecompensasManager
-            recompensas={getRecompensasList(config.recompensas)}
-            onAdd={(recompensa: Recompensa) =>
-              addItem('recompensas', recompensa)
-            }
-            onUpdate={(id: string, updates: Partial<Recompensa>) =>
-              updateItem('recompensas', id, updates)
-            }
-            onDelete={(id: string) => deleteItem('recompensas', id)}
-            onToggle={(id: string) => toggleActive('recompensas', id)}
-          />
+          <div className="max-h-[80vh] overflow-y-auto">
+            <RecompensasManager
+              recompensas={getRecompensasList(config.recompensas)}
+              onAdd={(recompensa: Recompensa) =>
+                addItem('recompensas', recompensa)
+              }
+              onUpdate={(id: string, updates: Partial<Recompensa>) =>
+                updateItem('recompensas', id, updates)
+              }
+              onDelete={(id: string) => deleteItem('recompensas', id)}
+              onToggle={(id: string) => toggleActive('recompensas', id)}
+            />
+          </div>
+        )}
+
+        {activeTab === 'tarjetas' && (
+          <div className="max-h-[80vh] overflow-y-auto">
+            <TarjetaEditor
+              config={config}
+              onUpdateCard={(nivel: string, updates: Partial<any>) =>
+                updateItem('tarjetas', nivel, updates)
+              }
+              onUpdateNombreEmpresa={updateNombreEmpresa}
+              showNotification={showNotification}
+            />
+          </div>
         )}
       </div>
     </div>

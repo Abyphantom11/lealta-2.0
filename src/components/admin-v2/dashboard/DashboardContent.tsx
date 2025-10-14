@@ -65,96 +65,96 @@ interface DashboardContentProps {
  */
 const DashboardContent: React.FC<DashboardContentProps> = () => {
   // Configuración de niveles
-  const nivelesConfig = {
-    Bronce: {
-      condiciones: { puntosMinimos: 0, gastosMinimos: 0, visitasMinimas: 0 },
-    },
-    Plata: {
-      condiciones: {
-        puntosMinimos: 100,
-        gastosMinimos: 500,
-        visitasMinimas: 5,
-      },
-    },
-    Oro: {
-      condiciones: {
-        puntosMinimos: 500,
-        gastosMinimos: 1500,
-        visitasMinimas: 10,
-      },
-    },
-    Diamante: {
-      condiciones: {
-        puntosMinimos: 5000,
-        gastosMinimos: 8000,
-        visitasMinimas: 50,
-      },
-    },
-    Platino: {
-      condiciones: {
-        puntosMinimos: 3000,
-        gastosMinimos: 5000,
-        visitasMinimas: 30,
-      },
-    },
-  };
+  // const nivelesConfig = {
+  //   Bronce: {
+  //     condiciones: { puntosMinimos: 0, gastosMinimos: 0, visitasMinimas: 0 },
+  //   },
+  //   Plata: {
+  //     condiciones: {
+  //       puntosMinimos: 100,
+  //       gastosMinimos: 500,
+  //       visitasMinimas: 5,
+  //     },
+  //   },
+  //   Oro: {
+  //     condiciones: {
+  //       puntosMinimos: 500,
+  //       gastosMinimos: 1500,
+  //       visitasMinimas: 10,
+  //     },
+  //   },
+  //   Diamante: {
+  //     condiciones: {
+  //       puntosMinimos: 5000,
+  //       gastosMinimos: 8000,
+  //       visitasMinimas: 50,
+  //     },
+  //   },
+  //   Platino: {
+  //     condiciones: {
+  //       puntosMinimos: 3000,
+  //       gastosMinimos: 5000,
+  //       visitasMinimas: 30,
+  //     },
+  //   },
+  // };
 
   // Función para calcular nivel automático del cliente
-  const calculateClientLevel = (client: Cliente) => {
-    // ✅ CORRECCIÓN: Usar puntos para determinar nivel
-    const puntosAcumulados = client.puntos || 0;
-    const visitas = client.totalVisitas || 0;
+  // const calculateClientLevel = (client: Cliente) => {
+  //   // ✅ CORRECCIÓN: Usar puntos para determinar nivel
+  //   const puntosAcumulados = client.puntos || 0;
+  //   const visitas = client.totalVisitas || 0;
 
-    // ✅ CORRECCIÓN: Usar configuración real del portal en lugar de valores hardcodeados
-    if (portalConfig?.tarjetas) {
-      const tarjetasActivas = portalConfig.tarjetas.filter((t: any) => t.activo);
-      if (tarjetasActivas.length > 0) {
-        // Ordenar tarjetas por requisitos de puntos (de mayor a menor)
-        const tarjetasOrdenadas = tarjetasActivas
-          .slice()
-          .sort((a: any, b: any) => (b.condiciones?.puntosMinimos || 0) - (a.condiciones?.puntosMinimos || 0));
+  //   // ✅ CORRECCIÓN: Usar configuración real del portal en lugar de valores hardcodeados
+  //   if (portalConfig?.tarjetas) {
+  //     const tarjetasActivas = portalConfig.tarjetas.filter((t: any) => t.activo);
+  //     if (tarjetasActivas.length > 0) {
+  //       // Ordenar tarjetas por requisitos de puntos (de mayor a menor)
+  //       const tarjetasOrdenadas = tarjetasActivas
+  //         .slice()
+  //         .sort((a: any, b: any) => (b.condiciones?.puntosMinimos || 0) - (a.condiciones?.puntosMinimos || 0));
 
-        // Encontrar el nivel MÁS ALTO que cumple los requisitos (lógica OR)
-        for (const tarjeta of tarjetasOrdenadas) {
-          const puntosRequeridos = tarjeta.condiciones?.puntosMinimos || 0;
-          const visitasRequeridas = tarjeta.condiciones?.visitasMinimas || 0;
+  //       // Encontrar el nivel MÁS ALTO que cumple los requisitos (lógica OR)
+  //       for (const tarjeta of tarjetasOrdenadas) {
+  //         const puntosRequeridos = tarjeta.condiciones?.puntosMinimos || 0;
+  //         const visitasRequeridas = tarjeta.condiciones?.visitasMinimas || 0;
 
-          const cumplePuntos = puntosAcumulados >= puntosRequeridos;
-          const cumpleVisitas = visitas >= visitasRequeridas;
+  //         const cumplePuntos = puntosAcumulados >= puntosRequeridos;
+  //         const cumpleVisitas = visitas >= visitasRequeridas;
 
-          // Lógica OR: cumple si tiene puntos suficientes O visitas suficientes
-          if (cumplePuntos || cumpleVisitas) {
-            return tarjeta.nivel;
-          }
-        }
-      }
-    }
+  //         // Lógica OR: cumple si tiene puntos suficientes O visitas suficientes
+  //         if (cumplePuntos || cumpleVisitas) {
+  //           return tarjeta.nivel;
+  //         }
+  //       }
+  //     }
+  //   }
 
-    // Fallback a la lógica anterior si no hay configuración del portal
-    const niveles = ['Diamante', 'Platino', 'Oro', 'Plata', 'Bronce'];
-    for (const nivel of niveles) {
-      const condiciones = nivelesConfig[nivel as keyof typeof nivelesConfig].condiciones;
-      if (
-        puntosAcumulados >= condiciones.puntosMinimos &&
-        visitas >= condiciones.visitasMinimas
-      ) {
-        return nivel;
-      }
-    }
-    return 'Bronce'; // Nivel por defecto
-  };
+  //   // Fallback a la lógica anterior si no hay configuración del portal
+  //   const niveles = ['Diamante', 'Platino', 'Oro', 'Plata', 'Bronce'];
+  //   for (const nivel of niveles) {
+  //     const condiciones = nivelesConfig[nivel as keyof typeof nivelesConfig].condiciones;
+  //     if (
+  //       puntosAcumulados >= condiciones.puntosMinimos &&
+  //       visitas >= condiciones.visitasMinimas
+  //     ) {
+  //       return nivel;
+  //     }
+  //   }
+  //   return 'Bronce'; // Nivel por defecto
+  // };
 
   // Función para obtener colores de niveles
-  const getNivelColor = (nivel: string) => {
-    const colores = {
-      Bronce: 'from-amber-600 to-amber-700',
-      Plata: 'from-gray-400 to-gray-500',
-      Oro: 'from-yellow-400 to-yellow-500',
-      Diamante: 'from-blue-400 to-blue-500',
-      Platino: 'from-gray-300 to-gray-400',
-    };
-    return colores[nivel as keyof typeof colores] || 'from-gray-400 to-gray-500';
-  };
+  // const getNivelColor = (nivel: string) => {
+  //   const colores = {
+  //     Bronce: 'from-amber-600 to-amber-700',
+  //     Plata: 'from-gray-400 to-gray-500',
+  //     Oro: 'from-yellow-400 to-yellow-500',
+  //     Diamante: 'from-blue-400 to-blue-500',
+  //     Platino: 'from-gray-300 to-gray-400',
+  //   };
+  //   return colores[nivel as keyof typeof colores] || 'from-gray-400 to-gray-500';
+  // };
 
   // Estados
   const [visitas, setVisitas] = useState<VisitasData>({
@@ -176,7 +176,7 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
     });
 
   // ✅ NUEVO: Estado para configuración del portal (niveles de tarjetas)
-  const [portalConfig, setPortalConfig] = useState<any>(null);
+  // const [portalConfig, setPortalConfig] = useState<any>(null);
 
   const [guardandoConfig, setGuardandoConfig] = useState(false);
   const [mensajeGuardado, setMensajeGuardado] = useState<string | null>(null);
@@ -236,10 +236,8 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
       
       const data = await configResponse.json();
       const config = data.config || data; // Manejar diferentes estructuras de respuesta
-      console.log('Config cargado desde API:', config); // Debug
       
       if (config.recompensas && Array.isArray(config.recompensas)) {
-        console.log('Recompensas encontradas:', config.recompensas); // Debug
         // Filtrar solo recompensas activas y ordenar de menor a mayor puntos
         const recompensasActivas = config.recompensas
           .filter((r: any) => r.activo === true)
@@ -254,11 +252,9 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
           }))
           .sort((a: Recompensa, b: Recompensa) => (a.puntos || 0) - (b.puntos || 0));
         
-        console.log('Recompensas procesadas:', recompensasActivas); // Debug
         setRecompensas(recompensasActivas);
         // Removed notification for silent updates
       } else {
-        console.log('No se encontraron recompensas en config'); // Debug
         setRecompensas([]);
       }
     } catch (error) {
@@ -394,7 +390,6 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
   useEffect(() => {
     const cargarDatosVisitas = async () => {
       try {
-        console.log('🔄 CARGANDO DATOS DE VISITAS - DashboardContent');
         const response = await fetch('/api/admin/visitas', {
           method: 'GET',
           headers: {
@@ -406,18 +401,12 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
         
         if (response.ok) {
           const data = await response.json();
-          console.log('📊 DATOS DE VISITAS RECIBIDOS:', data);
           if (data.success) {
             setVisitas({
               visitasHoy: data.data.visitasHoy,
               visitasSemana: data.data.visitasSemana,
               visitasMes: data.data.visitasMes,
               tendencia: data.data.tendencia,
-            });
-            console.log('✅ VISITAS ACTUALIZADAS:', {
-              hoy: data.data.visitasHoy,
-              semana: data.data.visitasSemana,
-              mes: data.data.visitasMes
             });
           }
         } else {
@@ -454,13 +443,8 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
         }
 
         // Fallback: cargar directamente desde portal-config.json
-        console.log('API no disponible, cargando desde portal-config.json...');
         const configResponse = await fetch('/portal-config.json');
         const config = await configResponse.json();
-
-        // ✅ NUEVO: Cargar configuración completa del portal (incluye tarjetas)
-        console.log('📊 Cargando configuración del portal:', config);
-        setPortalConfig(config);
 
         if (config.configuracionPuntos) {
           const nuevaConfig = {
@@ -528,7 +512,6 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
 
       if (response.ok && data.success) {
         setMensajeGuardado('✅ Configuración guardada exitosamente');
-        console.log('✅ Configuración guardada exitosamente');
       } else {
         setMensajeGuardado('❌ Error guardando configuración');
         console.error('❌ Error guardando configuración:', data.error);
@@ -561,9 +544,7 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
       })
         .then(response => response.json())
         .then(data => {
-          if (data.success) {
-            console.log('✅ Configuración guardada automáticamente');
-          } else {
+          if (!data.success) {
             console.error('❌ Error guardando configuración:', data.error);
           }
         })
@@ -620,15 +601,6 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
         return <div className="w-4 h-4 bg-blue-400 rounded-full" />;
     }
   };
-
-  // 🔍 DEBUG: Log datos antes del render
-  console.log('🎨 RENDERIZANDO DASHBOARD CON DATOS:', {
-    visitasHoy: visitas.visitasHoy,
-    visitasSemana: visitas.visitasSemana,
-    visitasMes: visitas.visitasMes,
-    tendencia: visitas.tendencia,
-    totalRecompensas: recompensas.length
-  });
 
   return (
     <div className="space-y-6">
@@ -794,8 +766,8 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
         </div>
 
         {/* Recompensas Activas */}
-        <div className="premium-card">
-          <div className="flex items-center space-x-3 mb-6">
+        <div className="premium-card flex flex-col">
+          <div className="flex items-center space-x-3 mb-4">
             <div className="w-10 h-10 bg-gradient-to-r from-pink-600 to-purple-600 rounded-lg flex items-center justify-center">
               <Gift className="w-5 h-5 text-white" />
             </div>
@@ -804,7 +776,14 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
             </h3>
           </div>
 
-          <div className="space-y-4">
+          {/* Contenedor scrolleable optimizado */}
+          <div 
+            className="space-y-3 overflow-y-auto pr-2 max-h-[500px] scrollbar-thin"
+            style={{
+              scrollbarWidth: 'thin',
+              scrollbarColor: 'rgb(147 51 234 / 0.5) rgb(55 65 81 / 0.3)'
+            }}
+          >
             {recompensas.length === 0 ? (
               <div className="text-center py-8 bg-dark-700/30 rounded-lg border-2 border-dashed border-dark-600">
                 <Gift className="w-8 h-8 mx-auto mb-3 text-dark-500" />
@@ -817,41 +796,42 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
               recompensas.map(recompensa => (
                 <div
                   key={recompensa.id}
-                  className="bg-dark-700/50 border border-dark-600/50 rounded-lg p-4"
+                  className="bg-dark-700/50 border border-dark-600/50 rounded-lg p-3 hover:bg-dark-700/70 hover:border-primary-600/30 transition-all duration-200"
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-3">
-                      <h4 className="text-white font-medium">
-                        {recompensa.nombre}
-                      </h4>
-                      <span className="text-yellow-400 text-sm font-medium">
-                        {recompensa.tipo === 'descuento'
-                          ? 'descuento'
-                          : 'producto'}
-                      </span>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <h4 className="text-white font-medium text-sm">
+                          {recompensa.nombre}
+                        </h4>
+                        <span className="text-yellow-400 text-xs font-medium whitespace-nowrap">
+                          {recompensa.tipo === 'descuento'
+                            ? 'descuento'
+                            : 'producto'}
+                        </span>
+                      </div>
+                      <p className="text-dark-300 text-xs line-clamp-2 mb-2">
+                        {recompensa.descripcion}
+                      </p>
                     </div>
-                    <span className="text-green-400 text-sm font-medium">
+                    <span className="text-green-400 text-xs font-medium shrink-0">
                       Activa
                     </span>
                   </div>
 
-                  <p className="text-dark-300 text-sm mb-2">
-                    {recompensa.descripcion}
-                  </p>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <span className="text-yellow-400 font-bold text-lg">
-                        {recompensa.puntos} puntos
+                  <div className="flex items-center justify-between pt-2 border-t border-dark-600/30">
+                    <div className="flex items-center gap-2">
+                      <span className="text-yellow-400 font-bold text-base">
+                        {recompensa.puntos} pts
                       </span>
                       {recompensa.stock && (
-                        <span className="text-dark-400 text-sm">
+                        <span className="text-dark-400 text-xs">
                           Stock: {recompensa.stock}
                         </span>
                       )}
                     </div>
                     <button
-                      className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-sm font-medium rounded-lg transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50"
+                      className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-xs font-medium rounded-lg transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50"
                       onClick={() => abrirModalCanje(recompensa)}
                     >
                       Canjear
@@ -944,7 +924,7 @@ const DashboardContent: React.FC<DashboardContentProps> = () => {
                   {!loading && clients.length > 0 && (
                     <div className="divide-y divide-gray-600">
                       {clients.map((client) => {
-                        const nivelAutomatico = calculateClientLevel(client);
+                        // const nivelAutomatico = calculateClientLevel(client);
                         
                         return (
                           <button

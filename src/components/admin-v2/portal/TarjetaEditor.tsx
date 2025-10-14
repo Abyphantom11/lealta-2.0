@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { CreditCard } from 'lucide-react';
+import { AlertCircle, Save } from 'lucide-react';
 import { Tarjeta, GeneralConfig, NivelTarjeta } from './types';
 
 const NIVELES_TARJETAS_CONFIG = {
@@ -59,21 +59,30 @@ const NIVELES_TARJETAS_CONFIG = {
 
 interface TarjetaEditorProps {
   readonly config: GeneralConfig;
-  readonly setConfig: (config: GeneralConfig) => void;
+  readonly onUpdateCard: (nivel: string, updates: Partial<Tarjeta>) => Promise<void>;
+  readonly onUpdateNombreEmpresa: (nombreEmpresa: string) => Promise<void>;
   readonly showNotification: (message: string, type: NivelTarjeta) => void;
 }
 
 export default function TarjetaEditor({
   config,
-  setConfig,
+  onUpdateCard,
+  onUpdateNombreEmpresa,
   showNotification,
 }: TarjetaEditorProps) {
   const [selectedLevel, setSelectedLevel] = useState('Oro');
   const [editingCard, setEditingCard] = useState<any>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [savingEmpresa, setSavingEmpresa] = useState(false);
   const [empresaChanged, setEmpresaChanged] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [tempNombreEmpresa, setTempNombreEmpresa] = useState(config.nombreEmpresa || '');
+
+  // Sincronizar estado temporal cuando cambie el config
+  useEffect(() => {
+    setTempNombreEmpresa(config.nombreEmpresa || '');
+  }, [config.nombreEmpresa]);
 
   const currentTarjeta = useMemo(() => {
     // Buscar tarjeta existente en la configuración
@@ -120,8 +129,8 @@ export default function TarjetaEditor({
   // 🎯 Función para obtener jerarquía de niveles ordenada
   const JERARQUIA_NIVELES = ['Bronce', 'Plata', 'Oro', 'Diamante', 'Platino'];
   
-  // 🛡️ Función para validar restricciones jerárquicas  
-  const validateHierarchy = (level: string, points: number, visits: number): { 
+  // 🛡️ Función para validar restricciones jerárquicas mejorada
+  const validateHierarchy = (level: string, points: number): { 
     isValid: boolean; 
     errors: string[]; 
     maxAllowedPoints?: number;
@@ -134,58 +143,58 @@ export default function TarjetaEditor({
       return { isValid: false, errors: ['Nivel no válido'] };
     }
     
-    // Obtener todas las tarjetas actuales
-    const allCards = config.tarjetas || [];
+    // ✅ MEJORADO: Construir snapshot completo de todas las tarjetas
+    const allCards = [...(config.tarjetas || [])];
     
-    // 🔍 Validar límite superior (no puede ser mayor o igual al siguiente nivel)
+    // Si estamos editando, simular el estado actualizado
+    if (editingCard) {
+      const editingIndex = allCards.findIndex(c => c.nivel === editingCard.nivel);
+      if (editingIndex >= 0) {
+        // Actualizar la tarjeta existente con los valores actuales del form
+        allCards[editingIndex] = { ...editingCard };
+      } else {
+        // Agregar nueva tarjeta si no existe
+        allCards.push(editingCard);
+      }
+    }
+    
+    // 🔍 LÍMITE SUPERIOR: Buscar el nivel inmediatamente superior que tenga configuración
     let maxAllowedPoints: number | undefined;
-    for (let i = currentIndex + 1; i < JERARQUIA_NIVELES.length; i++) {
-      const higherLevelCard = allCards.find(card => card.nivel === JERARQUIA_NIVELES[i]);
-      if (higherLevelCard && higherLevelCard.condiciones) {
-        maxAllowedPoints = higherLevelCard.condiciones.puntosMinimos - 1;
-        if (points >= higherLevelCard.condiciones.puntosMinimos) {
-          errors.push(`❌ ${level} no puede tener ${points} puntos porque ${JERARQUIA_NIVELES[i]} requiere ${higherLevelCard.condiciones.puntosMinimos}. Máximo permitido: ${maxAllowedPoints}`);
+    const nivelesSuperiores = JERARQUIA_NIVELES.slice(currentIndex + 1);
+    
+    for (const nivelSuperior of nivelesSuperiores) {
+      const higherCard = allCards.find(card => card.nivel === nivelSuperior);
+      if (higherCard && higherCard.condiciones && typeof higherCard.condiciones.puntosMinimos === 'number') {
+        maxAllowedPoints = higherCard.condiciones.puntosMinimos - 1;
+        
+        if (points >= higherCard.condiciones.puntosMinimos) {
+          errors.push(`${level} no puede tener ${points} puntos o más porque ${nivelSuperior} requiere ${higherCard.condiciones.puntosMinimos}. Máximo permitido: ${maxAllowedPoints}`);
         }
-        break; // Validar contra el primer nivel superior existente
+        break;
       }
     }
     
-    // 🔍 Validar límite inferior (debe ser mayor al nivel anterior)  
+    // 🔍 LÍMITE INFERIOR: Buscar el nivel inmediatamente inferior que tenga configuración  
     let minRequiredPoints: number | undefined;
-    for (let i = currentIndex - 1; i >= 0; i--) {
-      const lowerLevelCard = allCards.find(card => card.nivel === JERARQUIA_NIVELES[i]);
-      if (lowerLevelCard && lowerLevelCard.condiciones) {
-        minRequiredPoints = lowerLevelCard.condiciones.puntosMinimos + 1;
-        if (points <= lowerLevelCard.condiciones.puntosMinimos) {
-          errors.push(`❌ ${level} debe tener más puntos que ${JERARQUIA_NIVELES[i]} (${lowerLevelCard.condiciones.puntosMinimos}). Mínimo requerido: ${minRequiredPoints}`);
+    const nivelesInferiores = JERARQUIA_NIVELES.slice(0, currentIndex).reverse();
+    
+    for (const nivelInferior of nivelesInferiores) {
+      const lowerCard = allCards.find(card => card.nivel === nivelInferior);
+      if (lowerCard && lowerCard.condiciones && typeof lowerCard.condiciones.puntosMinimos === 'number') {
+        minRequiredPoints = lowerCard.condiciones.puntosMinimos + 1;
+        
+        if (points <= lowerCard.condiciones.puntosMinimos) {
+          errors.push(`${level} debe tener más de ${lowerCard.condiciones.puntosMinimos} puntos porque ${nivelInferior} ya requiere ${lowerCard.condiciones.puntosMinimos}. Mínimo requerido: ${minRequiredPoints}`);
         }
-        break; // Validar contra el primer nivel inferior existente
+        break;
       }
     }
     
-    // 🚨 VALIDACIÓN ESPECIAL: Solo validar contra niveles EXISTENTES
-    // No restringir niveles si los superiores no están configurados aún
-    for (let i = currentIndex + 1; i < JERARQUIA_NIVELES.length; i++) {
-      const higherLevelCard = allCards.find(card => card.nivel === JERARQUIA_NIVELES[i]);
-      if (higherLevelCard && higherLevelCard.condiciones) {
-        const higherPoints = higherLevelCard.condiciones.puntosMinimos;
-        if (points >= higherPoints) {
-          errors.push(`❌ ${level} (${points} pts) no puede igualar o superar a ${JERARQUIA_NIVELES[i]} (${higherPoints} pts). La jerarquía debe ser: Bronce < Plata < Oro < Diamante < Platino`);
-          maxAllowedPoints = higherPoints - 1;
-          break; // Solo validar contra el primer nivel superior existente
-        }
-      }
+    // 🔍 CASO ESPECIAL: Si es el primer nivel (Bronce), mínimo 0
+    if (currentIndex === 0) {
+      minRequiredPoints = 0;
     }
-    
-    // 💡 SUGERENCIA INTELIGENTE: Si un nivel tiene muchos puntos sin nivel superior
-    if (level === 'Diamante' && points > 2000 && currentIndex < JERARQUIA_NIVELES.length - 1) {
-      const platinoCard = allCards.find(card => card.nivel === 'Platino');
-      if (!platinoCard) {
-        // Esto es solo una sugerencia, NO un error que bloquee
-        console.log(`💡 SUGERENCIA: ${level} con ${points} puntos es muy alto. Considera crear una tarjeta Platino con más puntos para mantener la jerarquía.`);
-      }
-    }
-    
+
     return {
       isValid: errors.length === 0,
       errors,
@@ -213,50 +222,18 @@ export default function TarjetaEditor({
     };
   };
 
-  // Función auxiliar para actualizar tarjetas localmente
-  const updateLocalCards = (cardToSave: Tarjeta) => {
-    const newTarjetas = [...(config.tarjetas || [])];
-    const existingIndex = newTarjetas.findIndex(
-      (t: Tarjeta) => t.nivel === cardToSave.nivel
-    );
-
-    if (existingIndex >= 0) {
-      newTarjetas[existingIndex] = cardToSave;
-    } else {
-      newTarjetas.push(cardToSave);
-    }
-
-    setConfig({ ...config, tarjetas: newTarjetas });
-    return newTarjetas;
-  };
+  // ✅ ELIMINADO: updateLocalCards - ya no se necesita, se maneja por callback
 
   // Función auxiliar para persistir cambios
-  const persistCardChanges = async (newTarjetas: Tarjeta[]) => {
-    const response = await fetch('/api/admin/portal-config', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        ...config,
-        tarjetas: newTarjetas,
-        businessId: 'default',
-      }),
-    });
+  // ✅ ELIMINADO: persistCardChanges - ahora usa callback del padre
 
-    if (!response.ok) {
-      throw new Error('Error al guardar en el servidor');
-    }
-  };
-
-  const handleSaveCard = async () => {
+  const handleSave = async () => {
     if (!editingCard) return;
 
     // 🛡️ Validar jerarquía antes de guardar
     const validation = validateHierarchy(
       selectedLevel,
-      editingCard.condiciones?.puntosMinimos || 0,
-      editingCard.condiciones?.visitasMinimas || 0
+      editingCard.condiciones?.puntosMinimos || 0
     );
 
     if (!validation.isValid) {
@@ -269,15 +246,11 @@ export default function TarjetaEditor({
     }
 
     try {
+      setIsSaving(true);
       const cardToSave = normalizeCardConditions(editingCard);
-      const newTarjetas = updateLocalCards(cardToSave);
-      await persistCardChanges(newTarjetas);
-
-      // Actualizar estado local inmediatamente
-      setConfig({
-        ...config,
-        tarjetas: newTarjetas,
-      });
+      
+      // ✅ NUEVO: Usar callback del padre para persistir
+      await onUpdateCard(selectedLevel, cardToSave);
 
       showNotification(
         `✅ Tarjeta ${cardToSave.nivel} guardada correctamente`,
@@ -291,6 +264,8 @@ export default function TarjetaEditor({
         '❌ Error al guardar los cambios de la tarjeta',
         'error'
       );
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -313,8 +288,7 @@ export default function TarjetaEditor({
     if (field === 'puntosMinimos' && typeof value === 'number') {
       const validation = validateHierarchy(
         selectedLevel, 
-        value, 
-        updatedCard.condiciones?.visitasMinimas || 0
+        value
       );
       
       setValidationErrors(validation.errors);
@@ -333,106 +307,18 @@ export default function TarjetaEditor({
     setHasUnsavedChanges(true);
   };
 
-  const handleSaveEmpresa = async (nombreEmpresa: string) => {
-    try {
-      setSavingEmpresa(true);
-      
-      // Actualizar estado local
-      const updatedConfig = { ...config, nombreEmpresa };
-      setConfig(updatedConfig);
-
-      // Persistir inmediatamente en la base de datos
-      const response = await fetch('/api/admin/portal-config', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...updatedConfig,
-          businessId: 'default',
-        }),
-      });
-
-      if (response.ok) {
-        // Actualizar todas las tarjetas existentes de clientes
-        const syncResponse = await fetch('/api/admin/sync-tarjetas-empresa', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            nombreEmpresa,
-          }),
-        });
-
-        if (syncResponse.ok) {
-          showNotification(
-            `✅ Nombre de empresa guardado como "${nombreEmpresa}" y tarjetas actualizadas`,
-            'success'
-          );
-        } else {
-          showNotification(
-            `⚠️ Nombre guardado como "${nombreEmpresa}" pero no se pudieron sincronizar todas las tarjetas`,
-            'warning'
-          );
-        }
-        setEmpresaChanged(false);
-      } else {
-        throw new Error('Error al guardar la configuración');
-      }
-    } catch (error) {
-      console.error('Error al guardar nombre de empresa:', error);
-      showNotification('❌ Error al guardar el nombre de empresa', 'error');
-    } finally {
-      setSavingEmpresa(false);
-    }
-  };
-
   const handleSaveEmpresaManual = async () => {
     try {
       setSavingEmpresa(true);
 
-      // Persistir en la base de datos
-      const response = await fetch('/api/admin/portal-config', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...config,
-          businessId: 'default',
-        }),
-      });
+      // ✅ NUEVO: Usar callback del padre para persistir
+      await onUpdateNombreEmpresa(tempNombreEmpresa);
 
-      if (response.ok) {
-        // Actualizar todas las tarjetas existentes de clientes
-        const syncResponse = await fetch('/api/admin/sync-tarjetas-empresa', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            nombreEmpresa: config.nombreEmpresa,
-          }),
-        });
-
-        if (syncResponse.ok) {
-          const result = await syncResponse.json();
-          showNotification(
-            `✅ Nombre guardado y ${result.updatedCards || 0} tarjetas de clientes actualizadas`,
-            'success'
-          );
-        } else {
-          showNotification(
-            '✅ Nombre guardado (sin sincronización de tarjetas existentes)',
-            'success'
-          );
-        }
-
-        setEmpresaChanged(false);
-      } else {
-        throw new Error('Error al guardar en el servidor');
-      }
+      showNotification(
+        '✅ Nombre de empresa guardado correctamente',
+        'success'
+      );
+      setEmpresaChanged(false);
     } catch (error) {
       console.error('Error guardando nombre empresa:', error);
       showNotification('❌ Error al guardar el nombre de la empresa', 'error');
@@ -441,17 +327,42 @@ export default function TarjetaEditor({
     }
   };
 
+  // ===========================================
+  // 🎨 RENDER PRINCIPAL
+  // ===========================================
   return (
-    <div>
-      <div className="flex items-center mb-6">
-        <CreditCard className="w-6 h-6 mr-2 text-primary-500" />
-        <h4 className="text-lg font-semibold text-white">
-          Gestión de Tarjetas de Lealtad
-        </h4>
-      </div>
+    <div className="space-y-6">
+      {/* Header del editor con warning de cambios sin guardar */}
+      {hasUnsavedChanges && (
+        <div className="flex items-center justify-between p-4 bg-amber-900/30 border border-amber-600/50 rounded-lg">
+          <div className="flex items-center">
+            <AlertCircle className="w-5 h-5 text-amber-400 mr-2" />
+            <span className="text-amber-300 font-medium">
+              Tienes cambios sin guardar
+            </span>
+          </div>
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+          >
+            {isSaving ? (
+              <>
+                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                Guardando...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                Guardar Cambios
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
-      {/* Configuración del nombre de empresa */}
-      <div className="bg-dark-800 rounded-lg p-4 mb-6">
+      {/* Nombre de la Empresa */}
+      <div className="bg-dark-800 rounded-lg p-6">
         <h5 className="text-white font-medium mb-3">
           Nombre de la Empresa en Tarjetas
         </h5>
@@ -459,8 +370,12 @@ export default function TarjetaEditor({
           <div className="flex-1 relative">
             <input
               type="text"
-              value={config.nombreEmpresa || ''}
-              onChange={e => handleSaveEmpresa(e.target.value)}
+              value={tempNombreEmpresa}
+              onChange={e => {
+                setTempNombreEmpresa(e.target.value);
+                setHasUnsavedChanges(true);
+                setEmpresaChanged(true); // ✅ ACTIVAR INDICADOR DE CAMBIOS
+              }}
               placeholder="Nombre de tu empresa"
               className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:border-primary-500 focus:outline-none pr-10"
             />
@@ -605,10 +520,15 @@ export default function TarjetaEditor({
                   {/* 💡 Mostrar límites jerárquicos como ayuda */}
                   {(() => {
                     const currentPoints = editingCard.condiciones?.puntosMinimos || 0;
-                    const validation = validateHierarchy(selectedLevel, currentPoints, 0);
+                    const validation = validateHierarchy(selectedLevel, currentPoints);
                     
                     return (
                       <div className="mt-1 text-xs">
+                        {/* 🔍 DEBUG: Mostrar valores para diagnosticar */}
+                        <p className="text-gray-400 text-xs">
+                          Debug: min={validation.minRequiredPoints}, max={validation.maxAllowedPoints}
+                        </p>
+                        
                         {validation.minRequiredPoints !== undefined && (
                           <p className="text-yellow-400">
                             💡 Mínimo: {validation.minRequiredPoints} puntos
@@ -620,9 +540,18 @@ export default function TarjetaEditor({
                           </p>
                         )}
                         {validation.minRequiredPoints === undefined && validation.maxAllowedPoints === undefined && (
-                          <p className="text-green-400">
-                            ✅ Sin restricciones
+                          <p className="text-gray-400">
+                            💬 Este es el nivel más alto o no hay otros niveles configurados
                           </p>
+                        )}
+                        {validation.errors.length > 0 && (
+                          <div className="mt-1">
+                            {validation.errors.map((error, index) => (
+                              <p key={index} className="text-red-400 text-xs">
+                                ⚠️ {error}
+                              </p>
+                            ))}
+                          </div>
                         )}
                       </div>
                     );
@@ -722,7 +651,7 @@ export default function TarjetaEditor({
                   </p>
                 )}
                 <button
-                  onClick={handleSaveCard}
+                  onClick={handleSave}
                   disabled={!hasUnsavedChanges || validationErrors.length > 0}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     hasUnsavedChanges && validationErrors.length === 0

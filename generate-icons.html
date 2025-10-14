@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generar Íconos PWA</title>
+    <style>
+        canvas {
+            margin: 10px;
+            border: 1px solid #ccc;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            padding: 20px;
+        }
+        .icon-set {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Generador de Íconos PWA para Lealta</h1>
+    <div class="container" id="container"></div>
+
+    <script>
+        const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+        
+        function createIcon(size) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            // Fondo degradado
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#3b82f6');
+            gradient.addColorStop(1, '#1e40af');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+            
+            // Bordes redondeados (simulados)
+            ctx.fillStyle = '#1a1a1a';
+            const radius = size * 0.05;
+            
+            // Texto "L"
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${size * 0.6}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('L', size / 2, size / 2);
+            
+            return canvas;
+        }
+        
+        function downloadCanvas(canvas, filename) {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        const container = document.getElementById('container');
+        
+        sizes.forEach(size => {
+            const iconSet = document.createElement('div');
+            iconSet.className = 'icon-set';
+            
+            const canvas = createIcon(size);
+            const label = document.createElement('p');
+            label.textContent = `${size}x${size}`;
+            
+            const downloadBtn = document.createElement('button');
+            downloadBtn.textContent = `Descargar ${size}x${size}`;
+            downloadBtn.onclick = () => downloadCanvas(canvas, `icon-${size}.png`);
+            
+            iconSet.appendChild(canvas);
+            iconSet.appendChild(label);
+            iconSet.appendChild(downloadBtn);
+            container.appendChild(iconSet);
+        });
+        
+        // Botón para descargar todos
+        const downloadAllBtn = document.createElement('button');
+        downloadAllBtn.textContent = 'Descargar Todos';
+        downloadAllBtn.style.position = 'fixed';
+        downloadAllBtn.style.top = '10px';
+        downloadAllBtn.style.right = '10px';
+        downloadAllBtn.style.padding = '10px 20px';
+        downloadAllBtn.style.backgroundColor = '#3b82f6';
+        downloadAllBtn.style.color = 'white';
+        downloadAllBtn.style.border = 'none';
+        downloadAllBtn.style.borderRadius = '5px';
+        downloadAllBtn.style.cursor = 'pointer';
+        
+        downloadAllBtn.onclick = () => {
+            sizes.forEach(size => {
+                setTimeout(() => {
+                    const canvas = createIcon(size);
+                    downloadCanvas(canvas, `icon-${size}.png`);
+                }, size); // Pequeño delay entre descargas
+            });
+        };
+        
+        document.body.appendChild(downloadAllBtn);
+    </script>
+</body>
+</html>

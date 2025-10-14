@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 // 🔍 GET - Búsqueda de clientes para staff (NO necesita auth estricta)
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get('q');
     const businessId = request.headers.get('x-business-id');
 

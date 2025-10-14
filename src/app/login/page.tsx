@@ -4,8 +4,8 @@ import { useState, useEffect, Suspense } from 'react';
 import { motion } from '../../components/motion';
 import { Mail, Lock, Eye, EyeOff, UserPlus, Sparkles, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
-import { LealtaLogo } from '../../components/LealtaLogo';
 import { useSearchParams, useRouter } from 'next/navigation';
+import AuthHeader from '../../components/ui/AuthHeader';
 
 function LoginContent() {
   const [formData, setFormData] = useState({
@@ -24,12 +24,10 @@ function LoginContent() {
   useEffect(() => {
     const checkExistingAuth = async () => {
       try {
-        console.log('🔍 Login: Verificando sesión existente...');
         const response = await fetch('/api/auth/me');
         
         if (response.ok) {
           const userData = await response.json();
-          console.log('✅ Login: Sesión existente encontrada, redirigiendo...');
           
           // Determinar la ruta de redirección basada en el rol
           const businessSlug = userData.user.business?.slug || userData.user.business?.subdomain;
@@ -42,15 +40,12 @@ function LoginContent() {
             };
             
             const redirectUrl = roleRedirect[userData.user.role] || `/${businessSlug}/admin`;
-            console.log(`🔄 Login: Redirigiendo a ${redirectUrl}`);
             router.push(redirectUrl);
             return;
           }
         }
-        
-        console.log('ℹ️ Login: No hay sesión activa, mostrando formulario');
-      } catch (error) {
-        console.log('ℹ️ Login: Error verificando sesión, mostrando formulario:', error);
+      } catch {
+        // Silenciar error de verificación
       } finally {
         setIsCheckingAuth(false);
       }
@@ -149,35 +144,35 @@ function LoginContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black flex items-center justify-center p-4">
-      {/* Background Elements */}
-      <div className="absolute inset-0 opacity-20">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black">
+      {/* PWA Download Button - desactivado, usando el del AuthHeader */}
+      {/* <PWADownloadButton /> */}
+      
+      {/* Header con navegación optimizada */}
+      <AuthHeader showBackButton={true} />
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative w-full max-w-md"
-      >
-        {/* Header */}
-        <div className="text-center mb-8">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-            className="mb-6"
-          >
-            <LealtaLogo size={60} className="mx-auto" animated />
-          </motion.div>
-          <h1 className="text-3xl font-bold text-white mb-2">
-            <span className="bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-              lealta
-            </span>
-          </h1>
-          <p className="text-gray-400">Panel de administración</p>
+      {/* Contenido principal */}
+      <div className="flex items-center justify-center p-4 pt-0">
+        {/* Background Elements */}
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl" />
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
         </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative w-full max-w-md"
+        >
+          {/* Header del formulario - con degradado azul-morado */}
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-bold text-white mb-2">
+              Accede a tu cuenta
+            </h1>
+            <div className="text-3xl font-bold bg-gradient-to-r from-blue-500 via-purple-500 to-blue-600 bg-clip-text text-transparent">
+              lealta
+            </div>
+          </div>
 
         {/* Login Form */}
         <motion.form
@@ -205,6 +200,7 @@ function LoginContent() {
             <input
               type="email"
               required
+              data-testid="email-input"
               className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
               placeholder="admin@lealta.com"
               value={formData.email}
@@ -223,6 +219,7 @@ function LoginContent() {
               <input
                 type={showPassword ? 'text' : 'password'}
                 required
+                data-testid="password-input"
                 className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 pr-12"
                 placeholder="••••••••"
                 value={formData.password}
@@ -249,6 +246,7 @@ function LoginContent() {
             whileTap={{ scale: 0.98 }}
             type="submit"
             disabled={isLoading}
+            data-testid="login-button"
             className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
           >
             {isLoading ? (
@@ -279,28 +277,26 @@ function LoginContent() {
             className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
           >
             <UserPlus className="w-5 h-5 mr-2" />
-            Registrar Empresa
+            Registrar Negocio
           </Link>
         </motion.div>
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   );
 }
 
 export default function LoginPage() {
   return (
-    <>
-      
-      <Suspense fallback={
-        <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-800 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
-            <p className="text-white">Cargando...</p>
-          </div>
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
+          <p className="text-white">Cargando...</p>
         </div>
-      }>
-        <LoginContent />
-      </Suspense>
-    </>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

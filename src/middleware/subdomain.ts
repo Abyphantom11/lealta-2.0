@@ -2,6 +2,90 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '../lib/prisma';
 
+// Tipo para el business
+type Business = {
+  id: string;
+  name: string;
+  slug: string;
+  subdomain: string;
+  isActive: boolean;
+};
+
+// Tipos para las funciones de cache
+type CachedBusinessFunction = (businessId: string) => Promise<Business | null>;
+type SetCachedBusinessFunction = (businessId: string, data: Business) => void;
+
+// Variables para las funciones de cache
+let cachedBusinessFunction: CachedBusinessFunction | null = null;
+let setCachedBusinessFunction: SetCachedBusinessFunction | null = null;
+
+// Función de inicialización asíncrona para las funciones de cache
+async function initializeCacheFunctions() {
+  if (cachedBusinessFunction && setCachedBusinessFunction) return; // Ya inicializadas
+  
+  try {
+    const middlewareModule = await import('../../middleware');
+    // Asegurar que las funciones importadas tengan los tipos correctos
+    cachedBusinessFunction = middlewareModule.getCachedBusiness as CachedBusinessFunction;
+    setCachedBusinessFunction = middlewareModule.setCachedBusiness;
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.log('Cache functions not available:', errorMessage);
+  }
+}
+
+/**
+ * Función optimizada para buscar business por identifier con cache
+ */
+async function findBusinessByIdentifier(identifier: string): Promise<BusinessContext['business'] | null> {
+  // Inicializar funciones de cache si no están ya inicializadas
+  await initializeCacheFunctions();
+  // Crear una clave de cache específica para el identifier
+  const cacheKey = `identifier:${identifier}`;
+  
+  // Intentar obtener del cache primero
+  if (cachedBusinessFunction) {
+    const cached = await cachedBusinessFunction(cacheKey);
+    if (cached) {
+      console.log(`🚀 CACHE HIT: Business by identifier ${identifier} found in cache`);
+      return cached;
+    }
+  }
+
+  // Si no está en cache, consultar base de datos
+  try {
+    const business = await prisma.business.findFirst({
+      where: { 
+        OR: [
+          { subdomain: identifier },
+          { slug: identifier }
+        ],
+        isActive: true 
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        subdomain: true,
+        isActive: true
+      }
+    });
+
+    // Guardar en cache si está disponible
+    if (setCachedBusinessFunction && business) {
+      setCachedBusinessFunction(cacheKey, business);
+      // También cache por ID para reutilización
+      setCachedBusinessFunction(business.id, business);
+      console.log(`💾 CACHE SET: Business ${identifier} cached`);
+    }
+
+    return business;
+  } catch (error) {
+    console.error('Error finding business by identifier:', error);
+    return null;
+  }
+}
+
 /**
  * Extrae información del business desde la URL
  * Soporta patrones: /cafedani/admin, /cafedani/cliente, etc.
@@ -63,23 +147,8 @@ export function extractBusinessFromUrl(pathname: string): {
  */
 export async function validateBusinessSubdomain(identifier: string): Promise<BusinessContext['business'] | null> {
   try {
-    // Buscar por subdomain O por slug
-    const business = await prisma.business.findFirst({
-      where: { 
-        OR: [
-          { subdomain: identifier },
-          { slug: identifier }
-        ],
-        isActive: true 
-      },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        subdomain: true,
-        isActive: true
-      }
-    });
+    // Buscar por subdomain O por slug usando cache
+    const business = await findBusinessByIdentifier(identifier);
     
     return business;
   } catch (error) {
@@ -169,10 +238,11 @@ export async function getCachedBusiness(subdomain: string): Promise<BusinessCont
   const business = await validateBusinessSubdomain(subdomain);
   
   if (business) {
-    businessCache.set(subdomain, {
-      ...business,
+    const cachedEntry: CachedBusiness = {
+      business,
       timestamp: Date.now()
-    } as any); // TODO: Fix type after launch
+    };
+    businessCache.set(subdomain, cachedEntry.business);
   }
   
   return business;

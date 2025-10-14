@@ -7,24 +7,14 @@ import { useEffect } from 'react';
  */
 export default function RedirectInterceptor() {
   useEffect(() => {
-    console.log('🛡️ RedirectInterceptor activado');
+    if (process.env.NEXT_PUBLIC_REDIRECT_DEBUG !== 'true') {
+      return;
+    }
     
-    // Interceptar fetch calls para monitorear APIs
+    // Interceptar fetch calls para monitorear APIs (solo errores críticos)
     const originalFetch = window.fetch;
     window.fetch = async function(...args) {
-      const [url, options] = args;
-      console.log('📡 FETCH interceptado:', {
-        url: url.toString(),
-        method: options?.method || 'GET'
-      });
-      
       const response = await originalFetch.apply(this, args);
-      
-      console.log('📡 FETCH respuesta:', {
-        url: url.toString(),
-        status: response.status,
-        ok: response.ok
-      });
       
       return response;
     };
@@ -33,10 +23,6 @@ export default function RedirectInterceptor() {
     let currentUrl = window.location.href;
     const urlMonitor = setInterval(() => {
       if (window.location.href !== currentUrl) {
-        console.log('🌐 URL cambió:', {
-          from: currentUrl,
-          to: window.location.href
-        });
         currentUrl = window.location.href;
       }
     }, 100);
@@ -45,7 +31,6 @@ export default function RedirectInterceptor() {
     return () => {
       window.fetch = originalFetch;
       clearInterval(urlMonitor);
-      console.log('🛡️ RedirectInterceptor desactivado');
     };
   }, []);
 

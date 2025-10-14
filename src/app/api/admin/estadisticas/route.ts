@@ -1,20 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { TopCliente, ProductosConsumo, ProductoConsumo, GoalsConfig, ProductVentasData, EmpleadoStats } from '../../../../types/api-routes';
-import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
-
-const prisma = new PrismaClient();
+import { withAuth } from '../../../../middleware/requireAuth';
+import { prisma } from '../../../../lib/prisma';
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
 
 // 🔒 GET - Estadísticas administrativas (PROTEGIDO)
 export async function GET(request: NextRequest) {
+  // Configuración específica para SuperAdmin
+  const authConfig = {
+    requiredPermission: 'read',
+    allowedRoles: ['superadmin', 'admin', 'staff'] as const,
+    requireBusinessOwnership: false, // SuperAdmin puede acceder a cualquier business
+    logAccess: true
+  };
+
   return withAuth(request, async (session) => {
     try {
-      console.log(`📊 Estadísticas request by: ${session.role} (${session.userId}) - Business: ${session.businessId}`);
+      // SuperAdmin: Si no tiene businessId, mostrar todas las estadísticas
+      // Admins normales: Solo su business
+      const targetBusinessId = session.role === 'superadmin' 
+        ? (request.nextUrl.searchParams.get('businessId') || session.businessId)
+        : session.businessId;
       
-      const { searchParams } = new URL(request.url);
+      // Validar que tengamos un businessId válido
+      if (!targetBusinessId) {
+        console.error('❌ No se pudo determinar businessId para estadísticas');
+        return NextResponse.json({
+          success: false,
+          error: 'BusinessId no encontrado',
+          message: 'No se pudo determinar el negocio para las estadísticas'
+        }, { status: 400 });
+      }
+      
+      const searchParams = request.nextUrl.searchParams;
     const periodo = searchParams.get('periodo') || 'today'; // today, week, month, all
 
     let fechaInicio: Date;
@@ -68,7 +88,7 @@ export async function GET(request: NextRequest) {
     // Obtener consumos del período
     const consumos = await prisma.consumo.findMany({
       where: {
-        businessId: session.businessId, // ✅ FILTRO POR BUSINESS
+        businessId: targetBusinessId, // ✅ FILTRO POR BUSINESS (SuperAdmin flexible)
         registeredAt: {
           gte: fechaInicio,
         },
@@ -93,20 +113,12 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    console.log(
-      `📊 Debug - Período: ${periodo}, Fecha inicio: ${fechaInicio.toISOString()}`
-    );
-    console.log(`📊 Debug - Consumos encontrados: ${consumos.length}`);
+    // ✅ Log completamente desactivado para evitar spam
+    // if (process.env.NODE_ENV === 'development') {
+    //   console.log(`📊 Stats: ${consumos.length} consumos`);
+    // }
 
-    if (consumos.length > 0) {
-      console.log('📊 Debug - Primer consumo:', {
-        id: consumos[0].id,
-        fecha: consumos[0].registeredAt,
-        total: consumos[0].total,
-        cliente: consumos[0].cliente.nombre,
-        cedula: consumos[0].cliente.cedula,
-      });
-    }
+    // ✅ Debug de primer consumo removido para reducir spam
 
     // Calcular estadísticas avanzadas
     const totalConsumos = consumos.length;
@@ -121,7 +133,7 @@ export async function GET(request: NextRequest) {
     const fechaInicioPrevio = new Date(fechaInicio.getTime() - (fechaActual.getTime() - fechaInicio.getTime()));
     const consumosPrevios = await prisma.consumo.findMany({
       where: {
-        businessId: session.businessId, // ✅ FILTRO POR BUSINESS
+        businessId: targetBusinessId, // ✅ FILTRO POR BUSINESS (SuperAdmin flexible)
         registeredAt: {
           gte: fechaInicioPrevio,
           lt: fechaInicio,
@@ -142,7 +154,7 @@ export async function GET(request: NextRequest) {
     try {
       topClientes = await prisma.cliente.findMany({
         where: {
-          businessId: session.businessId, // ✅ FILTRO POR BUSINESS
+          businessId: targetBusinessId, // ✅ FILTRO POR BUSINESS (SuperAdmin flexible)
           consumos: {
             some: {
               registeredAt: {
@@ -155,6 +167,7 @@ export async function GET(request: NextRequest) {
         include: {
           consumos: {
             where: {
+              businessId: targetBusinessId, // ✅ FILTRO POR BUSINESS AGREGADO
               registeredAt: {
                 gte: fechaInicio,
                 lte: fechaActual,
@@ -180,8 +193,10 @@ export async function GET(request: NextRequest) {
     try {
       clientesActivos = await prisma.cliente.count({
         where: {
+          businessId: targetBusinessId, // ✅ FILTRO POR BUSINESS AGREGADO
           consumos: {
             some: {
+              businessId: targetBusinessId, // ✅ DOBLE FILTRO por seguridad
               registeredAt: {
                 gte: new Date(fechaActual.getTime() - 30 * 24 * 60 * 60 * 1000), // Últimos 30 días
               },
@@ -199,7 +214,7 @@ export async function GET(request: NextRequest) {
       // Obtener todos los clientes que compraron en el período
       const clientesDelPeriodo = await prisma.cliente.findMany({
         where: {
-          businessId: session.businessId, // ✅ FILTRO POR BUSINESS
+          businessId: targetBusinessId, // ✅ FILTRO POR BUSINESS (SuperAdmin flexible)
           consumos: {
             some: {
               registeredAt: {
@@ -212,6 +227,7 @@ export async function GET(request: NextRequest) {
         include: {
           consumos: {
             where: {
+              businessId: targetBusinessId, // ✅ FILTRO POR BUSINESS AGREGADO
               registeredAt: {
                 gte: fechaInicio,
                 lte: fechaActual,
@@ -240,13 +256,13 @@ export async function GET(request: NextRequest) {
     let businessGoals = null;
     try {
       businessGoals = await prisma.businessGoals.findUnique({
-        where: { businessId: session.businessId }
+        where: { businessId: targetBusinessId }
       });
       
       // Si no existen metas, crear las predeterminadas
       businessGoals ??= await prisma.businessGoals.create({
         data: {
-          businessId: session.businessId,
+          businessId: targetBusinessId,
           // Los valores por defecto ya están definidos en el schema
         }
       });
@@ -261,32 +277,51 @@ export async function GET(request: NextRequest) {
       return 'monthly';
     };
 
+    // Helper functions para reducir complejidad cognitiva
+    const getRevenueTarget = (goals: GoalsConfig, periodType: string): number => {
+      switch (periodType) {
+        case 'daily': return goals.dailyRevenue;
+        case 'weekly': return goals.weeklyRevenue;
+        default: return goals.monthlyRevenue;
+      }
+    };
+
+    const getClientsTarget = (goals: GoalsConfig, periodType: string): number => {
+      switch (periodType) {
+        case 'daily': return goals.dailyClients;
+        case 'weekly': return goals.weeklyClients;
+        default: return goals.monthlyClients;
+      }
+    };
+
+    const getTransactionsTarget = (goals: GoalsConfig, periodType: string): number => {
+      switch (periodType) {
+        case 'daily': return goals.dailyTransactions;
+        case 'weekly': return goals.weeklyTransactions;
+        default: return goals.monthlyTransactions;
+      }
+    };
+
     // Determinar la meta apropiada según el período
     const getTargetForPeriod = (goals: GoalsConfig | null, metric: string): number => {
       if (!goals) return 0;
       
       const periodType = getPeriodType(periodo);
       
-      if (metric === 'Revenue') {
-        if (periodType === 'daily') return goals.dailyRevenue;
-        if (periodType === 'weekly') return goals.weeklyRevenue;
-        return goals.monthlyRevenue;
+      switch (metric) {
+        case 'Revenue':
+          return getRevenueTarget(goals, periodType);
+        case 'Clients':
+          return getClientsTarget(goals, periodType);
+        case 'Transactions':
+          return getTransactionsTarget(goals, periodType);
+        default:
+          return 0;
       }
-      if (metric === 'Clients') {
-        if (periodType === 'daily') return goals.dailyClients;
-        if (periodType === 'weekly') return goals.weeklyClients;
-        return goals.monthlyClients;
-      }
-      if (metric === 'Transactions') {
-        if (periodType === 'daily') return goals.dailyTransactions;
-        if (periodType === 'weekly') return goals.weeklyTransactions;
-        return goals.monthlyTransactions;
-      }
-      return 0;
     };
 
     // Calcular metas dinámicas
-    console.log('📊 BusinessGoals cargadas:', businessGoals);
+    // ✅ BusinessGoals log removido para reducir spam
     const targetRevenue = getTargetForPeriod(businessGoals, 'Revenue');
     const targetClients = getTargetForPeriod(businessGoals, 'Clients');
     const targetTransactions = getTargetForPeriod(businessGoals, 'Transactions');
@@ -295,37 +330,21 @@ export async function GET(request: NextRequest) {
     const targetConversionRate = businessGoals?.targetConversionRate || 80;
     const targetTopClient = businessGoals?.targetTopClient || 150;
     const targetActiveClients = businessGoals?.targetActiveClients || 50;
-    
-    console.log('🎯 Targets calculados:', {
-      targetRevenue,
-      targetClients,
-      targetTransactions,
-      targetTicketAverage,
-      targetRetentionRate,
-      targetConversionRate,
-      targetTopClient,
-      targetActiveClients
-    });
 
     // Cliente top (mayor gastador del período)
     const clienteTop = topClientes[0];
     const valorClienteTop = clienteTop ? clienteTop.totalGastado : 0;
 
-    console.log(`📊 Debug - Estadísticas calculadas:`, {
-      totalConsumos,
-      totalMonto,
-      totalPuntos,
-      clientesUnicos,
-      ticketPromedio,
-      tasaRetencion,
-      clientesActivos,
-      clientesRecurrentes,
-    });
+    // ✅ Debug de estadísticas calculadas removido para reducir spam
 
     // Obtener estadísticas de clientes totales con manejo de errores
     let totalClientes = 0;
     try {
-      totalClientes = await prisma.cliente.count();
+      totalClientes = await prisma.cliente.count({
+        where: {
+          businessId: targetBusinessId // ✅ FILTRO POR BUSINESS AGREGADO
+        }
+      });
     } catch (error) {
       console.error('🚨 Error obteniendo total de clientes:', error);
       totalClientes = clientesUnicos; // Fallback conservador
@@ -338,11 +357,7 @@ export async function GET(request: NextRequest) {
     const visitasEstimadas = Math.round(totalConsumos * 1.2);
     const tasaConversionVisitas = visitasEstimadas > 0 ? (totalConsumos / visitasEstimadas) * 100 : 0;
 
-    console.log(`👥 Debug - Clientes:`, {
-      totalClientes,
-      clientesActivos,
-      clientesUnicos,
-    });
+    // ✅ Debug de clientes removido para reducir spam
 
     // Formatear top clientes para el dashboard
     const topClientesFormatted = topClientes.map((cliente, index) => {
@@ -449,7 +464,7 @@ export async function GET(request: NextRequest) {
         trend: '+0%' // Por ahora sin cálculo de tendencia
       }));
 
-    console.log(`🛍️ Top productos reales encontrados:`, topProducts.map(p => `${p.name} (${p.sales} unidades)`));
+    // ✅ Top productos log removido para reducir spam
 
     return NextResponse.json({
       success: true,
@@ -523,41 +538,12 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('❌ Error al obtener estadísticas:', error);
-
-    // En lugar de datos fallback ficticios, devolver estructura vacía pero real
+    
     return NextResponse.json({
       success: false,
-      error: 'Error temporal de conexión - reintentar',
-      periodo: 'today',
-      fechaInicio: new Date(),
-      estadisticas: {
-        resumen: {
-          totalConsumos: 0,
-          totalMonto: 0,
-          totalPuntos: 0,
-          clientesUnicos: 0,
-          totalClientes: 0,
-          clientesActivos: 0,
-          promedioVenta: 0,
-        },
-        metricas: {
-          totalRevenue: { current: 0, previous: 0, target: 100, format: 'currency' as const },
-          totalClients: { current: 0, previous: 0, target: 5, format: 'number' as const },
-          avgTicket: { current: 0, previous: 0, target: 20, format: 'currency' as const },
-          totalTransactions: { current: 0, previous: 0, target: 8, format: 'number' as const },
-          clientRetention: { current: 0, previous: 0, target: 70, format: 'percentage' as const },
-          conversionRate: { current: 0, previous: 0, target: 80, format: 'percentage' as const },
-          topClientValue: { current: 0, previous: 0, target: 150, format: 'currency' as const },
-          activeClients: { current: 0, previous: 0, target: 50, format: 'number' as const },
-        },
-        topClientes: [],
-        consumosRecientes: [],
-        empleadosStats: [],
-        topProducts: [],
-      },
-    });
-  } finally {
-    await prisma.$disconnect();
+      error: error instanceof Error ? error.message : 'Error interno del servidor',
+      message: 'Error temporal al cargar estadísticas'
+    }, { status: 500 });
   }
-  }, AuthConfigs.READ_ONLY);
+  }, authConfig);
 }

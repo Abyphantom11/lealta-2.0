@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Clock, Tag, Calendar } from 'lucide-react';
+import { Clock, Tag, Calendar, Type } from 'lucide-react';
 
 interface PromocionesManagerProps {
   promociones: Promocion[];
@@ -9,6 +9,7 @@ interface PromocionesManagerProps {
   onUpdate: (id: string, promocion: Partial<Promocion>) => void;
   onDelete: (id: string) => void;
   onToggle: (id: string) => void;
+  businessId?: string; // Para cargar/guardar título de sección
 }
 
 interface Promocion {
@@ -32,6 +33,7 @@ const PromocionesManager: React.FC<PromocionesManagerProps> = ({
   onUpdate,
   onDelete,
   onToggle,
+  businessId,
 }) => {
   const [selectedDay, setSelectedDay] = useState('lunes');
   const [editingPromoId, setEditingPromoId] = useState<string | null>(null);
@@ -43,6 +45,77 @@ const PromocionesManager: React.FC<PromocionesManagerProps> = ({
     horaTermino: '04:00',
   });
   const [isAddMode, setIsAddMode] = useState(true);
+  
+  // 🎯 Estado para título de sección
+  const [sectionTitle, setSectionTitle] = useState('Promociones Especiales');
+  const [isSavingTitle, setIsSavingTitle] = useState(false);
+
+  // 📥 Cargar título de sección al montar
+  useEffect(() => {
+    const loadTitle = async () => {
+      if (!businessId) return;
+      
+      try {
+        const response = await fetch(`/api/portal/section-titles?businessId=${businessId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setSectionTitle(data.promocionesTitle || 'Promociones Especiales');
+        }
+      } catch (error) {
+        console.error('Error cargando título de sección:', error);
+      }
+    };
+    
+    loadTitle();
+  }, [businessId]);
+
+  const handleSaveSectionTitle = async () => {
+    if (!businessId) return;
+    
+    setIsSavingTitle(true);
+    try {
+      const response = await fetch('/api/portal/section-titles', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessId,
+          promocionesTitle: sectionTitle,
+        }),
+      });
+    } catch (error) {
+      console.error('Error guardando título:', error);
+    } finally {
+      setIsSavingTitle(false);
+    }
+  };
+
+  // 🔄 Helper para disparar evento de actualización
+  const triggerPreviewUpdate = () => {
+    setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('promocionesUpdated', { 
+          detail: { businessId } 
+        }));
+        console.log('🔄 Evento promocionesUpdated disparado');
+      }
+    }, 100);
+  };
+
+  // 🔄 Wrappers para las acciones que disparan actualización de vista previa
+  const handleDelete = (id: string) => {
+    onDelete(id);
+    triggerPreviewUpdate();
+  };
+
+  const handleToggle = (id: string) => {
+    onToggle(id);
+    triggerPreviewUpdate();
+  };
+
+  const handleUpdate = (id: string, data: Partial<Promocion>) => {
+    onUpdate(id, data);
+    triggerPreviewUpdate();
+  };
 
   // Escuchar eventos de cambio de día simulado
   useEffect(() => {
@@ -130,9 +203,10 @@ const PromocionesManager: React.FC<PromocionesManagerProps> = ({
     };
 
     if (editingPromoId) {
-      onUpdate(editingPromoId, dataToSubmit);
+      handleUpdate(editingPromoId, dataToSubmit);
     } else {
       onAdd(dataToSubmit);
+      triggerPreviewUpdate();
     }
 
     // Limpiar formulario y restablecer modo
@@ -158,6 +232,35 @@ const PromocionesManager: React.FC<PromocionesManagerProps> = ({
 
   return (
     <div>
+      {/* 🎨 Título de sección editable */}
+      <div className="mb-6 bg-dark-800 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-lg font-semibold text-white flex items-center">
+            <Type className="w-5 h-5 mr-2" />
+            Título de la Sección
+          </h4>
+          <button
+            onClick={handleSaveSectionTitle}
+            disabled={isSavingTitle}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 text-sm font-medium"
+          >
+            {isSavingTitle ? 'Guardando...' : 'Guardar Título'}
+          </button>
+        </div>
+        <p className="text-dark-400 text-sm mb-3">
+          Este texto aparecerá como encabezado de la sección en el portal del cliente
+        </p>
+        <input
+          type="text"
+          value={sectionTitle}
+          onChange={(e) => setSectionTitle(e.target.value)}
+          onBlur={handleSaveSectionTitle}
+          className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2 text-white placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          placeholder="Ej: Promociones Especiales, Ofertas del Día, etc."
+          maxLength={50}
+        />
+      </div>
+      
       <div className="mb-4">
         <h4 className="text-lg font-semibold text-white mb-3">
           Promociones por Día
@@ -242,13 +345,13 @@ const PromocionesManager: React.FC<PromocionesManagerProps> = ({
                       Editar
                     </button>
                     <button
-                      onClick={() => promo.id && onDelete(promo.id)}
+                      onClick={() => promo.id && handleDelete(promo.id)}
                       className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
                     >
                       Eliminar
                     </button>
                     <button
-                      onClick={() => promo.id && onToggle(promo.id)}
+                      onClick={() => promo.id && handleToggle(promo.id)}
                       className={`px-2 py-1 rounded text-xs ${
                         promo.activo
                           ? 'bg-success-600 hover:bg-success-700 text-white'
@@ -334,41 +437,6 @@ const PromocionesManager: React.FC<PromocionesManagerProps> = ({
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            {/* Descuento */}
-            <div>
-              <label
-                htmlFor="promoDiscount"
-                className="block text-sm font-medium text-dark-300 mb-2"
-              >
-                <Tag className="w-4 h-4 inline mr-1" />
-                Descuento (%)
-              </label>
-              <input
-                id="promoDiscount"
-                type="number"
-                value={formData.descuento}
-                min="0"
-                max="100"
-                onChange={e => {
-                  // Permitir campo vacío para representar sin descuento
-                  const inputValue = e.target.value;
-
-                  // Si está vacío o es un número entre 0 y 100
-                  if (
-                    inputValue === '' ||
-                    (Number(inputValue) >= 0 && Number(inputValue) <= 100)
-                  ) {
-                    setFormData({
-                      ...formData,
-                      descuento: inputValue,
-                    });
-                  }
-                }}
-                className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded text-white focus:ring-2 focus:ring-primary-500"
-                required
-              />
-            </div>
-
             {/* Hora de Término */}
             <div>
               <label
@@ -414,7 +482,7 @@ const PromocionesManager: React.FC<PromocionesManagerProps> = ({
                 type="button"
                 onClick={() => {
                   if (editingPromoId) {
-                    onDelete(editingPromoId);
+                    handleDelete(editingPromoId);
                     resetForm();
                   }
                 }}
@@ -446,7 +514,7 @@ const PromocionesManager: React.FC<PromocionesManagerProps> = ({
                 onClick={() => {
                   const promo = promociones.find(p => p.dia === selectedDay);
                   if (promo && promo.id) {
-                    onToggle(promo.id);
+                    handleToggle(promo.id);
                   }
                 }}
                 className={`px-3 py-1 rounded-full text-xs font-medium ${

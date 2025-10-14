@@ -1,0 +1,7 @@
+# Este directorio contiene las imágenes subidas del carrusel de branding
+# Las imágenes se nombran con el patrón: {businessId}_{timestamp}_{filename}
+*.jpg
+*.jpeg
+*.png
+*.webp
+!.gitkeep

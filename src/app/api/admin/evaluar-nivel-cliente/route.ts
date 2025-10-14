@@ -1,75 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import fs from 'fs';
-import path from 'path';
 import {
   enviarNotificacionClientes,
   TipoNotificacion,
 } from '@/lib/notificaciones';
 import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
+import { getTarjetasConfigCentral, evaluarNivelCorrespondiente } from '@/lib/tarjetas-config-central';
 
 const prisma = new PrismaClient();
 
-// Función para obtener la configuración del portal
-async function getPortalConfig() {
-  try {
-    const configPath = path.join(process.cwd(), 'portal-config.json');
-    const configData = fs.readFileSync(configPath, 'utf8');
-    return JSON.parse(configData);
-  } catch (error) {
-    console.error('Error reading portal config:', error);
-    return null;
-  }
-}
-
 // Función para evaluar el nivel más alto que le corresponde a un cliente
-function evaluarNivelCliente(cliente: any, tarjetasConfig: any[]) {
+async function evaluarNivelCliente(cliente: any, businessId: string) {
   // 🎯 CAMBIO CRÍTICO: Usar puntosProgreso de la tarjeta para evaluación automática
   // Esto respeta los reseteos/actualizaciones de asignaciones manuales
   const puntosProgreso = cliente.tarjetaLealtad?.puntosProgreso || cliente.puntosAcumulados || cliente.puntos || 0;
   const visitas = cliente.totalVisitas || 0;
 
-  console.log(`🤖 Evaluación automática usando:`);
-  console.log(`   • puntosProgreso: ${puntosProgreso} (desde tarjeta)`);
-  console.log(`   • puntos canjeables: ${cliente.puntos || 0} (se mantienen separados)`);
-  console.log(`   • visitas: ${visitas}`);
-
-  // Usar las tarjetas activas de la nueva estructura
-  const tarjetasActivas = tarjetasConfig.filter(t => t.activo);
-  if (!tarjetasActivas.length) {
-    console.warn('No hay tarjetas activas configuradas');
-    return 'Bronce';
+  // Usar la función central para evaluar nivel
+  const nivelCorrespondiente = await evaluarNivelCorrespondiente(businessId, puntosProgreso, visitas);
+  
+  // Solo log para cambios importantes
+  if (process.env.NODE_ENV === 'development') {
+    console.log(
+      `Cliente califica para ${nivelCorrespondiente} (Puntos progreso: ${puntosProgreso}, Visitas: ${visitas})`
+    );
   }
-
-  // Ordenar tarjetas por requisitos de puntos (de mayor a menor) para evaluar desde el más alto
-  const tarjetasOrdenadas = tarjetasActivas
-    .slice() // crear copia para no mutar el original
-    .sort((a, b) => (b.condiciones?.puntosMinimos || 0) - (a.condiciones?.puntosMinimos || 0));
-
-  // Encontrar el nivel MÁS ALTO que cumple los requisitos (lógica OR)
-  for (const tarjeta of tarjetasOrdenadas) {
-    const puntosRequeridos = tarjeta.condiciones?.puntosMinimos || 0;
-    const visitasRequeridas = tarjeta.condiciones?.visitasMinimas || 0;
-
-    const cumplePuntos = puntosProgreso >= puntosRequeridos;
-    const cumpleVisitas = visitas >= visitasRequeridas;
-
-    // Lógica OR: cumple si tiene puntos suficientes O visitas suficientes
-    // Esto permite que clientes VIP (mucho gasto, pocas visitas) o
-    // clientes frecuentes (poco gasto, muchas visitas) obtengan beneficios
-    if (cumplePuntos || cumpleVisitas) {
-      // Solo log para cambios importantes
-      if (process.env.NODE_ENV === 'development') {
-        console.log(
-          `Cliente califica para ${tarjeta.nivel} (Puntos progreso: ${puntosProgreso}/${puntosRequeridos}, Visitas: ${visitas}/${visitasRequeridas})`
-        );
-      }
-      return tarjeta.nivel;
-    }
-  }
-
-  // Si no cumple ninguno, devolver Bronce (nivel mínimo)
-  return 'Bronce';
+  
+  return nivelCorrespondiente;
 }
 
 // Helper functions para reducir complejidad cognitiva
@@ -169,8 +126,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const portalConfig = await getPortalConfig();
-    if (!portalConfig?.tarjetas) {
+    // Obtener la configuración centralizada
+    const config = await getTarjetasConfigCentral(businessId);
+    if (!config.tarjetas.length) {
       return NextResponse.json(
         { error: 'Configuración de tarjetas no encontrada' },
         { status: 500 }
@@ -190,7 +148,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 });
     }
 
-    const nivelCorrespondiente = evaluarNivelCliente(cliente, portalConfig.tarjetas);
+    const nivelCorrespondiente = await evaluarNivelCliente(cliente, businessId);
     const nivelActual = cliente.tarjetaLealtad?.nivel || 'Bronce';
     const esAsignacionManual = cliente.tarjetaLealtad?.asignacionManual || false;
 
@@ -268,9 +226,9 @@ export async function PUT(request: NextRequest) {
     
     const { businessId } = session;
     
-    // Evaluar todos los clientes
-    const portalConfig = await getPortalConfig();
-    if (!portalConfig?.tarjetas) {
+    // Obtener la configuración centralizada
+    const config = await getTarjetasConfigCentral(businessId);
+    if (!config.tarjetas.length) {
       return NextResponse.json(
         { error: 'Configuración de tarjetas no encontrada' },
         { status: 500 }
@@ -290,10 +248,7 @@ export async function PUT(request: NextRequest) {
     const resultados = [];
 
     for (const cliente of clientes) {
-      const nivelCorrespondiente = evaluarNivelCliente(
-        cliente,
-        portalConfig.tarjetas
-      );
+      const nivelCorrespondiente = await evaluarNivelCliente(cliente, businessId);
       const nivelActual = cliente.tarjetaLealtad?.nivel || 'Bronce';
 
       if (nivelActual !== nivelCorrespondiente) {

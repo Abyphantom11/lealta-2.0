@@ -14,7 +14,7 @@ import StaffPageContent from './StaffPageContent-full';
  */
 export default function BusinessStaffPage() {
   const params = useParams();
-  const businessId = params.businessId as string;
+  const businessId = params?.businessId as string;
   const [isValidBusiness, setIsValidBusiness] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -29,7 +29,7 @@ export default function BusinessStaffPage() {
     const validateBusiness = async () => {
       try {
         console.log(`🔍 Validating business for staff: ${businessId}`);
-        
+
         const response = await fetch(`/api/businesses/${businessId}/validate`);
         if (response.ok) {
           const businessData = await response.json();
@@ -72,7 +72,7 @@ export default function BusinessStaffPage() {
   // Business context válido
   if (isValidBusiness) {
     return (
-      <PWALayout promptPosition="bottom">
+      <PWALayout>
         <StaffPageContent businessId={businessId} />
       </PWALayout>
     );

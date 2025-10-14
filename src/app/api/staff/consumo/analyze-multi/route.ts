@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../../lib/prisma';
 import { z } from 'zod';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
+import { put } from '@vercel/blob';
 import { geminiAnalyzer } from '../../../../../lib/ai/gemini-analyzer';
-import fs from 'fs';
+import { getBlobStorageToken } from '@/lib/blob-storage-utils';
 
 // Forzar renderizado dinámico para esta ruta que usa autenticación
 export const dynamic = 'force-dynamic';
@@ -62,11 +61,9 @@ function validateMultiFormData(formData: FormData) {
   });
 }
 
-// Helper function to save multiple images
+// Helper function to save multiple images to Vercel Blob
 async function saveMultipleImages(images: File[]): Promise<ProcessedImage[]> {
   const results: ProcessedImage[] = [];
-  const uploadDir = join(process.cwd(), 'public', 'uploads', 'multi');
-  await mkdir(uploadDir, { recursive: true });
 
   for (let i = 0; i < images.length; i++) {
     const image = images[i];
@@ -79,21 +76,29 @@ async function saveMultipleImages(images: File[]): Promise<ProcessedImage[]> {
       
       console.log(`📁 Procesando imagen: ${Math.round(image.size / 1024)}KB`);
       
-      const bytes = await image.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      
       const timestamp = Date.now();
       const imageId = `multi_${timestamp}_${i}`;
-      const filename = `${imageId}.png`;
-      const filepath = join(uploadDir, filename);
+      // Preservar la extensión original del archivo
+      const fileExtension = image.name.split('.').pop() || 'png';
+      const filename = `multi/${imageId}.${fileExtension}`;
       
-      await writeFile(filepath, buffer);
+      // 🔥 UPLOAD A VERCEL BLOB STORAGE - CON TOKEN CENTRALIZADO
+      const token = getBlobStorageToken();
+      
+      if (!token) {
+        throw new Error('No valid blob storage token available');
+      }
+      
+      const blob = await put(filename, image, {
+        access: 'public',
+        token: token,
+      });
       
       results.push({
         id: imageId,
-        filename,
-        filepath,
-        publicUrl: `/uploads/multi/${filename}`,
+        filename: blob.url,
+        filepath: blob.url,
+        publicUrl: blob.url,
         status: 'processing',
       });
     } catch (error) {
@@ -113,8 +118,8 @@ async function saveMultipleImages(images: File[]): Promise<ProcessedImage[]> {
   return results;
 }
 
-// Helper function to process image with Gemini AI (same as single version but with better error handling)
-async function processImageWithGemini(filepath: string): Promise<{
+// Helper function to process image with Gemini AI (using Vercel Blob URL)
+async function processImageWithGemini(imageUrl: string): Promise<{
   productos: Array<{ nombre: string; cantidad: number; precio: number; categoria?: string }>;
   total: number;
   empleadoDetectado: string | null;
@@ -126,11 +131,14 @@ async function processImageWithGemini(filepath: string): Promise<{
   metodoPago?: string | null;
 }> {
   try {
-    if (!fs.existsSync(filepath)) {
-      throw new Error('Image file not found');
+    // Descargar imagen desde Vercel Blob
+    console.log('📥 Descargando imagen desde Vercel Blob:', imageUrl);
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.statusText}`);
     }
-
-    const imageBuffer = fs.readFileSync(filepath);
+    
+    const imageBuffer = Buffer.from(await response.arrayBuffer());
     const mimeType = 'image/png';
 
     console.log('🤖 Procesando imagen con Gemini AI...');

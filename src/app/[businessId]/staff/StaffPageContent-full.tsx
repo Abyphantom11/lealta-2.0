@@ -146,13 +146,13 @@ interface StaffPageContentProps {
 export default function StaffPageContent({ businessId }: StaffPageContentProps) {
   // Integrar businessId en las llamadas a la API
   console.log('Staff Page loaded for business:', businessId);
-  // 🚫 BLOQUEO DE BUSINESS CONTEXT - SECURITY ENFORCEMENT
+  // 🔒 BLOQUEO DE BUSINESS CONTEXT - SECURITY ENFORCEMENT
   useEffect(() => {
     const currentPath = window.location.pathname;
 
     // Si estamos en ruta legacy sin business context, redirigir a login
     if (currentPath === '/staff' || (currentPath.startsWith('/staff/') && !currentPath.includes('/cafedani/') && !currentPath.includes('/arepa/'))) {
-      console.log('🚫 Staff: Ruta legacy detectada, redirigiendo a login');
+      console.log('🔒 Staff: Ruta legacy detectada, redirigiendo a login');
 
       // Redirigir a login con mensaje de error
       const redirectUrl = new URL('/login', window.location.origin);
@@ -276,7 +276,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
     };
     
     if (highConfidenceCorrections[cleanPartial]) {
-      console.log(`✅ Corrección específica: "${partialName}" → "${highConfidenceCorrections[cleanPartial]}"`);
+      console.log(`🎯 Corrección específica: "${partialName}" → "${highConfidenceCorrections[cleanPartial]}"`);
       return highConfidenceCorrections[cleanPartial];
     }
     
@@ -284,7 +284,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
     return null;
   };
 
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]); // 🆕 Para múltiples imágenes
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]); // 📸 Para múltiples imágenes
   const [notification, setNotification] = useState<NotificationType>(null);
   const [preview, setPreview] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -488,7 +488,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
 
   // Debug para el cuadro de confirmación
   useEffect(() => {
-    console.log('🎨 Estado de confirmación cambió:', {
+    console.log('🔄 Estado de confirmación cambió:', {
       showConfirmation,
       editableData,
     });
@@ -522,7 +522,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
         }),
       });
       
-      console.log('📡 Search response status:', response.status);
+      console.log('📊 Search response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
@@ -535,7 +535,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
           if (data.clients.length > 0) {
             console.log('✅ Found clients:', data.clients.map((c: any) => `${c.nombre} (${c.cedula})`));
           } else {
-            console.log('ℹ️ No clients found for search term:', searchTerm);
+            console.log('⚠️ No clients found for search term:', searchTerm);
           }
         } else {
           console.error('❌ Unexpected response format:', data);
@@ -557,7 +557,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
         }
       }
     } catch (error) {
-      console.error('❌ Network error searching clients:', error);
+      console.error('⚠️ Network error searching clients:', error);
       setSearchResults([]);
       setShowSearchResults(false);
       showNotification('error', 'Error de conexión al buscar clientes');
@@ -568,7 +568,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
 
   // Función para seleccionar cliente de los resultados
   const selectClientFromSearch = (client: any) => {
-    console.log('👤 Selecting client from search:', client);
+    console.log('📋 Selecting client from search:', client);
     
     setCedula(client.cedula);
     setCustomerInfo({
@@ -586,7 +586,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
     setShowSearchResults(false);
     setSearchResults([]);
     
-    showNotification('success', `Cliente ${client.nombre} seleccionado correctamente`);
+    showNotification('success', `Cliente ${client.nombre} seleccionado correctamente ✓`);
   };
 
   const searchCustomer = async (cedulaValue: string) => {
@@ -632,7 +632,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
       } else {
         // Cliente no encontrado - limpiar customerInfo para mostrar botón de registro
         setCustomerInfo(null);
-        console.log('ℹ️ Cliente no encontrado - mostrando opción de registro');
+        console.log('⚠️ Cliente no encontrado - mostrando opción de registro');
       }
     } catch (error) {
       console.error('❌ Error buscando cliente:', error);
@@ -751,17 +751,17 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
   };
 
   // ========================================
-  // 🔧 SECCIÓN: FUNCIONES AUXILIARES (375-450)
+  // 🛠️ SECCIÓN: FUNCIONES AUXILIARES (375-450)
   // ========================================
 
   // Función para cargar tickets recientes desde la API
   const loadRecentTickets = useCallback(async () => {
     try {
-      console.log('🔄 Cargando estadísticas desde API...');
+      console.log('📊 Cargando estadísticas desde API...');
       const response = await fetch('/api/admin/estadisticas?periodo=today');
       const data = await response.json();
 
-      console.log('📊 Respuesta de estadísticas:', {
+      console.log('📈 Respuesta de estadísticas:', {
         success: data.success,
         hasEstadisticas: !!data.estadisticas,
         hasConsumos: !!data.estadisticas?.consumosRecientes,
@@ -796,10 +796,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                 : consumo.cliente,
             monto: consumo.total,
             puntos: consumo.puntos,
-            hora: new Date(consumo.fecha).toLocaleTimeString('es-ES', {
-              hour: '2-digit',
-              minute: '2-digit',
-            }),
+            fecha: new Date(consumo.fecha).toISOString().split('T')[0],
             items: Array.isArray(consumo.productos)
               ? consumo.productos.map((p: Product) => p.nombre)
               : ['Productos procesados'],
@@ -817,7 +814,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
     } catch (error) {
       console.error('❌ Error loading recent tickets:', error);
       // Mantener datos mock como fallback pero con logs para debug
-      console.log('📊 Manteniendo valores por defecto del staff');
+      console.log('💼 Manteniendo valores por defecto del staff');
       setRecentTickets([]);
     }
   }, []);
@@ -860,7 +857,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
     console.log('3. ¡LISTO! Se guarda automáticamente');
     console.log('4. Regresa a Lealta y pega con Ctrl+V');
     console.log('');
-    console.log('📐 MÉTODO PRECISIÓN (Área específica):');
+    console.log('🎯 MÉTODO PRECISIÓN (área específica):');
     console.log('1. Presiona Win + Shift + S');
     console.log('2. Selecciona el área del ticket en tu POS');
     console.log('3. Regresa a Lealta y pega con Ctrl+V');
@@ -903,14 +900,14 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
     console.log('3. ¡Se guarda automáticamente en portapapeles!');
     console.log('4. Regresa a Lealta (se detecta automáticamente)');
     console.log('');
-    console.log('📐 OPCIÓN 2 - Win + Shift + S (ÁREA ESPECÍFICA):');
+    console.log('🖼️ OPCIÓN 2 - Win + Shift + S (ÁREA ESPECÍFICA):');
     console.log('1. Ve a tu sistema POS');
     console.log('2. Presiona Win + Shift + S');
     console.log('3. Selecciona el área del ticket');
     console.log('4. Regresa a Lealta (se detecta automáticamente)');
     console.log('');
     console.log(
-      '⚡ IMPORTANTE: NO necesitas guardar archivo, solo regresa a Lealta'
+      '⚠️ IMPORTANTE: NO necesitas guardar archivo, solo regresa a Lealta'
     );
 
     // Timeout de 5 minutos para dar tiempo suficiente
@@ -978,7 +975,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
       setCaptureStartTime(0);
       setLastClipboardCheck(null);
 
-      showNotification('success', '🎉 ¡Captura del POS detectada y cargada!');
+      showNotification('success', '📸 ¡Captura del POS detectada y cargada!');
       console.log('✅ Captura procesada exitosamente');
     },
     [showNotification, selectedFiles, selectedFile, preview]
@@ -1014,7 +1011,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
               return true;
             } else if (currentClipboardId === lastClipboardCheck) {
               console.log(
-                '📎 Misma imagen en portapapeles, esperando nueva captura...'
+                '🔄 Misma imagen en portapapeles, esperando nueva captura...'
               );
             } else {
               console.log('⏳ Esperando tiempo mínimo antes de procesar...');
@@ -1038,7 +1035,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
   const handleWindowFocus = useCallback(async () => {
     if (!isWaitingForCapture) return;
 
-    console.log('👀 Ventana enfocada - verificando portapapeles...');
+    console.log('🎯 Ventana enfocada - verificando portapapeles...');
 
     // Esperar un momento para que el portapapeles se actualice
     setTimeout(async () => {
@@ -1192,9 +1189,9 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
     const isMultipleImages = selectedFiles.length > 1;
     
     if (isMultipleImages) {
-      showNotification('info', `📸 Subiendo ${selectedFiles.length} imágenes y procesando con IA...`);
+      showNotification('info', `🤖 Subiendo ${selectedFiles.length} imágenes y procesando con IA...`);
     } else {
-      showNotification('info', '📸 Subiendo imagen y procesando con IA...');
+      showNotification('info', '🤖 Subiendo imagen y procesando con IA...');
     }
 
     try {
@@ -1235,8 +1232,8 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
       clearTimeout(timeoutId);
       const data = await response.json();
 
-      console.log('🔍 Respuesta del servidor:', data);
-      console.log('🔍 response.ok:', response.ok);
+      console.log('📤 Respuesta del servidor:', data);
+      console.log('✅ response.ok:', response.ok);
       console.log('🔍 data.requiresConfirmation:', data.requiresConfirmation);
 
       if (response.ok && data.requiresConfirmation) {
@@ -1261,7 +1258,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
           
           successfulResults.forEach((result: any, index: number) => {
             if (result.analysis) {
-              console.log(`📄 Procesando imagen ${index + 1}:`, result.analysis.productos.length, 'productos');
+              console.log(`📊 Procesando imagen ${index + 1}:`, result.analysis.productos.length, 'productos');
               
               // Filtrar y procesar productos de esta imagen
               const validProducts = result.analysis.productos.filter((p: AnalysisProduct) => !shouldFilterProduct(p));
@@ -1287,12 +1284,12 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                 const formattedName = isUpperCase ? finalName.toUpperCase() : finalName;
                 const finalKey = finalName.toLowerCase().trim();
                 
-                console.log(`🔍 Procesando: "${producto.nombre}" → "${formattedName}" (formato: ${isUpperCase ? 'MAYÚSCULAS' : 'minúsculas'})`);
+                console.log(`🔄 Procesando: "${producto.nombre}" → "${formattedName}" (formato: ${isUpperCase ? 'MAYÚSCULAS' : 'minúsculas'})`);
                 
                 // Lógica inteligente para manejar duplicados
                 if (productMap.has(finalKey)) {
                   const existing = productMap.get(finalKey)!;
-                  console.log(`🔄 Producto duplicado encontrado: ${formattedName} (existente: x${existing.cantidad}, nuevo: x${producto.cantidad})`);
+                  console.log(`🔍 Producto duplicado encontrado: ${formattedName} (existente: x${existing.cantidad}, nuevo: x${producto.cantidad})`);
                   
                   // Si las cantidades son diferentes, tomar el mayor (más confiable)
                   if (producto.cantidad !== existing.cantidad) {
@@ -1313,7 +1310,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                   }
                 } else {
                   // Producto nuevo, agregarlo
-                  console.log(`✨ Nuevo producto agregado: ${formattedName} x${producto.cantidad}`);
+                  console.log(`✅ Nuevo producto agregado: ${formattedName} x${producto.cantidad}`);
                   productMap.set(finalKey, {
                     ...producto,
                     nombre: formattedName
@@ -1342,12 +1339,12 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
             consolidatedTotal;
           
           // Log de depuración para ver la consolidación
-          console.log('🔍 Consolidación de productos:');
+          console.log('🔄 Consolidación de productos:');
           console.log(`📊 Imágenes procesadas: ${successfulResults.length}`);
           console.log(`📦 Productos únicos consolidados: ${consolidatedProducts.length}`);
           console.log(`💰 Total final: $${finalTotal} (misma cuenta: ${isSameReceipt})`);
           consolidatedProducts.forEach(p => {
-            console.log(`  • ${p.nombre} x${p.cantidad} - $${p.precio.toFixed(2)}`);
+            console.log(`  ✓ ${p.nombre} x${p.cantidad} - $${p.precio.toFixed(2)}`);
           });
           
           // Obtener empleados únicos
@@ -1412,7 +1409,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
         }
         
         setShowConfirmation(true);
-        console.log('🔍 showConfirmation establecido a true');
+        console.log('📊 showConfirmation establecido a true');
       } else {
         console.log('❌ No se cumplió la condición para mostrar confirmación');
         showNotification(
@@ -1425,7 +1422,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
       if (error instanceof Error && error.name === 'AbortError') {
         showNotification(
           'error',
-          '⏰ El procesamiento tomó demasiado tiempo. Intenta de nuevo.'
+          '⏱️ El procesamiento tomó demasiado tiempo. Intenta de nuevo.'
         );
       } else {
         showNotification(
@@ -1522,7 +1519,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
       }
     } catch (error) {
       console.error('Error confirmando datos:', error);
-      showNotification('error', 'Error de conexión al confirmar');
+      showNotification('error', 'Error al confirmar datos IA');
     } finally {
       setIsProcessing(false);
     }
@@ -1628,7 +1625,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
       )}
 
       {/* ========================================
-    🎨 SECCIÓN: RENDER PRINCIPAL - HEADER Y NAVEGACIÓN (925-1000)
+    📱 SECCIÓN: RENDER PRINCIPAL - HEADER Y NAVEGACIÓN (925-1000)
     ======================================== */}
 
       {/* Header */}
@@ -1676,7 +1673,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                   : 'text-dark-300 hover:text-white'
               }`}
             >
-              📸 Captura OCR
+              📷 Captura OCR
             </button>
             <button
               onClick={() => setModoManual(true)}
@@ -1686,7 +1683,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                   : 'text-dark-300 hover:text-white'
               }`}
             >
-              ✍️ Registro Manual
+              ✏️ Registro Manual
             </button>
           </div>
         </div>
@@ -1755,7 +1752,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
         </motion.div>
 
         {/* ========================================
-    📋 SECCIÓN: FORMULARIOS PRINCIPALES (1056-1300)
+    📝 SECCIÓN: FORMULARIOS PRINCIPALES (1056-1300)
     ======================================== */}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1821,7 +1818,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                   {/* Botón Registrar Cliente */}
                   {(() => {
                     const shouldShow = !customerInfo && cedula.length >= 8;
-                    console.log('🔍 Botón Registrar Cliente:', { 
+                    console.log('👤 Botón Registrar Cliente:', { 
                       customerInfo: !!customerInfo, 
                       cedulaLength: cedula.length, 
                       shouldShow 
@@ -1847,7 +1844,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="bg-dark-700/50 border border-dark-600 rounded-lg p-4 cursor-pointer hover:bg-dark-700/70 transition-colors"
+                        className="bg-dark-700/50 border border-dark-600 rounded-lg p-4 cursor-pointer hover:bg-dark-700/70 transition-colores"
                         onClick={showClientDetails}
                       >
                         <div className="flex items-center justify-between mb-3">
@@ -1895,43 +1892,43 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                         <AlertCircle className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                         <div className="text-sm text-blue-300">
                           <p className="font-medium mb-1">
-                            🚀 Captura Automática - Flujo SúPER Optimizado
+                            🚀 Captura Automática - Flujo SÚPER Optimizado
                           </p>
                           <ul className="space-y-1 text-xs">
                             <li>
-                              • <strong>Paso 1:</strong> Haz clic en "Captura
+                              📝 <strong>Paso 1:</strong> Haz clic en "Captura
                               Automática Inteligente"
                             </li>
                             <li>
-                              • <strong>Paso 2:</strong> Ve a tu sistema POS
+                              📝 <strong>Paso 2:</strong> Ve a tu sistema POS
                             </li>
                             <li>
-                              • <strong>Paso 3 (RÁPIDO):</strong> Presiona{' '}
+                              📝 <strong>Paso 3 (RÁPIDO):</strong> Presiona{' '}
                               <kbd className="px-1 py-0.5 bg-green-600/20 rounded text-green-300">
                                 Win + PrtScr
                               </kbd>{' '}
                               para captura completa
                             </li>
                             <li>
-                              • <strong>Paso 3 (PRECISO):</strong> Presiona{' '}
+                              ⚡ <strong>Paso 3 (PRECISO):</strong> Presiona{' '}
                               <kbd className="px-1 py-0.5 bg-blue-600/20 rounded">
                                 Win + Shift + S
                               </kbd>{' '}
                               para seleccionar área
                             </li>
                             <li>
-                              • <strong>Paso 4:</strong>{' '}
+                              ✅ <strong>Paso 4:</strong>{' '}
                               <span className="text-yellow-300 font-medium">
                                 ¡REGRESA A LEALTA!
                               </span>
                             </li>
                             <li>
-                              • <strong>¡AUTOMÁTICO!</strong> La imagen se
-                              detecta al regresar 🎉
+                              📝 <strong>¡AUTOMÁTICO!</strong> La imagen se
+                              detecta al regresar 🎯
                             </li>
                           </ul>
                           <div className="mt-2 p-2 bg-yellow-500/10 border border-yellow-500/30 rounded text-yellow-300">
-                            <strong>💡 Importante:</strong> Debes regresar a
+                            <strong>⚠️ Importante:</strong> Debes regresar a
                             Lealta después de capturar para que se detecte
                             automáticamente.
                           </div>
@@ -1951,7 +1948,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                                 MÁS RÁPIDO
                               </span>
                             </div>
-                            <p className="text-green-200 text-xs">
+                                                       <p className="text-green-200 text-xs">
                               <kbd className="bg-green-600/30 px-1 py-0.5 rounded">
                                 Win + PrtScr
                               </kbd>
@@ -1961,7 +1958,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                           </div>
                           <div className="bg-blue-500/20 border border-blue-500/40 rounded-lg p-3">
                             <div className="flex items-center space-x-2 mb-1">
-                              <span className="text-blue-400">📐</span>
+                              <span className="text-blue-400">🎯</span>
                               <span className="text-blue-300 font-bold">
                                 MÁS PRECISO
                               </span>
@@ -1993,7 +1990,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                         {isWaitingForCapture ? (
                           <>
                             <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
-                            <span>🎯 Esperando Captura del POS...</span>
+                            <span>📸 Esperando Captura del POS...</span>
                             <span className="text-xs bg-white/20 px-2 py-1 rounded">
                               Regresa después de capturar
                             </span>
@@ -2011,7 +2008,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                         <button
                           type="button"
                           onClick={openSnippingTool}
-                          className="flex-1 flex items-center justify-center space-x-2 p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
+                          className="flex-1 flex items-center justify-center space-x-2 p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colores text-sm"
                         >
                           <Zap className="w-4 h-4" />
                           <span>Win + PrtScr</span>
@@ -2020,7 +2017,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                         <button
                           type="button"
                           onClick={openSnippingTool}
-                          className="flex-1 flex items-center justify-center space-x-2 p-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors text-sm"
+                          className="flex-1 flex items-center justify-center space-x-2 p-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colores text-sm"
                         >
                           <Camera className="w-4 h-4" />
                           <span>Win + Shift + S</span>
@@ -2029,7 +2026,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
-                          className="flex-1 flex items-center justify-center space-x-2 p-3 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colors text-sm"
+                          className="flex-1 flex items-center justify-center space-x-2 p-3 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colores text-sm"
                         >
                           <Upload className="w-5 h-5" />
                           <span>Subir Captura(s)</span>
@@ -2073,7 +2070,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                               setSelectedFile(null);
                               setPreview('');
                             }}
-                            className="text-red-400 hover:text-red-300 transition-colors"
+                            className="text-red-400 hover:text-red-300 transition-colores"
                           >
                             <X className="w-5 h-5" />
                           </button>
@@ -2106,7 +2103,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                                     reader.readAsDataURL(newFiles[0]);
                                   }
                                 }}
-                                className="absolute top-1 left-1 bg-red-600 hover:bg-red-700 text-white p-1 rounded-full transition-colors"
+                                className="absolute top-1 left-1 bg-red-600 hover:bg-red-700 text-white p-1 rounded-full transition-colores"
                               >
                                 <X className="w-3 h-3" />
                               </button>
@@ -2118,7 +2115,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                             <button
                               type="button"
                               onClick={() => fileInputRef.current?.click()}
-                              className="h-24 border-2 border-dashed border-gray-500 hover:border-gray-400 rounded-lg flex flex-col items-center justify-center text-gray-400 hover:text-gray-300 transition-colors"
+                              className="h-24 border-2 border-dashed border-gray-500 hover:border-gray-400 rounded-lg flex flex-col items-center justify-center text-gray-400 hover:text-gray-300 transition-colores"
                             >
                               <Upload className="w-5 h-5 mb-1" />
                               <span className="text-xs">Agregar</span>
@@ -2129,7 +2126,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                         {/* Info y progreso */}
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-400">
-                            {selectedFiles.length === 3 ? '✅ Máximo alcanzado' : `Puedes agregar ${3 - selectedFiles.length} más`}
+                            {selectedFiles.length === 3 ? '⚠️ Máximo alcanzado' : `Puedes agregar ${3 - selectedFiles.length} más`}
                           </span>
                           <div className="flex items-center space-x-2">
                             <div className="flex space-x-1">
@@ -2166,12 +2163,12 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                             setSelectedFile(null);
                             setSelectedFiles([]);
                           }}
-                          className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white p-2 rounded-full transition-colors"
+                          className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white p-2 rounded-full transition-colores"
                         >
                           <X className="w-4 h-4" />
                         </button>
                         <div className="absolute bottom-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-sm">
-                          ✓ Captura Lista
+                          ✅ Captura Lista
                         </div>
                       </motion.div>
                     )}
@@ -2240,7 +2237,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                         type="button"
                         onClick={() => searchCustomer(cedula)}
                         disabled={isSearchingCustomer || !cedula}
-                        className="px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-600 text-white font-medium rounded-lg transition-colors flex items-center space-x-2"
+                        className="px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-600 text-white font-medium rounded-lg transition-colores flex items-center space-x-2"
                       >
                         {isSearchingCustomer ? (
                           <>
@@ -2377,7 +2374,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                       <button
                         type="button"
                         onClick={agregarProducto}
-                        className="w-full py-2 border-2 border-dashed border-dark-600 rounded-lg text-dark-400 hover:text-white hover:border-primary-500 transition-colors"
+                        className="w-full py-2 border-2 border-dashed border-dark-600 rounded-lg text-dark-400 hover:text-white hover:border-primary-500 transition-colores"
                       >
                         + Agregar Producto
                       </button>
@@ -2421,7 +2418,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                       !totalManual ||
                       productos.some(p => !p.nombre.trim())
                     }
-                    className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                    className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-medium py-3 rounded-lg transition-colores flex items-center justify-center space-x-2"
                   >
                     {isSubmitting ? (
                       <>
@@ -2441,7 +2438,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
           </div>
 
           {/* ========================================
-    📊 SECCIÓN: SIDEBAR Y RESULTADOS (1590-1750)
+    🔧 SECCIÓN: SIDEBAR Y RESULTADOS (1590-1750)
     ======================================== */}
 
           {/* Sidebar - Tickets Recientes */}
@@ -2540,7 +2537,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
       </div>
 
       {/* ========================================
-    📝 SECCIÓN: MODAL DE CONFIRMACIÓN IA (1760-1874)
+    🤖 SECCIÓN: MODAL DE CONFIRMACIÓN IA (1760-1874)
     ======================================== */}
 
       {/* Modal de confirmación de IA */}
@@ -2565,7 +2562,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
               <button
                 onClick={cancelarConfirmacion}
                 disabled={isProcessing}
-                className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-gray-700 rounded-lg"
+                className="text-gray-400 hover:text-white transition-colores p-2 hover:bg-gray-700 rounded-lg"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -2722,7 +2719,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                 </h3>
                 <button
                   onClick={() => setShowRegisterModal(false)}
-                  className="text-dark-400 hover:text-white transition-colors"
+                  className="text-dark-400 hover:text-white transition-colores"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -2802,14 +2799,14 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                   <button
                     type="button"
                     onClick={() => setShowRegisterModal(false)}
-                    className="flex-1 px-4 py-3 bg-dark-600 hover:bg-dark-500 text-white rounded-lg transition-colors"
+                    className="flex-1 px-4 py-3 bg-dark-600 hover:bg-dark-500 text-white rounded-lg transition-colores"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={isRegistering}
-                    className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white rounded-lg transition-colors flex items-center justify-center"
+                    className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white rounded-lg transition-colores flex items-center justify-center"
                   >
                     {isRegistering ? (
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -2840,7 +2837,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                 </h3>
                 <button
                   onClick={() => setShowClientModal(false)}
-                  className="text-dark-400 hover:text-white transition-colors"
+                  className="text-dark-400 hover:text-white transition-colores"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -2856,7 +2853,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                     <p className="text-white font-medium flex-1">{selectedClientData.nombre}</p>
                     <button
                       onClick={() => copyToClipboard(selectedClientData.nombre, 'Nombre copiado')}
-                      className="ml-2 p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded-md transition-colors"
+                      className="ml-2 p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded-md transition-colores"
                       title="Copiar nombre"
                     >
                       <Copy className="w-4 h-4" />
@@ -2873,7 +2870,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                     <p className="text-white font-medium flex-1">{selectedClientData.cedula}</p>
                     <button
                       onClick={() => copyToClipboard(selectedClientData.cedula, 'Cédula copiada')}
-                      className="ml-2 p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded-md transition-colors"
+                      className="ml-2 p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded-md transition-colores"
                       title="Copiar cédula"
                     >
                       <Copy className="w-4 h-4" />
@@ -2892,7 +2889,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                     </p>
                     <button
                       onClick={() => copyToClipboard(selectedClientData.telefono || '', 'Teléfono copiado')}
-                      className="ml-2 p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="ml-2 p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded-md transition-colores disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Copiar teléfono"
                       disabled={!selectedClientData.telefono}
                     >
@@ -2912,7 +2909,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
                     </p>
                     <button
                       onClick={() => copyToClipboard(selectedClientData.email || '', 'Email copiado')}
-                      className="ml-2 p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="ml-2 p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded-md transition-colores disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Copiar email"
                       disabled={!selectedClientData.email}
                     >
@@ -2945,7 +2942,7 @@ export default function StaffPageContent({ businessId }: StaffPageContentProps) 
               </div>
 
               <p className="text-center text-gray-500 text-sm mt-4">
-                💡 Usa los botones de copia para copiar cada dato individualmente
+                📋 Usa los botones de copia para copiar cada dato individualmente
               </p>
             </motion.div>
           </div>

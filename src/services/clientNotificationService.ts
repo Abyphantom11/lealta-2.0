@@ -22,8 +22,9 @@ class ClientNotificationService {
     // Limpiar notificaciones antiguas y cargar desde localStorage
     this.loadFromStorage();
 
-    // Forzar limpieza de notificaciones hardcodeadas antiguas
+    // Forzar limpieza de notificaciones hardcodeadas antiguas y debug
     this.cleanOldTestNotifications();
+    this.cleanDebugNotifications();
 
     // No crear notificaciones de ejemplo automáticamente
     // Solo usar las que se generen dinámicamente por eventos reales
@@ -37,14 +38,49 @@ class ClientNotificationService {
     const testTitles = [
       '🎉 Nueva Promoción Disponible',
       '⭐ Puntos Actualizados',
-      '🏆 ¡Cerca del Siguiente Nivel!'
+      '🏆 ¡Cerca del Siguiente Nivel!',
+      '🔧 Debug PWA Status:',
+      'Debug PWA Status:'
     ];
 
-    this.notifications = this.notifications.filter(n =>
-      !testTitles.includes(n.titulo)
-    );
+    // También limpiar por contenido de mensaje que contenga información técnica
+    this.notifications = this.notifications.filter(n => {
+      const hasTestTitle = testTitles.includes(n.titulo);
+      const hasDebugContent = n.mensaje.includes('Mobile:') || 
+                             n.mensaje.includes('HTTPS:') || 
+                             n.mensaje.includes('Standalone:') ||
+                             n.titulo.includes('Debug') ||
+                             n.titulo.includes('PWA Notifications:');
+      
+      return !hasTestTitle && !hasDebugContent;
+    });
 
     this.saveToStorage();
+  }
+
+  // Limpiar específicamente notificaciones de debug
+  cleanDebugNotifications() {
+    const initialLength = this.notifications.length;
+    
+    this.notifications = this.notifications.filter(n => {
+      const isDebug = n.titulo.includes('Debug') || 
+                     n.titulo.includes('🔧') ||
+                     n.mensaje.includes('Mobile:') || 
+                     n.mensaje.includes('HTTPS:') || 
+                     n.mensaje.includes('Standalone:') ||
+                     n.titulo.includes('PWA Notifications:') ||
+                     n.titulo.includes('Test PWA');
+      
+      return !isDebug;
+    });
+    
+    const removedCount = initialLength - this.notifications.length;
+    if (removedCount > 0) {
+      this.saveToStorage();
+      this.notifyListeners();
+    }
+    
+    return removedCount;
   }
 
   // Agregar nueva notificación
@@ -125,7 +161,6 @@ class ClientNotificationService {
         this.notifications = [];
         this.saveToStorage();
         this.notifyListeners();
-        console.log('🧹 Notificaciones limpiadas completamente');
       } catch (error) {
         console.warn('Error al limpiar localStorage:', error);
       }
@@ -224,7 +259,6 @@ class ClientNotificationService {
 
   // Notificación específica para ascensos manuales
   notifyLevelUpManual(nivelAnterior: string, nivelNuevo: string, clienteId?: string) {
-    console.log('🎉 notifyLevelUpManual llamado:', { nivelAnterior, nivelNuevo, clienteId });
     const notification = this.addNotification({
       tipo: 'nivel',
       titulo: '🎉 ¡Felicidades! Ascendiste de Nivel',
@@ -232,7 +266,6 @@ class ClientNotificationService {
       leida: false,
       clienteId,
     });
-    console.log('🎉 Notificación de ascenso creada:', notification);
     return notification;
   }
 
@@ -304,6 +337,7 @@ export function useClientNotifications(clienteId?: string) {
     removeNotification: clientNotificationService.removeNotification.bind(clientNotificationService),
     clearAll: clientNotificationService.clearAll.bind(clientNotificationService),
     forceCleanStorage: clientNotificationService.forceCleanStorage.bind(clientNotificationService),
+    cleanDebugNotifications: clientNotificationService.cleanDebugNotifications.bind(clientNotificationService),
     addNotification: clientNotificationService.addNotification.bind(clientNotificationService),
     // Métodos específicos
     notifyPromotion: clientNotificationService.notifyPromotion.bind(clientNotificationService),

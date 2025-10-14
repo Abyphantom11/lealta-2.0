@@ -1,0 +1,60 @@
+/* Estilos adicionales para el calendario */
+.react-calendar-grid .rdp-months {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.react-calendar-grid .rdp-month {
+  width: 100%;
+}
+
+.react-calendar-grid .rdp-table {
+  width: 100%;
+}
+
+.react-calendar-grid .rdp-head_row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.react-calendar-grid .rdp-cell {
+  text-align: center;
+  padding: 0;
+  margin: 0;
+}
+
+.react-calendar-grid .rdp-tbody {
+  display: block;
+}
+
+.react-calendar-grid .rdp-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.react-calendar-grid .rdp-day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  width: 36px;
+  margin: 0 auto;
+}
+
+/* Sobre-escribiendo estilos que puedan estar causando el problema */
+.react-calendar-grid table {
+  width: 100% !important;
+  display: table !important;
+}
+
+.react-calendar-grid tbody {
+  display: table-row-group !important;
+}
+
+.react-calendar-grid tr {
+  display: table-row !important;
+}
+
+.react-calendar-grid td {
+  display: table-cell !important;
+}

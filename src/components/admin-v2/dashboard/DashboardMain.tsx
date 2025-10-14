@@ -82,19 +82,53 @@ const DashboardMain: React.FC = () => {
 
   const cargarDatosVisitas = async () => {
     try {
-      // En el futuro, esto vendrá de una API
-      // const response = await fetch('/api/admin/visitas');
-      // const data = await response.json();
+      // 🎯 USAR NUEVA API DE VISITAS
+      const businessId = 'cmfr2y0ia0000eyvw7ef3k20u'; // ID del negocio arepa
       
-      // Datos mock por ahora
+      // Obtener estadísticas para cada período
+      const [responseHoy, responseSemana, responseMes] = await Promise.all([
+        fetch(`/api/cliente/visitas?businessId=${businessId}&periodo=hoy`),
+        fetch(`/api/cliente/visitas?businessId=${businessId}&periodo=semana`),
+        fetch(`/api/cliente/visitas?businessId=${businessId}&periodo=mes`)
+      ]);
+
+      if (responseHoy.ok && responseSemana.ok && responseMes.ok) {
+        const [dataHoy, dataSemana, dataMes] = await Promise.all([
+          responseHoy.json(),
+          responseSemana.json(),
+          responseMes.json()
+        ]);
+
+        const visitasHoy = dataHoy.estadisticas?.totalVisitas || 0;
+        const visitasSemana = dataSemana.estadisticas?.totalVisitas || 0;
+        const visitasMes = dataMes.estadisticas?.totalVisitas || 0;
+
+        // 📈 CALCULAR TENDENCIA
+        let tendencia: 'estable' | 'subiendo' | 'bajando' = 'estable';
+        if (visitasHoy > visitasSemana / 7) {
+          tendencia = 'subiendo';
+        } else if (visitasHoy < visitasSemana / 7 * 0.5) {
+          tendencia = 'bajando';
+        }
+
+        setVisitas({
+          visitasHoy,
+          visitasSemana,
+          visitasMes,
+          tendencia
+        });
+      } else {
+        throw new Error('Error en la respuesta de la API');
+      }
+    } catch (error) {
+      console.error('Error cargando visitas:', error);
+      // Fallback a datos por defecto
       setVisitas({
         visitasHoy: 0,
         visitasSemana: 0,
         visitasMes: 0,
         tendencia: 'estable'
       });
-    } catch (error) {
-      console.error('Error cargando visitas:', error);
     }
   };
 
@@ -156,7 +190,6 @@ const DashboardMain: React.FC = () => {
       // });
       
       setEditandoConfig(false);
-      console.log('Configuración guardada:', configuracionPuntos);
     } catch (error) {
       console.error('Error guardando configuración:', error);
     }
@@ -344,58 +377,66 @@ const DashboardMain: React.FC = () => {
         </div>
 
         {/* Recompensas Activas */}
-        <div className="bg-gradient-to-br from-dark-800/50 to-dark-900/50 backdrop-blur-sm border border-dark-700/50 rounded-xl p-6">
-          <div className="flex items-center space-x-3 mb-6">
+        <div className="bg-gradient-to-br from-dark-800/50 to-dark-900/50 backdrop-blur-sm border border-dark-700/50 rounded-xl p-6 flex flex-col">
+          <div className="flex items-center space-x-3 mb-4">
             <div className="w-10 h-10 bg-gradient-to-r from-pink-600 to-purple-600 rounded-lg flex items-center justify-center">
               <Gift className="w-5 h-5 text-white" />
             </div>
             <h3 className="text-xl font-semibold text-white">Recompensas Activas</h3>
           </div>
 
-          <div className="space-y-4">
+          {/* Contenedor scrolleable optimizado con scrollbar personalizada */}
+          <div 
+            className="space-y-3 overflow-y-auto pr-2 max-h-[400px] scrollbar-thin scrollbar-thumb-primary-600/50 scrollbar-track-dark-700/30 hover:scrollbar-thumb-primary-500/70 transition-all"
+            style={{
+              scrollbarWidth: 'thin',
+              scrollbarColor: 'rgb(147 51 234 / 0.5) rgb(55 65 81 / 0.3)'
+            }}
+          >
             {recompensas.map((recompensa) => (
               <div 
                 key={recompensa.id}
-                className="bg-dark-700/50 border border-dark-600/50 rounded-lg p-4"
+                className="bg-dark-700/50 border border-dark-600/50 rounded-lg p-3 hover:bg-dark-700/70 hover:border-primary-600/30 transition-all duration-200"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center space-x-3">
-                    <h4 className="text-white font-medium">{recompensa.nombre}</h4>
-                    <span className="text-yellow-400 text-sm font-medium">
-                      {recompensa.tipo === 'descuento' ? 'descuento' : 'producto'}
-                    </span>
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="text-white font-medium text-sm truncate">{recompensa.nombre}</h4>
+                      <span className="text-yellow-400 text-xs font-medium whitespace-nowrap">
+                        {recompensa.tipo === 'descuento' ? 'descuento' : 'producto'}
+                      </span>
+                    </div>
+                    <p className="text-dark-300 text-xs line-clamp-1">
+                      {recompensa.tipo === 'descuento' 
+                        ? `Descuento del ${/\d+/.exec(recompensa.nombre)?.[0]}% en tu próxima compra`
+                        : `Cualquier bebida de la casa`
+                      }
+                    </p>
                   </div>
                   <button
                     onClick={() => toggleRecompensa(recompensa.id)}
-                    className="flex items-center space-x-1"
+                    className="flex items-center gap-1 shrink-0"
                   >
                     {recompensa.activa ? (
                       <>
                         <ToggleRight className="w-5 h-5 text-green-400" />
-                        <span className="text-green-400 text-sm font-medium">Activa</span>
+                        <span className="text-green-400 text-xs font-medium">Activa</span>
                       </>
                     ) : (
                       <>
                         <ToggleLeft className="w-5 h-5 text-dark-400" />
-                        <span className="text-dark-400 text-sm font-medium">Inactiva</span>
+                        <span className="text-dark-400 text-xs font-medium">Inactiva</span>
                       </>
                     )}
                   </button>
                 </div>
                 
-                <p className="text-dark-300 text-sm mb-2">
-                  {recompensa.tipo === 'descuento' 
-                    ? `Descuento del ${/\d+/.exec(recompensa.nombre)?.[0]}% en tu próxima compra`
-                    : `Cualquier bebida de la casa`
-                  }
-                </p>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-yellow-400 font-bold text-lg">
+                <div className="flex items-center justify-between mt-2 pt-2 border-t border-dark-600/30">
+                  <span className="text-yellow-400 font-bold text-base">
                     {recompensa.puntos} puntos
                   </span>
                   {recompensa.stock && (
-                    <span className="text-dark-400 text-sm">
+                    <span className="text-dark-400 text-xs">
                       Stock: {recompensa.stock}
                     </span>
                   )}

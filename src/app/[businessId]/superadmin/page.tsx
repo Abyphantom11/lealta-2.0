@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import { useRequireAuth } from '../../../hooks/useAuth';
 import SuperAdminPage from '../../../app/superadmin/SuperAdminDashboard';
+import PWALayout from '../../../components/layouts/PWALayout';
 
 /**
  * Página de SuperAdmin contextualizada con businessId
@@ -16,45 +17,17 @@ export default function BusinessSuperAdminPage() {
   const { loading, isAuthenticated } = useRequireAuth('SUPERADMIN');
 
   const validateBusiness = useCallback(async () => {
-    console.log('🔍 INICIANDO validación de business:', businessId);
-    
     try {
-      console.log('📡 Haciendo fetch a:', `/api/businesses/${businessId}/validate`);
       const response = await fetch(`/api/businesses/${businessId}/validate`);
-      
-      console.log('📡 Respuesta de validación RAW:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        type: response.type,
-        url: response.url,
-        headers: {
-          contentType: response.headers.get('content-type'),
-          contentLength: response.headers.get('content-length')
-        }
-      });
       
       // Intentar leer la respuesta como texto primero
       const responseText = await response.text();
-      console.log('📄 Respuesta como texto:', responseText);
       
       if (response.ok) {
         try {
           // Intentar parsear como JSON
-          const data = JSON.parse(responseText);
-          console.log('✅ Business válido - datos parseados correctamente:', data);
-          console.log('✅ Verificando estructura de respuesta:', {
-            hasData: !!data,
-            hasId: !!data.id,
-            hasName: !!data.name,
-            hasSlug: !!data.slug,
-            isActive: data.isActive,
-            responseType: typeof data,
-            keys: Object.keys(data || {})
-          });
-          
+          JSON.parse(responseText);
           setIsValidBusiness(true);
-          console.log('✅ Estado actualizado: isValidBusiness = true');
         } catch (parseError) {
           console.error('💥 Error parseando JSON:', parseError);
           console.error('💥 Texto que no se pudo parsear:', responseText);
@@ -69,11 +42,9 @@ export default function BusinessSuperAdminPage() {
         });
         
         setIsValidBusiness(false);
-        console.log('❌ Estado actualizado: isValidBusiness = false');
         
         // Redirigir a login con error
         const loginUrl = `/login?error=invalid-business&message=El negocio no es válido o no existe`;
-        console.log('🔄 Redirigiendo a:', loginUrl);
         window.location.href = loginUrl;
       }
     } catch (error) {
@@ -82,10 +53,8 @@ export default function BusinessSuperAdminPage() {
         console.error('Stack trace:', error.stack);
       }
       setIsValidBusiness(false);
-      console.log('Estado actualizado por error: isValidBusiness = false');
       
       const loginUrl = '/login?error=validation-error&message=Error validando el negocio';
-      console.log('Redirigiendo por error a:', loginUrl);
       window.location.href = loginUrl;
     }
   }, [businessId]);
@@ -93,23 +62,12 @@ export default function BusinessSuperAdminPage() {
   useEffect(() => {
     // Solo validar el business si la autenticación ya terminó
     if (!loading && isAuthenticated) {
-      console.log('🔍 Iniciando validación de business después de auth exitosa');
       validateBusiness();
-    } else if (!loading && !isAuthenticated) {
-      console.log('❌ No hay autenticación - no validar business');
-    } else {
-      console.log('⏳ Esperando autenticación antes de validar business');
     }
   }, [validateBusiness, loading, isAuthenticated]);
 
   // Loading states
   if (loading || isValidBusiness === null) {
-    console.log('⏳ RENDERIZANDO loading - Estados:', {
-      loading,
-      isValidBusiness,
-      businessId
-    });
-    
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-100">
         <div className="text-center">
@@ -120,20 +78,7 @@ export default function BusinessSuperAdminPage() {
     );
   }
 
-  console.log('🚦 EVALUANDO estados finales antes de renderizar:', {
-    loading,
-    isValidBusiness,
-    businessId,
-    willShowError: !isValidBusiness
-  });
-
   if (!isValidBusiness) {
-    console.log('🔴 RENDERIZANDO página de error - Business No Válido:', {
-      businessId,
-      isValidBusiness,
-      loading
-    });
-    
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-pink-100">
         <div className="text-center">
@@ -151,6 +96,8 @@ export default function BusinessSuperAdminPage() {
   }
 
   return (
-    <SuperAdminPage businessId={businessId} />
+    <PWALayout>
+      <SuperAdminPage businessId={businessId} />
+    </PWALayout>
   );
 }

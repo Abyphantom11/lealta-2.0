@@ -8,29 +8,33 @@ interface BrandingConfig {
 }
 
 export const useBrandingManager = () => {
-  // Estado del branding - EXTRAÍDO DEL ORIGINAL
+  // Estado del branding - OPTIMIZADO PARA EVITAR FLASH
   const [brandingConfig, setBrandingConfig] = useState<BrandingConfig>(() => {
-    // Intentar cargar desde localStorage primero para evitar el flash
+    // 🔥 SOLO cargar desde localStorage si tiene datos reales del admin
     if (typeof window !== 'undefined') {
       try {
         const savedBranding = localStorage.getItem('portalBranding');
         if (savedBranding) {
           const parsed = JSON.parse(savedBranding);
-          return {
-            businessName: parsed.businessName || 'LEALTA',
-            primaryColor: parsed.primaryColor || '#2563EB',
-            carouselImages: [] as string[] // Las imágenes se cargarán después desde la API
-          };
+          // 🔥 VALIDAR que los datos son reales, no valores por defecto
+          const hasRealData = parsed.businessName && parsed.businessName !== 'LEALTA' && parsed.businessName !== 'Mi Negocio';
+          if (hasRealData) {
+            return {
+              businessName: parsed.businessName,
+              primaryColor: parsed.primaryColor || '#2563EB',
+              carouselImages: Array.isArray(parsed.carouselImages) ? parsed.carouselImages : []
+            };
+          }
         }
       } catch (error) {
         console.warn('Error al cargar branding inicial desde localStorage:', error);
       }
     }
-    // Fallback por defecto
+    // 🔥 NO usar valores por defecto - mantener vacío hasta cargar datos reales
     return {
-      businessName: 'LEALTA',
-      primaryColor: '#2563EB',
-      carouselImages: [] as string[]
+      businessName: '',
+      primaryColor: '',
+      carouselImages: []
     };
   });
 
@@ -69,17 +73,21 @@ export const useBrandingManager = () => {
       
       if (response.ok) {
         const branding = await response.json();
-        console.log('Cliente: Branding cargado desde API:', branding.carouselImages?.length || 0, 'imágenes');
-        setBrandingConfig(branding);
-        // Guardar versión ligera en localStorage como backup
-        try {
-          const lightConfig = {
-            ...branding,
-            carouselImages: branding.carouselImages?.length || 0 // Solo guardar la cantidad
-          };
-          localStorage.setItem('portalBranding', JSON.stringify(lightConfig));
-        } catch (storageError) {
-          console.warn('No se pudo guardar branding en localStorage del cliente:', storageError);
+        // 🔥 SOLO actualizar si hay datos reales del admin
+        const hasRealAdminData = branding.businessName && 
+                                branding.businessName !== 'LEALTA' && 
+                                branding.businessName !== 'Mi Negocio' &&
+                                branding.businessName.trim() !== '';
+        
+        if (hasRealAdminData) {
+          // Branding cargado exitosamente desde API
+          setBrandingConfig(branding);
+          // Guardar versión completa en localStorage
+          try {
+            localStorage.setItem('portalBranding', JSON.stringify(branding));
+          } catch (storageError) {
+            console.warn('No se pudo guardar branding en localStorage del cliente:', storageError);
+          }
         }
       } else {
         // Fallback a localStorage
@@ -119,8 +127,8 @@ export const useBrandingManager = () => {
       }
     };
     // Escuchar eventos personalizados del admin
-    const handleBrandingUpdate = (e: CustomEvent) => {
-      console.log('Evento de actualización de branding recibido:', e.detail);
+    const handleBrandingUpdate = () => {
+      // Evento de actualización de branding recibido
       loadBranding();
     };
     window.addEventListener('storage', handleStorageChange);

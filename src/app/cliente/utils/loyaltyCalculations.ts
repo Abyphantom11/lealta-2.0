@@ -1,5 +1,6 @@
 import { ClienteData } from '../components/types';
 import { calcularProgresoUnificado } from '@/lib/loyalty-progress';
+import { getPuntosMinimosConfig } from '@/lib/tarjetas-config-central';
 
 // Función para comparar niveles de tarjeta - EXTRAÍDA DEL ORIGINAL
 export const isHigherLevel = (newLevel: string, oldLevel: string): boolean => {
@@ -8,37 +9,51 @@ export const isHigherLevel = (newLevel: string, oldLevel: string): boolean => {
 };
 
 // Helper para calcular datos de nivel de lealtad - ACTUALIZADO PARA USAR FUNCIÓN UNIFICADA
-export const calculateLoyaltyLevel = (portalConfig: any, clienteData: ClienteData | null) => {
+export const calculateLoyaltyLevel = async (portalConfig: any, clienteData: ClienteData | null): Promise<any> => {
   const nivelesOrdenados = ['Bronce', 'Plata', 'Oro', 'Diamante', 'Platino'];
 
-  // ✅ USAR FUNCIÓN UNIFICADA QUE RESPETA ASIGNACIONES MANUALES
-  const puntosProgreso = clienteData?.tarjetaLealtad?.puntosProgreso || clienteData?.tarjetaLealtad?.puntos || 100;
+  // ✅ LÓGICA CORREGIDA PARA TARJETAS MANUALES
+  // Para tarjetas manuales: usar el MAYOR entre puntosProgreso de la BD y puntos totales del cliente
+  // Para tarjetas automáticas: usar puntosProgreso de la BD (que es igual a puntos totales)
+  const puntosCliente = clienteData?.tarjetaLealtad?.puntos || 0;
+  const puntosProgresoBD = clienteData?.tarjetaLealtad?.puntosProgreso || 0;
+  const esAsignacionManual = clienteData?.tarjetaLealtad?.asignacionManual || false;
+  
+  // 🎯 CÁLCULO INTELIGENTE: Para tarjetas manuales, usar los puntos del cliente si son mayores
+  const puntosProgreso = esAsignacionManual 
+    ? Math.max(puntosProgresoBD, puntosCliente)
+    : puntosProgresoBD;
+    
   const visitasActuales = 0; // No tenemos visitas en ClienteData del frontend
   const nivelActual = clienteData?.tarjetaLealtad?.nivel || 'Bronce';
-  const esAsignacionManual = clienteData?.tarjetaLealtad?.asignacionManual || false; // ✅ USAR CAMPO CORRECTO
+
+  // ✅ USAR CONFIGURACIÓN CENTRAL
+  let puntosRequeridos: Record<string, number> = {};
+  
+  try {
+    // Obtener businessId del portalConfig o usar default
+    const businessId = portalConfig?.businessId || portalConfig?.settings?.businessId || 'default';
+    puntosRequeridos = await getPuntosMinimosConfig(businessId);
+    // Usar configuración central
+  } catch (error) {
+    console.error('❌ [LOYALTY-CALC] Error obteniendo configuración central:', error);
+    // Fallback seguro
+    puntosRequeridos = {
+      'Bronce': 0,
+      'Plata': 100,
+      'Oro': 500,
+      'Diamante': 1500,
+      'Platino': 3000
+    };
+  }
 
   const resultado = calcularProgresoUnificado(
     puntosProgreso, // ✅ USAR PUNTOS DE PROGRESO EN LUGAR DE PUNTOS TOTALES
     visitasActuales,
     nivelActual,
-    esAsignacionManual
+    esAsignacionManual,
+    puntosRequeridos // ✅ PASAR CONFIGURACIÓN REAL
   );
-
-  // Configuración base para compatibilidad
-  const puntosRequeridos = {
-    'Bronce': 0,
-    'Plata': 400,
-    'Oro': 480,
-    'Diamante': 15000,
-    'Platino': 25000
-  };
-  
-  // Actualizar con configuración del admin si existe
-  portalConfig.tarjetas?.forEach((tarjeta: any) => {
-    if (tarjeta.condiciones?.puntosMinimos) {
-      puntosRequeridos[tarjeta.nivel as keyof typeof puntosRequeridos] = tarjeta.condiciones.puntosMinimos;
-    }
-  });
   
   const maxPuntos = Math.max(...Object.values(puntosRequeridos));
   const puntosActuales = puntosProgreso;

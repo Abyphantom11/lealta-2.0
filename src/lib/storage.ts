@@ -144,7 +144,7 @@ export class TypedStorage<T extends Record<string, any>> {
 }
 
 // Exportar funciones y clase
-export default {
+const storageUtils = {
   getItem,
   setItem,
   removeItem,
@@ -152,3 +152,5 @@ export default {
   clearAll,
   TypedStorage,
 };
+
+export default storageUtils;

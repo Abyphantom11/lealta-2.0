@@ -1,5 +1,6 @@
 'use client';
 
+import React, { useMemo } from 'react';
 import { TrendingUp, TrendingDown, Users, DollarSign, ShoppingCart, Target, Crown, Activity } from 'lucide-react';
 import { motion } from './motion';
 
@@ -144,27 +145,6 @@ const MetricCard = ({ title, icon: Icon, data, color, subtitle, delay = 0 }: Met
 };
 
 export default function AdvancedMetrics({ data }: Readonly<AdvancedMetricsProps>) {
-  // 🔍 DEBUG: Log para verificar datos recibidos
-  console.log('📊 AdvancedMetrics - Datos recibidos:', data);
-  console.log('📊 AdvancedMetrics - Targets disponibles:', {
-    totalRevenue: data?.totalRevenue?.target,
-    totalClients: data?.totalClients?.target,
-    avgTicket: data?.avgTicket?.target,
-    totalTransactions: data?.totalTransactions?.target,
-    clientRetention: data?.clientRetention?.target,
-    conversionRate: data?.conversionRate?.target,
-    topClientValue: data?.topClientValue?.target,
-    activeClients: data?.activeClients?.target,
-  });
-
-  // Valores por defecto si data es undefined - con targets para mostrar barras de progreso
-  const defaultMetricValue: MetricData = {
-    current: 0,
-    previous: 0,
-    target: 100, // Target por defecto para mostrar progreso
-    format: 'number'
-  };
-
   // Si no hay datos de la API, usar datos simulados basados en los logs del terminal
   const simulatedData = data ?? {
     totalRevenue: { 
@@ -220,7 +200,17 @@ export default function AdvancedMetrics({ data }: Readonly<AdvancedMetricsProps>
   // Usar datos reales si están disponibles, sino usar simulados
   const actualData = data || simulatedData;
 
-  const metrics = [
+  // ✅ OPTIMIZACIÓN: Memoizar el cálculo de métricas para evitar recálculos innecesarios
+  const metrics = useMemo(() => {
+    // Valores por defecto si data es undefined - con targets para mostrar barras de progreso
+    const defaultMetricValue: MetricData = {
+      current: 0,
+      previous: 0,
+      target: 100, // Target por defecto para mostrar progreso
+      format: 'number'
+    };
+
+    return [
     {
       title: 'Ingresos Totales',
       subtitle: 'Período seleccionado',
@@ -285,7 +275,8 @@ export default function AdvancedMetrics({ data }: Readonly<AdvancedMetricsProps>
       color: 'text-indigo-400',
       delay: 0.7
     }
-  ];
+    ]; // ✅ Fin del array de retorno
+  }, [actualData]); // ✅ Dependencias del useMemo
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

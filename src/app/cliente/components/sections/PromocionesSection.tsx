@@ -2,6 +2,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Percent } from 'lucide-react';
+import { useAutoRefreshPortalConfig } from '@/hooks/useAutoRefreshPortalConfig';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface Promocion {
   id: string;
@@ -21,133 +23,107 @@ interface PromocionesProps {
   businessId?: string;
 }
 
-export default function PromocionesSection({ businessId }: PromocionesProps) {
-  const [promociones, setPromociones] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+export default function PromocionesSection({ businessId }: Readonly<PromocionesProps>) {
+  const { theme, themeConfig } = useTheme();
+  const [sectionTitle, setSectionTitle] = useState('Promociones Especiales');
+  
+  // 🔄 Auto-refresh hook para sincronización admin → cliente
+  const { getPromociones, isLoading } = useAutoRefreshPortalConfig({
+    businessId,
+    refreshInterval: 15000, // 15 segundos para promociones (más frecuente)
+    enabled: true
+  });
+  
 
-  const fetchPromociones = useCallback(async () => {
+  
+  // 📥 Cargar título personalizado
+  const loadSectionTitle = useCallback(async () => {
+    if (!businessId) return;
+    
     try {
-      // Usar businessId si está disponible, sino usar 'default'
-      const configBusinessId = businessId || 'default';
-      const response = await fetch(
-        `/api/admin/portal-config?businessId=${configBusinessId}`
-      );
+      const response = await fetch(`/api/portal/section-titles?businessId=${businessId}`);
       if (response.ok) {
         const data = await response.json();
-
-        // Obtener todas las promociones activas (SOLO de promociones en español)
-        const todasActivas =
-          data.config?.promociones?.filter((p: any) => p.activo) || [];
-
-        // Debug: verificar si hay datos en promotions también
-        if (data.config?.promotions && data.config?.promotions?.length > 0) {
-          console.warn('⚠️ Hay datos en promotions (inglés) que NO deberían estar ahí:', data.config.promotions);
-        }
-
-        // Obtener el día y hora actual SIEMPRE actualizada
-        const ahora = new Date();
-        const diasSemana = [
-          'domingo',
-          'lunes',
-          'martes',
-          'miercoles',
-          'jueves',
-          'viernes',
-          'sabado',
-        ];
-        const diaActual = diasSemana[ahora.getDay()];
-        const horaActual = ahora.getHours() * 60 + ahora.getMinutes(); // Convertir a minutos desde medianoche
-
-        console.log(
-          `🎯 PromocionesSection - Día actual: ${diaActual}, Hora: ${Math.floor(horaActual / 60)}:${horaActual % 60}`
-        );
-        console.log('📋 Todas las promociones activas:', todasActivas);
-
-        // Filtrar promociones del día actual que no hayan terminado
-        const promocionesDelDia = todasActivas.filter((p: any) => {
-          console.log(`🔍 Evaluando promoción: ${p.titulo}, día: ${p.dia}, diaActual: ${diaActual}`);
-
-          // Verificar si es el día de la promoción O si estamos en las primeras horas del día siguiente
-          let esDiaValido = false;
-
-          if (p.dia === diaActual) {
-            // Es el día de la promoción
-            esDiaValido = true;
-            console.log(`✅ Es el día de la promoción: ${p.dia}`);
-          } else if (p.horaTermino) {
-            // Verificar si estamos en las primeras horas del día siguiente
-            const [horas, minutos] = p.horaTermino.split(':').map(Number);
-            const horaTermino = horas * 60 + minutos;
-
-            // Si la hora de término es temprana (ej: 4:00 AM) y estamos en el día siguiente antes de esa hora
-            if (horaTermino < 12 * 60) { // Menos de 12 PM
-              const indiceDiaAnterior = (ahora.getDay() - 1 + 7) % 7; // Día anterior con manejo circular
-              const diaAnterior = diasSemana[indiceDiaAnterior];
-
-              if (p.dia === diaAnterior && horaActual < horaTermino) {
-                esDiaValido = true;
-                console.log(`✅ Promoción del día anterior (${diaAnterior}) aún válida hasta las ${p.horaTermino}`);
-              }
-            }
-          }
-
-          if (!esDiaValido) {
-            console.log(`❌ Promoción ${p.titulo} no es válida para hoy (${p.dia} != ${diaActual})`);
-            return false;
-          }
-
-          // Si tiene hora de término y es el día de la promoción, la promoción dura el día completo hasta la hora de término del día siguiente
-          if (p.horaTermino && p.dia === diaActual) {
-            console.log(`✅ Promoción ${p.titulo} válida el día completo hasta las ${p.horaTermino} de mañana`);
-            return true;
-          }
-
-          // Si tiene hora de término y estamos en el día siguiente, verificar la hora
-          if (p.horaTermino && p.dia !== diaActual) {
-            const [horas, minutos] = p.horaTermino.split(':').map(Number);
-            const horaTermino = horas * 60 + minutos;
-            const valida = horaActual < horaTermino;
-            console.log(`⏰ Promoción ${p.titulo} - horaActual: ${Math.floor(horaActual/60)}:${horaActual%60}, horaTermino: ${Math.floor(horaTermino/60)}:${horaTermino%60}, válida: ${valida}`);
-            return valida;
-          }
-
-          // Promoción válida sin restricción de horario
-          console.log(`✅ Promoción ${p.titulo} sin restricción de horario`);
-          return true;
-        });
-
-        // Solo mostrar promociones válidas para el día actual
-        console.log(`🎉 Promociones filtradas para mostrar (${promocionesDelDia.length}):`, promocionesDelDia);
-        setPromociones(promocionesDelDia);
+        setSectionTitle(data.promocionesTitle || 'Promociones Especiales');
       }
     } catch (error) {
-      console.error('Error loading promociones:', error);
-    } finally {
-      setIsLoading(false);
+      console.error('Error cargando título de sección:', error);
     }
   }, [businessId]);
-
+  
   useEffect(() => {
-    fetchPromociones();
+    loadSectionTitle();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessId]);
 
-    // Polling para actualización en tiempo real cada 5 segundos (igual que recompensas)
-    // Polling optimizado: cada 30 segundos para promociones
-    const interval = setInterval(fetchPromociones, 30000);
+  // Estados para promociones
+  const [promociones, setPromociones] = useState<Promocion[]>([]);
 
+  // Cargar promociones usando la función simple (como banners/recompensas)
+  useEffect(() => {
+    const loadPromociones = async () => {
+      try {
+        const todasPromociones = getPromociones();
+        // ✅ CORRECCIÓN: Promociones NO requieren imagen (pueden ser solo texto)
+        const promocionesActivas = todasPromociones.filter(
+          (promo: Promocion) => promo.activo
+        );
+        setPromociones(promocionesActivas);
+      } catch (error) {
+        console.error('Error cargando promociones:', error);
+        setPromociones([]);
+      }
+    };
+
+    loadPromociones();
+    
+    // Actualizar cada minuto para detectar cambios
+    const interval = setInterval(loadPromociones, 60000);
     return () => clearInterval(interval);
-  }, [fetchPromociones]);
+  }, [getPromociones, businessId]);
 
   if (isLoading || promociones.length === 0) return null;
 
+  // 🎨 Estilos según el tema
+  let containerStyles = '';
+  let textColorStyle = {};
+  let descriptionColorStyle = {};
+  let cardBgStyle = {};
+  let textColorClass = '';
+  let descriptionColorClass = '';
+  let cardBgClass = '';
+  
+  if (theme === 'moderno') {
+    containerStyles = 'bg-gradient-to-r from-green-600 to-emerald-600';
+    textColorClass = 'text-white';
+    descriptionColorClass = 'text-white/80';
+    cardBgClass = 'bg-white/20';
+  } else if (theme === 'elegante') {
+    containerStyles = 'bg-gradient-to-r from-zinc-900 to-zinc-800 border-2 border-yellow-500/30';
+    textColorClass = 'text-yellow-400';
+    descriptionColorClass = 'text-zinc-400';
+    cardBgClass = 'bg-yellow-500/10 border border-yellow-500/30';
+  } else {
+    // TEMA SENCILLO - Usar colores personalizados
+    const secondaryColor = themeConfig.secondaryColor || '#10b981';
+    containerStyles = 'bg-white shadow-lg';
+    textColorStyle = { color: secondaryColor };
+    descriptionColorStyle = { color: '#6b7280' };
+    cardBgStyle = { 
+      backgroundColor: `${secondaryColor}10`,
+      borderWidth: '1px',
+      borderColor: `${secondaryColor}33`
+    };
+  }
+
   return (
-    <div className="mx-4 mb-6">
+    <div className="mx-4 mb-6 mt-6">
       <h3 className="text-lg font-semibold text-white mb-4">
-        Promociones Especiales
+        {sectionTitle}
       </h3>
-      <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl p-4">
+      <div className={`rounded-xl p-4 ${containerStyles}`}>
         <div className="flex items-center space-x-3 mb-3">
-          <Percent className="w-6 h-6 text-white" />
-          <div className="text-white font-semibold">Ofertas del Día</div>
+          <Percent className={`w-6 h-6 ${textColorClass}`} style={textColorStyle} />
         </div>
         {/* Contenedor scrollable horizontal para las promociones */}
         <div className="overflow-x-auto">
@@ -155,7 +131,8 @@ export default function PromocionesSection({ businessId }: PromocionesProps) {
             {promociones.map((promo: Promocion, index: number) => (
               <motion.div
                 key={promo.id}
-                className="bg-white/20 rounded-lg p-3 min-w-[200px] max-w-[200px] relative overflow-hidden"
+                className={`rounded-lg p-3 min-w-[200px] max-w-[200px] relative overflow-hidden ${cardBgClass}`}
+                style={cardBgStyle}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
@@ -171,17 +148,17 @@ export default function PromocionesSection({ businessId }: PromocionesProps) {
                   </div>
                 )}
                 <div className="flex flex-col">
-                  <div className="text-white font-medium text-sm">{promo.titulo}</div>
-                  <div className="text-white/80 text-xs mb-2">{promo.descripcion}</div>
+                  <div className={`font-medium text-sm ${textColorClass}`} style={textColorStyle}>{promo.titulo}</div>
+                  <div className={`text-xs mb-2 ${descriptionColorClass}`} style={descriptionColorStyle}>{promo.descripcion}</div>
                   <div className="flex items-center justify-between">
                     {/* Solo mostrar el descuento si es mayor a 0 */}
                     {Boolean(promo.descuento && promo.descuento > 0) && (
-                      <div className="text-white font-bold text-sm">
+                      <div className={`font-bold text-sm ${textColorClass}`} style={textColorStyle}>
                         {promo.descuento}% OFF
                       </div>
                     )}
                     {promo.fechaFin && (
-                      <div className="text-white/60 text-xs">
+                      <div className={`text-xs ${descriptionColorClass}`} style={descriptionColorStyle}>
                         Hasta: {new Date(promo.fechaFin).toLocaleDateString()}
                       </div>
                     )}

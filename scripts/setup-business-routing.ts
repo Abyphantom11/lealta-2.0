@@ -5,6 +5,14 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+interface BusinessType {
+  id: string;
+  name: string;
+  subdomain: string;
+  slug: string;
+  isActive?: boolean;
+}
+
 async function setupBusinessRouting() {
   try {
     console.log('🔧 Configurando routing de negocios...');
@@ -13,12 +21,12 @@ async function setupBusinessRouting() {
     const businesses = await prisma.business.findMany();
     
     console.log(`📊 Encontrados ${businesses.length} negocios:`);
-    businesses.forEach(business => {
+    businesses.forEach((business: BusinessType) => {
       console.log(`  - ${business.id}: ${business.name} (subdomain: ${business.subdomain})`);
     });
 
     // Si el negocio principal no tiene subdomain, configurarlo
-    const mainBusiness = businesses.find(b => b.id === 'business_1');
+    const mainBusiness = businesses.find((b: BusinessType) => b.id === 'business_1');
     
     if (mainBusiness && !mainBusiness.subdomain) {
       console.log('🔧 Configurando subdomain para business_1...');
@@ -69,7 +77,7 @@ async function setupBusinessRouting() {
     });
 
     console.log('\n🎯 Configuración final de negocios:');
-    updatedBusinesses.forEach(business => {
+    updatedBusinesses.forEach((business: BusinessType) => {
       const status = business.isActive ? '✅' : '❌';
       console.log(`  ${status} ${business.subdomain} -> ${business.name} (${business.id})`);
       console.log(`      URL: /${business.subdomain}/admin`);

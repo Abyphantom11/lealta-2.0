@@ -23,7 +23,7 @@ export default function GestionTarjetasOriginal({
   showNotification
 }: GestionTarjetasOriginalProps) {
   const [nombreEmpresa, setNombreEmpresa] = useState(
-    config.nombreEmpresa || config.empresa?.nombre || 'LEALTA'
+    config.nombreEmpresa || config.empresa?.nombre || 'Mi Negocio'
   );
   const [editingEmpresa, setEditingEmpresa] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -38,9 +38,10 @@ export default function GestionTarjetasOriginal({
       setSaving(true);
       await onUpdateConfig('nombreEmpresa', nombreEmpresa);
       setEditingEmpresa(false);
-      showNotification('Nombre de empresa actualizado correctamente', 'success');
+      showNotification('Título de tarjeta actualizado correctamente', 'success');
     } catch (error) {
-      showNotification('Error al actualizar el nombre de empresa', 'error');
+      console.error('Error al actualizar título de tarjeta:', error);
+      showNotification('Error al actualizar el título de la tarjeta', 'error');
     } finally {
       setSaving(false);
     }
@@ -55,11 +56,11 @@ export default function GestionTarjetasOriginal({
         </h3>
       </div>
 
-      {/* Nombre de la Empresa en Tarjetas */}
+      {/* Título de la Tarjeta */}
       <div className="space-y-4">
         <div>
           <h4 className="text-lg font-medium text-gray-800 mb-3">
-            Nombre de la Empresa en Tarjetas
+            Título de la Tarjeta
           </h4>
           
           <div className="bg-gray-50 rounded-lg p-4">
@@ -109,7 +110,7 @@ export default function GestionTarjetasOriginal({
                   <button
                     onClick={() => {
                       setEditingEmpresa(false);
-                      setNombreEmpresa(config.nombreEmpresa || config.empresa?.nombre || 'LEALTA');
+                      setNombreEmpresa(config.nombreEmpresa || config.empresa?.nombre || 'Mi Negocio');
                     }}
                     disabled={saving}
                     className="text-gray-600 px-3 py-1 rounded text-sm hover:bg-gray-100 disabled:opacity-50"

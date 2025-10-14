@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { hash } from 'bcryptjs';
 import { z } from 'zod';
-// import { sendEmail } from '@/lib/emailService'; // 🚫 TEMPORALMENTE DESACTIVADO - REACTIVAR POST-LANZAMIENTO
+import { logger } from '@/utils/production-logger';
+
 
 // Forzar renderizado dinámico para esta ruta que usa headers
 export const dynamic = 'force-dynamic';
@@ -11,7 +12,7 @@ const signupSchema = z.object({
   // Datos de la empresa
   businessName: z
     .string()
-    .min(2, 'Nombre de empresa debe tener al menos 2 caracteres'),
+    .min(2, 'Nombre de negocio debe tener al menos 2 caracteres'),
   subdomain: z
     .string()
     .min(3, 'Subdominio debe tener al menos 3 caracteres')
@@ -135,6 +136,16 @@ export async function POST(request: NextRequest) {
       return { business, superAdmin };
     });
 
+    // ✅ NUEVO: Crear portal-config personalizado inmediatamente después del signup
+    try {
+      const { createDefaultPortalConfig } = await import('../../../../lib/portal-config-utils');
+      await createDefaultPortalConfig(result.business.id, result.business.name);
+      logger.debug(`🎨 Portal config created for new business: ${result.business.name} (${result.business.id})`);
+    } catch (portalConfigError) {
+      logger.warn('⚠️ Could not create initial portal config:', portalConfigError);
+      // No fallar el signup por esto - se creará lazy cuando se acceda por primera vez
+    }
+
     // 🚫 TEMPORALMENTE DESACTIVADO - Email de bienvenida
     // try {
     //   await sendEmail({
@@ -165,7 +176,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Empresa y administrador creados exitosamente',
+      message: 'Negocio y administrador creados exitosamente',
       business: {
         id: result.business.id,
         name: result.business.name,
@@ -178,7 +189,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Signup error:', error);
+    logger.error('❌ Signup error:', error);
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(

@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 interface UseVisitTrackingOptions {
   clienteId?: string;
+  businessId?: string;
   enabled?: boolean;
   path?: string;
 }
@@ -12,7 +13,7 @@ interface UseVisitTrackingOptions {
  * Se ejecuta una vez por sesión pero permite recargas cada 5 minutos
  */
 export const useVisitTracking = (options: UseVisitTrackingOptions = {}) => {
-  const { clienteId, enabled = true, path = '/cliente' } = options;
+  const { clienteId, businessId, enabled = true, path = '/cliente' } = options;
   const lastVisitTime = useRef<number>(0);
   const sessionId = useRef<string>('');
 
@@ -47,13 +48,14 @@ export const useVisitTracking = (options: UseVisitTrackingOptions = {}) => {
         const visitData = {
           sessionId: sessionId.current,
           clienteId: clienteId || undefined,
+          businessId: businessId || undefined,
           path,
           referrer: document.referrer || undefined
         };
 
         console.log('📊 Registrando visita:', visitData);
 
-        const response = await fetch('/api/admin/visitas', {
+        const response = await fetch('/api/cliente/visitas', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -78,7 +80,7 @@ export const useVisitTracking = (options: UseVisitTrackingOptions = {}) => {
     return () => {
       clearTimeout(timer);
     };
-  }, [clienteId, enabled, path]); // Re-ejecutar si cambia clienteId (login/logout)
+  }, [clienteId, businessId, enabled, path]); // Re-ejecutar si cambia clienteId o businessId (login/logout)
 
   return {
     sessionId: sessionId.current,

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Eye, Smartphone, Gift, TrendingUp } from 'lucide-react';
+import { Eye, Smartphone, Gift, TrendingUp, Building, CreditCard, Calendar } from 'lucide-react';
 import PortalContentManager from './PortalContentManager';
 import { GeneralConfig } from './types';
 import {
@@ -28,7 +28,7 @@ type NivelTarjeta = 'success' | 'error' | 'warning' | 'info';
 // Portal Content Component - Gestión completa del portal del cliente
 const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
   const [activeTab, setActiveTab] = useState<
-    'preview' | 'banners' | 'promociones' | 'recompensas' | 'favorito'
+    'preview' | 'branding' | 'banners' | 'promociones' | 'recompensas' | 'favorito' | 'tarjetas'
   >('preview');
   const [previewMode, setPreviewMode] = useState<ModoVistaPrevia>('portal'); // Estado para cambiar entre Portal, Login y Tarjetas
   const [brandingConfig, setBrandingConfig] = useState<BrandingConfig>(
@@ -41,7 +41,7 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
     recompensas: [],
     tarjetas: [],
     favoritoDelDia: [],
-    nombreEmpresa: 'LEALTA',
+    nombreEmpresa: 'Mi Negocio',
     nivelesConfig: {
       Bronce: {
         colores: { gradiente: ['#CD7F32', '#8B4513'] },
@@ -72,7 +72,7 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
         condiciones: {
           puntosMinimos: 1500,
           gastosMinimos: 3000,
-          visitasMinimas: 20,
+          visitasMinimas: 15,
         },
       },
       Platino: {
@@ -87,69 +87,175 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
     },
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [currentBusinessSlug, setCurrentBusinessSlug] = useState<string | null>(null);
+  const [currentBusinessId, setCurrentBusinessId] = useState<string>('cmgewmtue0000eygwq8taawak'); // ID del business actual
 
-  const fetchConfig = async () => {
+  // 🔧 Funciones auxiliares reutilizables
+  const getCurrentBusinessFromUrl = useCallback((): string | null => {
+    if (typeof window === 'undefined') return null;
+    const pathSegments = window.location.pathname.split('/').filter(Boolean);
+    if (pathSegments.length >= 2 && pathSegments[1] === 'admin') {
+      return pathSegments[0];
+    }
+    return null;
+  }, []);
+
+  const resolveBusinessId = useCallback(async (identifier: string): Promise<string | null> => {
     try {
-      const response = await fetch(
-        '/api/admin/portal-config?businessId=default'
-      );
+      const response = await fetch(`/api/businesses/${identifier}/validate`);
+      if (response.ok) {
+        const business = await response.json();
+        return business.id || null;
+      }
+    } catch (error) {
+      console.error('Error resolving business ID:', error);
+    }
+    return null;
+  }, []);
+
+  // Función para construir la URL dinámica del portal cliente
+  const getPortalUrl = (): string => {
+    const businessSlug = currentBusinessSlug || getCurrentBusinessFromUrl();
+    if (businessSlug) {
+      // Construir URL con el dominio actual y el slug
+      const currentOrigin = window.location.origin;
+      return `${currentOrigin}/${businessSlug}/cliente`;
+    }
+    // Fallback si no se puede determinar el slug
+    return `${window.location.origin}/cliente`;
+  };
+
+  const fetchConfig = useCallback(async () => {
+    try {
+      // 📡 Simplificado: el backend usa session.businessId automáticamente
+      const urlBusinessIdentifier = getCurrentBusinessFromUrl();
+      
+      // Solo actualizar el slug para construir URLs del portal cliente
+      if (urlBusinessIdentifier) {
+        setCurrentBusinessSlug(urlBusinessIdentifier);
+        
+        // 🔥 RESOLVER Y ACTUALIZAR EL BUSINESS ID REAL
+        const resolvedId = await resolveBusinessId(urlBusinessIdentifier);
+        if (resolvedId) {
+          setCurrentBusinessId(resolvedId);
+          console.log('✅ Business ID resuelto:', resolvedId);
+        }
+      } else {
+        // 🔥 FALLBACK: Obtener desde localStorage
+        const storedBusinessId = localStorage.getItem('currentBusinessId');
+        if (storedBusinessId) {
+          setCurrentBusinessId(storedBusinessId);
+          console.log('✅ Business ID desde localStorage:', storedBusinessId);
+        }
+      }
+      
+      // ✅ CORRECCIÓN: NO enviar businessId - el backend usa session.businessId
+      const response = await fetch('/api/admin/portal-config');
+      
       if (response.ok) {
         const data = await response.json();
         const loadedConfig = data.config || data;
 
         // Asegurar que siempre tenemos nivelesConfig y nombreEmpresa
+        const defaultNivelesConfig = {
+          Bronce: {
+            colores: { gradiente: ['#CD7F32', '#8B4513'] },
+            textoDefault: 'Cliente Inicial',
+            condiciones: { puntosMinimos: 0, gastosMinimos: 0, visitasMinimas: 0 },
+          },
+          Plata: {
+            colores: { gradiente: ['#C0C0C0', '#808080'] },
+            textoDefault: 'Cliente Frecuente',
+            condiciones: { puntosMinimos: 100, gastosMinimos: 500, visitasMinimas: 5 },
+          },
+          Oro: {
+            colores: { gradiente: ['#FFD700', '#FFA500'] },
+            textoDefault: 'Cliente VIP',
+            condiciones: { puntosMinimos: 500, gastosMinimos: 1500, visitasMinimas: 10 },
+          },
+          Diamante: {
+            colores: { gradiente: ['#B9F2FF', '#00CED1'] },
+            textoDefault: 'Cliente Elite',
+            condiciones: { puntosMinimos: 1500, gastosMinimos: 3000, visitasMinimas: 15 },
+          },
+          Platino: {
+            colores: { gradiente: ['#E5E4E2', '#C0C0C0'] },
+            textoDefault: 'Cliente Exclusivo',
+            condiciones: { puntosMinimos: 3000, gastosMinimos: 5000, visitasMinimas: 30 },
+          },
+        };
+
+        // 🎯 GENERAR TARJETAS SI NO EXISTEN DESDE NIVELESCONFIG
+        let finalTarjetas = loadedConfig.tarjetas || [];
+        if (!finalTarjetas || finalTarjetas.length === 0) {
+          finalTarjetas = Object.entries(defaultNivelesConfig).map(([nivel, config]) => ({
+            id: `tarjeta-${nivel.toLowerCase()}`,
+            nivel: nivel,
+            nombrePersonalizado: `Tarjeta ${nivel}`,
+            textoCalidad: config.textoDefault,
+            colores: {
+              gradiente: config.colores.gradiente,
+              texto: '#FFFFFF',
+              nivel: config.colores.gradiente[0]
+            },
+            condiciones: config.condiciones,
+            beneficio: `Acceso a beneficios ${nivel}`,
+            activo: true
+          }));
+        }
+
         setConfig({
           ...loadedConfig,
-          nombreEmpresa: loadedConfig.nombreEmpresa || 'LEALTA',
-          nivelesConfig: loadedConfig.nivelesConfig || {
-            Bronce: {
-              colores: { gradiente: ['#CD7F32', '#8B4513'] },
-              textoDefault: 'Cliente Inicial',
-              condiciones: {
-                puntosMinimos: 0,
-                gastosMinimos: 0,
-                visitasMinimas: 0,
-              },
-            },
-            Plata: {
-              colores: { gradiente: ['#C0C0C0', '#808080'] },
-              textoDefault: 'Cliente Frecuente',
-              condiciones: {
-                puntosMinimos: 100,
-                gastosMinimos: 500,
-                visitasMinimas: 5,
-              },
-            },
-            Oro: {
-              colores: { gradiente: ['#FFD700', '#FFA500'] },
-              textoDefault: 'Cliente VIP',
-              condiciones: {
-                puntosMinimos: 500,
-                gastosMinimos: 1500,
-                visitasMinimas: 10,
-              },
-            },
-            Diamante: {
-              colores: { gradiente: ['#B9F2FF', '#00CED1'] },
-              textoDefault: 'Cliente Elite',
-              condiciones: {
-                puntosMinimos: 1500,
-                gastosMinimos: 3000,
-                visitasMinimas: 20,
-              },
-            },
-            Platino: {
-              colores: { gradiente: ['#E5E4E2', '#C0C0C0'] },
-              textoDefault: 'Cliente Exclusivo',
-              condiciones: {
-                puntosMinimos: 3000,
-                gastosMinimos: 5000,
-                visitasMinimas: 30,
-              },
-            },
-          },
+          nombreEmpresa: loadedConfig.nombreEmpresa || loadedConfig.empresa?.nombre || 'Mi Negocio',
+          tarjetas: finalTarjetas,
+          nivelesConfig: loadedConfig.nivelesConfig || defaultNivelesConfig,
         });
       } else {
+        // 🎯 GENERAR CONFIGURACIÓN POR DEFECTO CON TARJETAS DESDE NIVELESCONFIG
+        const defaultNivelesConfig = {
+          Bronce: {
+            colores: { gradiente: ['#CD7F32', '#8B4513'] },
+            textoDefault: 'Cliente Inicial',
+            condiciones: { puntosMinimos: 0, gastosMinimos: 0, visitasMinimas: 0 },
+          },
+          Plata: {
+            colores: { gradiente: ['#C0C0C0', '#808080'] },
+            textoDefault: 'Cliente Frecuente',
+            condiciones: { puntosMinimos: 100, gastosMinimos: 500, visitasMinimas: 5 },
+          },
+          Oro: {
+            colores: { gradiente: ['#FFD700', '#FFA500'] },
+            textoDefault: 'Cliente VIP',
+            condiciones: { puntosMinimos: 500, gastosMinimos: 1500, visitasMinimas: 10 },
+          },
+          Diamante: {
+            colores: { gradiente: ['#B9F2FF', '#00CED1'] },
+            textoDefault: 'Cliente Elite',
+            condiciones: { puntosMinimos: 1500, gastosMinimos: 3000, visitasMinimas: 15 },
+          },
+          Platino: {
+            colores: { gradiente: ['#E5E4E2', '#C0C0C0'] },
+            textoDefault: 'Cliente Exclusivo',
+            condiciones: { puntosMinimos: 3000, gastosMinimos: 5000, visitasMinimas: 30 },
+          },
+        };
+
+        // 🎯 GENERAR TARJETAS DESDE NIVELESCONFIG
+        const generatedTarjetas = Object.entries(defaultNivelesConfig).map(([nivel, config]) => ({
+          id: `tarjeta-${nivel.toLowerCase()}`,
+          nivel: nivel,
+          nombrePersonalizado: `Tarjeta ${nivel}`,
+          textoCalidad: config.textoDefault,
+          colores: {
+            gradiente: [config.colores.gradiente[0], config.colores.gradiente[1]] as [string, string],
+            texto: '#FFFFFF',
+            nivel: config.colores.gradiente[0]
+          },
+          condiciones: config.condiciones,
+          beneficio: `Acceso a beneficios ${nivel}`,
+          activo: true
+        }));
+
         setConfig({
           banners: [
             {
@@ -179,6 +285,10 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
             },
           ],
           favoritoDelDia: [],
+          // 🎯 INCLUIR TARJETAS GENERADAS DESDE NIVELESCONFIG
+          tarjetas: generatedTarjetas,
+          nombreEmpresa: 'Mi Negocio',
+          nivelesConfig: defaultNivelesConfig
         });
       }
     } catch (error) {
@@ -186,11 +296,23 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [getCurrentBusinessFromUrl, resolveBusinessId]);
 
   const handleSave = useCallback(async () => {
     try {
-      console.log('💾 Admin - Guardando config:', config);
+      // 🔥 CRÍTICO: Resolver el businessId real desde el slug/subdomain
+      const urlBusinessIdentifier = getCurrentBusinessFromUrl();
+      const storedBusinessId = localStorage.getItem('currentBusinessId');
+      
+      // Resolver el ID real del business
+      let finalBusinessId: string;
+      if (urlBusinessIdentifier) {
+        const resolvedId = await resolveBusinessId(urlBusinessIdentifier);
+        finalBusinessId = resolvedId || storedBusinessId || 'cmfr2y0ia0000eyvw7ef3k20u';
+      } else {
+        finalBusinessId = storedBusinessId || 'cmfr2y0ia0000eyvw7ef3k20u';
+      }
+      
       const response = await fetch('/api/admin/portal-config', {
         method: 'PUT',
         headers: {
@@ -198,7 +320,7 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
         },
         body: JSON.stringify({
           ...config,
-          businessId: 'default',
+          businessId: finalBusinessId,
         }),
       });
 
@@ -206,16 +328,14 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
         throw new Error('Error al guardar configuración');
       }
 
-      const result = await response.json();
-      console.log('✅ Admin - Config guardada exitosamente:', result);
     } catch (error) {
       console.error('❌ Admin - Error saving portal config:', error);
     }
-  }, [config]);
+  }, [config, getCurrentBusinessFromUrl, resolveBusinessId]);
 
   useEffect(() => {
     fetchConfig();
-  }, []);
+  }, [fetchConfig]);
 
   // Auto-save when config changes
   useEffect(() => {
@@ -240,20 +360,44 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
     setBrandingConfig(newConfig);
 
     try {
+      // 🔥 CRÍTICO: Resolver el businessId real desde el slug/subdomain
+      const urlBusinessIdentifier = getCurrentBusinessFromUrl();
+      const storedBusinessId = localStorage.getItem('currentBusinessId');
+      
+      // Resolver el ID real del business
+      let finalBusinessId: string;
+      if (urlBusinessIdentifier) {
+        const resolvedId = await resolveBusinessId(urlBusinessIdentifier);
+        finalBusinessId = resolvedId || storedBusinessId || 'cmfr2y0ia0000eyvw7ef3k20u';
+      } else {
+        finalBusinessId = storedBusinessId || 'cmfr2y0ia0000eyvw7ef3k20u';
+      }
+      
+      // Agregar businessId a la configuración que enviamos
+      const configWithBusinessId = {
+        ...newConfig,
+        businessId: finalBusinessId
+      };
+      
       // Guardar en la API (funcionará entre diferentes dominios/puertos)
+      const requestBody = JSON.stringify(configWithBusinessId);
+      
       const response = await fetch('/api/branding', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-business-id': finalBusinessId
         },
-        body: JSON.stringify(newConfig),
+        body: requestBody,
       });
 
       if (response.ok) {
-        // Crear una versión reducida para localStorage (sin imágenes base64)
+        // ✅ SOLUCIÓN: NO guardar imágenes en localStorage (son muy pesadas)
+        // Solo guardar datos básicos para mejorar rendimiento
         const lightConfig = {
-          ...newConfig,
-          carouselImages: newConfig.carouselImages?.length || 0, // Solo guardar la cantidad
+          businessName: newConfig.businessName,
+          primaryColor: newConfig.primaryColor,
+          // ❌ NO guardar carouselImages en localStorage para evitar corrupción
         };
 
         try {
@@ -270,21 +414,26 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
             JSON.stringify({
               businessName: newConfig.businessName,
               primaryColor: newConfig.primaryColor,
-              carouselImages: [], // No guardar imágenes en localStorage
+              // ❌ NO guardar carouselImages para evitar corrupción
             })
           );
         }
       } else {
-        console.error('Admin: Error guardando branding en API');
+        const errorData = await response.text();
+        console.error('❌ Admin: Error guardando branding en API:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
       }
     } catch (error) {
-      console.error('Admin: Error conectando con API:', error);
+      console.error('❌ Admin: Error conectando con API:', error);
       // En caso de error de API, guardar solo datos básicos en localStorage
       try {
         const basicConfig = {
           businessName: newConfig.businessName,
           primaryColor: newConfig.primaryColor,
-          carouselImages: [], // No guardar imágenes pesadas en localStorage
+          // ❌ NO guardar carouselImages para evitar datos corruptos
         };
         localStorage.setItem('portalBranding', JSON.stringify(basicConfig));
       } catch (storageError) {
@@ -305,15 +454,29 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
   useEffect(() => {
     const loadBranding = async () => {
       try {
-        const response = await fetch('/api/branding');
+        // 🔥 CRÍTICO: Usar el mismo sistema de resolución de businessId
+        const urlBusinessIdentifier = getCurrentBusinessFromUrl();
+        const storedBusinessId = localStorage.getItem('currentBusinessId');
+        
+        // Resolver el ID real del business
+        let finalBusinessId: string;
+        if (urlBusinessIdentifier) {
+          const resolvedId = await resolveBusinessId(urlBusinessIdentifier);
+          finalBusinessId = resolvedId || storedBusinessId || 'cmfr2y0ia0000eyvw7ef3k20u';
+        } else {
+          finalBusinessId = storedBusinessId || 'cmfr2y0ia0000eyvw7ef3k20u';
+        }
+        
+        const response = await fetch(`/api/branding?businessId=${finalBusinessId}`);
         if (response.ok) {
           const branding = await response.json();
           setBrandingConfig(branding);
-          // Guardar versión ligera en localStorage
+          // ✅ Guardar solo datos básicos en localStorage (NO imágenes)
           try {
             const lightConfig = {
-              ...branding,
-              carouselImages: branding.carouselImages?.length || 0, // Solo guardar la cantidad
+              businessName: branding.businessName,
+              primaryColor: branding.primaryColor,
+              // ❌ NO guardar carouselImages para evitar corrupción
             };
             localStorage.setItem('portalBranding', JSON.stringify(lightConfig));
           } catch (storageError) {
@@ -321,39 +484,26 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
           }
         } else {
           console.error('Admin: Error cargando branding desde API');
-          // Fallback a localStorage (datos básicos solamente)
-          const savedBranding = localStorage.getItem('portalBranding');
-          if (savedBranding) {
-            const parsed = JSON.parse(savedBranding);
-            // Si localStorage solo tiene datos básicos, usar valores por defecto para imágenes
-            setBrandingConfig({
-              ...parsed,
-              carouselImages:
-                parsed.carouselImages || DEFAULT_BRANDING_CONFIG.carouselImages,
-            });
-          }
+          // ✅ SOLUCIÓN: Si falla API, usar configuración por defecto limpia
+          setBrandingConfig({
+            businessName: 'Mi Negocio',
+            primaryColor: '#3B82F6',
+            carouselImages: DEFAULT_BRANDING_CONFIG.carouselImages, // Array vacío
+          });
         }
       } catch (error) {
         console.error('Admin: Error conectando con API:', error);
-        // Fallback a localStorage
-        const savedBranding = localStorage.getItem('portalBranding');
-        if (savedBranding) {
-          try {
-            const parsed = JSON.parse(savedBranding);
-            setBrandingConfig({
-              ...parsed,
-              carouselImages:
-                parsed.carouselImages || DEFAULT_BRANDING_CONFIG.carouselImages,
-            });
-          } catch (parseError) {
-            console.error('Admin: Error parsing localStorage:', parseError);
-          }
-        }
+        // ✅ SOLUCIÓN: Si falla conexión, usar configuración por defecto limpia
+        setBrandingConfig({
+          businessName: 'Mi Negocio',
+          primaryColor: '#3B82F6',
+          carouselImages: DEFAULT_BRANDING_CONFIG.carouselImages, // Array vacío
+        });
       }
     };
 
     loadBranding();
-  }, []);
+  }, [getCurrentBusinessFromUrl, resolveBusinessId]);
 
   if (isLoading) {
     return (
@@ -370,11 +520,21 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-semibold text-white">Portal del Cliente</h3>
-        <div className="flex items-center">
+        <div className="flex items-center gap-3">
           <button
-            onClick={() =>
-              window.open('http://localhost:3001/cliente', '_blank')
-            }
+            onClick={() => {
+              const businessId = getCurrentBusinessFromUrl();
+              if (businessId) {
+                window.open(`/${businessId}/reservas`, '_blank');
+              }
+            }}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+          >
+            <Calendar className="w-4 h-4 text-white" />
+            <span className="text-white">Gestionar Reservas</span>
+          </button>
+          <button
+            onClick={() => window.open(getPortalUrl(), '_blank')}
             className="flex items-center space-x-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
           >
             <Eye className="w-4 h-4 text-white" />
@@ -387,10 +547,12 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
       <div className="flex space-x-1 bg-dark-800 rounded-lg p-1">
         {[
           { id: 'preview', label: 'Vista Previa', icon: Eye },
+          { id: 'branding', label: 'Branding', icon: Building },
           { id: 'banners', label: 'Banner Diario', icon: Smartphone },
           { id: 'promociones', label: 'Promociones', icon: Gift },
           { id: 'favorito', label: 'Favorito del Día', icon: TrendingUp },
           { id: 'recompensas', label: 'Recompensas', icon: Gift },
+          { id: 'tarjetas', label: 'Tarjetas', icon: CreditCard },
         ].map(tab => {
           const Icon = tab.icon;
           return (
@@ -419,6 +581,7 @@ const PortalContent: React.FC<PortalContentProps> = ({ showNotification }) => {
         brandingConfig={brandingConfig}
         handleBrandingChange={handleBrandingChange}
         showNotification={showNotification}
+        businessId={currentBusinessId}
       />
     </div>
   );

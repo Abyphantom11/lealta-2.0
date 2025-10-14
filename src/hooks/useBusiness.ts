@@ -74,7 +74,12 @@ export function useBusiness(): BusinessContext | null {
     loadBusinessContext();
   }, [pathname]);
 
-  return businessContext;
+  return businessContext || { 
+    businessId: '', 
+    subdomain: '', 
+    businessName: '', 
+    isLoading 
+  };
 }
 
 /**

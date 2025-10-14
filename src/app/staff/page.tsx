@@ -25,6 +25,10 @@ import {
   UserPlus,
   Copy,
 } from 'lucide-react';
+import logger from '@/lib/logger';
+import HostSearchModal from '@/components/staff/HostSearchModal';
+import GuestConsumoToggle from '@/components/staff/GuestConsumoToggle';
+import type { HostSearchResult } from '@/types/host-tracking';
 
 // ========================================
 // 🔧 SECCIÓN: INTERFACES Y TIPOS (19-100)
@@ -189,7 +193,7 @@ export default function StaffPage() {
     const areSimilar = totals.every(total => Math.abs(total - firstTotal) < 0.1);
     
     if (areSimilar && firstTotal > 0) {
-      console.log('🔍 Detectada misma cuenta en múltiples imágenes. Total: $', firstTotal);
+      logger.debug('Detectada misma cuenta en múltiples imágenes. Total: $', firstTotal);
       return true;
     }
     
@@ -213,7 +217,7 @@ export default function StaffPage() {
     // NO corregir nombres que son claramente fragmentos incorrectos
     const invalidFragments = ['doval', 'dovai', 'roval'];
     if (invalidFragments.includes(cleanPartial)) {
-      console.log(`❌ Fragmento inválido detectado y filtrado: "${cleanPartial}"`);
+      logger.debug(`Fragmento inválido detectado y filtrado: "${cleanPartial}"`);
       return null; // Retornar null para que se filtre
     }
     
@@ -223,7 +227,7 @@ export default function StaffPage() {
       
       // Verificar coincidencia exacta al inicio con al menos 70% del nombre
       if (cleanProduct.startsWith(cleanPartial) && cleanPartial.length >= cleanProduct.length * 0.7) {
-        console.log(`✅ Corrección por prefijo: "${partialName}" → "${product}"`);
+        logger.debug(`Corrección por prefijo: "${partialName}" → "${product}"`);
         return product;
       }
       
@@ -240,7 +244,7 @@ export default function StaffPage() {
       
       // Solo si todas las palabras del fragmento coinciden exactamente
       if (partialWords.length > 0 && exactMatches === partialWords.length && exactMatches >= 2) {
-        console.log(`✅ Corrección por palabras clave: "${partialName}" → "${product}"`);
+        logger.debug(`Corrección por palabras clave: "${partialName}" → "${product}"`);
         return product;
       }
     }
@@ -254,7 +258,7 @@ export default function StaffPage() {
     };
     
     if (highConfidenceCorrections[cleanPartial]) {
-      console.log(`✅ Corrección específica: "${partialName}" → "${highConfidenceCorrections[cleanPartial]}"`);
+      logger.debug(`Corrección específica: "${partialName}" → "${highConfidenceCorrections[cleanPartial]}"`);
       return highConfidenceCorrections[cleanPartial];
     }
     
@@ -298,6 +302,11 @@ export default function StaffPage() {
     }
   };
 
+  // 🏠 Estados para Host Tracking (Fidelización por Anfitrión)
+  const [isGuestConsumo, setIsGuestConsumo] = useState(false);
+  const [selectedHost, setSelectedHost] = useState<any>(null);
+  const [showHostSearch, setShowHostSearch] = useState(false);
+
   // Función para copiar texto individual al portapapeles
   const copyToClipboard = async (text: string, successMessage: string) => {
     if (!text || text.trim() === '') {
@@ -309,7 +318,7 @@ export default function StaffPage() {
       await navigator.clipboard.writeText(text);
       showNotification('success', successMessage);
     } catch (error) {
-      console.error('Error copiando al portapapeles:', error);
+      logger.error('Error copiando al portapapeles:', error);
       showNotification('error', 'Error al copiar');
     }
   };
@@ -464,12 +473,15 @@ export default function StaffPage() {
   // Referencias para el input de archivo
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Debug para el cuadro de confirmación
+  // Efecto para debug del estado de confirmación
   useEffect(() => {
-    console.log('🎨 Estado de confirmación cambió:', {
-      showConfirmation,
-      editableData,
-    });
+    // Estado de confirmación para logging interno
+    if (process.env.NODE_ENV === 'development') {
+      logger.debug('Estado de confirmación cambió:', {
+        showConfirmation,
+        editableData,
+      });
+    }
   }, [showConfirmation, editableData]);
 
   // ========================================
@@ -1459,10 +1471,47 @@ export default function StaffPage() {
 
       if (response.ok) {
         setAiResult(data.data);
-        showNotification(
-          'success',
-          '✅ Consumo confirmado y registrado exitosamente'
-        );
+        
+        // 🏠 VINCULAR A ANFITRIÓN si está habilitado
+        if (isGuestConsumo && selectedHost && data.data.consumoId) {
+          try {
+            const linkResponse = await fetch('/api/staff/guest-consumo', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                hostTrackingId: selectedHost.id,
+                consumoId: data.data.consumoId,
+                guestCedula: aiResult.cliente.cedula,
+                guestName: aiResult.cliente.nombre,
+              }),
+            });
+
+            const linkData = await linkResponse.json();
+
+            if (linkResponse.ok) {
+              showNotification(
+                'success',
+                `✅ Consumo vinculado al anfitrión ${linkData.details.anfitrionNombre}`
+              );
+            } else {
+              console.error('Error vinculando a anfitrión:', linkData.error);
+              showNotification(
+                'error',
+                `⚠️ Consumo registrado pero no vinculado: ${linkData.error}`
+              );
+            }
+          } catch (linkError) {
+            console.error('Error en vinculación:', linkError);
+            // No bloqueamos el éxito del consumo
+          }
+        } else {
+          showNotification(
+            'success',
+            '✅ Consumo confirmado y registrado exitosamente'
+          );
+        }
 
         // Actualizar estadísticas del día
         setTodayStats(prev => ({
@@ -1527,6 +1576,10 @@ export default function StaffPage() {
     setShowConfirmation(false);
     setAiResult(null);
     setEditableData(null);
+    // 🏠 Reset host tracking states
+    setIsGuestConsumo(false);
+    setSelectedHost(null);
+    setShowHostSearch(false);
   };
 
   const getNotificationClasses = (type: 'success' | 'error' | 'info') => {
@@ -2154,6 +2207,19 @@ export default function StaffPage() {
                       </motion.div>
                     )}
                   </div>
+
+                  {/* 🏠 TOGGLE DE ANFITRIÓN */}
+                  {customerInfo && (
+                    <div className="mt-4">
+                      <GuestConsumoToggle
+                        isEnabled={isGuestConsumo}
+                        onToggle={setIsGuestConsumo}
+                        selectedHost={selectedHost}
+                        onClearHost={() => setSelectedHost(null)}
+                        onOpenSearch={() => setShowHostSearch(true)}
+                      />
+                    </div>
+                  )}
 
                   {/* Submit Button */}
                   <button
@@ -2929,6 +2995,17 @@ export default function StaffPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* 🏠 MODAL DE BÚSQUEDA DE ANFITRIÓN */}
+      <HostSearchModal
+        isOpen={showHostSearch}
+        onClose={() => setShowHostSearch(false)}
+        onSelect={(host: HostSearchResult) => {
+          setSelectedHost(host);
+          setShowHostSearch(false);
+        }}
+        businessId={user?.businessId || ''}
+      />
     </div>
   );
 }

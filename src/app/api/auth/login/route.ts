@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     // Verificar que el business esté activo
     if (!user.business.isActive) {
       return NextResponse.json(
-        { error: 'La empresa no está activa. Contacta al administrador.' },
+        { error: 'El negocio no está activo. Contacta al administrador.' },
         { status: 403 }
       );
     }

@@ -1,0 +1,253 @@
+{
+  "banners": [
+    {
+      "id": "banner-1",
+      "title": "¡Bienvenido a momo!",
+      "description": "Descubre nuestras increíbles ofertas y recompensas exclusivas",
+      "imageUrl": "",
+      "linkUrl": "/promociones",
+      "isActive": true,
+      "order": 1,
+      "createdAt": "2025-10-06T09:04:28.544Z",
+      "updatedAt": "2025-10-06T09:04:28.544Z"
+    }
+  ],
+  "promotions": [],
+  "promociones": [],
+  "events": [
+    {
+      "id": "event-1",
+      "title": "Gran Apertura",
+      "description": "Celebra con nosotros la gran apertura de momo",
+      "location": "Nuestra ubicación principal",
+      "startDate": "2025-10-13T09:04:28.544Z",
+      "endDate": "2025-10-13T13:04:28.544Z",
+      "imageUrl": "",
+      "isActive": true,
+      "maxAttendees": 200,
+      "currentAttendees": 0,
+      "createdAt": "2025-10-06T09:04:28.544Z",
+      "updatedAt": "2025-10-06T09:04:28.544Z"
+    }
+  ],
+  "rewards": [
+    {
+      "id": "reward-1",
+      "title": "Producto Gratis",
+      "description": "Canjea 500 puntos por un producto de tu elección",
+      "pointsCost": 500,
+      "category": "productos",
+      "imageUrl": "",
+      "isActive": true,
+      "stock": 50,
+      "availableFrom": "2025-10-06T09:04:28.544Z",
+      "availableTo": "2026-10-06T09:04:28.544Z",
+      "createdAt": "2025-10-06T09:04:28.544Z",
+      "updatedAt": "2025-10-06T09:04:28.544Z"
+    }
+  ],
+  "recompensas": [],
+  "favorites": [
+    {
+      "id": "fav-1",
+      "title": "Especialidad del Día",
+      "description": "El producto favorito de momo",
+      "imageUrl": "",
+      "category": "destacados",
+      "price": 12.99,
+      "isActive": true,
+      "order": 1,
+      "createdAt": "2025-10-06T09:04:28.544Z",
+      "updatedAt": "2025-10-06T09:04:28.544Z"
+    }
+  ],
+  "favoritoDelDia": [],
+  "tarjetas": [
+    {
+      "id": "tarjeta-bronce",
+      "nivel": "Bronce",
+      "nombrePersonalizado": "Tarjeta Bronce",
+      "textoCalidad": "Cliente Inicial",
+      "colores": {
+        "gradiente": [
+          "#CD7F32",
+          "#8B4513"
+        ],
+        "texto": "#FFFFFF",
+        "nivel": "#CD7F32"
+      },
+      "condiciones": {
+        "puntosMinimos": 0,
+        "gastosMinimos": 0,
+        "visitasMinimas": 0
+      },
+      "beneficio": "Acceso a beneficios Bronce",
+      "activo": true
+    },
+    {
+      "id": "tarjeta-plata",
+      "nivel": "Plata",
+      "nombrePersonalizado": "Tarjeta Plata",
+      "textoCalidad": "Cliente Frecuente",
+      "colores": {
+        "gradiente": [
+          "#C0C0C0",
+          "#808080"
+        ],
+        "texto": "#FFFFFF",
+        "nivel": "#C0C0C0"
+      },
+      "condiciones": {
+        "puntosMinimos": 100,
+        "gastosMinimos": 500,
+        "visitasMinimas": 5
+      },
+      "beneficio": "Acceso a beneficios Plata",
+      "activo": true
+    },
+    {
+      "id": "tarjeta-oro",
+      "nivel": "Oro",
+      "nombrePersonalizado": "Tarjeta Oro",
+      "textoCalidad": "Cliente VIP",
+      "colores": {
+        "gradiente": [
+          "#FFD700",
+          "#FFA500"
+        ],
+        "texto": "#FFFFFF",
+        "nivel": "#FFD700"
+      },
+      "condiciones": {
+        "puntosMinimos": 500,
+        "gastosMinimos": 1500,
+        "visitasMinimas": 10
+      },
+      "beneficio": "Acceso a beneficios Oro",
+      "activo": true
+    },
+    {
+      "id": "tarjeta-diamante",
+      "nivel": "Diamante",
+      "nombrePersonalizado": "Tarjeta Diamante",
+      "textoCalidad": "Cliente Elite",
+      "colores": {
+        "gradiente": [
+          "#B9F2FF",
+          "#00CED1"
+        ],
+        "texto": "#FFFFFF",
+        "nivel": "#B9F2FF"
+      },
+      "condiciones": {
+        "puntosMinimos": 1500,
+        "gastosMinimos": 3000,
+        "visitasMinimas": 15
+      },
+      "beneficio": "Acceso a beneficios Diamante",
+      "activo": true
+    },
+    {
+      "id": "tarjeta-platino",
+      "nivel": "Platino",
+      "nombrePersonalizado": "Tarjeta Platino",
+      "textoCalidad": "Cliente Exclusivo",
+      "colores": {
+        "gradiente": [
+          "#E5E4E2",
+          "#C0C0C0"
+        ],
+        "texto": "#FFFFFF",
+        "nivel": "#E5E4E2"
+      },
+      "condiciones": {
+        "puntosMinimos": 3000,
+        "gastosMinimos": 5000,
+        "visitasMinimas": 30
+      },
+      "beneficio": "Acceso a beneficios Platino",
+      "activo": true
+    }
+  ],
+  "nombreEmpresa": "Mi Negocio",
+  "settings": {
+    "lastUpdated": "2025-10-06T09:04:28.544Z",
+    "version": "2.0.0",
+    "createdBy": "system-central",
+    "businessId": "cmgewmtue0000eygwq8taawak"
+  },
+  "nivelesConfig": {
+    "Bronce": {
+      "colores": {
+        "gradiente": [
+          "#CD7F32",
+          "#8B4513"
+        ]
+      },
+      "textoDefault": "Cliente Inicial",
+      "condiciones": {
+        "puntosMinimos": 0,
+        "gastosMinimos": 0,
+        "visitasMinimas": 0
+      }
+    },
+    "Plata": {
+      "colores": {
+        "gradiente": [
+          "#C0C0C0",
+          "#808080"
+        ]
+      },
+      "textoDefault": "Cliente Frecuente",
+      "condiciones": {
+        "puntosMinimos": 100,
+        "gastosMinimos": 500,
+        "visitasMinimas": 5
+      }
+    },
+    "Oro": {
+      "colores": {
+        "gradiente": [
+          "#FFD700",
+          "#FFA500"
+        ]
+      },
+      "textoDefault": "Cliente VIP",
+      "condiciones": {
+        "puntosMinimos": 500,
+        "gastosMinimos": 1500,
+        "visitasMinimas": 10
+      }
+    },
+    "Diamante": {
+      "colores": {
+        "gradiente": [
+          "#B9F2FF",
+          "#00CED1"
+        ]
+      },
+      "textoDefault": "Cliente Elite",
+      "condiciones": {
+        "puntosMinimos": 1500,
+        "gastosMinimos": 3000,
+        "visitasMinimas": 15
+      }
+    },
+    "Platino": {
+      "colores": {
+        "gradiente": [
+          "#E5E4E2",
+          "#C0C0C0"
+        ]
+      },
+      "textoDefault": "Cliente Exclusivo",
+      "condiciones": {
+        "puntosMinimos": 3000,
+        "gastosMinimos": 5000,
+        "visitasMinimas": 30
+      }
+    }
+  },
+  "lastUpdated": "2025-10-06T12:30:57.338Z",
+  "version": "2.0.0"
+}

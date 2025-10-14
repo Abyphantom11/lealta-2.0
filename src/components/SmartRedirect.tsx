@@ -26,7 +26,7 @@ export default function SmartRedirect({ targetPath, legacyRoute }: SmartRedirect
 
     // Caso 1: Usuario no autenticado → Redirigir a login
     if (!isAuthenticated || !user) {
-      console.log('🔒 Usuario no autenticado, redirigiendo a login');
+      // console.log('🔒 Usuario no autenticado, redirigiendo a login');
       setRedirecting(true);
       
       const loginUrl = new URL('/login', window.location.origin);
@@ -41,7 +41,7 @@ export default function SmartRedirect({ targetPath, legacyRoute }: SmartRedirect
 
     // Caso 2: Usuario autenticado con business → Redirigir automáticamente
     if (business?.subdomain) {
-      console.log(`✅ Usuario autenticado con business: ${business.subdomain}, redirigiendo a /${business.subdomain}${targetPath}`);
+      // console.log(`✅ Usuario autenticado con business: ${business.subdomain}, redirigiendo a /${business.subdomain}${targetPath}`);
       setRedirecting(true);
       
       const targetUrl = `/${business.subdomain}${targetPath}`;

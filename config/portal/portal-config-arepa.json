@@ -1,0 +1,102 @@
+{
+  "banners": [
+    {
+      "id": "banner-1",
+      "title": "¡Bienvenido a arepa@gmail.com!",
+      "description": "Descubre nuestras increíbles ofertas y recompensas exclusivas",
+      "imageUrl": "",
+      "linkUrl": "/promociones",
+      "isActive": true,
+      "order": 1,
+      "createdAt": "2025-09-23T03:43:23.592Z",
+      "updatedAt": "2025-09-23T03:43:23.592Z"
+    }
+  ],
+  "promotions": [],
+  "promociones": [],
+  "events": [
+    {
+      "id": "event-1",
+      "title": "Gran Apertura",
+      "description": "Celebra con nosotros la gran apertura de arepa@gmail.com",
+      "location": "Nuestra ubicación principal",
+      "startDate": "2025-09-30T03:43:23.592Z",
+      "endDate": "2025-09-30T07:43:23.592Z",
+      "imageUrl": "",
+      "isActive": true,
+      "maxAttendees": 200,
+      "currentAttendees": 0,
+      "createdAt": "2025-09-23T03:43:23.592Z",
+      "updatedAt": "2025-09-23T03:43:23.592Z"
+    }
+  ],
+  "rewards": [
+    {
+      "id": "reward-1",
+      "title": "Producto Gratis",
+      "description": "Canjea 500 puntos por un producto de tu elección",
+      "pointsCost": 500,
+      "category": "productos",
+      "imageUrl": "",
+      "isActive": true,
+      "stock": 50,
+      "availableFrom": "2025-09-23T03:43:23.592Z",
+      "availableTo": "2026-09-23T03:43:23.592Z",
+      "createdAt": "2025-09-23T03:43:23.592Z",
+      "updatedAt": "2025-09-23T03:43:23.592Z"
+    }
+  ],
+  "recompensas": [],
+  "favorites": [
+    {
+      "id": "fav-1",
+      "title": "Especialidad del Día",
+      "description": "El producto favorito de arepa@gmail.com",
+      "imageUrl": "",
+      "category": "destacados",
+      "price": 12.99,
+      "isActive": true,
+      "order": 1,
+      "createdAt": "2025-09-23T03:43:23.592Z",
+      "updatedAt": "2025-09-23T03:43:23.592Z"
+    }
+  ],
+  "favoritoDelDia": [],
+  "tarjetas": [
+    {
+      "nivel": "bronce",
+      "beneficio": "5% de descuento",
+      "puntos": 50
+    },
+    {
+      "nivel": "plata",
+      "beneficio": "10% de descuento",
+      "puntos": 100
+    },
+    {
+      "nivel": "oro",
+      "beneficio": "9 dadadasd",
+      "puntos": 200
+    },
+    {
+      "nivel": "diamante",
+      "beneficio": "20% de descuento + producto gratis",
+      "puntos": 500
+    },
+    {
+      "nivel": "platino",
+      "beneficio": "25% de descuento + 2 productos gratis",
+      "puntos": 1000
+    }
+  ],
+  "nombreEmpresa": "love me sky",
+  "settings": {
+    "lastUpdated": "2025-09-24T03:20:00.000Z",
+    "version": "2.0.0",
+    "createdBy": "admin-fix",
+    "businessId": "arepa"
+  },
+  "nivelesConfig": {},
+  "lastUpdated": "2025-09-24T03:20:00.000Z",
+  "version": "2.0.0"
+}

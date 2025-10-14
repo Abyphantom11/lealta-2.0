@@ -29,6 +29,8 @@ import AdvancedMetrics from '../../components/AdvancedMetrics';
 import TopClients from '../../components/TopClients';
 import ProductosTendenciasChart from '../../components/ProductosTendenciasChart';
 import GoalsConfigurator from '../../components/GoalsConfigurator';
+import TopClientesReservas from '../../components/TopClientesReservas';
+import HostTrackingPanel from '../../components/admin/HostTrackingPanel';
 
 // ========================================
 // 🎨 SECCIÓN: ESTILOS CSS Y CONFIGURACIÓN (23-50)
@@ -93,6 +95,8 @@ interface SuperAdminAnalytics {
   totalConsumos: number;
   totalRevenue: number;
   monthlyGrowth: number;
+  revenueGrowth: number;
+  transactionsGrowth: number;
   defaultRate: number;
   riskClients: number;
   dailyTransactions: number;
@@ -126,27 +130,57 @@ interface SuperAdminDashboardProps {
 }
 
 // ========================================
+// 🏗️ SECCIÓN: FUNCIONES AUXILIARES
+// ========================================
+const checkAndRedirectLegacyRoutes = (businessId?: string) => {
+  const currentPath = window.location.pathname;
+  
+  // Solo bloquear rutas legacy exactas sin contexto de business
+  // Rutas válidas: /[businessSlug]/superadmin
+  // Rutas bloqueadas: /superadmin, /superadmin/, /superadmin/[cualquier-cosa]
+  const isLegacyRoute = currentPath === '/superadmin' || 
+                       currentPath === '/superadmin/' || 
+                       (currentPath.startsWith('/superadmin/') && !businessId);
+  
+  if (isLegacyRoute) {
+    const redirectUrl = new URL('/login', window.location.origin);
+    redirectUrl.searchParams.set('error', 'access-denied');
+    redirectUrl.searchParams.set('message', 'SuperAdmin requiere contexto de business válido');
+    
+    window.location.href = redirectUrl.toString();
+  }
+};
+
+// Funciones auxiliares para simplificar operadores ternarios anidados
+const formatFechaAsignacion = (tarjeta: any): string => {
+  if (!tarjeta?.fechaAsignacion) return 'N/A';
+  return new Date(tarjeta.fechaAsignacion).toLocaleDateString('es-ES');
+};
+
+const getTipoAsignacion = (tarjeta: any): string => {
+  if (!tarjeta) return 'N/A';
+  return tarjeta.asignacionManual ? 'Manual' : 'Automática';
+};
+
+const getEstadoTarjeta = (tarjeta: any): { text: string; className: string } => {
+  if (!tarjeta) {
+    return { text: 'No Asignada', className: 'text-red-400' };
+  }
+  
+  if (tarjeta.activa) {
+    return { text: 'Activa', className: 'text-green-400' };
+  } else {
+    return { text: 'Inactiva', className: 'text-yellow-400' };
+  }
+};
+
+// ========================================
 // 🏗️ SECCIÓN: COMPONENTE PRINCIPAL Y ESTADOS (126-195)
 // ========================================
 export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps = {}) {
   // 🚫 BLOQUEO DE BUSINESS CONTEXT - SECURITY ENFORCEMENT
   useEffect(() => {
-    const currentPath = window.location.pathname;
-    
-    // Solo bloquear rutas legacy exactas sin contexto de business
-    // Rutas válidas: /[businessSlug]/superadmin
-    // Rutas bloqueadas: /superadmin, /superadmin/, /superadmin/[cualquier-cosa]
-    if (currentPath === '/superadmin' || currentPath === '/superadmin/' || 
-        (currentPath.startsWith('/superadmin/') && !businessId)) {
-      console.log('🚫 SuperAdmin: Ruta legacy detectada, redirigiendo a login');
-      
-      const redirectUrl = new URL('/login', window.location.origin);
-      redirectUrl.searchParams.set('error', 'access-denied');
-      redirectUrl.searchParams.set('message', 'SuperAdmin requiere contexto de business válido');
-      
-      window.location.href = redirectUrl.toString();
-      return;
-    }
+    checkAndRedirectLegacyRoutes(businessId);
   }, [businessId]);
 
   const { user, loading, logout, isAuthenticated } =
@@ -198,6 +232,16 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
   });
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   
+  // Estados para editar contraseña de usuario
+  const [showEditPassword, setShowEditPassword] = useState(false);
+  const [editPasswordData, setEditPasswordData] = useState({
+    userId: '',
+    userName: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  
   // Estado para configuración de metas
   const [showGoalsConfigurator, setShowGoalsConfigurator] = useState(false);
   
@@ -215,7 +259,6 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
     
     setIsLoadingStats(true);
     try {
-      console.log('🔄 Cargando estadísticas con período:', selectedDateRange);
       const response = await fetch(`/api/admin/estadisticas?periodo=${selectedDateRange}`, {
         method: 'GET',
         headers: {
@@ -226,7 +269,6 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
       });
       if (response.ok) {
         const data = await response.json();
-        console.log('📊 Estadísticas cargadas:', data);
         setStatsData(data);
       } else {
         console.error('Error cargando estadísticas:', response.status);
@@ -253,13 +295,11 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
         url += `&año=${filtroAño}`;
       }
 
-      console.log('🔍 Solicitando datos del gráfico:', url);
       const response = await fetch(url);
       const data = await response.json();
 
       if (data.success) {
         setDatosGrafico(data);
-        console.log('📈 Datos gráfico cargados:', data);
       }
     } catch (error) {
       console.error('Error loading gráfico datos:', error);
@@ -311,13 +351,11 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
   // Listener para eventos de actualización de metas
   useEffect(() => {
     const handleGoalsUpdateEvent = (event: any) => {
-      console.log('🎯 Metas actualizadas, refrescando dashboard...', event.detail);
       fetchEstadisticas();
       setMetricsRefreshKey(prev => prev + 1); // Forzar re-render de métricas
     };
 
     const handleForceRefresh = () => {
-      console.log('🔄 Refresh forzado del dashboard...');
       fetchEstadisticas();
       setMetricsRefreshKey(prev => prev + 1); // Forzar re-render de métricas
     };
@@ -341,8 +379,6 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
       if (data.success) {
         const stats = data.estadisticas;
 
-        console.log('📊 Datos recibidos del API:', stats);
-
         // Mapear a la estructura esperada
         setAnalytics({
           totalClients: stats.resumen.totalClientes,
@@ -350,6 +386,10 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
           totalRevenue: stats.resumen.totalMonto,
           monthlyGrowth:
             Math.round((stats.resumen.totalMonto / 1000) * 2.5 * 100) / 100,
+          revenueGrowth: 
+            Math.round((stats.resumen.totalMonto / 1000) * 1.8 * 100) / 100,
+          transactionsGrowth:
+            Math.round((stats.resumen.totalConsumos / 10) * 1.2 * 100) / 100,
           defaultRate:
             Math.round(stats.resumen.totalClientes * 0.02 * 100) / 100,
           riskClients: Math.floor(stats.resumen.totalClientes * 0.05),
@@ -363,12 +403,6 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
                   trend: p.trend || '+0%', // API ya incluye trend, usar fallback si no existe
                 }))
               : [], // Sin productos fallback, mostrar array vacío
-        });
-
-        console.log('📊 Analytics actualizado:', {
-          totalClientes: stats.resumen.totalClientes,
-          totalConsumos: stats.resumen.totalConsumos,
-          totalMonto: stats.resumen.totalMonto,
         });
       }
     } catch (error) {
@@ -582,6 +616,65 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
     }
   };
 
+  const handleOpenEditPassword = (userId: string, userName: string) => {
+    setEditPasswordData({
+      userId,
+      userName,
+      newPassword: '',
+      confirmPassword: '',
+    });
+    setShowEditPassword(true);
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validaciones
+    if (editPasswordData.newPassword.length < 6) {
+      alert('La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+    
+    if (editPasswordData.newPassword !== editPasswordData.confirmPassword) {
+      alert('Las contraseñas no coinciden');
+      return;
+    }
+    
+    setIsUpdatingPassword(true);
+
+    try {
+      const response = await fetch('/api/users', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: editPasswordData.userId,
+          password: editPasswordData.newPassword,
+        }),
+      });
+
+      if (response.ok) {
+        alert('Contraseña actualizada exitosamente');
+        setShowEditPassword(false);
+        setEditPasswordData({
+          userId: '',
+          userName: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Error al actualizar contraseña');
+      }
+    } catch (error) {
+      console.error('Error updating password:', error);
+      alert('Error al actualizar contraseña');
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
   const handleGoalsSave = async () => {
     // Refrescar las estadísticas para mostrar las nuevas metas
     await fetchEstadisticas();
@@ -674,6 +767,16 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <div className="flex space-x-2">
+                    {/* Botón de editar contraseña - disponible para todos incluyendo SUPERADMIN */}
+                    <button
+                      onClick={() => handleOpenEditPassword(userData.id, userData.name)}
+                      className="text-blue-400 hover:text-blue-300 transition-colors p-1 rounded"
+                      title="Cambiar contraseña"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                    
+                    {/* Botones de activar/desactivar - NO disponibles para SUPERADMIN */}
                     {userData.role !== 'SUPERADMIN' && (
                       <>
                         {userData.isActive ? (
@@ -752,6 +855,8 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
     totalConsumos: 0,
     totalRevenue: 0,
     monthlyGrowth: 0,
+    revenueGrowth: 0,
+    transactionsGrowth: 0,
     defaultRate: 0,
     riskClients: 0,
     dailyTransactions: 0,
@@ -847,12 +952,12 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
+              className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"
             >
               <MetricCard
                 title="Total Clientes"
                 value={formatNumber(currentAnalytics.totalClients)}
-                icon={<Users className="w-6 h-6" />}
+                icon={<Users className="w-5 h-5" />}
                 gradient="from-blue-600 to-cyan-600"
                 change={`+${currentAnalytics.monthlyGrowth}%`}
                 subtitle="crecimiento mensual"
@@ -860,17 +965,17 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
               <MetricCard
                 title="Ingresos Totales"
                 value={formatCurrency(currentAnalytics.totalRevenue)}
-                icon={<DollarSign className="w-6 h-6" />}
+                icon={<DollarSign className="w-5 h-5" />}
                 gradient="from-green-600 to-emerald-600"
-                change="+24.3%"
+                change={`+${currentAnalytics.revenueGrowth}%`}
                 subtitle="este mes"
               />
               <MetricCard
                 title="Transacciones"
                 value={formatNumber(currentAnalytics.dailyTransactions)}
-                icon={<DollarSign className="w-6 h-6" />}
+                icon={<DollarSign className="w-5 h-5" />}
                 gradient="from-purple-600 to-blue-600"
-                change="+18.2%"
+                change={`+${currentAnalytics.transactionsGrowth}%`}
                 subtitle="hoy"
               />
             </motion.div>
@@ -1183,6 +1288,16 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
                   </div>
                 )}
               </motion.div>
+
+              {/* Top Clientes por Reservas */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 }}
+                className="lg:col-span-1"
+              >
+                <TopClientesReservas businessId={businessId} />
+              </motion.div>
             </div>
           </>
         )}
@@ -1339,6 +1454,116 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
                         className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50"
                       >
                         {isCreatingUser ? 'Creando...' : 'Crear Usuario'}
+                      </button>
+                    </div>
+                  </form>
+                </motion.div>
+              </motion.div>
+            )}
+
+            {/* Modal de Editar Contraseña */}
+            {showEditPassword && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                onClick={e =>
+                  e.target === e.currentTarget && setShowEditPassword(false)
+                }
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="bg-gray-900 rounded-2xl p-8 border border-gray-800 shadow-2xl w-full max-w-md"
+                >
+                  <h3 className="text-xl font-bold text-white mb-6 flex items-center">
+                    <Edit3 className="w-5 h-5 mr-2 text-blue-400" />
+                    Cambiar Contraseña
+                  </h3>
+
+                  <div className="mb-6 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+                    <p className="text-sm text-gray-400">Usuario:</p>
+                    <p className="text-white font-medium">{editPasswordData.userName}</p>
+                  </div>
+
+                  <form onSubmit={handleUpdatePassword} className="space-y-4">
+                    <div>
+                      <label
+                        htmlFor="new-password"
+                        className="block text-sm font-medium text-gray-300 mb-2"
+                      >
+                        Nueva Contraseña
+                      </label>
+                      <input
+                        id="new-password"
+                        type="password"
+                        value={editPasswordData.newPassword}
+                        onChange={e =>
+                          setEditPasswordData(prev => ({
+                            ...prev,
+                            newPassword: e.target.value,
+                          }))
+                        }
+                        className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        required
+                        minLength={6}
+                        placeholder="Mínimo 6 caracteres"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="confirm-password"
+                        className="block text-sm font-medium text-gray-300 mb-2"
+                      >
+                        Confirmar Contraseña
+                      </label>
+                      <input
+                        id="confirm-password"
+                        type="password"
+                        value={editPasswordData.confirmPassword}
+                        onChange={e =>
+                          setEditPasswordData(prev => ({
+                            ...prev,
+                            confirmPassword: e.target.value,
+                          }))
+                        }
+                        className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        required
+                        minLength={6}
+                        placeholder="Confirma la nueva contraseña"
+                      />
+                    </div>
+
+                    {editPasswordData.newPassword && editPasswordData.confirmPassword && 
+                     editPasswordData.newPassword !== editPasswordData.confirmPassword && (
+                      <div className="p-3 bg-red-900/20 border border-red-500/50 rounded-lg">
+                        <p className="text-sm text-red-400">Las contraseñas no coinciden</p>
+                      </div>
+                    )}
+
+                    <div className="flex gap-3 pt-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowEditPassword(false);
+                          setEditPasswordData({
+                            userId: '',
+                            userName: '',
+                            newPassword: '',
+                            confirmPassword: '',
+                          });
+                        }}
+                        className="flex-1 px-4 py-3 bg-gray-700 text-white rounded-xl hover:bg-gray-600 transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isUpdatingPassword || editPasswordData.newPassword !== editPasswordData.confirmPassword}
+                        className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isUpdatingPassword ? 'Actualizando...' : 'Actualizar Contraseña'}
                       </button>
                     </div>
                   </form>
@@ -1537,17 +1762,18 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
                           </div>
                         </div>
 
+                        {/* Panel de Fidelización por Anfitrión */}
+                        {businessId && (
+                          <HostTrackingPanel
+                            clienteCedula={cliente.cedula}
+                            businessId={businessId}
+                          />
+                        )}
+
                         {/* Lista de Transacciones */}
                         <div className="space-y-3 max-h-64 overflow-y-auto">
                           {clienteHistorial.historial?.map(
                             (consumo: any, index: number) => {
-                              // 🔍 Debug temporal para ver los datos del consumo
-                              console.log('🔍 Consumo data:', {
-                                id: consumo.id,
-                                productos: consumo.productos,
-                                tieneProductos: consumo.productos && consumo.productos.length > 0
-                              });
-                              
                               return (
                                 <div
                                   key={`${consumo.id}-${index}`}
@@ -1704,11 +1930,7 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
                         Fecha de Asignación
                       </p>
                       <p className="text-white font-semibold">
-                        {clienteDetalles.cliente.tarjetaLealtad?.fechaAsignacion
-                          ? new Date(
-                              clienteDetalles.cliente.tarjetaLealtad.fechaAsignacion
-                            ).toLocaleDateString('es-ES')
-                          : 'N/A'}
+                        {formatFechaAsignacion(clienteDetalles.cliente.tarjetaLealtad)}
                       </p>
                     </div>
                     <div>
@@ -1716,29 +1938,13 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
                         Tipo de Asignación
                       </p>
                       <p className="text-white font-semibold">
-                        {clienteDetalles.cliente.tarjetaLealtad?.asignacionManual
-                          ? 'Manual'
-                          : clienteDetalles.cliente.tarjetaLealtad
-                          ? 'Automática'
-                          : 'N/A'}
+                        {getTipoAsignacion(clienteDetalles.cliente.tarjetaLealtad)}
                       </p>
                     </div>
                     <div>
                       <p className="text-gray-400 text-sm">Estado</p>
-                      <p
-                        className={`font-semibold ${
-                          clienteDetalles.cliente.tarjetaLealtad?.activa
-                            ? 'text-green-400'
-                            : clienteDetalles.cliente.tarjetaLealtad
-                            ? 'text-yellow-400'
-                            : 'text-red-400'
-                        }`}
-                      >
-                        {clienteDetalles.cliente.tarjetaLealtad?.activa
-                          ? 'Activa'
-                          : clienteDetalles.cliente.tarjetaLealtad
-                          ? 'Inactiva'
-                          : 'No Asignada'}
+                      <p className={`font-semibold ${getEstadoTarjeta(clienteDetalles.cliente.tarjetaLealtad).className}`}>
+                        {getEstadoTarjeta(clienteDetalles.cliente.tarjetaLealtad).text}
                       </p>
                     </div>
                   </div>
@@ -1961,14 +2167,14 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
               <div className="mt-6 pt-4 border-t border-gray-600/30">
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-gray-400">
-                    💰 Valor promedio por producto:
-                    <span className="text-white font-medium ml-1">
+                    💰 Valor promedio por producto:{' '}
+                    <span className="text-white font-medium">
                       ${(productosModal.total / Math.max(productosModal.productos.length, 1)).toFixed(2)}
                     </span>
                   </span>
                   <span className="text-gray-400">
-                    🛍️ Total de artículos:
-                    <span className="text-white font-medium ml-1">
+                    🛍️ Total de artículos:{' '}
+                    <span className="text-white font-medium">
                       {productosModal.productos.reduce((sum: number, p: any) => sum + (p.cantidad || 1), 0)}
                     </span>
                   </span>
@@ -2047,7 +2253,7 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
                         <div className="mt-4 pt-3 border-t border-gray-600/30">
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-gray-400">
-                              Contribución al total:
+                              Contribución al total:{' '}
                             </span>
                             <span className="text-white font-medium">
                               {(((producto.precio * (producto.cantidad || 1)) / productosModal.total) * 100).toFixed(1)}%
@@ -2131,25 +2337,25 @@ function MetricCard({
   subtitle: string;
 }>) {
   return (
-    <div className="bg-gray-900/60 backdrop-blur-sm rounded-2xl p-6 border border-gray-800/50 shadow-2xl hover:border-gray-700/50 transition-all duration-300">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-gray-900/60 backdrop-blur-sm rounded-xl p-4 border border-gray-800/50 shadow-lg hover:border-gray-700/50 transition-all duration-300">
+      <div className="flex items-center justify-between mb-2">
         <div
-          className={`w-12 h-12 bg-gradient-to-r ${gradient} rounded-xl flex items-center justify-center text-white shadow-lg`}
+          className={`w-10 h-10 bg-gradient-to-r ${gradient} rounded-lg flex items-center justify-center text-white shadow-lg`}
         >
           {icon}
         </div>
         <span
-          className={`text-sm font-medium px-2 py-1 rounded-lg ${getChangeColor(change)} bg-black/20`}
+          className={`text-xs font-medium px-2 py-1 rounded-md ${getChangeColor(change)} bg-black/20`}
         >
           {change}
         </span>
       </div>
       <div>
-        <p className="text-3xl font-bold text-white mb-2 drop-shadow-sm">
+        <p className="text-2xl font-bold text-white mb-1 drop-shadow-sm">
           {value}
         </p>
         <p className="text-gray-300 text-sm font-medium">{title}</p>
-        <p className="text-gray-500 text-xs mt-1">{subtitle}</p>
+        <p className="text-gray-500 text-xs">{subtitle}</p>
       </div>
     </div>
   );

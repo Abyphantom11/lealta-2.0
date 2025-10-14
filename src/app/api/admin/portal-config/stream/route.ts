@@ -14,15 +14,16 @@ export async function GET(request: NextRequest) {
     
   const stream = new ReadableStream({
     start(controller) {
-      // Agregar a conexiones activas
-      addConnection(controller);
+      // 🔒 BUSINESS ISOLATION: Agregar conexión específica del business
+      addConnection(controller, session.businessId);
 
-      // Enviar configuración inicial
-      getCurrentConfig().then(config => {
+      // Enviar configuración inicial del business
+      getCurrentConfig(session.businessId).then(config => {
         if (config) {
           const initialMessage = `data: ${JSON.stringify({
             type: 'initial-config',
             config,
+            businessId: session.businessId,
             timestamp: Date.now(),
           })}\n\n`;
 
@@ -41,14 +42,14 @@ export async function GET(request: NextRequest) {
           controller.enqueue(new TextEncoder().encode(heartbeat));
         } catch {
           clearInterval(heartbeatInterval);
-          removeConnection(controller);
+          removeConnection(controller, session.businessId);
         }
       }, 30000);
 
       // Limpiar al cerrar conexión
       request.signal.addEventListener('abort', () => {
         clearInterval(heartbeatInterval);
-        removeConnection(controller);
+        removeConnection(controller, session.businessId);
         controller.close();
       });
     },

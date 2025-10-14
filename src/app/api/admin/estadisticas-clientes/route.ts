@@ -42,8 +42,17 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Obtener configuración de tarjetas
-    const configPath = path.join(process.cwd(), 'portal-config.json');
+    // 🔒 BUSINESS ISOLATION: Obtener configuración del business específico
+    const configPath = path.join(process.cwd(), 'config', 'portal', `portal-config-${session.businessId}.json`);
+    
+    // Verificar si existe el archivo específico del business
+    if (!fs.existsSync(configPath)) {
+      return NextResponse.json(
+        { error: `No existe configuración para el business ${session.businessId}` },
+        { status: 400 }
+      );
+    }
+    
     const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
     if (!config.tarjetas?.[0]) {

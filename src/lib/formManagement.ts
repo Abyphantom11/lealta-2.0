@@ -372,7 +372,9 @@ export const validationRules = {
     },
 };
 
-export default {
+const formManagementUtils = {
   useFormManagement,
   validationRules,
 };
+
+export default formManagementUtils;

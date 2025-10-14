@@ -70,7 +70,7 @@ export default function TarjetaCompacta({ config }: TarjetaCompactaProps) {
       nivelesConfig[selectedLevel as keyof typeof nivelesConfig].colores,
   };
 
-  const nombreEmpresa = config.nombreEmpresa || config.empresa?.nombre || 'LEALTA';
+  const nombreEmpresa = config.nombreEmpresa || config.empresa?.nombre || 'Mi Negocio';
 
   return (
     <div className="space-y-4">

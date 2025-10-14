@@ -6,8 +6,10 @@ import { RegisterForm } from './auth/RegisterForm';
 import { Dashboard } from './dashboard/Dashboard';
 import MenuDrawer from './MenuDrawer';
 import {
-  clientSession,
   levelStorage,
+  clientSession as improvedClientSession,
+} from '@/utils/improvedClientSession';
+import { 
   mobileStorage,
 } from '@/utils/mobileStorage';
 import { logger } from '@/utils/logger';
@@ -22,16 +24,30 @@ import {
   FormData,
 } from './types';
 import { IdCard } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useClientNotifications } from '@/services/clientNotificationService';
+import PWANotificationTrigger from '@/components/pwa/PWANotificationTrigger';
+import { debugLog } from '@/lib/debug-utils';
 
 interface AuthHandlerProps {
-  businessId?: string;
+  readonly businessId?: string;
 }
 
-export default function AuthHandler({ businessId }: AuthHandlerProps) {
-  const { brandingConfig } = useBranding();
+export default function AuthHandler({ businessId: propBusinessId }: Readonly<AuthHandlerProps>) {
+  const { brandingConfig, isLoading: brandingLoading, businessId: contextBusinessId } = useBranding();
   const { notifyLevelUpManual } = useClientNotifications();
+  
+  // 🔥 USAR businessId del contexto o del prop, con fallback
+  const businessId = propBusinessId || contextBusinessId || 'cmgf5px5f0000eyy0elci9yds';
+
+  // 🔥 VERIFICAR SI TENEMOS DATOS REALES DE CONFIGURACIÓN
+  // Aceptar cualquier nombre que no sea el fallback por defecto
+  const hasRealBrandingData = brandingConfig.businessName && 
+                             brandingConfig.businessName !== 'LEALTA' &&
+                             brandingConfig.businessName.trim() !== '';
+
+  // 🔥 MOSTRAR LOADING HASTA TENER DATOS REALES
+  const shouldShowLoading = brandingLoading || !hasRealBrandingData;
 
   // Estados principales de autenticación - EXTRAÍDOS DEL ORIGINAL
   // Estado local
@@ -82,6 +98,9 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isClient, setIsClient] = useState(false);
 
+  // Estado para prevenir salida accidental del dashboard
+  const [backPressCount, setBackPressCount] = useState(0);
+
   // Imágenes del carrusel - solo usar las configuradas por el admin, sin fallback
   const carouselImages = brandingConfig.carouselImages || [];
   
@@ -94,12 +113,56 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
     setIsClient(true);
   }, []);
 
+  // useEffect para manejar el botón de retroceso del navegador/dispositivo
+  useEffect(() => {
+    // Solo aplicar en el dashboard cuando NO está el menú abierto
+    if (step !== 'dashboard' || isMenuDrawerOpen) {
+      setBackPressCount(0); // Reset si no estamos en dashboard o si el menú está abierto
+      return;
+    }
+
+    const handlePopState = (e: PopStateEvent) => {
+      e.preventDefault();
+      
+      if (backPressCount === 0) {
+        // Primer intento: mostrar aviso
+        setBackPressCount(1);
+        // Evitar que realmente navegue hacia atrás
+        window.history.pushState(null, '', window.location.href);
+      } else {
+        // Segundo intento: permitir salir
+        setBackPressCount(0);
+        // Aquí podríamos redirigir o permitir que salga
+        window.history.back();
+      }
+    };
+
+    // Agregar una entrada al historial para interceptar el back
+    window.history.pushState(null, '', window.location.href);
+    
+    // Escuchar el evento popstate
+    window.addEventListener('popstate', handlePopState);
+
+    // Timer para resetear el contador después de 2 segundos
+    let timer: NodeJS.Timeout;
+    if (backPressCount > 0) {
+      timer = setTimeout(() => {
+        setBackPressCount(0);
+      }, 2000);
+    }
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      if (timer) clearTimeout(timer);
+    };
+  }, [step, isMenuDrawerOpen, backPressCount]);
+
   // Función para cerrar sesión - EXTRAÍDA DEL ORIGINAL
   const handleLogout = () => {
     logger.log('🚪 Cerrando sesión...');
 
     // Limpiar almacenamiento usando las nuevas utilidades
-    clientSession.clear();
+    improvedClientSession.clear();
     if (clienteData) {
       levelStorage.clear(clienteData.cedula);
     }
@@ -171,9 +234,15 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
 
   const loadPortalConfig = useCallback(async () => {
     try {
-      // Usar businessId si está disponible, sino usar 'default'
-      const configBusinessId = businessId || 'default';
-      const configResponse = await fetch(`/api/portal/config?businessId=${configBusinessId}`);
+      // 🔥 USAR businessId real (ya no puede ser 'default')
+      if (!businessId || businessId === 'default') {
+        console.warn('⚠️ businessId no válido, usando configuración por defecto');
+        setPortalConfig(getDefaultPortalConfig());
+        setIsPortalConfigLoaded(true);
+        return;
+      }
+      
+      const configResponse = await fetch(`/api/portal/config-v2?businessId=${businessId}`);
 
       if (configResponse.ok) {
         const config = await configResponse.json();
@@ -224,15 +293,8 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
           const lastNotifiedLevel = localStorage.getItem(`lastNotifiedLevel_${clienteNuevo.cedula}`);
           
           if (lastNotifiedLevel !== nivelNuevo) {
-            // Determinar el tipo de notificación basado en la asignación
-            const esAsignacionManual = clienteNuevo?.tarjetaLealtad?.asignacionManual;
-            
-            if (esAsignacionManual) {
-              notifyLevelUpManual(nivelAnterior, nivelNuevo, clienteNuevo.id);
-            } else {
-              // Para ascensos automáticos, también podemos usar la misma notificación
-              notifyLevelUpManual(nivelAnterior, nivelNuevo, clienteNuevo.id);
-            }
+            // Notificar ascenso de nivel (manual o automático)
+            notifyLevelUpManual(nivelAnterior, nivelNuevo, clienteNuevo.id);
 
             // Marcar como notificado
             localStorage.setItem(`lastNotifiedLevel_${clienteNuevo.cedula}`, nivelNuevo);
@@ -245,6 +307,8 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
 
     try {
       logger.log('🔄 Refrescando datos del cliente...');
+      
+      // 1. Refrescar datos del cliente
       const response = await fetch('/api/cliente/verificar', {
         method: 'POST',
         headers: { 
@@ -269,11 +333,13 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
         
         // Actualizar datos después de verificar notificaciones
         setClienteData(data.cliente);
+        
+        // NO recargar portal config en cada polling - se carga solo al inicio
       }
     } catch (error) {
       console.error('❌ Error refrescando datos del cliente:', error);
     }
-  }, [cedula, clienteData, notifyLevelUpManual]);
+  }, [cedula, clienteData, notifyLevelUpManual, businessId]); // Removido loadPortalConfig de dependencias
 
   // Configurar polling para refrescar datos automáticamente (con notificaciones en tiempo real)
   useEffect(() => {
@@ -315,10 +381,7 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
         // Configurar entorno del navegador
         await setupEnvironment();
 
-        const savedSession = clientSession.load() as {
-          cedula: string;
-          timestamp: number;
-        } | null;
+        const savedSession = improvedClientSession.load();
         if (savedSession) {
           const { cedula: savedCedula, timestamp } = savedSession;
 
@@ -349,17 +412,12 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
                 '🎉 Sesión restaurada exitosamente para:',
                 savedCedula
               );
-              console.log(
-                '🐛 AuthHandler - Datos del cliente restaurado:',
-                data.cliente
-              );
-              console.log(
-                '🐛 AuthHandler - TarjetaLealtad:',
-                data.cliente?.tarjetaLealtad
-              );
               setClienteData(data.cliente);
               setCedula(savedCedula);
               setStep('dashboard');
+
+              // Disparar evento de login exitoso para PWA iOS
+              window.dispatchEvent(new CustomEvent('client-logged-in'));
 
               // Las notificaciones se verificarán automáticamente con el useEffect
 
@@ -367,13 +425,13 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
             } else {
               // Cliente no existe, limpiar sesión
               logger.warn('⚠️ Cliente no existe, limpiando sesión');
-              clientSession.clear();
+              improvedClientSession.clear();
               setStep('presentation'); // Asegurar que va a presentation si no hay sesión válida
             }
           } else {
             // Sesión expirada, limpiar
             logger.log('⏰ Sesión expirada, limpiando');
-            clientSession.clear();
+            improvedClientSession.clear();
             setStep('presentation'); // Asegurar que va a presentation si la sesión expiró
           }
         } else {
@@ -383,7 +441,7 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
       } catch (error) {
         logger.error('❌ Error verificando sesión guardada:', error);
         // En caso de error, limpiar cualquier sesión corrupta
-        clientSession.clear();
+        improvedClientSession.clear();
         setStep('presentation'); // En caso de error, ir a presentation
       } finally {
         // Siempre establecer isInitialLoading a false al final
@@ -391,8 +449,9 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
       }
     };
 
-        checkSavedSession();
-      }, [loadPortalConfig]); // Función simplificada para inicialización  // Función simplificada para el fondo (sin SVG dinámico para evitar hidratación)
+    checkSavedSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessId]); // SOLO businessId - evita loop infinito con loadPortalConfig
   const getBackgroundStyle = () => {
     if (!isClient) return { backgroundColor: '#1a1a1a' }; // Fondo simple en el servidor
 
@@ -461,20 +520,27 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
   const loadMenuCategories = useCallback(async () => {
     setIsLoadingMenu(true);
     try {
-      const response = await fetch('/api/menu/categorias');
+      const response = await fetch('/api/menu/categorias', {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(businessId && { 'x-business-id': businessId })
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         const mainCategories = data.filter((cat: any) => !cat.parentId);
         setMenuCategories(mainCategories);
         setAllCategories(data);
         setActiveMenuSection('categories');
+      } else {
+        console.error('Error en respuesta de categorías:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error cargando categorías del menú:', error);
     } finally {
       setIsLoadingMenu(false);
     }
-  }, []);
+  }, [businessId]);
 
   // Función para cargar productos de una categoría
   const loadCategoryProducts = useCallback(
@@ -497,12 +563,26 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
         } else {
           // Cargar productos de la categoría
           const response = await fetch(
-            `/api/menu/productos?categoriaId=${categoryId}`
+            `/api/menu/productos?categoriaId=${categoryId}`,
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                ...(businessId && { 'x-business-id': businessId })
+              }
+            }
           );
           if (response.ok) {
             const data = await response.json();
-            setMenuProducts(data);
-            setActiveMenuSection('products');
+            debugLog('🍽️ Datos recibidos del API productos:', data);
+            
+            // El API devuelve { success: true, productos: [...] }
+            if (data.success && Array.isArray(data.productos)) {
+              setMenuProducts(data.productos);
+              setActiveMenuSection('products');
+            } else {
+              console.error('❌ Estructura de datos inesperada:', data);
+              setMenuProducts([]);
+            }
           }
         }
       } catch (error) {
@@ -511,14 +591,14 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
         setIsLoadingMenu(false);
       }
     },
-    [allCategories]
+    [allCategories, businessId]
   );
 
   // Verificar sesión inicial
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const sessionData = clientSession.load();
+        const sessionData = improvedClientSession.load();
         if (sessionData?.cedula) {
           logger.log('📱 Sesión encontrada:', sessionData.cedula);
           setCedula(sessionData.cedula);
@@ -541,9 +621,12 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
             setClienteData(data.cliente);
             setStep('dashboard');
 
+            // Disparar evento de login exitoso para PWA iOS
+            window.dispatchEvent(new CustomEvent('client-logged-in'));
+
             // Las notificaciones se verificarán automáticamente con el useEffect
           } else {
-            clientSession.clear();
+            improvedClientSession.clear();
             setStep('presentation');
           }
         }
@@ -563,7 +646,8 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
     if (step === 'dashboard') {
       loadMenuCategories();
     }
-  }, [step, loadMenuCategories]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
 
   // Helper functions para reducir complejidad cognitiva
   const updateClienteDataOnly = useCallback(async (cedula: string) => {
@@ -587,11 +671,11 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
     }
   }, [businessId]);
 
-  const evaluateClientLevel = async (cedula: string) => {
-    const evaluacionResponse = await fetch('/api/admin/evaluar-nivel-cliente', {
+  const evaluateClientLevel = useCallback(async (cedula: string) => {
+    const evaluacionResponse = await fetch('/api/cliente/evaluar-nivel', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cedula }),
+      body: JSON.stringify({ cedula, businessId }),
     });
 
     if (evaluacionResponse.ok) {
@@ -599,9 +683,9 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
       return evaluacionData;
     }
     return null;
-  };
+  }, [businessId]);
 
-  const checkStoredLevelChange = (cliente: any) => {
+  const checkStoredLevelChange = useCallback((cliente: any) => {
     const clientLevel = cliente.tarjetaLealtad?.nivel || 'Bronce';
     const storedLevel = localStorage.getItem(`lastLevel_${cliente.cedula}`);
 
@@ -613,24 +697,17 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
     } else if (!storedLevel) {
       localStorage.setItem(`lastLevel_${cliente.cedula}`, clientLevel);
     }
-  };
+  }, [setOldLevel, setNewLevel, setShowLevelUpAnimation]);
 
   // Función extraída para manejar actualizaciones de nivel y reducir complejidad cognitiva
   const handleLevelUpdateInEffect = useCallback((evaluacionData: any) => {
     if (evaluacionData.actualizado && evaluacionData.mostrarAnimacion) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`🆙 Cliente subió de ${evaluacionData.nivelAnterior} a ${evaluacionData.nivelNuevo}!`);
-      }
-
       setOldLevel(evaluacionData.nivelAnterior);
       setNewLevel(evaluacionData.nivelNuevo);
       setShowLevelUpAnimation(true);
 
       localStorage.setItem(`lastLevel_${clienteData?.cedula}`, evaluacionData.nivelNuevo);
     } else if (evaluacionData.actualizado && evaluacionData.esBajada) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`📉 Cliente bajó de ${evaluacionData.nivelAnterior} a ${evaluacionData.nivelNuevo} (sin animación)`);
-      }
       localStorage.setItem(`lastLevel_${clienteData?.cedula}`, evaluacionData.nivelNuevo);
     }
   }, [clienteData?.cedula, setOldLevel, setNewLevel, setShowLevelUpAnimation]);
@@ -641,7 +718,6 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
       const fetchClienteActualizado = async () => {
         try {
           // ✅ CAMBIO: Permitir evaluación automática para ascensos, incluso en tarjetas manuales
-          console.log('🤖 Ejecutando evaluación automática (permitiendo ascensos automáticos)');
           const evaluacionData = await evaluateClientLevel(clienteData.cedula);
           
           if (evaluacionData) {
@@ -666,9 +742,6 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
           if (response.ok) {
             const data = await response.json();
             if (data.existe) {
-              console.log('🐛 AuthHandler - Actualización periódica:', data.cliente);
-              console.log('🐛 AuthHandler - TarjetaLealtad actualizada:', data.cliente?.tarjetaLealtad);
-
               setClienteData(data.cliente);
               checkStoredLevelChange(data.cliente);
             }
@@ -681,21 +754,22 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
       // Actualizar inmediatamente al entrar
       fetchClienteActualizado();
 
-      // Actualizar cada 15 segundos
       // Polling optimizado: cada 30 segundos para datos del cliente
       const updateInterval = setInterval(fetchClienteActualizado, 30000);
 
       return () => clearInterval(updateInterval);
     }
-  }, [step, clienteData?.id, clienteData?.cedula, clienteData?.tarjetaLealtad?.asignacionManual, handleLevelUpdateInEffect, businessId, updateClienteDataOnly]);
+  }, [step, clienteData?.id, clienteData?.cedula, clienteData?.tarjetaLealtad?.asignacionManual, handleLevelUpdateInEffect, businessId, updateClienteDataOnly, evaluateClientLevel, checkStoredLevelChange]);
 
-  // Mostrar loading inicial mientras se carga el branding
-  if (isInitialLoading) {
+  // 🔥 MOSTRAR LOADING hasta tener datos reales de configuración
+  if (isInitialLoading || shouldShowLoading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-gray-600 border-t-purple-500 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400 text-sm">Cargando...</p>
+          <div className="w-8 h-8 border-2 border-gray-600 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-300 text-sm">
+            {isInitialLoading ? 'Inicializando...' : 'Cargando configuración...'}
+          </p>
         </div>
       </div>
     );
@@ -703,6 +777,14 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
 
   return (
     <div>
+      {/* PWA Notification Trigger - Solo activo cuando hay un cliente logueado */}
+      {clienteData && (
+        <PWANotificationTrigger 
+          clienteId={clienteData.cedula} 
+          enabled={true} 
+        />
+      )}
+      
       {step === 'presentation' && !clienteData && (
         <div className="min-h-screen bg-black text-white">
           {/* Header */}
@@ -847,7 +929,7 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
                   }}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 1 }}
+                  transition={{ duration: 0.6, delay: 0.3 }}
                 >
                   <IdCard className="w-5 h-5" />
                   <span>Acceder con Cédula</span>
@@ -906,8 +988,24 @@ export default function AuthHandler({ businessId }: AuthHandlerProps) {
             setShowTarjeta={setShowTarjeta}
             portalConfig={portalConfig}
             businessId={businessId}
-            refreshClienteData={refreshClienteData}
           />
+
+          {/* Mensaje de confirmación para salir */}
+          <AnimatePresence>
+            {backPressCount > 0 && !isMenuDrawerOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 50 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 50 }}
+                transition={{ duration: 0.3 }}
+                className="fixed bottom-20 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-4 bg-gray-900/95 backdrop-blur-sm border border-purple-500/50 rounded-2xl shadow-2xl max-w-sm mx-4"
+              >
+                <p className="text-white text-center font-medium">
+                  Presiona atrás nuevamente para salir
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <MenuDrawer
             isMenuDrawerOpen={isMenuDrawerOpen}
