@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getBusinessIdFromRequest } from '@/lib/business-utils';
+import { getCurrentBusinessDay } from '@/lib/business-day-utils';
 
 const prisma = new PrismaClient();
 
@@ -21,28 +22,53 @@ export async function GET(request: NextRequest) {
 
     console.log(`🏢 [FAVORITO] Using businessId: ${businessId} (from: ${queryBusinessId ? 'query' : 'header'})`);
 
-    const dateParam = request.nextUrl.searchParams.get('date');
-    
-    // Si no se especifica fecha, usar la fecha actual
-    const targetDate = dateParam ? new Date(dateParam) : new Date();
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    // ✅ CENTRALIZADO: Usar día comercial en lugar de fecha natural
+    const currentDayName = await getCurrentBusinessDay(businessId);
+    console.log(`🗓️ [FAVORITO] Día comercial actual: ${currentDayName}`);
 
-    const favoritoDelDia = await prisma.portalFavoritoDelDia.findFirst({
+    // Buscar favoritos activos y filtrar por día comercial
+    const favoritos = await prisma.portalFavoritoDelDia.findMany({
       where: {
         businessId,
-        active: true,
-        date: {
-          gte: startOfDay,
-          lte: endOfDay
-        }
+        active: true
       },
       orderBy: {
         createdAt: 'desc'
       }
     });
+
+    console.log(`🔍 [FAVORITO] Encontrados ${favoritos.length} favoritos activos`);
+
+    // Filtrar por día comercial
+    let favoritoDelDia = null;
+    
+    for (const favorito of favoritos) {
+      // ✅ Verificar si el favorito debe mostrarse hoy
+      if (!favorito.dia || favorito.dia === 'todos') {
+        // Sin restricción de día - usar el más reciente
+        favoritoDelDia = favorito;
+        console.log(`🔍 [FAVORITO] "${favorito.productName}" (día: ${favorito.dia || 'todos'}) -> siempre visible`);
+        break;
+      } else {
+        // Verificar si coincide con el día comercial actual
+        const diaComercial = currentDayName.toLowerCase();
+        const diaFavorito = favorito.dia.toLowerCase();
+        
+        if (diaComercial === diaFavorito) {
+          favoritoDelDia = favorito;
+          console.log(`🔍 [FAVORITO] "${favorito.productName}" (día: ${favorito.dia}) -> visible para ${currentDayName}`);
+          break;
+        } else {
+          console.log(`🔍 [FAVORITO] "${favorito.productName}" (día: ${favorito.dia}) -> NO visible (hoy es ${currentDayName})`);
+        }
+      }
+    }
+
+    if (favoritoDelDia) {
+      console.log(`✅ [FAVORITO] Favorito seleccionado: "${favoritoDelDia.productName}" para día comercial ${currentDayName}`);
+    } else {
+      console.log(`⚠️ [FAVORITO] No hay favorito disponible para día comercial ${currentDayName}`);
+    }
 
     return NextResponse.json({ favoritoDelDia });
   } catch (error) {

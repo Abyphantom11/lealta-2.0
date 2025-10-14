@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getBusinessIdFromRequest } from '@/lib/business-utils';
+import { getCurrentBusinessDay } from '@/lib/business-day-utils';
 
 const prisma = new PrismaClient();
 
@@ -35,7 +36,36 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    return NextResponse.json({ promociones });
+    // ✅ CENTRALIZADO: Filtrar promociones usando lógica de día comercial
+    const currentDayName = await getCurrentBusinessDay(businessId);
+    console.log(`🗓️ [PROMOCIONES] Día comercial actual: ${currentDayName}`);
+    
+    // Filtrar promociones por visibilidad del día comercial
+    const promocionesVisibles = [];
+    
+    for (const promocion of promociones) {
+      // ✅ Verificar si la promoción debe mostrarse hoy
+      if (!promocion.dia || promocion.dia === 'todos') {
+        // Sin restricción de día - siempre visible
+        promocionesVisibles.push(promocion);
+        console.log(`🔍 [PROMOCIONES] "${promocion.title}" (día: ${promocion.dia || 'todos'}) -> siempre visible`);
+      } else {
+        // Verificar si coincide con el día comercial actual
+        const diaComercial = currentDayName.toLowerCase();
+        const diaPromocion = promocion.dia.toLowerCase();
+        
+        if (diaComercial === diaPromocion) {
+          promocionesVisibles.push(promocion);
+          console.log(`🔍 [PROMOCIONES] "${promocion.title}" (día: ${promocion.dia}) -> visible para ${currentDayName}`);
+        } else {
+          console.log(`🔍 [PROMOCIONES] "${promocion.title}" (día: ${promocion.dia}) -> NO visible (hoy es ${currentDayName})`);
+        }
+      }
+    }
+    
+    console.log(`✅ [PROMOCIONES] ${promocionesVisibles.length}/${promociones.length} promociones visibles para día comercial ${currentDayName}`);
+
+    return NextResponse.json({ promociones: promocionesVisibles });
   } catch (error) {
     console.error('Error obteniendo promociones:', error);
     return NextResponse.json(

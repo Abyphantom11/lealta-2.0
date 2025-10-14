@@ -25,21 +25,28 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
-   * ✅ SOLUCIÓN: Calcular el día comercial actual (considerando hora de reseteo a las 4 AM)
+   * ✅ CENTRALIZADO: Usar la función oficial de business-day-utils
    */
-  const getCurrentBusinessDayKey = useCallback(() => {
-    const now = new Date();
-    const hour = now.getHours();
-    
-    // Si es antes de las 4 AM, consideramos que aún es el día anterior
-    if (hour < 4) {
-      const yesterday = new Date(now);
-      yesterday.setDate(yesterday.getDate() - 1);
-      return yesterday.toDateString();
+  const getCurrentBusinessDayKey = useCallback(async () => {
+    try {
+      const businessDay = await getCurrentBusinessDay(businessId);
+      const now = new Date();
+      
+      // Crear clave única combinando día comercial + fecha
+      return `${businessDay}-${now.toDateString()}`;
+    } catch (error) {
+      console.error('Error obteniendo día comercial:', error);
+      // Fallback a lógica anterior
+      const now = new Date();
+      const hour = now.getHours();
+      if (hour < 4) {
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        return yesterday.toDateString();
+      }
+      return now.toDateString();
     }
-    
-    return now.toDateString();
-  }, []);
+  }, [businessId]);
 
   const fetchConfig = useCallback(async (showLoading = true) => {
     if (!enabled) return;
@@ -51,7 +58,7 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
       const timestamp = new Date().getTime();
       
       // ✅ Detectar si cambió el día comercial
-      const currentDay = getCurrentBusinessDayKey();
+      const currentDay = await getCurrentBusinessDayKey();
       const dayChanged = lastFetchDay !== '' && currentDay !== lastFetchDay;
       
       if (dayChanged) {
@@ -88,7 +95,7 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
         
         setConfig(realData); // ✅ Usar los datos reales, no toda la respuesta
         setLastUpdate(new Date());
-        setLastFetchDay(currentDay); // ✅ Actualizar el día del último fetch
+        setLastFetchDay(await getCurrentBusinessDayKey()); // ✅ Actualizar el día del último fetch
         
         debugLog(`✅ Config v2 (DB) updated successfully at ${new Date().toLocaleTimeString()}`);
         debugLog('🔍 Raw API data:', {
@@ -120,8 +127,8 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
     fetchConfig(true);
 
     // ✅ Configurar detector de cambio de día (verifica cada minuto)
-    const dayCheckInterval = setInterval(() => {
-      const currentDay = getCurrentBusinessDayKey();
+    const dayCheckInterval = setInterval(async () => {
+      const currentDay = await getCurrentBusinessDayKey();
       
       // Si el día cambió, forzar refresh inmediato
       if (lastFetchDay !== '' && currentDay !== lastFetchDay) {

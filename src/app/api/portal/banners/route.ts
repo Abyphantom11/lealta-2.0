@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getBusinessIdFromRequest } from '@/lib/business-utils';
+import { getCurrentBusinessDay } from '@/lib/business-day-utils';
 import fs from 'fs';
 import path from 'path';
 
@@ -58,8 +59,37 @@ export async function GET(request: NextRequest) {
     });
 
     if (banners.length > 0) {
+      // ✅ CENTRALIZADO: Filtrar banners usando lógica de día comercial
+      const currentDayName = await getCurrentBusinessDay(businessId);
+      console.log(`🗓️ [BANNERS] Día comercial actual: ${currentDayName}`);
+      
+      // Filtrar banners por visibilidad del día comercial
+      const bannersVisibles = [];
+      
+      for (const banner of banners) {
+        // ✅ Verificar si el banner debe mostrarse hoy
+        if (!banner.dia || banner.dia === 'todos') {
+          // Sin restricción de día - siempre visible
+          bannersVisibles.push(banner);
+          console.log(`🔍 [BANNERS] "${banner.title}" (día: ${banner.dia || 'todos'}) -> siempre visible`);
+        } else {
+          // Verificar si coincide con el día comercial actual
+          const diaComercial = currentDayName.toLowerCase();
+          const diaBanner = banner.dia.toLowerCase();
+          
+          if (diaComercial === diaBanner) {
+            bannersVisibles.push(banner);
+            console.log(`🔍 [BANNERS] "${banner.title}" (día: ${banner.dia}) -> visible para ${currentDayName}`);
+          } else {
+            console.log(`🔍 [BANNERS] "${banner.title}" (día: ${banner.dia}) -> NO visible (hoy es ${currentDayName})`);
+          }
+        }
+      }
+      
+      console.log(`✅ [BANNERS] ${bannersVisibles.length}/${banners.length} banners visibles para día comercial ${currentDayName}`);
+      
       // Transformar a formato compatible con cliente
-      const bannersFormatted = banners.map(banner => ({
+      const bannersFormatted = bannersVisibles.map(banner => ({
         id: banner.id,
         titulo: banner.title,
         title: banner.title,
