@@ -66,11 +66,27 @@ export async function GET(request: NextRequest) {
 
     if (favoritoDelDia) {
       console.log(`✅ [FAVORITO] Favorito seleccionado: "${favoritoDelDia.productName}" para día comercial ${currentDayName}`);
+      
+      // ✅ ARREGLO: Transformar a formato compatible con cliente (igual que banners)
+      const favoritoFormatted = {
+        id: favoritoDelDia.id,
+        productName: favoritoDelDia.productName,
+        description: favoritoDelDia.description || '',
+        imageUrl: favoritoDelDia.imageUrl || '',
+        originalPrice: favoritoDelDia.originalPrice,
+        specialPrice: favoritoDelDia.specialPrice,
+        specialOffer: favoritoDelDia.specialOffer,
+        activo: favoritoDelDia.active, // ✅ Transformar active → activo
+        active: favoritoDelDia.active,
+        dia: favoritoDelDia.dia || 'todos',
+        createdAt: favoritoDelDia.createdAt
+      };
+      
+      return NextResponse.json({ favoritoDelDia: favoritoFormatted });
     } else {
       console.log(`⚠️ [FAVORITO] No hay favorito disponible para día comercial ${currentDayName}`);
+      return NextResponse.json({ favoritoDelDia: null });
     }
-
-    return NextResponse.json({ favoritoDelDia });
   } catch (error) {
     console.error('Error obteniendo favorito del día:', error);
     return NextResponse.json(

@@ -64,7 +64,11 @@ export default function PromocionesSection({ businessId }: Readonly<PromocionesP
     const loadPromociones = async () => {
       try {
         const todasPromociones = getPromociones();
-        setPromociones(todasPromociones);
+        // ✅ ARREGLO: Filtrar promociones con imagen válida (como banners)
+        const promocionesConImagen = todasPromociones.filter(
+          (promo: Promocion) => promo.activo && promo.imagenUrl && promo.imagenUrl.trim() !== ''
+        );
+        setPromociones(promocionesConImagen);
       } catch (error) {
         console.error('Error cargando promociones:', error);
         setPromociones([]);

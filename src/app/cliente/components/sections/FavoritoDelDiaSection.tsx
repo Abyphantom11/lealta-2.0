@@ -41,7 +41,13 @@ export default function FavoritoDelDiaSection({ businessId }: Readonly<FavoritoP
         const favoritoData = await getFavoritoDelDia();
         debugLog('🔄 [FavoritoDelDiaSection] Resultado de getFavoritoDelDia:', favoritoData);
         
-        setFavorito(favoritoData);
+        // ✅ ARREGLO: Verificar que tenga imagen válida (como banners)
+        if (favoritoData?.imageUrl?.trim()) {
+          setFavorito(favoritoData);
+        } else {
+          debugLog('⚠️ [FavoritoDelDiaSection] Favorito sin imagen válida:', favoritoData);
+          setFavorito(null);
+        }
       } catch (error) {
         console.error('❌ [FavoritoDelDiaSection] Error cargando favorito del día:', error);
         setFavorito(null);
@@ -56,8 +62,8 @@ export default function FavoritoDelDiaSection({ businessId }: Readonly<FavoritoP
   }, [getFavoritoDelDia, businessId]);
 
   // Si no hay favorito del día, no renderizar nada
-  if (isLoading || !favorito?.imageUrl) {
-    debugLog('🔄 [FavoritoDelDiaSection] No renderizando:', { isLoading, favorito, hasImageUrl: !!favorito?.imageUrl });
+  if (isLoading || !favorito?.imageUrl?.trim()) {
+    debugLog('🔄 [FavoritoDelDiaSection] No renderizando:', { isLoading, favorito, hasImageUrl: !!favorito?.imageUrl?.trim() });
     return null;
   }
 

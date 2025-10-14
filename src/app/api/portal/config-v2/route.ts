@@ -102,7 +102,17 @@ export async function GET(request: NextRequest) {
         activo: r.active,
         stock: r.stock || 0
       })),
-      favoritoDelDia: favoritosActivos.length > 0 ? favoritosActivos[0] : null,
+      favoritoDelDia: favoritosActivos.length > 0 ? {
+        id: favoritosActivos[0].id,
+        productName: favoritosActivos[0].productName,
+        description: favoritosActivos[0].description || '',
+        imageUrl: favoritosActivos[0].imageUrl || '',
+        originalPrice: favoritosActivos[0].originalPrice,
+        specialPrice: favoritosActivos[0].specialPrice,
+        specialOffer: favoritosActivos[0].specialOffer,
+        dia: favoritosActivos[0].dia,
+        activo: favoritosActivos[0].active
+      } : null,
       sectionTitles: {
         banners: 'Ofertas Especiales',
         promociones: portalConfig?.promocionesTitle || 'Promociones',

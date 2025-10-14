@@ -65,7 +65,25 @@ export async function GET(request: NextRequest) {
     
     console.log(`✅ [PROMOCIONES] ${promocionesVisibles.length}/${promociones.length} promociones visibles para día comercial ${currentDayName}`);
 
-    return NextResponse.json({ promociones: promocionesVisibles });
+    // ✅ ARREGLO: Transformar a formato compatible con cliente (igual que banners)
+    const promocionesFormatted = promocionesVisibles.map(promocion => ({
+      id: promocion.id,
+      titulo: promocion.title,
+      title: promocion.title,
+      descripcion: promocion.description || '',
+      description: promocion.description || '',
+      imagenUrl: promocion.imageUrl || '',
+      imageUrl: promocion.imageUrl || '',
+      descuento: parseInt(promocion.discount?.replace('%', '') || '0') || 0,
+      discount: promocion.discount,
+      activo: promocion.active, // ✅ Transformar active → activo
+      active: promocion.active,
+      orden: promocion.orden || 0,
+      dia: promocion.dia || 'todos',
+      validUntil: promocion.validUntil
+    }));
+
+    return NextResponse.json({ promociones: promocionesFormatted });
   } catch (error) {
     console.error('Error obteniendo promociones:', error);
     return NextResponse.json(
