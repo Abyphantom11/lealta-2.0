@@ -14,42 +14,14 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    // 🔥 CRÍTICO: Usar exactamente el mismo patrón que branding (que funciona)
+    const queryBusinessId = request.nextUrl.searchParams.get('businessId');
+    const headerBusinessId = getBusinessIdFromRequest(request);
     
-    // � FIX: Obtener businessId del query parameter PRIMERO (para producción)
-    // El middleware de emergencia no configura headers, así que priorizamos query param
-    const businessIdFromQuery = searchParams.get('businessId');
-    const businessIdFromHeader = getBusinessIdFromRequest(request);
+    let businessId = queryBusinessId || headerBusinessId;
+    businessId = businessId || 'default';
     
-    let businessId = businessIdFromQuery || businessIdFromHeader;
-    
-    // 🚨 IMPORTANTE: Sin businessId válido, retornar error
-    if (!businessId || businessId === 'default') {
-      console.error('❌ No businessId provided in query or header');
-      return NextResponse.json({
-        success: false,
-        error: 'BusinessId requerido',
-        data: {
-          nombreEmpresa: 'Mi Negocio',
-          tarjetas: [],
-          nivelesConfig: {},
-          banners: [],
-          promociones: [],
-          recompensas: [],
-          favoritoDelDia: null,
-          sectionTitles: {
-            banners: 'Ofertas Especiales',
-            promociones: 'Promociones',
-            recompensas: 'Recompensas',
-            tarjetas: 'Beneficios'
-          }
-        }
-      }, { status: 400 });
-    }
-    
-    console.log(`🏢 Using businessId: ${businessId} (from: ${businessIdFromQuery ? 'query' : 'header'})`);
-    
-    const simulateDay = searchParams.get('simulateDay');
+    const simulateDay = request.nextUrl.searchParams.get('simulateDay');
     
     // Obtener datos desde PostgreSQL
     const [banners, promociones, recompensas, favoritos, portalConfig] = await Promise.all([

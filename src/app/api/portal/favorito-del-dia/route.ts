@@ -7,12 +7,10 @@ const prisma = new PrismaClient();
 // GET - Obtener favorito del día
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    
-    // 🔧 FIX: Priorizar query parameter para producción
-    const businessIdFromQuery = searchParams.get('businessId');
-    const businessIdFromHeader = getBusinessIdFromRequest(request);
-    const businessId = businessIdFromQuery || businessIdFromHeader;
+    // 🔥 CRÍTICO: Usar exactamente el mismo patrón que branding (que funciona)
+    const queryBusinessId = request.nextUrl.searchParams.get('businessId');
+    const headerBusinessId = getBusinessIdFromRequest(request);
+    const businessId = queryBusinessId || headerBusinessId;
     
     if (!businessId) {
       return NextResponse.json(
@@ -21,9 +19,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log(`🏢 [FAVORITO] Using businessId: ${businessId} (from: ${businessIdFromQuery ? 'query' : 'header'})`);
+    console.log(`🏢 [FAVORITO] Using businessId: ${businessId} (from: ${queryBusinessId ? 'query' : 'header'})`);
 
-    const dateParam = searchParams.get('date');
+    const dateParam = request.nextUrl.searchParams.get('date');
     
     // Si no se especifica fecha, usar la fecha actual
     const targetDate = dateParam ? new Date(dateParam) : new Date();
