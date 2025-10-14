@@ -6,7 +6,7 @@ import { useRequireAuth } from '../../../hooks/useAuth';
 import PWALayout from '../../../components/layouts/PWALayout';
 
 // Importar el componente de staff completo
-import StaffPageContent from './StaffPageContent';
+import StaffPageContent from './StaffPageContent-full';
 
 /**
  * Página dinámica del panel de staff
@@ -14,7 +14,7 @@ import StaffPageContent from './StaffPageContent';
  */
 export default function BusinessStaffPage() {
   const params = useParams();
-  const businessId = params.businessId as string;
+  const businessId = params?.businessId as string;
   const [isValidBusiness, setIsValidBusiness] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -28,11 +28,15 @@ export default function BusinessStaffPage() {
     // Validar que el businessId existe y es válido
     const validateBusiness = async () => {
       try {
+        console.log(`🔍 Validating business for staff: ${businessId}`);
+
         const response = await fetch(`/api/businesses/${businessId}/validate`);
         if (response.ok) {
-          await response.json();
+          const businessData = await response.json();
+          console.log(`✅ Business validated for staff:`, businessData);
           setIsValidBusiness(true);
         } else {
+          console.log(`❌ Business validation failed for staff: ${businessId}`);
           window.location.href = `/login?error=invalid-business&message=El negocio no es válido o no existe`;
         }
       } catch (error) {
@@ -54,10 +58,10 @@ export default function BusinessStaffPage() {
   // Loading state (tanto para auth como para validación de business)
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-800 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
-          <p className="text-white">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">
             {authLoading ? 'Verificando autenticación...' : `Validando acceso staff a ${businessId}...`}
           </p>
         </div>

@@ -1,14 +1,147 @@
+// ========================================
+// 📦 SECCIÓN: IMPORTS Y DEPENDENCIAS (1-18)
+// ========================================
 'use client';
 
-/**
- * Componente de contenido de Staff COMPLETO
- * Recibe businessId como prop para contexto
- * Contiene toda la funcionalidad del staff original
- */
-
+import { useState, useRef, useEffect, useCallback } from 'react';
+import Image from 'next/image';
+import { motion, AnimatePresence } from '../../../components/motion';
 import { useRequireAuth } from '../../../hooks/useAuth';
 import RoleSwitch from '../../../components/RoleSwitch';
-import { Zap, Users, History } from 'lucide-react';
+import {
+  Camera,
+  Upload,
+  CheckCircle,
+  AlertCircle,
+  User,
+  History,
+  TrendingUp,
+  Users,
+  FileText,
+  Clock,
+  Award,
+  X,
+  Zap,
+  UserPlus,
+  Copy,
+} from 'lucide-react';
+import logger from '@/lib/logger';
+import HostSearchModal from '@/components/staff/HostSearchModal';
+import GuestConsumoToggle from '@/components/staff/GuestConsumoToggle';
+import type { HostSearchResult } from '@/types/host-tracking';
+
+// ========================================
+// 🔧 SECCIÓN: INTERFACES Y TIPOS (19-100)
+// ========================================
+
+// Type for notifications
+type NotificationType = {
+  type: 'success' | 'error' | 'info';
+  message: string;
+} | null;
+
+// Types for customer info
+interface CustomerInfo {
+  id: string;
+  nombre: string;
+  cedula: string;
+  puntos: number;
+  email?: string;
+  telefono?: string;
+  nivel?: string;
+  totalGastado?: number;
+  frecuencia?: string;
+  ultimaVisita?: string | null;
+}
+
+// Types for product data
+interface Product {
+  id?: string;
+  nombre: string;
+  precio: number;
+  cantidad: number;
+  categoria?: string;
+  name?: string; // Para compatibilidad con diferentes formatos
+  price?: number; // Para compatibilidad con diferentes formatos
+}
+
+interface EditableProduct {
+  name: string;
+  price: number;
+  line: string;
+}
+
+// Types for AI analysis results
+interface AnalysisProduct {
+  nombre: string;
+  precio: number;
+  cantidad: number;
+  categoria?: string;
+}
+
+interface AIAnalysis {
+  empleadoDetectado: string;
+  productos: AnalysisProduct[];
+  total: number;
+  confianza: number;
+}
+
+interface AIResult {
+  cliente: {
+    id: string;
+    nombre: string;
+    cedula: string;
+    puntos: number;
+  };
+  analisis: AIAnalysis;
+  metadata: {
+    businessId: string;
+    empleadoId: string;
+    imagenUrl: string;
+    isBatchProcess?: boolean;
+    totalImages?: number;
+    successfulImages?: number;
+  };
+}
+
+// Types for recent tickets and stats
+interface RecentTicket {
+  id: string;
+  cliente: string;
+  cedula: string;
+  productos: string[];
+  total: number;
+  puntos: number;
+  fecha: string;
+  monto: number;
+  items: string[];
+  hora: string;
+  tipo?: string;
+}
+
+interface TodayStats {
+  ticketsProcessed: number;
+  totalPoints: number;
+  uniqueCustomers: number;
+  totalAmount: number;
+}
+
+// Types for consumption data
+interface ConsumoData {
+  id?: string;
+  cliente:
+    | string
+    | {
+        cedula: string;
+        nombre: string;
+      };
+  cedula: string;
+  productos: Product[];
+  total: number;
+  puntos: number;
+  fecha: string;
+  tipo?: string;
+}
 
 interface StaffPageContentProps {
   businessId: string;
