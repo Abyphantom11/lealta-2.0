@@ -21,7 +21,7 @@ interface FavoritoProps {
 
 export default function FavoritoDelDiaSection({ businessId }: Readonly<FavoritoProps>) {
   // 🔄 Auto-refresh hook para sincronización admin → cliente  
-  const { getFavoritoForBusinessDay, isLoading } = useAutoRefreshPortalConfig({
+  const { getFavoritoDelDia, isLoading } = useAutoRefreshPortalConfig({
     businessId,
     refreshInterval: 10000, // 10 segundos para favorito del día (igual que banners)
     enabled: true
@@ -31,15 +31,15 @@ export default function FavoritoDelDiaSection({ businessId }: Readonly<FavoritoP
   const [favorito, setFavorito] = useState<FavoritoDelDia | null>(null);
   const [selectedFavorito, setSelectedFavorito] = useState<FavoritoDelDia | null>(null);
 
-  // Cargar favorito del día usando la nueva lógica centralizada
+  // Cargar favorito del día usando la función simple (como banners/recompensas)
   useEffect(() => {
     const loadFavorito = async () => {
       try {
         debugLog('🔄 [FavoritoDelDiaSection] Iniciando loadFavorito...');
-        debugLog('🔄 [FavoritoDelDiaSection] getFavoritoForBusinessDay function:', getFavoritoForBusinessDay);
+        debugLog('🔄 [FavoritoDelDiaSection] getFavoritoDelDia function:', getFavoritoDelDia);
         
-        const favoritoData = await getFavoritoForBusinessDay();
-        debugLog('🔄 [FavoritoDelDiaSection] Resultado de getFavoritoForBusinessDay:', favoritoData);
+        const favoritoData = await getFavoritoDelDia();
+        debugLog('🔄 [FavoritoDelDiaSection] Resultado de getFavoritoDelDia:', favoritoData);
         
         setFavorito(favoritoData);
       } catch (error) {
@@ -53,7 +53,7 @@ export default function FavoritoDelDiaSection({ businessId }: Readonly<FavoritoP
     // Actualizar cada minuto para detectar cambios
     const interval = setInterval(loadFavorito, 60000);
     return () => clearInterval(interval);
-  }, [getFavoritoForBusinessDay, businessId]);
+  }, [getFavoritoDelDia, businessId]);
 
   // Si no hay favorito del día, no renderizar nada
   if (isLoading || !favorito?.imageUrl) {
