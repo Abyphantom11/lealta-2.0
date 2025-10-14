@@ -122,18 +122,17 @@ export default function AuthHandler({ businessId: propBusinessId }: Readonly<Aut
     }
 
     const handlePopState = (e: PopStateEvent) => {
-      e.preventDefault();
-      
+      // NO PREVENIR el default - dejar que la navegación ocurra normalmente
+      // Solo mostrar mensaje si es el primer intento
       if (backPressCount === 0) {
-        // Primer intento: mostrar aviso
+        // Primer intento: mostrar aviso y prevenir
+        e.preventDefault();
         setBackPressCount(1);
-        // Evitar que realmente navegue hacia atrás
+        // Agregar entrada al historial para interceptar próximo back
         window.history.pushState(null, '', window.location.href);
       } else {
-        // Segundo intento: permitir salir
+        // Segundo intento: permitir salir (no hacer nada, dejar que navegue)
         setBackPressCount(0);
-        // Aquí podríamos redirigir o permitir que salga
-        window.history.back();
       }
     };
 

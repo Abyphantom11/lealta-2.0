@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from '../../../components/motion';
 import { ArrowRight, Search } from 'lucide-react';
 import MenuView from './MenuView';
@@ -26,12 +26,8 @@ const MenuDrawer: React.FC<MenuDrawerProps> = ({
 }) => {
   const [isDragging, setIsDragging] = useState(false);
 
-
-
-
-
   // Función para manejar navegación hacia atrás
-  const handleBackNavigation = async () => {
+  const handleBackNavigation = useCallback(async () => {
     // Limpiar búsqueda primero si está activa
     if (searchQuery) {
       setSearchQuery('');
@@ -56,7 +52,31 @@ const MenuDrawer: React.FC<MenuDrawerProps> = ({
       // Cerrar el drawer
       setIsMenuDrawerOpen(false);
     }
-  };
+  }, [searchQuery, setSearchQuery, setFilteredProducts, menuProducts, activeMenuSection, 
+      setActiveMenuSection, setSelectedCategory, allCategories, setMenuCategories, 
+      selectedCategory, setIsMenuDrawerOpen]);
+
+  // useEffect para manejar el gesto de atrás del dispositivo
+  useEffect(() => {
+    if (!isMenuDrawerOpen) return;
+
+    const handlePopState = (e: PopStateEvent) => {
+      e.preventDefault();
+      handleBackNavigation();
+      // Agregar nueva entrada al historial para seguir interceptando
+      window.history.pushState(null, '', window.location.href);
+    };
+
+    // Agregar entrada al historial para interceptar el back
+    window.history.pushState(null, '', window.location.href);
+    
+    // Escuchar el evento popstate
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [isMenuDrawerOpen, handleBackNavigation]);
 
   // Función de búsqueda
   const handleSearch = useCallback((query: string) => {
