@@ -232,6 +232,16 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
   });
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   
+  // Estados para editar contraseña de usuario
+  const [showEditPassword, setShowEditPassword] = useState(false);
+  const [editPasswordData, setEditPasswordData] = useState({
+    userId: '',
+    userName: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  
   // Estado para configuración de metas
   const [showGoalsConfigurator, setShowGoalsConfigurator] = useState(false);
   
@@ -606,6 +616,65 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
     }
   };
 
+  const handleOpenEditPassword = (userId: string, userName: string) => {
+    setEditPasswordData({
+      userId,
+      userName,
+      newPassword: '',
+      confirmPassword: '',
+    });
+    setShowEditPassword(true);
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validaciones
+    if (editPasswordData.newPassword.length < 6) {
+      alert('La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+    
+    if (editPasswordData.newPassword !== editPasswordData.confirmPassword) {
+      alert('Las contraseñas no coinciden');
+      return;
+    }
+    
+    setIsUpdatingPassword(true);
+
+    try {
+      const response = await fetch('/api/users', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: editPasswordData.userId,
+          password: editPasswordData.newPassword,
+        }),
+      });
+
+      if (response.ok) {
+        alert('Contraseña actualizada exitosamente');
+        setShowEditPassword(false);
+        setEditPasswordData({
+          userId: '',
+          userName: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Error al actualizar contraseña');
+      }
+    } catch (error) {
+      console.error('Error updating password:', error);
+      alert('Error al actualizar contraseña');
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
   const handleGoalsSave = async () => {
     // Refrescar las estadísticas para mostrar las nuevas metas
     await fetchEstadisticas();
@@ -698,6 +767,16 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <div className="flex space-x-2">
+                    {/* Botón de editar contraseña - disponible para todos incluyendo SUPERADMIN */}
+                    <button
+                      onClick={() => handleOpenEditPassword(userData.id, userData.name)}
+                      className="text-blue-400 hover:text-blue-300 transition-colors p-1 rounded"
+                      title="Cambiar contraseña"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                    
+                    {/* Botones de activar/desactivar - NO disponibles para SUPERADMIN */}
                     {userData.role !== 'SUPERADMIN' && (
                       <>
                         {userData.isActive ? (
@@ -1375,6 +1454,116 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
                         className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50"
                       >
                         {isCreatingUser ? 'Creando...' : 'Crear Usuario'}
+                      </button>
+                    </div>
+                  </form>
+                </motion.div>
+              </motion.div>
+            )}
+
+            {/* Modal de Editar Contraseña */}
+            {showEditPassword && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                onClick={e =>
+                  e.target === e.currentTarget && setShowEditPassword(false)
+                }
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="bg-gray-900 rounded-2xl p-8 border border-gray-800 shadow-2xl w-full max-w-md"
+                >
+                  <h3 className="text-xl font-bold text-white mb-6 flex items-center">
+                    <Edit3 className="w-5 h-5 mr-2 text-blue-400" />
+                    Cambiar Contraseña
+                  </h3>
+
+                  <div className="mb-6 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+                    <p className="text-sm text-gray-400">Usuario:</p>
+                    <p className="text-white font-medium">{editPasswordData.userName}</p>
+                  </div>
+
+                  <form onSubmit={handleUpdatePassword} className="space-y-4">
+                    <div>
+                      <label
+                        htmlFor="new-password"
+                        className="block text-sm font-medium text-gray-300 mb-2"
+                      >
+                        Nueva Contraseña
+                      </label>
+                      <input
+                        id="new-password"
+                        type="password"
+                        value={editPasswordData.newPassword}
+                        onChange={e =>
+                          setEditPasswordData(prev => ({
+                            ...prev,
+                            newPassword: e.target.value,
+                          }))
+                        }
+                        className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        required
+                        minLength={6}
+                        placeholder="Mínimo 6 caracteres"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="confirm-password"
+                        className="block text-sm font-medium text-gray-300 mb-2"
+                      >
+                        Confirmar Contraseña
+                      </label>
+                      <input
+                        id="confirm-password"
+                        type="password"
+                        value={editPasswordData.confirmPassword}
+                        onChange={e =>
+                          setEditPasswordData(prev => ({
+                            ...prev,
+                            confirmPassword: e.target.value,
+                          }))
+                        }
+                        className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        required
+                        minLength={6}
+                        placeholder="Confirma la nueva contraseña"
+                      />
+                    </div>
+
+                    {editPasswordData.newPassword && editPasswordData.confirmPassword && 
+                     editPasswordData.newPassword !== editPasswordData.confirmPassword && (
+                      <div className="p-3 bg-red-900/20 border border-red-500/50 rounded-lg">
+                        <p className="text-sm text-red-400">Las contraseñas no coinciden</p>
+                      </div>
+                    )}
+
+                    <div className="flex gap-3 pt-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowEditPassword(false);
+                          setEditPasswordData({
+                            userId: '',
+                            userName: '',
+                            newPassword: '',
+                            confirmPassword: '',
+                          });
+                        }}
+                        className="flex-1 px-4 py-3 bg-gray-700 text-white rounded-xl hover:bg-gray-600 transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isUpdatingPassword || editPasswordData.newPassword !== editPasswordData.confirmPassword}
+                        className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isUpdatingPassword ? 'Actualizando...' : 'Actualizar Contraseña'}
                       </button>
                     </div>
                   </form>

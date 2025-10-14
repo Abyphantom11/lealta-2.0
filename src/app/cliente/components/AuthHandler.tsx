@@ -24,7 +24,7 @@ import {
   FormData,
 } from './types';
 import { IdCard } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useClientNotifications } from '@/services/clientNotificationService';
 import PWANotificationTrigger from '@/components/pwa/PWANotificationTrigger';
 import { debugLog } from '@/lib/debug-utils';
@@ -98,6 +98,9 @@ export default function AuthHandler({ businessId: propBusinessId }: Readonly<Aut
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isClient, setIsClient] = useState(false);
 
+  // Estado para prevenir salida accidental del dashboard
+  const [backPressCount, setBackPressCount] = useState(0);
+
   // Imágenes del carrusel - solo usar las configuradas por el admin, sin fallback
   const carouselImages = brandingConfig.carouselImages || [];
   
@@ -109,6 +112,50 @@ export default function AuthHandler({ businessId: propBusinessId }: Readonly<Aut
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // useEffect para manejar el botón de retroceso del navegador/dispositivo
+  useEffect(() => {
+    // Solo aplicar en el dashboard cuando NO está el menú abierto
+    if (step !== 'dashboard' || isMenuDrawerOpen) {
+      setBackPressCount(0); // Reset si no estamos en dashboard o si el menú está abierto
+      return;
+    }
+
+    const handlePopState = (e: PopStateEvent) => {
+      e.preventDefault();
+      
+      if (backPressCount === 0) {
+        // Primer intento: mostrar aviso
+        setBackPressCount(1);
+        // Evitar que realmente navegue hacia atrás
+        window.history.pushState(null, '', window.location.href);
+      } else {
+        // Segundo intento: permitir salir
+        setBackPressCount(0);
+        // Aquí podríamos redirigir o permitir que salga
+        window.history.back();
+      }
+    };
+
+    // Agregar una entrada al historial para interceptar el back
+    window.history.pushState(null, '', window.location.href);
+    
+    // Escuchar el evento popstate
+    window.addEventListener('popstate', handlePopState);
+
+    // Timer para resetear el contador después de 2 segundos
+    let timer: NodeJS.Timeout;
+    if (backPressCount > 0) {
+      timer = setTimeout(() => {
+        setBackPressCount(0);
+      }, 2000);
+    }
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      if (timer) clearTimeout(timer);
+    };
+  }, [step, isMenuDrawerOpen, backPressCount]);
 
   // Función para cerrar sesión - EXTRAÍDA DEL ORIGINAL
   const handleLogout = () => {
@@ -942,6 +989,23 @@ export default function AuthHandler({ businessId: propBusinessId }: Readonly<Aut
             portalConfig={portalConfig}
             businessId={businessId}
           />
+
+          {/* Mensaje de confirmación para salir */}
+          <AnimatePresence>
+            {backPressCount > 0 && !isMenuDrawerOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 50 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 50 }}
+                transition={{ duration: 0.3 }}
+                className="fixed bottom-20 left-1/2 transform -translate-x-1/2 z-[9999] px-6 py-4 bg-gray-900/95 backdrop-blur-sm border border-purple-500/50 rounded-2xl shadow-2xl max-w-sm mx-4"
+              >
+                <p className="text-white text-center font-medium">
+                  Presiona atrás nuevamente para salir
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <MenuDrawer
             isMenuDrawerOpen={isMenuDrawerOpen}

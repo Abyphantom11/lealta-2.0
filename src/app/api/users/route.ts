@@ -19,6 +19,7 @@ const createUserSchema = z.object({
 const updateUserSchema = z.object({
   name: z.string().min(1, 'Nombre requerido').optional(),
   isActive: z.boolean().optional(),
+  password: z.string().min(6, 'Password debe tener al menos 6 caracteres').optional(),
 });
 
 // Helper para verificar si puede gestionar un usuario
@@ -26,6 +27,9 @@ async function canManageUser(
   managerUserId: string,
   targetUserId: string
 ): Promise<boolean> {
+  // Permitir que cualquier usuario se gestione a sí mismo
+  if (managerUserId === targetUserId) return true;
+
   const [manager, target] = await Promise.all([
     prisma.user.findUnique({ where: { id: managerUserId } }),
     prisma.user.findUnique({ where: { id: targetUserId } }),
@@ -240,9 +244,20 @@ export async function PUT(request: NextRequest) {
 
     const validatedData = updateUserSchema.parse(updateData);
 
+    // Si hay password, hacer hash
+    let dataToUpdate: any = { ...validatedData };
+    if (validatedData.password) {
+      const passwordHash = await hash(validatedData.password, 12);
+      dataToUpdate = {
+        ...validatedData,
+        passwordHash,
+      };
+      delete dataToUpdate.password; // Eliminar password sin hash
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: validatedData,
+      data: dataToUpdate,
       select: {
         id: true,
         email: true,
