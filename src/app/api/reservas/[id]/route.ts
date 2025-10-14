@@ -154,9 +154,25 @@ export async function PUT(
       updates: JSON.stringify(updates, null, 2)
     });
 
+    // Validaciones básicas
+    if (!id || typeof id !== 'string') {
+      return NextResponse.json(
+        { error: 'ID de reserva inválido' },
+        { status: 400 }
+      );
+    }
+
     if (!businessIdOrSlug) {
       return NextResponse.json(
         { error: 'businessId es requerido' },
+        { status: 400 }
+      );
+    }
+
+    // Validar que updates sea un objeto válido
+    if (!updates || typeof updates !== 'object') {
+      return NextResponse.json(
+        { error: 'Datos de actualización inválidos' },
         { status: 400 }
       );
     }
@@ -223,24 +239,29 @@ export async function PUT(
 
     console.log('💾 Actualizando reserva con promotorId:', promotorId);
 
+    // Filtrar solo los campos que realmente queremos actualizar
+    const updateData: any = {};
+    
+    // Solo agregar campos que están definidos para evitar problemas con Prisma
+    if (updates.cliente?.nombre !== undefined) updateData.customerName = updates.cliente.nombre;
+    if (updates.cliente?.telefono !== undefined) updateData.customerPhone = updates.cliente.telefono;
+    if (updates.cliente?.email !== undefined) updateData.customerEmail = updates.cliente.email;
+    if (updates.numeroPersonas !== undefined) updateData.guestCount = updates.numeroPersonas;
+    if (updates.razonVisita !== undefined) updateData.specialRequests = updates.razonVisita;
+    if (updates.beneficiosReserva !== undefined) updateData.notes = updates.beneficiosReserva;
+    if (updates.estado !== undefined) updateData.status = mapReservaStatusToPrisma(updates.estado);
+    if (Object.keys(newMetadata).length > 0) updateData.metadata = newMetadata;
+    if (promotorId !== currentReservation?.promotorId) updateData.promotorId = promotorId;
+
+    console.log('📝 Datos a actualizar:', JSON.stringify(updateData, null, 2));
+
     // Actualizar la reserva en Prisma
     const updatedReservation = await prisma.reservation.update({
       where: {
         id,
         businessId
       },
-      data: {
-        // Campos que se pueden actualizar
-        customerName: updates.cliente?.nombre,
-        customerPhone: updates.cliente?.telefono,
-        customerEmail: updates.cliente?.email,
-        guestCount: updates.numeroPersonas,
-        specialRequests: updates.razonVisita,
-        notes: updates.beneficiosReserva,
-        status: updates.estado ? mapReservaStatusToPrisma(updates.estado) : undefined,
-        metadata: newMetadata,
-        promotorId: promotorId
-      },
+      data: updateData,
       include: {
         qrCodes: true,
         promotor: true
@@ -288,9 +309,45 @@ export async function PUT(
     });
 
   } catch (error) {
-    console.error('Error updating reserva:', error);
+    console.error('❌ Error updating reserva:', error);
+    
+    // Log más detallado del error
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    
+    // Si es un error de Prisma, proporcionar más detalles
+    if (error && typeof error === 'object' && 'code' in error) {
+      console.error('Prisma error code:', (error as any).code);
+      console.error('Prisma error meta:', (error as any).meta);
+      
+      // Errores específicos de Prisma
+      if ((error as any).code === 'P2002') {
+        return NextResponse.json(
+          { success: false, error: 'Violación de restricción única' },
+          { status: 400 }
+        );
+      }
+      
+      if ((error as any).code === 'P2025') {
+        return NextResponse.json(
+          { success: false, error: 'Reserva no encontrada' },
+          { status: 404 }
+        );
+      }
+      
+      // Otros errores de validación de Prisma
+      if ((error as any).code?.startsWith('P2')) {
+        return NextResponse.json(
+          { success: false, error: 'Error de validación de datos', details: (error as any).message },
+          { status: 400 }
+        );
+      }
+    }
+    
     return NextResponse.json(
-      { success: false, error: 'Error al actualizar la reserva' },
+      { success: false, error: 'Error al actualizar la reserva', details: error instanceof Error ? error.message : 'Error desconocido' },
       { status: 500 }
     );
   }

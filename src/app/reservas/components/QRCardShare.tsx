@@ -210,9 +210,8 @@ export function QRCardShare({ reserva, businessId }: QRCardShareProps) {
 
       // Texto formateado para WhatsApp
       const whatsappText = 
-        `🍷 *Reserva Confirmada - ${businessName}*\n\n` +
-        (reserva.razonVisita ? `🎯 *Motivo:* ${reserva.razonVisita}\n` : '') +
-        `\n📱 *Presenta este QR al llegar*\n` +
+        `*Reserva Confirmada - ${businessName}*\n\n` +
+        `📱 *Presenta este QR al llegar*\n` +
         `🅿️ *Parqueadero gratuito e ilimitado* dentro del edificio (S1, S2, S3, S4).\n` +
         `🪪 Presentar cédula o pasaporte (en caso de pérdida, traer denuncia con respaldo).\n\n` +
         `📍 *Dirección:* Diego de Almagro y Ponce Carrasco, Edificio Almagro 240, piso 13\n` +
