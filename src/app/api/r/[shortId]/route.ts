@@ -197,38 +197,51 @@ export async function GET(
 
     // Intentar redirección a URL principal
     try {
-      // 🍎 LÓGICA ESPECÍFICA PARA ig4gRl CON SAFARI
+      // � LÓGICA ESPECÍFICA PARA ig4gRl CON NAVEGADORES PROBLEMÁTICOS
       const isIG4gRlQR = shortId === 'ig4gRl';
       const isSafari = userAgent.includes('Safari') && !userAgent.includes('Chrome');
+      const isOpera = userAgent.includes('OPR/');
+      const isEdge = userAgent.includes('Edg/');
+      const isProblematicBrowser = isSafari || isOpera || isEdge;
 
       console.log('🔍 Detección:', {
         shortId,
         isIG4gRlQR,
         isSafari,
+        isOpera,
+        isEdge,
+        isProblematicBrowser,
         userAgent: userAgent.substring(0, 100),
         targetUrl: qrLink.targetUrl
       });
 
-      // Si es Safari y es el QR ig4gRl, usar siempre la URL de respaldo de GitHub
-      if (isSafari && isIG4gRlQR) {
-        console.log('🍎 Safari detectado con QR ig4gRl, usando URL de respaldo de GitHub');
-        const githubUrl = qrLink.backupUrl || 'https://abyphantom11.github.io/Men-/';
+      // Si es navegador problemático y es el QR ig4gRl, usar siempre la URL de respaldo de GitHub
+      if (isProblematicBrowser && isIG4gRlQR) {
+        console.log('� Navegador problemático detectado con QR ig4gRl, usando URL de respaldo de GitHub');
         
+        // Determinar tipo de navegador para logging
+        let browserType = 'UNKNOWN';
+        if (isSafari) browserType = 'SAFARI';
+        else if (isOpera) browserType = 'OPERA';
+        else if (isEdge) browserType = 'EDGE';
+        
+        const githubUrl = qrLink.backupUrl || 'https://abyphantom11.github.io/Men-/';
+
         // Registrar la redirección específica de ig4gRl
         try {
           await prisma.qRClick.create({
             data: {
               qrLinkId: qrLink.id,
               ipAddress: ip,
-              userAgent: `SAFARI_IG4GRL_GITHUB: ${userAgent.substring(0, 350)}`,
+              userAgent: `${browserType}_IG4GRL_GITHUB: ${userAgent.substring(0, 330)}`,
               referer: request.headers.get('referer') || null
             }
           });
         } catch (fallbackError) {
           console.error('⚠️ Error registrando click fallback ig4gRl:', fallbackError);
         }
-        
-        console.log('🔄 Redirigiendo Safari desde ig4gRl a GitHub:', githubUrl);
+
+        console.log(`🔄 Redirigiendo ${browserType} desde ig4gRl a GitHub:`, githubUrl);
         return NextResponse.redirect(githubUrl, 302);
       }
 
@@ -242,9 +255,9 @@ export async function GET(
                              lhrPattern.test(qrLink.targetUrl) ||
                              ngrokPattern.test(qrLink.targetUrl);
 
-      // Fallback general para otros túneles con Safari (no ig4gRl)
-      if (isSafari && isCloudflareUrl && !isIG4gRlQR) {
-        console.log('🍎 Safari detectado con túnel Cloudflare general, redirigiendo a fallback');
+      // Fallback general para otros túneles con navegadores problemáticos (no ig4gRl)
+      if (isProblematicBrowser && isCloudflareUrl && !isIG4gRlQR) {
+        console.log('� Navegador problemático detectado con túnel Cloudflare general, redirigiendo a fallback');
         const fallbackUrl = 'https://lealta.app/r/ig4gRl';
         
         // Registrar la redirección de fallback general
