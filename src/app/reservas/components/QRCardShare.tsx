@@ -138,6 +138,10 @@ export function QRCardShare({ reserva, businessId }: QRCardShareProps) {
         allowTaint: true,
         foreignObjectRendering: false, // ✅ Evita document.write()
         removeContainer: true, // ✅ Limpia el DOM después
+        width: qrCardRef.current.scrollWidth, // ✅ Asegurar ancho completo
+        height: qrCardRef.current.scrollHeight, // ✅ Asegurar alto completo
+        scrollX: 0,
+        scrollY: 0,
       });
 
       return new Promise((resolve) => {
@@ -206,11 +210,7 @@ export function QRCardShare({ reserva, businessId }: QRCardShareProps) {
 
       // Texto formateado para WhatsApp
       const whatsappText = 
-        `� *Reserva Confirmada - ${businessName}*\n\n` +
-        `👤 *Cliente:* ${reserva.cliente?.nombre || 'Cliente'}\n` +
-        `📅 *Fecha:* ${reserva.fecha}\n` +
-        `⏰ *Hora:* ${reserva.hora}\n` +
-        `👥 *Personas:* ${reserva.numeroPersonas}\n` +
+        `🍷 *Reserva Confirmada - ${businessName}*\n\n` +
         (reserva.razonVisita ? `🎯 *Motivo:* ${reserva.razonVisita}\n` : '') +
         `\n📱 *Presenta este QR al llegar*\n` +
         `🅿️ *Parqueadero gratuito e ilimitado* dentro del edificio (S1, S2, S3, S4).\n` +
@@ -309,7 +309,7 @@ export function QRCardShare({ reserva, businessId }: QRCardShareProps) {
   return (
     <div className="space-y-4">
       {/* QR Card - Se renderiza para captura */}
-      <div ref={qrCardRef} className="flex justify-center">
+      <div ref={qrCardRef} className="flex justify-center p-4" style={{ minWidth: '450px', minHeight: '600px' }}>
         <QRCard
           reserva={reserva}
           businessName={businessName}

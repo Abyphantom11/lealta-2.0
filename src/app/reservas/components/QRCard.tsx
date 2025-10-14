@@ -121,16 +121,17 @@ export default function QRCard({
           </div>
         </div>
 
-        {/* QR Code - Centrado */}
-        <div className="flex justify-center mb-6 bg-white p-4 rounded-lg relative z-10" style={{
+        {/* QR Code - Centrado con más espacio */}
+        <div className="flex justify-center mb-6 bg-white p-6 rounded-lg relative z-10 mx-2" style={{
           boxShadow: isDarkCard ? '0 4px 20px rgba(0,0,0,0.4)' : 'none'
         }}>
           <QRCodeSVG
             value={`res-${reserva.id}`}
-            size={200}
+            size={180}
             level="M"
             fgColor="#000000"
             bgColor="#ffffff"
+            style={{ display: 'block' }}
           />
         </div>
 
