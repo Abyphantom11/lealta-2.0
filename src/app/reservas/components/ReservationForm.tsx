@@ -213,7 +213,7 @@ export default function ReservationForm({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] w-full max-h-[90vh] overflow-y-auto mx-4 sm:mx-auto bg-white">
+      <DialogContent className="max-w-lg sm:max-w-xl md:max-w-2xl max-h-[95vh] overflow-y-auto bg-white p-3 sm:p-4 md:p-6">
         <DialogHeader className="space-y-3 pb-4">
           <DialogTitle className="text-lg sm:text-xl">Nueva Reserva</DialogTitle>
           <DialogDescription className="text-sm text-gray-600">

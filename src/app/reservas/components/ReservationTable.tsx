@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Button } from "./ui/button";
@@ -13,6 +13,7 @@ import { es } from "date-fns/locale";
 import { ReservationCard } from "./ReservationCard";
 import ComprobanteUploadModal from "./ComprobanteUploadModal";
 import { PromotorTableAutocomplete } from "./PromotorTableAutocomplete";
+import { useReservaEditing } from "../hooks/useReservaEditing";
 
 interface ReservationTableProps {
   businessId?: string;
@@ -21,17 +22,17 @@ interface ReservationTableProps {
   selectedDate: Date;
   onDateSelect: (date: Date) => void;
   onViewReserva: (id: string) => void;
-  onDeleteReserva: (id: string) => void; // Nueva función para borrar reserva
+  onDeleteReserva: (id: string) => void;
   onEditReserva?: (reserva: Reserva) => void; // Nueva función para editar reserva en móvil
-  onUploadComprobante: (id: string, archivo: File) => void; // Nueva función para subir comprobante
-  onRemoveComprobante?: (id: string) => void; // Nueva función para quitar comprobante
-  onEstadoChange: (id: string, nuevoEstado: Reserva['estado']) => void;
+  onUploadComprobante: (id: string, archivo: File) => void;
+  onRemoveComprobante?: (id: string) => void;
+  onEstadoChange?: (id: string, estado: Reserva['estado']) => void;
   onMesaChange?: (id: string, mesa: string) => void;
   onHoraChange?: (id: string, hora: string) => void;
+  onPromotorChange?: (reservationId: string, promotorId: string, promotorName: string) => Promise<void>;
+  onDetallesChange?: (id: string, detalles: string[]) => void;
   onRazonVisitaChange?: (id: string, razon: string) => void;
   onBeneficiosChange?: (id: string, beneficios: string) => void;
-  onPromotorChange?: (id: string, promotorId: string, promotorNombre: string) => Promise<void>;
-  onDetallesChange?: (id: string, detalles: string[]) => void;
 }
 
 export function ReservationTable({ 
@@ -41,129 +42,75 @@ export function ReservationTable({
   selectedDate, 
   onDateSelect,
   onViewReserva,
-  onDeleteReserva, // Nueva función para borrar
-  onEditReserva, // Nueva función para editar en móvil
-  onUploadComprobante, // Nueva función para subir comprobante
-  onRemoveComprobante, // Nueva función para quitar comprobante
+  onDeleteReserva,
+  onEditReserva,
+  onUploadComprobante,
+  onRemoveComprobante,
   onEstadoChange,
   onMesaChange,
   onHoraChange,
+  onPromotorChange,
+  onDetallesChange,
   onRazonVisitaChange,
   onBeneficiosChange,
-  onPromotorChange,
-  onDetallesChange
 }: Readonly<ReservationTableProps>) {
+  // 🎯 Hook unificado de edición (reemplaza toda la lógica de localStorage)
+  const { updateField, getFieldValue } = useReservaEditing({ businessId });
+  
   const [searchTerm, setSearchTerm] = useState("");
-  const [detallesReservas, setDetallesReservas] = useState<Record<string, string[]>>({});
-  const [reservasEditadas, setReservasEditadas] = useState<Record<string, Partial<Reserva>>>({});
   
   // Estados para el dialog de upload
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [selectedReservaId, setSelectedReservaId] = useState<string | null>(null);
-  const [uploadingFile, setUploadingFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [comprobantesUrls, setComprobantesUrls] = useState<Record<string, string>>({});
 
-  // Cargar datos editados desde localStorage al inicializar
-  useEffect(() => {
-    const datosGuardados = localStorage.getItem('reservas-editadas');
-    if (datosGuardados) {
-      try {
-        const datos = JSON.parse(datosGuardados);
-        setReservasEditadas(datos);
-      } catch (error) {
-        console.warn('Error al cargar datos guardados:', error);
-      }
-    }
-  }, []);
-
-  // Función para guardar cambios en localStorage y llamar al handler padre
-  const guardarCambio = (reservaId: string, campo: string, valor: any) => {
-    const nuevasEdiciones = {
-      ...reservasEditadas,
-      [reservaId]: {
-        ...reservasEditadas[reservaId],
-        [campo]: valor
-      }
-    };
-    
-    setReservasEditadas(nuevasEdiciones);
-    localStorage.setItem('reservas-editadas', JSON.stringify(nuevasEdiciones));
-    
-    // Llamar al handler correspondiente
-    const reservaCompleta = { ...reservas.find(r => r.id === reservaId), ...nuevasEdiciones[reservaId] };
-    return reservaCompleta;
-  };
-
-  // Función para obtener el valor actual de un campo (editado o original)
+  // 🔄 Función para obtener el valor actual de un campo (simplificada)
   const obtenerValorCampo = (reservaId: string, campo: keyof Reserva): any => {
-    // ✅ Buscar en allReservas en lugar de reservas filtradas
     const reservaOriginal = allReservas?.find(r => r.id === reservaId) || reservas.find(r => r.id === reservaId);
-    const edicionesReserva = reservasEditadas[reservaId];
+    if (!reservaOriginal) return undefined;
     
-    if (edicionesReserva && edicionesReserva[campo] !== undefined) {
-      return edicionesReserva[campo];
-    }
-    
-    return reservaOriginal?.[campo];
+    // Usar el hook unificado para obtener el valor (incluye ediciones locales optimistas)
+    return getFieldValue(reservaId, campo, reservaOriginal[campo]);
   };
 
   // Función para inicializar detalles de una reserva
-  const getDetallesReserva = (reservaId: string): string[] => {
-    if (!detallesReservas[reservaId]) {
-      // ✅ Buscar la reserva para obtener detalles existentes
-      const reserva = reservas.find(r => r.id === reservaId);
-      const detallesIniciales: string[] = reserva?.detalles || [];
-      
-      // Guardar en el estado para futuras referencias
-      setDetallesReservas(prev => ({
-        ...prev,
-        [reservaId]: detallesIniciales
-      }));
-      
-      return detallesIniciales;
+  const getDetallesReserva = useCallback((reservaId: string): string[] => {
+    // 🎯 SIEMPRE usar el hook para obtener los detalles más actuales
+    const reservaOriginal = reservas.find(r => r.id === reservaId);
+    const detallesActuales = getFieldValue(reservaId, 'detalles', reservaOriginal?.detalles || []);
+    
+    // ✅ Solo log cuando realmente hay cambios para evitar spam
+    const hasChanges = JSON.stringify(reservaOriginal?.detalles) !== JSON.stringify(detallesActuales);
+    if (hasChanges) {
+      console.log('🔍 getDetallesReserva - CAMBIO DETECTADO:', { 
+        reservaId, 
+        detallesOriginales: JSON.stringify(reservaOriginal?.detalles),
+        detallesActuales: JSON.stringify(detallesActuales),
+        timestamp: new Date().toISOString()
+      });
     }
-    return detallesReservas[reservaId];
-  };
+    
+    return detallesActuales;
+  }, [reservas, getFieldValue]);
 
   // Función para agregar un nuevo campo de detalle
-  const agregarDetalle = (reservaId: string, valor?: string) => {
+  const agregarDetalle = useCallback((reservaId: string, valor?: string) => {
     const nuevoValor = valor || '';
-    setDetallesReservas(prev => ({
-      ...prev,
-      [reservaId]: [...getDetallesReserva(reservaId), nuevoValor]
-    }));
+    const detallesActuales = getDetallesReserva(reservaId);
+    const nuevosDetalles = [...detallesActuales, nuevoValor];
     
-    // Si se proporciona un valor, llamar inmediatamente al handler del padre
-    if (valor && onDetallesChange) {
-      const nuevosDetalles = [...getDetallesReserva(reservaId), nuevoValor];
-      onDetallesChange(reservaId, nuevosDetalles);
-    }
-  };
+    // 🎯 Actualizar usando SOLO el hook unificado
+    updateField(reservaId, 'detalles', nuevosDetalles);
+  }, [getDetallesReserva, updateField]);
 
   // Función para actualizar un detalle específico
-  const actualizarDetalle = (reservaId: string, index: number, valor: string) => {
+  const actualizarDetalle = useCallback((reservaId: string, index: number, valor: string) => {
     const detalles = getDetallesReserva(reservaId);
     const nuevosDetalles = [...detalles];
     nuevosDetalles[index] = valor;
     
-    setDetallesReservas(prev => ({
-      ...prev,
-      [reservaId]: nuevosDetalles
-    }));
-
-    // Llamar al handler del componente padre si existe
-    if (onDetallesChange) {
-      onDetallesChange(reservaId, nuevosDetalles);
-    }
-
-    // Mantener compatibilidad con handlers específicos por ahora
-    if (onRazonVisitaChange && index === 0) {
-      onRazonVisitaChange(reservaId, valor);
-    } else if (onBeneficiosChange && index === 1) {
-      onBeneficiosChange(reservaId, valor);
-    }
-  };
+    // 🎯 Actualizar usando SOLO el hook unificado
+    updateField(reservaId, 'detalles', nuevosDetalles);
+  }, [getDetallesReserva, updateField]);
   
   // Función para manejar el upload de comprobante
   const handleUploadComprobante = async (file: File) => {
@@ -171,7 +118,7 @@ export function ReservationTable({
     
     try {
       // Llamar a la función del componente padre
-      await onUploadComprobante(selectedReservaId, file);
+      onUploadComprobante(selectedReservaId, file);
       
       // Cerrar el modal
       setShowUploadDialog(false);
@@ -200,7 +147,7 @@ export function ReservationTable({
 
       // Recargar reservas para actualizar el estado
       if (onRemoveComprobante) {
-        await onRemoveComprobante(selectedReservaId);
+        onRemoveComprobante(selectedReservaId);
       }
 
       toast.success('✅ Comprobante eliminado');
@@ -267,6 +214,8 @@ export function ReservationTable({
           return "bg-red-500 border-red-600";
         case 'En Camino':
           return "bg-blue-500 border-blue-600";
+        case 'Cancelado':
+          return "bg-gray-500 border-gray-600";
         default:
           return "bg-amber-500 border-amber-600";
       }
@@ -275,7 +224,13 @@ export function ReservationTable({
     return (
       <select
         value={reserva.estado}
-        onChange={(e) => onEstadoChange(reserva.id, e.target.value as Reserva['estado'])}
+        onChange={(e) => {
+          const nuevoEstado = e.target.value as Reserva['estado'];
+          updateField(reserva.id, 'estado', nuevoEstado);
+          if (onEstadoChange) {
+            onEstadoChange(reserva.id, nuevoEstado);
+          }
+        }}
         className={`w-6 h-6 rounded-full border-2 cursor-pointer hover:scale-110 appearance-none ${getSelectClassName(reserva.estado)}`}
         style={{ 
           backgroundImage: 'none',
@@ -292,6 +247,7 @@ export function ReservationTable({
         <option value="Activa" style={{ fontSize: '14px', color: 'black', backgroundColor: 'white' }}>Activa</option>
         <option value="Reserva Caída" style={{ fontSize: '14px', color: 'black', backgroundColor: 'white' }}>Caída</option>
         <option value="En Camino" style={{ fontSize: '14px', color: 'black', backgroundColor: 'white' }}>En Camino</option>
+        <option value="Cancelado" style={{ fontSize: '14px', color: 'black', backgroundColor: 'white' }}>Cancelado</option>
       </select>
     );
   };
@@ -430,7 +386,7 @@ export function ReservationTable({
                           placeholder=""
                           className="w-16 h-6 text-xs border-2 border-gray-300 bg-white hover:bg-white focus:bg-white focus:border-blue-500 text-center px-1 font-medium rounded-md shadow-sm text-gray-900"
                           onChange={(e) => {
-                            guardarCambio(reserva.id, 'mesa', e.target.value);
+                            updateField(reserva.id, 'mesa', e.target.value);
                           }}
                           onBlur={(e) => {
                             if (onMesaChange) {
@@ -466,7 +422,13 @@ export function ReservationTable({
                             type="time"
                             value={obtenerValorCampo(reserva.id, 'hora') || reserva.hora}
                             onChange={(e) => {
-                              guardarCambio(reserva.id, 'hora', e.target.value);
+                              console.log('⏰ Cambiando hora en escritorio:', {
+                                reservaId: reserva.id,
+                                nuevaHora: e.target.value,
+                                horaAnterior: obtenerValorCampo(reserva.id, 'hora') || reserva.hora
+                              });
+                              
+                              updateField(reserva.id, 'hora', e.target.value);
                               if (onHoraChange) {
                                 onHoraChange(reserva.id, e.target.value);
                               }
@@ -544,7 +506,7 @@ export function ReservationTable({
                               }
                             }}
                           />
-                          <div
+                          <button
                             onClick={() => {
                               const input = document.getElementById(`${reserva.id}-nuevo-detalle`) as HTMLInputElement;
                               if (input?.value.trim()) {
@@ -559,7 +521,7 @@ export function ReservationTable({
                             title="Agregar detalle"
                           >
                             <Plus className="h-3 w-3 text-gray-600" />
-                          </div>
+                          </button>
                         </div>
                       </div>
                     </TableCell>
@@ -643,14 +605,28 @@ export function ReservationTable({
         {/* Vista de tarjetas para móvil/tablet */}
         <div className="lg:hidden space-y-3 p-3">
           {filteredReservas.length > 0 ? (
-            filteredReservas.map((reserva) => (
-              <ReservationCard
-                key={reserva.id}
-                reserva={reserva}
-                onView={() => onViewReserva(reserva.id)}
-                onEdit={onEditReserva ? () => onEditReserva(reserva) : undefined}
-              />
-            ))
+            filteredReservas.map((reserva) => {
+              // 🔄 Crear reserva con datos actualizados (usando la misma lógica que la tabla de escritorio)
+              const reservaActualizada: Reserva = {
+                ...reserva,
+                hora: obtenerValorCampo(reserva.id, 'hora') || reserva.hora,
+                estado: obtenerValorCampo(reserva.id, 'estado') || reserva.estado,
+                mesa: obtenerValorCampo(reserva.id, 'mesa') || reserva.mesa,
+                detalles: obtenerValorCampo(reserva.id, 'detalles') || reserva.detalles,
+              };
+              
+              // 🔑 Crear un hash único para forzar re-render cuando cambien los datos
+              const dataHash = `${reservaActualizada.hora}-${reservaActualizada.estado}-${reservaActualizada.mesa}-${JSON.stringify(reservaActualizada.detalles)}`;
+              
+              return (
+                <ReservationCard
+                  key={`${reserva.id}-${dataHash}`} // 🔑 Hash único para forzar re-render
+                  reserva={reservaActualizada}
+                  onView={() => onViewReserva(reserva.id)}
+                  onEdit={onEditReserva ? () => onEditReserva(reservaActualizada) : undefined}
+                />
+              );
+            })
           ) : (
             <div className="text-center py-12 px-4 min-h-[400px] flex flex-col items-center justify-center">
               <div className="text-gray-500 text-lg mb-2">
@@ -674,7 +650,6 @@ export function ReservationTable({
       onClose={() => {
         setShowUploadDialog(false);
         setSelectedReservaId(null);
-        setUploadingFile(null);
       }}
       onUpload={handleUploadComprobante}
       onRemoveComprobante={handleRemoveComprobante}

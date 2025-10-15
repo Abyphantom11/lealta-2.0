@@ -305,7 +305,9 @@ export function QRCodeGeneratorEnhanced({ reserva, initialValue }: QRCodeGenerat
 
   // Función para formatear fecha y hora
   const formatFechaHora = (fecha: string, hora: string) => {
-    const fechaObj = new Date(`${fecha}T${hora}`);
+    // Crear fecha correctamente evitando problemas de zona horaria
+    const fechaBase = fecha.includes('T') ? fecha.split('T')[0] : fecha;
+    const fechaObj = new Date(`${fechaBase}T${hora}`);
     return fechaObj;
   };
 

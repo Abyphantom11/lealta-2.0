@@ -59,33 +59,39 @@ export const CalendarDrawer = ({
       
       {/* Drawer */}
       <div
-        className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-2xl z-50 transition-transform duration-300 ease-out ${
+        className={`fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-50 transition-transform duration-300 ease-out ${
           isOpen ? 'translate-y-0' : 'translate-y-full'
         }`}
-        style={{ maxHeight: '70vh' }}
+        style={{ 
+          maxHeight: '70vh',
+          backgroundColor: 'white'
+        }}
       >
         {/* Handle bar */}
         <div className="flex justify-center pt-3 pb-2">
-          <div className="w-12 h-1 bg-gray-300 dark:bg-gray-600 rounded-full" />
+          <div className="w-12 h-1 bg-gray-300 rounded-full" />
         </div>
         
         {/* Header */}
-        <div className="flex items-center justify-between px-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+        <div 
+          className="flex items-center justify-between px-4 pb-4 border-b border-gray-200 bg-white"
+          style={{ backgroundColor: 'white' }}
+        >
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <h3 className="text-lg font-semibold !text-gray-900 dark:!text-gray-900">
               Seleccionar fecha
             </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm !text-gray-500 dark:!text-gray-500">
               Fecha actual: {format(selectedDate, "dd/MM/yyyy", { locale: es })}
             </p>
           </div>
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={onClose}
-            className="h-8 w-8 p-0"
+            className="h-8 w-8 p-0 border-gray-300 hover:bg-gray-50"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4 text-gray-600" />
           </Button>
         </div>
         

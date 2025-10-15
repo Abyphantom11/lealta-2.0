@@ -19,7 +19,6 @@ import { AIReservationModal } from './components/AIReservationModal';
 import { ReservationEditModal } from './components/ReservationEditModal';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { SinReservaTable } from './components/SinReservaTable';
-import { RealtimeUpdateNotifier } from './components/RealtimeUpdateNotifier';
 import { SinReservaCounter } from './components/SinReservaCounter';
 import { SinReserva } from './types/sin-reserva';
 
@@ -47,7 +46,6 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
     isLoading,
     createReserva,
     updateReserva: updateReservaOptimized,
-    deleteReserva: deleteReservaOptimized,
     refetchReservas,
     updateReservaAsistencia, // ✅ Nueva función optimistic
     isCreating,
@@ -63,10 +61,14 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const statusFilter = 'Todos'; // Valor fijo por ahora, se puede hacer dinámico después
 
+  // 🔍 Monitorear cambios en las reservas del hook principal
+  useEffect(() => {
+    // Log simplificado solo para errores si es necesario
+  }, [reservas]);
+
   // 🔄 FUNCIONES ADAPTADORAS (para compatibilidad con componentes existentes)
   const addReserva = createReserva;
   const updateReserva = updateReservaOptimized;
-  const deleteReserva = deleteReservaOptimized;
   const loadReservas = refetchReservas;
   
   // ✅ OPTIMISTIC REFRESH: Actualización inmediata + refetch en background
@@ -89,6 +91,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
       await refetchReservas();
       toast.success('✓ Datos actualizados', { duration: 1500 });
     } catch (error) {
+      console.error('Error al actualizar datos:', error);
       toast.error('❌ Error al actualizar datos');
     }
   }, [refetchReservas]);
@@ -131,6 +134,21 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
   const [showPromotorManagement, setShowPromotorManagement] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedReservaForEdit, setSelectedReservaForEdit] = useState<Reserva | null>(null);
+  
+  // 🔄 Sincronizar selectedReservaForEdit cuando se actualicen las reservas y el modal esté abierto
+  useEffect(() => {
+    if (showEditModal && selectedReservaForEdit) {
+      const reservaActualizada = reservas.find((r: Reserva) => r.id === selectedReservaForEdit.id);
+      
+      if (reservaActualizada) {
+        const hasChanges = JSON.stringify(selectedReservaForEdit) !== JSON.stringify(reservaActualizada);
+        
+        if (hasChanges) {
+          setSelectedReservaForEdit(reservaActualizada);
+        }
+      }
+    }
+  }, [reservas, showEditModal, selectedReservaForEdit]);
   
   // Estados para sin reserva
   const [showSinReserva, setShowSinReserva] = useState(false); // Toggle entre reservas y sin reserva
@@ -191,19 +209,71 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
   };
 
   const handleDeleteReserva = async (id: string) => {
-    if (confirm('¿Estás seguro de que quieres cancelar esta reserva?\n\nLa reserva se marcará como "Cancelada por el cliente" y no se eliminará.')) {
-      // En lugar de eliminar, cambiar el estado a "Reserva Caída" 
-      // y actualizar la razón de visita para indicar cancelación
-      await updateReserva(id, { 
-        estado: 'Reserva Caída',
-        razonVisita: 'Cancelado por el cliente'
-      });
+    if (confirm('¿Estás seguro de que quieres eliminar esta reserva?\n\nEsta acción no se puede deshacer.')) {
+      try {
+        const response = await fetch(`/api/reservas/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Error al eliminar la reserva');
+        }
+
+        // Recargar las reservas para reflejar la eliminación
+        await loadReservas();
+        
+        toast.success('✅ Reserva eliminada exitosamente');
+      } catch (error) {
+        console.error('Error al eliminar reserva:', error);
+        toast.error('❌ Error al eliminar la reserva');
+      }
     }
   };
 
-  const handleEditReserva = (reserva: Reserva) => {
-    setSelectedReservaForEdit(reserva);
-    setShowEditModal(true);
+  const handleEditReserva = async (reserva: Reserva) => {
+    try {
+      // OPTIMIZACIÓN: NO hacer refetch si la reserva fue editada recientemente
+      // porque puede sobrescribir datos frescos con datos obsoletos de BD
+      const tiempoUltimaModificacion = new Date(reserva.fechaModificacion || 0).getTime();
+      const tiempoActual = Date.now();
+      const minutosDesdeModificacion = (tiempoActual - tiempoUltimaModificacion) / 1000 / 60;
+      
+      const saltarRefetch = minutosDesdeModificacion < 2; // No refetch si se modificó en los últimos 2 minutos
+      
+      if (saltarRefetch) {
+        console.log('🚫 OMITIENDO refetch - Reserva editada recientemente:', {
+          minutosDesdeModificacion: minutosDesdeModificacion.toFixed(1),
+          fechaModificacion: reserva.fechaModificacion,
+          razon: 'Evitar sobrescribir cache actualizado con datos obsoletos'
+        });
+      } else {
+        console.log('⏳ Refrescando datos antes de abrir modal...');
+        await refetchReservas();
+        
+        // 🔍 ESPERAR un momento para que React procese el estado actualizado
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      // 🔍 Buscar la reserva más fresca después del refetch
+      console.log('🔍 Estado de reservas después del refetch:', {
+        totalReservas: reservas.length,
+        reservasBuscada: reservas.find((r: Reserva) => r.id === reserva.id),
+        todasLasHoras: reservas.map((r: Reserva) => ({ id: r.id, hora: r.hora }))
+      });
+      
+      const reservaFresca = reservas.find((r: Reserva) => r.id === reserva.id) || reserva;
+      
+      setSelectedReservaForEdit(reservaFresca);
+      setShowEditModal(true);
+    } catch (error) {
+      console.error('❌ Error al refrescar datos antes del modal:', error);
+      // Fallback: usar los datos que tenemos
+      setSelectedReservaForEdit(reserva);
+      setShowEditModal(true);
+    }
   };
 
   const handleUploadComprobante = async (id: string, archivo: File) => {
@@ -236,15 +306,56 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
   };
 
   const handleEstadoChange = async (id: string, nuevoEstado: any) => {
+    console.log('📊 ReservasApp - Cambiando estado desde escritorio:', { id, nuevoEstado });
     await updateReserva(id, { estado: nuevoEstado });
+    
+    // 🔄 Forzar actualización del modal si está abierto
+    if (showEditModal && selectedReservaForEdit?.id === id) {
+      setSelectedReservaForEdit(prev => prev ? { ...prev, estado: nuevoEstado } : null);
+      window.dispatchEvent(new CustomEvent('modal-force-update', { 
+        detail: { 
+          reservaId: id, 
+          updates: { estado: nuevoEstado } 
+        } 
+      }));
+    }
   };
 
   const handleMesaChange = async (id: string, mesa: string) => {
+    console.log('🏠 ReservasApp - Cambiando mesa desde escritorio:', { id, mesa });
     await updateReserva(id, { mesa });
+    
+    // 🔄 Forzar actualización del modal si está abierto
+    if (showEditModal && selectedReservaForEdit?.id === id) {
+      setSelectedReservaForEdit(prev => prev ? { ...prev, mesa } : null);
+      window.dispatchEvent(new CustomEvent('modal-force-update', { 
+        detail: { 
+          reservaId: id, 
+          updates: { mesa } 
+        } 
+      }));
+    }
   };
 
   const handleHoraChange = async (id: string, hora: string) => {
+    console.log('⏰ ReservasApp - Cambiando hora desde escritorio:', { id, hora });
     await updateReserva(id, { hora });
+    
+    // 🔄 Si el modal está abierto para esta reserva, forzar actualización INMEDIATA
+    if (showEditModal && selectedReservaForEdit?.id === id) {
+      console.log('� Modal abierto - Disparando force update inmediato');
+      
+      // Actualizar selectedReservaForEdit inmediatamente
+      setSelectedReservaForEdit(prev => prev ? { ...prev, hora } : null);
+      
+      // Disparar evento para el modal
+      window.dispatchEvent(new CustomEvent('modal-force-update', { 
+        detail: { 
+          reservaId: id, 
+          updates: { hora } 
+        } 
+      }));
+    }
   };
 
   const handleRazonVisitaChange = async (id: string, razon: string) => {
@@ -333,12 +444,12 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
     <div className="min-h-screen bg-gray-50">
       <Toaster position="top-right" richColors />
       
-      {/* ✅ Notificador de actualizaciones en tiempo real */}
-      <RealtimeUpdateNotifier 
+      {/* ✅ Notificador de actualizaciones en tiempo real - DESHABILITADO temporalmente para evitar conflictos */}
+      {/* <RealtimeUpdateNotifier 
         businessId={businessId || 'default-business-id'}
         onUpdateDetected={refetchReservas}
         enabled={true}
-      />
+      /> */}
       
       {/* Contenedor principal con padding */}
       <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
@@ -615,12 +726,8 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
             setSelectedReservaForEdit(null);
           }}
           reserva={selectedReservaForEdit}
-          onUpdate={async (id: string, updates: Partial<Reserva>) => {
-            await updateReserva(id, updates);
-            setShowEditModal(false);
-            setSelectedReservaForEdit(null);
-            toast.success('Reserva actualizada correctamente');
-          }}
+          businessId={businessId}
+          onUpdate={updateReserva}
         />
       )}
 

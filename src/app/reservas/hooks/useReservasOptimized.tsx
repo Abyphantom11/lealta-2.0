@@ -31,8 +31,14 @@ const reservasAPI = {
   },
 
   createReserva: async (reservaData: Omit<Reserva, 'id' | 'codigoQR' | 'estado' | 'fechaCreacion' | 'registroEntradas'>, businessId?: string) => {
+    // 🐛 DEBUG: Validar businessId antes de construir URL
+    if (!businessId) {
+      console.error('🚨 CRITICAL: createReserva llamado sin businessId!');
+      throw new Error('BusinessId es requerido para crear reservas. Verifica tu sesión.');
+    }
+    
     // Construir la URL con el businessId como query parameter
-    const url = businessId ? `/api/reservas?businessId=${businessId}` : '/api/reservas';
+    const url = `/api/reservas?businessId=${businessId}`;
     
     console.log('🚀 Creating reserva with URL:', url);
     console.log('📋 Reserva data:', reservaData);
@@ -55,11 +61,20 @@ const reservasAPI = {
   },
 
   updateReserva: async (id: string, reservaData: Partial<Reserva>, businessId?: string) => {
+    // 🐛 DEBUG: Validar businessId antes de construir URL
+    if (!businessId) {
+      console.error('🚨 CRITICAL: updateReserva llamado sin businessId!');
+      console.error('📋 Datos de la reserva:', reservaData);
+      console.error('🆔 ID de la reserva:', id);
+      throw new Error('BusinessId es requerido para actualizar reservas. Verifica tu sesión.');
+    }
+    
     // ✅ Incluir businessId como query parameter
-    const url = businessId ? `/api/reservas/${id}?businessId=${businessId}` : `/api/reservas/${id}`;
+    const url = `/api/reservas/${id}?businessId=${businessId}`;
     
     console.log('🔄 Updating reserva with URL:', url);
     console.log('📋 Update data:', reservaData);
+    console.log('🏢 BusinessId usado:', businessId);
     
     const response = await fetch(url, {
       method: 'PUT',
@@ -79,8 +94,14 @@ const reservasAPI = {
   },
 
   deleteReserva: async (id: string, businessId?: string) => {
+    // 🐛 DEBUG: Validar businessId antes de construir URL
+    if (!businessId) {
+      console.error('🚨 CRITICAL: deleteReserva llamado sin businessId!');
+      throw new Error('BusinessId es requerido para eliminar reservas. Verifica tu sesión.');
+    }
+    
     // ✅ Incluir businessId como query parameter
-    const url = businessId ? `/api/reservas/${id}?businessId=${businessId}` : `/api/reservas/${id}`;
+    const url = `/api/reservas/${id}?businessId=${businessId}`;
     
     console.log('🗑️ Deleting reserva with URL:', url);
     
@@ -134,22 +155,26 @@ export function useReservasOptimized({
   // 🔥 OPTIMIZACIÓN: Query combinada (reservas + stats en una sola request)
   const combinedQuery = useQuery({
     queryKey: reservasQueryKeys.list(businessId || 'default'),
-    queryFn: () => reservasAPI.fetchReservasWithStats(businessId || ''),
+    queryFn: () => {
+      return reservasAPI.fetchReservasWithStats(businessId || '');
+    },
     enabled: enabled && includeStats,
-    staleTime: 1 * 60 * 1000, // 1 minuto fresh (reducido para QR updates)
-    gcTime: 5 * 60 * 1000, // 5 minutos en caché (reducido)
-    refetchOnWindowFocus: true, // Activado para capturar cambios
+    staleTime: 5 * 60 * 1000, // 5 minutos fresh (aumentado para evitar refetches innecesarios)
+    gcTime: 10 * 60 * 1000, // 10 minutos en caché
+    refetchOnWindowFocus: false, // Desactivado para evitar sobrescribir ediciones
     refetchOnMount: true,
   });
 
   // 🎯 Query simple solo para reservas (cuando no necesitamos stats)
   const reservasQuery = useQuery({
     queryKey: reservasQueryKeys.list(businessId || 'default'),
-    queryFn: () => reservasAPI.fetchReservas(businessId),
+    queryFn: () => {
+      return reservasAPI.fetchReservas(businessId);
+    },
     enabled: enabled && !includeStats,
-    staleTime: 1 * 60 * 1000, // 1 minuto fresh (reducido para QR updates)
-    gcTime: 5 * 60 * 1000, // 5 minutos en caché (reducido)
-    refetchOnWindowFocus: true, // Activado para capturar cambios
+    staleTime: 5 * 60 * 1000, // 5 minutos fresh (aumentado para evitar refetches innecesarios)
+    gcTime: 10 * 60 * 1000, // 10 minutos en caché
+    refetchOnWindowFocus: false, // Desactivado para evitar sobrescribir ediciones
     refetchOnMount: true,
   });
 
@@ -176,9 +201,27 @@ export function useReservasOptimized({
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Reserva> }) =>
       reservasAPI.updateReserva(id, data, businessId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: reservasQueryKeys.list(businessId || 'default') });
-      queryClient.invalidateQueries({ queryKey: reservasQueryKeys.stats(businessId || 'default') });
+    onSuccess: async (result, { id, data }) => {
+      console.log('✅ Update mutation exitosa en useReservasOptimized');
+      console.log('📊 Resultado de actualización:', result);
+      
+      // 🎯 NO invalidar inmediatamente - dejar que useReservaEditing maneje la actualización optimista
+      // Solo invalidar si es una actualización que no viene de edición inline
+      const isInlineEdit = data && Object.keys(data).length === 1; // Solo un campo = edición inline
+      
+      if (!isInlineEdit) {
+        console.log('🔄 Invalidando queries para actualización completa...');
+        await queryClient.invalidateQueries({ 
+          queryKey: reservasQueryKeys.list(businessId || 'default'),
+          refetchType: 'active' 
+        });
+        await queryClient.invalidateQueries({ 
+          queryKey: reservasQueryKeys.stats(businessId || 'default'),
+          refetchType: 'active' 
+        });
+      } else {
+        console.log('🎯 Edición inline detectada, no invalidando para evitar conflictos');
+      }
       
       toast.success('✓ Reserva actualizada exitosamente');
     },
@@ -212,15 +255,16 @@ export function useReservasOptimized({
 
   // 🔄 MÉTODOS DE ACCIÓN
   const createReserva = (reservaData: Omit<Reserva, 'id' | 'codigoQR' | 'estado' | 'fechaCreacion' | 'registroEntradas'>) => {
-    createMutation.mutate(reservaData);
+    return createMutation.mutateAsync(reservaData);
   };
 
   const updateReserva = (id: string, data: Partial<Reserva>) => {
-    updateMutation.mutate({ id, data });
+    console.log('🔄 useReservasOptimized.updateReserva llamado:', { id, data });
+    return updateMutation.mutateAsync({ id, data });
   };
 
   const deleteReserva = (id: string) => {
-    deleteMutation.mutate(id);
+    return deleteMutation.mutateAsync(id);
   };
 
   const refetchReservas = async () => {
@@ -235,11 +279,11 @@ export function useReservasOptimized({
       refetchType: 'active'
     });
     
-    // Forzar refetch inmediato de la query activa
+    // Forzar refetch inmediato de la query activa y retornar el resultado
     if (includeStats) {
-      await combinedQuery.refetch();
+      return await combinedQuery.refetch();
     } else {
-      await reservasQuery.refetch();
+      return await reservasQuery.refetch();
     }
   };
 

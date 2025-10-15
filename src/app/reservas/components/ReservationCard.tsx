@@ -5,6 +5,7 @@ import { Calendar, Clock, Users, CheckCircle, Eye, Edit } from "lucide-react";
 import { Reserva } from "../types/reservation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { useEffect, useState } from "react";
 
 interface ReservationCardProps {
   reserva: Reserva;
@@ -43,19 +44,53 @@ const getEstadoColor = (estado: Reserva['estado']) => {
 };
 
 export const ReservationCard = ({ reserva, onView, onEdit }: ReservationCardProps) => {
+  const [renderKey, setRenderKey] = useState(0);
+  
+  // 🔄 Monitorear cambios en las props de reserva
+  useEffect(() => {
+    // Logs removidos para producción
+  }, [reserva]);
+  
+  // 🔄 Listener para re-renders forzados desde actualizaciones móviles
+  useEffect(() => {
+    const handleForceRefresh = (event: CustomEvent) => {
+      if (event.detail.reservaId === reserva.id) {
+        setRenderKey(prev => prev + 1);
+        // Logs removidos para producción
+      }
+    };
+    
+    window.addEventListener('force-card-refresh', handleForceRefresh as EventListener);
+    
+    return () => {
+      window.removeEventListener('force-card-refresh', handleForceRefresh as EventListener);
+    };
+  }, [reserva.id, renderKey]);
+
+  // Verificar si tiene comprobante de pago
+  const tieneComprobante = Boolean(reserva.comprobanteUrl || reserva.comprobanteSubido);
+
   return (
-    <Card className={`mb-3 border-l-4 ${getEstadoColor(reserva.estado)} hover:shadow-md transition-shadow`}>
+    <Card className={`mb-3 border-l-4 ${getEstadoColor(reserva.estado)} hover:shadow-md transition-shadow ${
+      tieneComprobante ? 'bg-fuchsia-50/30' : ''
+    }`}>
       <CardContent className="p-4">
         {/* Header de la tarjeta */}
         <div className="flex justify-between items-start mb-3">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className="text-xs font-medium bg-blue-100 text-blue-800 px-2 py-1 rounded">
                 {reserva.mesa || "Sin mesa"}
               </span>
               <Badge variant={getEstadoVariant(reserva.estado)} className="flex-shrink-0 text-xs">
                 {reserva.estado}
               </Badge>
+              {/* Indicador de pago en reserva */}
+              {tieneComprobante && (
+                <span className="text-xs font-semibold text-fuchsia-600 bg-fuchsia-100 px-2 py-0.5 rounded-full">
+                  Pago en reserva
+                </span>
+              )}
             </div>
             <h3 className="font-semibold text-base truncate">{reserva.cliente.nombre}</h3>
             <p className="text-sm text-muted-foreground truncate">{reserva.cliente.telefono}</p>

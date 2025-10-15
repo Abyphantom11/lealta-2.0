@@ -23,7 +23,10 @@ export function QRCodeMobileCompact({ reserva, initialValue, onClose }: QRCodeMo
   // Función auxiliar para formatear fecha y hora
   const formatFechaHora = (fecha: string, hora: string) => {
     try {
-      const fechaObj = new Date(fecha);
+      // Crear fecha correctamente evitando problemas de zona horaria
+      const fechaObj = fecha.includes('T') 
+        ? new Date(fecha)
+        : new Date(fecha + 'T00:00:00');
       const [hours, minutes] = hora.split(':');
       fechaObj.setHours(parseInt(hours), parseInt(minutes));
       return fechaObj;

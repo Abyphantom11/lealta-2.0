@@ -38,7 +38,21 @@ export default function QRCard({
   cardDesign,
 }: QRCardProps) {
   const formatDate = (date: Date | string) => {
-    const d = typeof date === 'string' ? new Date(date) : date;
+    let d: Date;
+    
+    if (typeof date === 'string') {
+      // Si la fecha viene como string (ej: "2025-10-15"), agregar tiempo local para evitar problemas de zona horaria
+      if (date.includes('T')) {
+        // Si ya tiene tiempo, usarla directamente
+        d = new Date(date);
+      } else {
+        // Si es solo fecha (YYYY-MM-DD), agregar tiempo local para evitar offset UTC
+        d = new Date(date + 'T00:00:00');
+      }
+    } else {
+      d = date;
+    }
+    
     return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 

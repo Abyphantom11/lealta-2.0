@@ -32,6 +32,7 @@ function mapReservaStatusToPrisma(estado: EstadoReserva): 'PENDING' | 'CONFIRMED
     case 'Activa': return 'CONFIRMED';         // Reserva manual confirmada
     case 'En Camino': return 'COMPLETED';      // Finalizada
     case 'Reserva Caída': return 'CANCELLED';  // Cancelada
+    case 'Cancelado': return 'CANCELLED';      // Cancelada manualmente
     default: return 'PENDING';
   }
 }
@@ -200,9 +201,24 @@ export async function GET(request: NextRequest) {
           }
         }
         
-        // Procesar hora de forma segura
+        // Procesar hora de forma segura - USAR reservedAt en lugar de slot.startTime
         let hora = '19:00';
-        if (reservation.slot?.startTime) {
+        if (reservation.reservedAt) {
+          try {
+            // Usar reservation.reservedAt que es la hora actualizada, no slot.startTime
+            hora = reservation.reservedAt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+          } catch (e) {
+            console.warn('⚠️ Error parseando hora de reservedAt:', e);
+            // Fallback a slot.startTime solo si reservedAt falla
+            if (reservation.slot?.startTime) {
+              try {
+                hora = new Date(reservation.slot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+              } catch (e2) {
+                console.warn('⚠️ Error parseando hora del slot también:', e2);
+              }
+            }
+          }
+        } else if (reservation.slot?.startTime) {
           try {
             hora = new Date(reservation.slot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
           } catch (e) {

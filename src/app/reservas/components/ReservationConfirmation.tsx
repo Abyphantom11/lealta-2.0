@@ -52,7 +52,7 @@ export function ReservationConfirmation({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md bg-white border border-gray-200 shadow-xl rounded-lg p-6 max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-sm sm:max-w-md bg-white border border-gray-200 shadow-xl rounded-lg max-h-[85vh] overflow-y-auto p-3 sm:p-4">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-green-700">
             <CheckCircle className="h-5 w-5" />
@@ -63,7 +63,7 @@ export function ReservationConfirmation({
           </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* Mensaje de éxito */}
           {showSuccess && (
             <Alert className="border-green-200 bg-green-50">
@@ -102,10 +102,10 @@ export function ReservationConfirmation({
           )}
           
           {/* Botón de cierre */}
-          <div className="flex justify-center pt-2">
+          <div className="flex justify-center pt-1">
             <button 
               onClick={handleClose} 
-              className="w-full px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+              className="w-full px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors text-sm"
             >
               Cerrar
             </button>

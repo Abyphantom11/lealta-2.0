@@ -10,7 +10,7 @@ export interface Promotor {
   nombre: string;
 }
 
-export type EstadoReserva = 'En Progreso' | 'Activa' | 'Reserva Caída' | 'En Camino';
+export type EstadoReserva = 'En Progreso' | 'Activa' | 'Reserva Caída' | 'En Camino' | 'Cancelado';
 
 export interface Reserva {
   id: string;

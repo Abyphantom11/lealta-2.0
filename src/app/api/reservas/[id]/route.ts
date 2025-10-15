@@ -25,6 +25,7 @@ function mapReservaStatusToPrisma(estado: EstadoReserva): 'PENDING' | 'CONFIRMED
     case 'Activa': return 'CONFIRMED';
     case 'En Camino': return 'COMPLETED';
     case 'Reserva Caída': return 'CANCELLED';
+    case 'Cancelado': return 'CANCELLED';
     default: return 'PENDING';
   }
 }
@@ -175,6 +176,8 @@ async function validateRequestParams(id: string, businessIdOrSlug: string, updat
 }
 
 async function findBusinessByIdOrSlug(businessIdOrSlug: string) {
+  console.log('🔍 Buscando business con:', businessIdOrSlug);
+  
   let business;
   try {
     business = await prisma.business.findFirst({
@@ -185,16 +188,21 @@ async function findBusinessByIdOrSlug(businessIdOrSlug: string) {
         ]
       }
     });
-  } catch {
+    console.log('✅ Business encontrado (findFirst):', business?.id);
+  } catch (error) {
+    console.log('⚠️ findFirst falló, intentando findUnique:', error);
     business = await prisma.business.findUnique({
       where: { slug: businessIdOrSlug }
     });
+    console.log('✅ Business encontrado (findUnique):', business?.id);
   }
 
   if (!business) {
+    console.error('❌ Business no encontrado para:', businessIdOrSlug);
     throw new Error('BUSINESS_NOT_FOUND');
   }
   
+  console.log('🏢 Business ID resuelto:', business.id);
   return business.id;
 }
 
@@ -220,11 +228,26 @@ async function validateAndGetPromotorId(updates: any, currentReservation: any) {
 }
 
 function prepareUpdateData(updates: any, currentMetadata: any, promotorId: string, currentReservation: any) {
+  console.log('🔧 PREPARANDO UPDATE DATA:', {
+    updatesRecibidos: JSON.stringify(updates),
+    currentMetadata: JSON.stringify(currentMetadata),
+    detallesEnUpdates: updates.detalles,
+    tipoDetalles: typeof updates.detalles,
+    arrayDetalles: Array.isArray(updates.detalles),
+    longitudDetalles: updates.detalles?.length
+  });
+
   const newMetadata = {
     ...currentMetadata,
     ...(updates.mesa !== undefined && { mesa: updates.mesa }),
     ...(updates.detalles !== undefined && { detalles: updates.detalles }),
   };
+
+  console.log('📦 NUEVO METADATA CONSTRUIDO:', {
+    newMetadata: JSON.stringify(newMetadata),
+    detallesFinales: newMetadata.detalles,
+    longitudDetallesFinales: newMetadata.detalles?.length
+  });
 
   const updateData: any = {};
   
@@ -238,12 +261,86 @@ function prepareUpdateData(updates: any, currentMetadata: any, promotorId: strin
   if (Object.keys(newMetadata).length > 0) updateData.metadata = newMetadata;
   if (promotorId !== currentReservation?.promotorId) updateData.promotorId = promotorId;
 
+  console.log('💾 UPDATE DATA FINAL:', {
+    updateData: JSON.stringify(updateData),
+    metadataParaGuardar: updateData.metadata,
+    detallesEnMetadata: updateData.metadata?.detalles,
+    longitudDetallesParaGuardar: updateData.metadata?.detalles?.length
+  });
+
+  // 🕐 MANEJAR ACTUALIZACIÓN DE HORA
+  if (updates.hora !== undefined) {
+    console.log('⏰ SERVIDOR - Actualizando hora:', {
+      horaRecibida: updates.hora,
+      tipoHora: typeof updates.hora,
+      reservaIdActualizando: currentReservation.id,
+      horaActualEnBD: currentReservation.reservedAt
+    });
+
+    // Obtener la fecha actual de la reserva
+    const currentReservedAt = new Date(currentReservation.reservedAt);
+    const year = currentReservedAt.getFullYear();
+    const month = currentReservedAt.getMonth();
+    const day = currentReservedAt.getDate();
+    
+    // Parsear la nueva hora (formato HH:mm)
+    const [hours, minutes] = updates.hora.split(':').map(Number);
+    
+    // 🎯 CREAR NUEVA FECHA MANTENIENDO LA ZONA HORARIA LOCAL
+    const newReservedAt = new Date(year, month, day, hours, minutes, 0, 0);
+    
+    updateData.reservedAt = newReservedAt;
+    
+    console.log('🕐 SERVIDOR - Hora procesada:', {
+      horaOriginal: currentReservation.reservedAt.toISOString(),
+      nuevaHora: updates.hora,
+      horasParsed: hours,
+      minutosParsed: minutes,
+      nuevaFechaCompleta: newReservedAt.toISOString(),
+      nuevaFechaLocal: newReservedAt.toLocaleString('es-ES'),
+      horaFormateada: newReservedAt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+      seAsignoReservedAt: !!updateData.reservedAt
+    });
+  }
+
+  // 📅 MANEJAR ACTUALIZACIÓN DE FECHA
+  if (updates.fecha !== undefined) {
+    // Obtener la hora actual de la reserva
+    const currentReservedAt = new Date(currentReservation.reservedAt);
+    const currentTime = currentReservedAt.toTimeString().split(' ')[0]; // HH:mm:ss
+    
+    // Crear nueva fecha con la fecha actualizada pero manteniendo la hora
+    const newReservedAt = new Date(updates.fecha + 'T' + currentTime + '.000Z');
+    
+    updateData.reservedAt = newReservedAt;
+    
+    console.log('📅 Actualizando fecha:', {
+      fechaOriginal: currentReservation.reservedAt,
+      nuevaFecha: updates.fecha,
+      nuevaFechaCompleta: newReservedAt.toISOString()
+    });
+  }
+
   return updateData;
 }
 
 function formatReservaResponse(updatedReservation: any) {
   const metadata = updatedReservation.metadata || {};
-  return {
+  
+  console.log('📋 FORMATEANDO RESPUESTA:', {
+    updatedReservationId: updatedReservation.id,
+    metadataCompleto: JSON.stringify(metadata),
+    detallesEnMetadata: metadata.detalles,
+    tipoDetalles: typeof metadata.detalles,
+    longitudDetalles: metadata.detalles?.length,
+    horaEnBD: updatedReservation.reservedAt,
+    horaFormateada: updatedReservation.reservedAt.toLocaleTimeString('es-ES', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    })
+  });
+
+  const formatted = {
     id: updatedReservation.id,
     businessId: updatedReservation.businessId,
     cliente: {
@@ -262,7 +359,7 @@ function formatReservaResponse(updatedReservation: any) {
     fecha: updatedReservation.reservedAt.toISOString().split('T')[0],
     hora: updatedReservation.reservedAt.toLocaleTimeString('es-ES', { 
       hour: '2-digit', 
-      minute: '2-digit' 
+      minute: '2-digit'
     }),
     codigoQR: updatedReservation.qrCodes[0]?.qrToken || '',
     asistenciaActual: updatedReservation.qrCodes[0]?.scanCount || 0,
@@ -274,6 +371,15 @@ function formatReservaResponse(updatedReservation: any) {
     comprobanteSubido: !!metadata.comprobanteUrl,
     comprobanteUrl: metadata.comprobanteUrl || undefined,
   };
+
+  console.log('✅ RESPUESTA FORMATEADA:', {
+    formattedId: formatted.id,
+    detallesEnRespuesta: formatted.detalles,
+    longitudDetallesEnRespuesta: formatted.detalles?.length,
+    respuestaCompleta: JSON.stringify(formatted)
+  });
+
+  return formatted;
 }
 
 function handlePutError(error: unknown) {
@@ -369,6 +475,9 @@ export async function PUT(
     const { searchParams } = new URL(request.url);
     const businessIdOrSlug = searchParams.get('businessId');
     
+    // 🚨 LOG BÁSICO PARA VERIFICAR QUE SE EJECUTA EL ENDPOINT
+    console.log('🚨🚨🚨 PUT ENDPOINT EJECUTÁNDOSE - ID:', id, 'Business:', businessIdOrSlug);
+    
     // Log inicial
     console.log('🔄 PUT /api/reservas/[id] - Inicio:', {
       id,
@@ -401,16 +510,57 @@ export async function PUT(
 
     console.log('📝 Datos a actualizar:', JSON.stringify(updateData, null, 2));
     console.log('💾 Actualizando reserva con promotorId:', promotorId);
+    console.log('🔍 BusinessId resuelto para actualización:', businessId);
+    console.log('🔍 Reserva actual businessId:', currentReservation?.businessId);
+    console.log('🔍 Verificando coincidencia de businessId:', {
+      resolvedBusinessId: businessId,
+      currentBusinessId: currentReservation?.businessId,
+      match: businessId === currentReservation?.businessId
+    });
 
     // Update reservation
-    const updatedReservation = await prisma.reservation.update({
-      where: { id, businessId },
-      data: updateData,
-      include: { qrCodes: true, promotor: true }
-    });
+    let updatedReservation;
+    try {
+      console.log('🔄 SERVIDOR - Ejecutando prisma.reservation.update con:', {
+        where: { id, businessId },
+        data: JSON.stringify(updateData, null, 2)
+      });
+
+      updatedReservation = await prisma.reservation.update({
+        where: { id, businessId },
+        data: updateData,
+        include: { qrCodes: true, promotor: true }
+      });
+      
+      console.log('✅ SERVIDOR - Reserva actualizada exitosamente en BD:', {
+        reservaId: updatedReservation.id,
+        reservedAtActualizado: updatedReservation.reservedAt,
+        horaFormateada: updatedReservation.reservedAt.toLocaleTimeString('es-ES', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        }),
+        metadataActualizado: updatedReservation.metadata
+      });
+    } catch (prismaUpdateError) {
+      console.error('❌ Error en prisma.reservation.update:', prismaUpdateError);
+      console.error('🔍 Detalles del error:', {
+        whereClause: { id, businessId },
+        updateData: JSON.stringify(updateData, null, 2)
+      });
+      throw prismaUpdateError;
+    }
 
     // Format and return response
     const reserva = formatReservaResponse(updatedReservation);
+
+    console.log('🎯 RESPUESTA FINAL DEL API:', {
+      reservaId: reserva.id,
+      detallesEnRespuesta: reserva.detalles,
+      longitudDetallesEnRespuesta: reserva.detalles?.length,
+      updatesOriginales: JSON.stringify(updates),
+      detallesDelUpdatedReservation: (updatedReservation.metadata as any)?.detalles,
+      horaEnRespuesta: reserva.hora
+    });
 
     return NextResponse.json({ 
       success: true,

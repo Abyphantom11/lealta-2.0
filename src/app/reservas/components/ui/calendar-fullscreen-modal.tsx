@@ -44,31 +44,41 @@ export const CalendarFullscreenModal = ({
   if (!isVisible) return null;
 
   return (
-    <div
-      className={`fixed inset-0 bg-white dark:bg-gray-900 z-50 transition-transform duration-300 ease-out ${
-        isOpen ? 'translate-y-0' : 'translate-y-full'
-      }`}
-    >
+    <>
+      {/* Fondo semitransparente */}
+      {isVisible && (
+        <div className="fixed inset-0 bg-black/50 z-40" />
+      )}
+      
+      <div
+        className={`fixed inset-0 bg-white z-50 transition-transform duration-300 ease-out ${
+          isOpen ? 'translate-y-0' : 'translate-y-full'
+        }`}
+        style={{ backgroundColor: 'white' }}
+      >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 sticky top-0 z-10">
+      <div 
+        className="flex items-center justify-between p-4 border-b border-gray-200 bg-white sticky top-0 z-10"
+        style={{ backgroundColor: 'white' }}
+      >
         <div className="flex items-center gap-3">
           <Calendar className="h-6 w-6 text-primary" />
           <div>
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+            <h1 className="text-xl font-semibold !text-gray-900 dark:!text-gray-900">
               Seleccionar fecha
             </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm !text-gray-500 dark:!text-gray-500">
               Fecha actual: {format(selectedDate, "dd/MM/yyyy", { locale: es })}
             </p>
           </div>
         </div>
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
           onClick={onClose}
-          className="h-10 w-10 p-0"
+          className="h-10 w-10 p-0 border-gray-300 hover:bg-gray-50"
         >
-          <X className="h-5 w-5" />
+          <X className="h-5 w-5 text-gray-600" />
         </Button>
       </div>
       
@@ -86,7 +96,10 @@ export const CalendarFullscreenModal = ({
       </div>
       
       {/* Footer con botón de confirmación opcional */}
-      <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-900">
+      <div 
+        className="border-t border-gray-200 p-4 bg-white"
+        style={{ backgroundColor: 'white' }}
+      >
         <div className="flex gap-3">
           <Button
             variant="outline"
@@ -104,5 +117,6 @@ export const CalendarFullscreenModal = ({
         </div>
       </div>
     </div>
+    </>
   );
 };

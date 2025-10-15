@@ -290,7 +290,7 @@ export function AIReservationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] w-full max-h-[90vh] overflow-y-auto mx-4 sm:mx-auto bg-white">
+      <DialogContent className="max-w-lg sm:max-w-xl md:max-w-2xl max-h-[95vh] overflow-y-auto bg-white p-3 sm:p-4 md:p-6">
         <DialogHeader className="space-y-3 pb-4">
           <DialogTitle className="text-lg sm:text-xl flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-purple-600" />

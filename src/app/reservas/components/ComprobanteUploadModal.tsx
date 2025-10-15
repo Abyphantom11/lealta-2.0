@@ -121,7 +121,7 @@ export default function ComprobanteUploadModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-2xl bg-white border border-gray-200 shadow-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg sm:max-w-xl md:max-w-2xl bg-white border border-gray-200 shadow-lg max-h-[95vh] overflow-y-auto p-3 sm:p-4 md:p-6">
         <DialogHeader className="pb-4 border-b border-gray-100">
           <DialogTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <Upload className="h-5 w-5 text-blue-600" />

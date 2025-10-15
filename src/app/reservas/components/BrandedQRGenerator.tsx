@@ -144,9 +144,16 @@ export default function BrandedQRGenerator({
     }
 
     if (config.camposMostrados.fecha) {
-      const fechaStr = typeof reserva.fecha === 'string' 
-        ? reserva.fecha 
-        : format(new Date(reserva.fecha), "d 'de' MMMM, yyyy", { locale: es });
+      let fechaStr: string;
+      if (typeof reserva.fecha === 'string') {
+        // Si la fecha viene como string, crear Date object correctamente
+        const dateObj = reserva.fecha.includes('T') 
+          ? new Date(reserva.fecha)
+          : new Date(reserva.fecha + 'T00:00:00');
+        fechaStr = format(dateObj, "d 'de' MMMM, yyyy", { locale: es });
+      } else {
+        fechaStr = format(reserva.fecha, "d 'de' MMMM, yyyy", { locale: es });
+      }
       detalles.push({
         label: config.etiquetas.fecha,
         value: fechaStr,
@@ -382,9 +389,20 @@ export default function BrandedQRGenerator({
           const canShareFiles = navigator.canShare && navigator.canShare({ files: [file] });
           
           if (canShareFiles) {
+            // Formatear fecha correctamente
+            let fechaFormateada: string;
+            if (typeof reserva.fecha === 'string') {
+              const dateObj = reserva.fecha.includes('T') 
+                ? new Date(reserva.fecha)
+                : new Date(reserva.fecha + 'T00:00:00');
+              fechaFormateada = format(dateObj, "d 'de' MMMM, yyyy", { locale: es });
+            } else {
+              fechaFormateada = format(reserva.fecha, "d 'de' MMMM, yyyy", { locale: es });
+            }
+
             await navigator.share({
               title: `Reserva - ${config.header.nombreEmpresa}`,
-              text: `🍸 Reserva Confirmada\n\n👤 ${reserva.cliente.nombre}\n📅 ${typeof reserva.fecha === 'string' ? reserva.fecha : format(new Date(reserva.fecha), "d 'de' MMMM, yyyy", { locale: es })}\n⏰ ${reserva.hora}\n👥 ${reserva.numeroPersonas} ${reserva.numeroPersonas === 1 ? 'persona' : 'personas'}${reserva.mesa ? `\n🪑 Mesa ${reserva.mesa}` : ''}\n\n📱 Presenta este QR al llegar\n🅿️ Parqueadero gratuito e ilimitado dentro del edificio (S1, S2, S3, S4).\n🪪 Presentar cédula o pasaporte (en caso de pérdida, traer denuncia con respaldo).\n\n📍 Dirección: Diego de Almagro y Ponce Carrasco, Edificio Almagro 240, piso 13\n📎 Google Maps: \`https://g.co/kgs/KbKrU5N\`\n\n⏱️ Tiempo de espera: 10 minutos.\n❗ Para cambios o cancelaciones, avisarnos por este medio.\n\n✨ ¡Nos vemos pronto!`,
+              text: `🍸 Reserva Confirmada\n\n👤 ${reserva.cliente.nombre}\n📅 ${fechaFormateada}\n⏰ ${reserva.hora}\n👥 ${reserva.numeroPersonas} ${reserva.numeroPersonas === 1 ? 'persona' : 'personas'}${reserva.mesa ? `\n🪑 Mesa ${reserva.mesa}` : ''}\n\n📱 Presenta este QR al llegar\n🅿️ Parqueadero gratuito e ilimitado dentro del edificio (S1, S2, S3, S4).\n🪪 Presentar cédula o pasaporte (en caso de pérdida, traer denuncia con respaldo).\n\n📍 Dirección: Diego de Almagro y Ponce Carrasco, Edificio Almagro 240, piso 13\n📎 Google Maps: \`https://g.co/kgs/KbKrU5N\`\n\n⏱️ Tiempo de espera: 10 minutos.\n❗ Para cambios o cancelaciones, avisarnos por este medio.\n\n✨ ¡Nos vemos pronto!`,
               files: [file],
             });
             onShare?.();
