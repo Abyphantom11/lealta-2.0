@@ -287,7 +287,6 @@ export function ReservationTable({
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('Calendario toggled:', !showDatePicker);
                 setShowDatePicker(!showDatePicker);
               }}
               type="button"

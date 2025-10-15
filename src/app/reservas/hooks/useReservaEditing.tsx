@@ -34,9 +34,6 @@ export function useReservaEditing({ businessId }: UseReservaEditingOptions = {})
     retry: 2, // Reintentar hasta 2 veces
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000), // Backoff exponencial
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Reserva> }) => {
-        console.log('🔄 useReservaEditing - Actualizando reserva:', { id });
-      console.log('📤 Enviando al servidor:', JSON.stringify(updates, null, 2));
-      
       const startTime = Date.now();
       const url = `/api/reservas/${id}?businessId=${businessId}`;
       
@@ -68,14 +65,12 @@ export function useReservaEditing({ businessId }: UseReservaEditingOptions = {})
         }
         
         const result = await response.json();
-        console.log('📥 Respuesta del servidor:', JSON.stringify(result, null, 2));
         
         // 🎯 VALIDAR QUE LA RESPUESTA TENGA DATOS VÁLIDOS
         if (!result.success || !result.reserva) {
           console.error('❌ HOOK - Respuesta del servidor inválida:', result);
           throw new Error('El servidor no devolvió datos válidos');
         }
-        
 
         return result.reserva;
         

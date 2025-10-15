@@ -267,10 +267,7 @@ export function useReservations(businessId?: string) {
         const shouldCheck = timeSinceLastUpdate > 30000; // 30 segundos de threshold
         
         if (shouldCheck) {
-          console.log('👁️ Tab visible, verificando actualizaciones (última actualización hace', Math.round(timeSinceLastUpdate / 1000), 'segundos)...');
           checkForUpdates();
-        } else {
-          console.log('👁️ Tab visible, pero datos recientes (hace', Math.round(timeSinceLastUpdate / 1000), 'segundos), no es necesario refetch');
         }
       }
     };
@@ -372,11 +369,6 @@ export function useReservations(businessId?: string) {
 
       const queryString = `?businessId=${businessId}`;
       const apiUrl = `/api/reservas/${id}${queryString}`;
-      console.log('📤 Enviando actualización:', {
-        url: apiUrl,
-        businessId,
-        updates: JSON.stringify(updates, null, 2)
-      });
       
       const response = await fetch(apiUrl, {
         method: 'PUT',
@@ -407,7 +399,6 @@ export function useReservations(businessId?: string) {
       }
 
       const data = await response.json();
-      console.log('✅ Respuesta exitosa:', data);
       
       // Actualizar con datos completos del servidor
       setReservas(prev => 
@@ -454,7 +445,6 @@ export function useReservations(businessId?: string) {
         },
       });
       
-      console.log('✅ Reserva eliminada:', id);
     } catch (error) {
       console.error('❌ Error eliminando reserva:', error);
       toast.error('❌ Error al eliminar la reserva', {

@@ -243,14 +243,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
       
       const saltarRefetch = minutosDesdeModificacion < 2; // No refetch si se modificó en los últimos 2 minutos
       
-      if (saltarRefetch) {
-        console.log('🚫 OMITIENDO refetch - Reserva editada recientemente:', {
-          minutosDesdeModificacion: minutosDesdeModificacion.toFixed(1),
-          fechaModificacion: reserva.fechaModificacion,
-          razon: 'Evitar sobrescribir cache actualizado con datos obsoletos'
-        });
-      } else {
-        console.log('⏳ Refrescando datos antes de abrir modal...');
+      if (!saltarRefetch) {
         await refetchReservas();
         
         // 🔍 ESPERAR un momento para que React procese el estado actualizado
@@ -258,12 +251,6 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
       }
       
       // 🔍 Buscar la reserva más fresca después del refetch
-      console.log('🔍 Estado de reservas después del refetch:', {
-        totalReservas: reservas.length,
-        reservasBuscada: reservas.find((r: Reserva) => r.id === reserva.id),
-        todasLasHoras: reservas.map((r: Reserva) => ({ id: r.id, hora: r.hora }))
-      });
-      
       const reservaFresca = reservas.find((r: Reserva) => r.id === reserva.id) || reserva;
       
       setSelectedReservaForEdit(reservaFresca);

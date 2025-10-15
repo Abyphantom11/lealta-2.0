@@ -60,8 +60,6 @@ export function useSmartPolling({
       const data: UpdateStatus = await response.json();
 
       if (data.hasChanges && data.changedCount && data.changedCount > 0) {
-        console.log('🔔 Actualizaciones detectadas:', data);
-        
         // Actualizar timestamp conocido
         setLastKnownUpdate(data.lastUpdate);
         
@@ -125,7 +123,6 @@ export function useSmartPolling({
       setIsVisible(visible);
       
       if (visible && onlyWhenVisible) {
-        console.log('👁️ Ventana visible, reiniciando polling...');
         // Verificar inmediatamente cuando se vuelve visible
         setTimeout(checkForUpdates, 1000);
       }

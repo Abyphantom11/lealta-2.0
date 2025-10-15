@@ -40,9 +40,6 @@ const reservasAPI = {
     // Construir la URL con el businessId como query parameter
     const url = `/api/reservas?businessId=${businessId}`;
     
-    console.log('🚀 Creating reserva with URL:', url);
-    console.log('📋 Reserva data:', reservaData);
-    
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -72,10 +69,6 @@ const reservasAPI = {
     // ✅ Incluir businessId como query parameter
     const url = `/api/reservas/${id}?businessId=${businessId}`;
     
-    console.log('🔄 Updating reserva with URL:', url);
-    console.log('📋 Update data:', reservaData);
-    console.log('🏢 BusinessId usado:', businessId);
-    
     const response = await fetch(url, {
       method: 'PUT',
       headers: {
@@ -102,8 +95,6 @@ const reservasAPI = {
     
     // ✅ Incluir businessId como query parameter
     const url = `/api/reservas/${id}?businessId=${businessId}`;
-    
-    console.log('🗑️ Deleting reserva with URL:', url);
     
     const response = await fetch(url, {
       method: 'DELETE',
@@ -202,15 +193,11 @@ export function useReservasOptimized({
     mutationFn: ({ id, data }: { id: string; data: Partial<Reserva> }) =>
       reservasAPI.updateReserva(id, data, businessId),
     onSuccess: async (result, { id, data }) => {
-      console.log('✅ Update mutation exitosa en useReservasOptimized');
-      console.log('📊 Resultado de actualización:', result);
-      
       // 🎯 NO invalidar inmediatamente - dejar que useReservaEditing maneje la actualización optimista
       // Solo invalidar si es una actualización que no viene de edición inline
       const isInlineEdit = data && Object.keys(data).length === 1; // Solo un campo = edición inline
       
       if (!isInlineEdit) {
-        console.log('🔄 Invalidando queries para actualización completa...');
         await queryClient.invalidateQueries({ 
           queryKey: reservasQueryKeys.list(businessId || 'default'),
           refetchType: 'active' 
@@ -219,8 +206,6 @@ export function useReservasOptimized({
           queryKey: reservasQueryKeys.stats(businessId || 'default'),
           refetchType: 'active' 
         });
-      } else {
-        console.log('🎯 Edición inline detectada, no invalidando para evitar conflictos');
       }
       
       toast.success('✓ Reserva actualizada exitosamente');
@@ -259,7 +244,6 @@ export function useReservasOptimized({
   };
 
   const updateReserva = (id: string, data: Partial<Reserva>) => {
-    console.log('🔄 useReservasOptimized.updateReserva llamado:', { id, data });
     return updateMutation.mutateAsync({ id, data });
   };
 
