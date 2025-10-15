@@ -728,6 +728,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
           reserva={selectedReservaForEdit}
           businessId={businessId}
           onUpdate={updateReserva}
+          onDelete={handleDeleteReserva}
         />
       )}
 

@@ -17,6 +17,7 @@ interface ReservationEditModalProps {
   reserva: Reserva;
   businessId?: string;
   onUpdate: (id: string, updates: Partial<Reserva>) => Promise<void>;
+  onDelete?: (id: string) => Promise<void>;
 }
 
 export function ReservationEditModal({ 
@@ -24,7 +25,8 @@ export function ReservationEditModal({
   onClose, 
   reserva,
   businessId,
-  onUpdate 
+  onUpdate,
+  onDelete 
 }: Readonly<ReservationEditModalProps>) {
   // 🎯 ESTRATEGIA DIRECTA: Usar directamente las props como fuente de verdad
   const [hora, setHora] = useState(reserva.hora);
@@ -167,16 +169,21 @@ export function ReservationEditModal({
   };
 
   const handleCancel = async () => {
-    if (confirm('¿Estás seguro de que quieres cancelar esta reserva?\\n\\nLa reserva se marcará como "Cancelada por el cliente".')) {
+    if (confirm('¿Estás seguro de que quieres eliminar esta reserva?\\n\\nEsta acción no se puede deshacer.')) {
       setIsUpdating(true);
       try {
-        await onUpdate(reserva.id, { 
-          estado: 'Reserva Caída',
-          razonVisita: 'Cancelado por el cliente'
-        });
+        if (onDelete) {
+          await onDelete(reserva.id);
+        } else {
+          // Fallback: cambiar estado si no hay función de eliminación
+          await onUpdate(reserva.id, { 
+            estado: 'Reserva Caída',
+            razonVisita: 'Cancelado por el cliente'
+          });
+        }
         onClose();
       } catch (error) {
-        console.error('Error cancelando reserva:', error);
+        console.error('Error eliminando reserva:', error);
       } finally {
         setIsUpdating(false);
       }
@@ -379,7 +386,7 @@ export function ReservationEditModal({
               disabled={isUpdating}
               className="flex-1 min-h-[44px] border-red-200 text-red-600 hover:bg-red-50 font-medium"
             >
-              Cancelar Reserva
+              Eliminar Reserva
             </Button>
             <Button
               onClick={handleSave}
