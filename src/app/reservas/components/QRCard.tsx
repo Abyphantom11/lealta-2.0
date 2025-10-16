@@ -125,7 +125,7 @@ export default function QRCard({
         {/* Nombre del Cliente - Prominente */}
         <div className="text-center mb-6 relative z-10">
           <div
-            className="text-xl font-semibold&quot;
+            className="text-xl font-semibold"
             style={{ 
               color: cardDesign.headerColor,
               textShadow: isDarkCard ? '0 2px 10px rgba(0,0,0,0.5)' : 'none'
@@ -136,13 +136,13 @@ export default function QRCard({
         </div>
 
         {/* QR Code - Centrado con más espacio */}
-        <div className=&quot;flex justify-center mb-6 bg-white p-6 rounded-lg relative z-10 mx-2&quot; style={{
+        <div className="flex justify-center mb-6 bg-white p-6 rounded-lg relative z-10 mx-2" style={{
           boxShadow: isDarkCard ? '0 4px 20px rgba(0,0,0,0.4)' : 'none'
         }}>
           <QRCodeSVG
             value={`res-${reserva.id}`}
             size={180}
-            level=&quot;M"
+            level="M"
             fgColor="#000000"
             bgColor="#ffffff"
             style={{ display: 'block' }}

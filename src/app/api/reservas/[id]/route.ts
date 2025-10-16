@@ -567,6 +567,26 @@ export async function PUT(
         }),
         metadataActualizado: updatedReservation.metadata
       });
+
+      // 🎯 Si se actualizó la fecha u hora (reservedAt cambió), actualizar también el expiresAt del QR
+      if (updateData.reservedAt && updatedReservation.qrCodes.length > 0) {
+        const newReservedAt = new Date(updatedReservation.reservedAt);
+        const newQrExpiresAt = new Date(newReservedAt.getTime() + (12 * 60 * 60 * 1000)); // +12 horas
+        
+        console.log('🔄 Actualizando expiresAt del QR code:', {
+          reservaId: updatedReservation.id,
+          nuevaFechaReserva: newReservedAt.toISOString(),
+          nuevaExpiracionQR: newQrExpiresAt.toISOString()
+        });
+
+        // Actualizar todos los QR codes asociados a esta reserva
+        await prisma.reservationQRCode.updateMany({
+          where: { reservationId: updatedReservation.id },
+          data: { expiresAt: newQrExpiresAt }
+        });
+
+        console.log('✅ QR codes actualizados con nueva fecha de expiración');
+      }
     } catch (prismaUpdateError) {
       console.error('❌ Error en prisma.reservation.update:', prismaUpdateError);
       console.error('🔍 Detalles del error:', {
