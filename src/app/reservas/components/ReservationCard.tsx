@@ -6,11 +6,16 @@ import { Reserva } from "../types/reservation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useEffect, useState } from "react";
+import { DateChangeModal } from "./DateChangeModal";
+import { PersonasAjusteModal } from "./PersonasAjusteModal";
 
 interface ReservationCardProps {
   reserva: Reserva;
   onView: () => void;
   onEdit?: () => void; // ✅ Nueva prop para editar
+  onDateChange?: (reservaId: string, newDate: Date) => Promise<void>; // ✅ Nueva prop para cambiar fecha
+  onPersonasChange?: (reservaId: string, newPersonas: number) => Promise<void>; // ✅ Nueva prop para cambiar personas
+  reservedDates?: string[]; // Fechas que ya tienen reservas
 }
 
 const getEstadoVariant = (estado: Reserva['estado']) => {
@@ -43,8 +48,10 @@ const getEstadoColor = (estado: Reserva['estado']) => {
   }
 };
 
-export const ReservationCard = ({ reserva, onView, onEdit }: ReservationCardProps) => {
+export const ReservationCard = ({ reserva, onView, onEdit, onDateChange, onPersonasChange, reservedDates = [] }: ReservationCardProps) => {
   const [renderKey, setRenderKey] = useState(0);
+  const [showDateChangeModal, setShowDateChangeModal] = useState(false);
+  const [showPersonasModal, setShowPersonasModal] = useState(false);
   
   // 🔄 Monitorear cambios en las props de reserva
   useEffect(() => {
@@ -60,17 +67,48 @@ export const ReservationCard = ({ reserva, onView, onEdit }: ReservationCardProp
       }
     };
     
-    window.addEventListener('force-card-refresh', handleForceRefresh as EventListener);
+    globalThis.addEventListener('force-card-refresh', handleForceRefresh as EventListener);
     
     return () => {
-      window.removeEventListener('force-card-refresh', handleForceRefresh as EventListener);
+      globalThis.removeEventListener('force-card-refresh', handleForceRefresh as EventListener);
     };
   }, [reserva.id, renderKey]);
 
   // Verificar si tiene comprobante de pago
   const tieneComprobante = Boolean(reserva.comprobanteUrl || reserva.comprobanteSubido);
 
+  // Manejar cambio de fecha
+  const handleDateChange = async (newDate: Date) => {
+    if (onDateChange) {
+      await onDateChange(reserva.id, newDate);
+    }
+  };
+
+  // Manejar cambio de personas
+  const handlePersonasChange = async (newPersonas: number) => {
+    if (onPersonasChange) {
+      await onPersonasChange(reserva.id, newPersonas);
+    }
+  };
+
   return (
+    <>
+      <DateChangeModal
+        isOpen={showDateChangeModal}
+        onClose={() => setShowDateChangeModal(false)}
+        onDateChange={handleDateChange}
+        currentDate={new Date(reserva.fecha + 'T00:00:00')}
+        clienteName={reserva.cliente.nombre}
+        reservedDates={reservedDates}
+      />
+      
+      <PersonasAjusteModal
+        isOpen={showPersonasModal}
+        onClose={() => setShowPersonasModal(false)}
+        onConfirm={handlePersonasChange}
+        currentPersonas={reserva.numeroPersonas}
+        clienteName={reserva.cliente.nombre}
+      />
     <Card className={`mb-3 border-l-4 ${getEstadoColor(reserva.estado)} hover:shadow-md transition-shadow ${
       tieneComprobante ? 'bg-fuchsia-50/30' : ''
     }`}>
@@ -99,22 +137,52 @@ export const ReservationCard = ({ reserva, onView, onEdit }: ReservationCardProp
 
         {/* Información principal */}
         <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span className="truncate">
-              {format(new Date(reserva.fecha + 'T00:00:00'), 'dd/MM/yyyy', { locale: es })}
-            </span>
-          </div>
+          {onDateChange ? (
+            <button
+              type="button"
+              className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded-md px-2 py-1 -mx-2 -my-1 transition-colors border-0 bg-transparent text-left w-full"
+              onClick={() => setShowDateChangeModal(true)}
+              aria-label={`Cambiar fecha de reserva. Fecha actual: ${format(new Date(reserva.fecha + 'T00:00:00'), 'dd/MM/yyyy', { locale: es })}`}
+              title="Click para cambiar fecha"
+            >
+              <Calendar className="h-4 w-4 flex-shrink-0 text-blue-600" />
+              <span className="truncate text-blue-600 font-medium">
+                {format(new Date(reserva.fecha + 'T00:00:00'), 'dd/MM/yyyy', { locale: es })}
+              </span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+              <span className="truncate">
+                {format(new Date(reserva.fecha + 'T00:00:00'), 'dd/MM/yyyy', { locale: es })}
+              </span>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <span className="truncate">{reserva.hora}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span className="truncate font-medium">
-              {reserva.asistenciaActual}/{reserva.numeroPersonas} personas
-            </span>
-          </div>
+          {onPersonasChange ? (
+            <button
+              type="button"
+              className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded-md px-2 py-1 -mx-2 -my-1 transition-colors border-0 bg-transparent text-left w-full"
+              onClick={() => setShowPersonasModal(true)}
+              aria-label={`Ajustar número de personas. Actual: ${reserva.numeroPersonas}`}
+              title="Click para ajustar personas"
+            >
+              <Users className="h-4 w-4 flex-shrink-0 text-purple-600" />
+              <span className="truncate font-medium text-purple-600">
+                {reserva.asistenciaActual}/{reserva.numeroPersonas} personas
+              </span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <span className="truncate font-medium">
+                {reserva.asistenciaActual}/{reserva.numeroPersonas} personas
+              </span>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <CheckCircle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <span className="text-xs text-muted-foreground">
@@ -150,5 +218,6 @@ export const ReservationCard = ({ reserva, onView, onEdit }: ReservationCardProp
         </div>
       </CardContent>
     </Card>
+    </>
   );
 };

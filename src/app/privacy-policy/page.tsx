@@ -48,7 +48,7 @@ export default function PrivacyPolicyPage() {
             <div className="bg-gray-100 p-4 rounded-lg">
               <p className="text-gray-900 font-semibold mb-2">Cómo funciona:</p>
               <ol className="list-decimal pl-6 text-gray-700 space-y-2">
-                <li>Presionas el botón "Escanear QR"</li>
+                <li>Presionas el botón &quot;Escanear QR&quot;</li>
                 <li>Tu navegador te pide permiso para usar la cámara</li>
                 <li>Autorizas el acceso (solo una vez)</li>
                 <li>Escaneamos el código QR</li>

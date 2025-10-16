@@ -24,7 +24,7 @@ export function ReservationEditModal({
   isOpen, 
   onClose, 
   reserva,
-  businessId,
+  // businessId, // No usado actualmente
   onUpdate,
   onDelete 
 }: Readonly<ReservationEditModalProps>) {
@@ -43,6 +43,9 @@ export function ReservationEditModal({
     reserva.comprobanteUrl || null
   );
 
+  // Extraer detalles serializado para dependency array
+  const detallesStr = JSON.stringify(reserva.detalles);
+
   // 🔄 EFECTO SIMPLE Y DIRECTO: Solo sincronizar cuando cambien las props
   useEffect(() => {
     // 🔒 DESHABILITAR SINCRONIZACIÓN DURANTE GUARDADO PARA EVITAR REVERSIONES
@@ -54,7 +57,8 @@ export function ReservationEditModal({
       // Sincronizar URL del comprobante
       setComprobanteUrl(reserva.comprobanteUrl || null);
     }
-  }, [reserva.hora, reserva.estado, reserva.mesa, JSON.stringify(reserva.detalles), reserva.comprobanteUrl]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reserva.hora, reserva.estado, reserva.mesa, detallesStr, reserva.comprobanteUrl, isUpdating, userIsEditing]);
 
   // 📎 Funciones para manejar comprobantes
   const handleUploadComprobante = async (file: File) => {
@@ -119,6 +123,10 @@ export function ReservationEditModal({
     }
   };
 
+  // Estado local temporal para edición de detalles (evita que el teclado se oculte)
+  const [editingDetalleIndex, setEditingDetalleIndex] = useState<number | null>(null);
+  const [tempDetalleValue, setTempDetalleValue] = useState<string>('');
+
   // Funciones para manejar detalles
   const agregarDetalle = () => {
     if (nuevoDetalle.trim()) {
@@ -127,10 +135,22 @@ export function ReservationEditModal({
     }
   };
 
+  const iniciarEdicionDetalle = (index: number, valorActual: string) => {
+    setEditingDetalleIndex(index);
+    setTempDetalleValue(valorActual);
+  };
+
   const actualizarDetalle = (index: number, valor: string) => {
     const nuevosDetalles = [...detalles];
     nuevosDetalles[index] = valor;
     setDetalles(nuevosDetalles);
+    setEditingDetalleIndex(null);
+    setTempDetalleValue('');
+  };
+
+  const cancelarEdicionDetalle = () => {
+    setEditingDetalleIndex(null);
+    setTempDetalleValue('');
   };
 
   const eliminarDetalle = (index: number) => {
@@ -169,7 +189,7 @@ export function ReservationEditModal({
   };
 
   const handleCancel = async () => {
-    if (confirm('¿Estás seguro de que quieres eliminar esta reserva?\\n\\nEsta acción no se puede deshacer.')) {
+    if (confirm(String.raw`¿Estás seguro de que quieres eliminar esta reserva?\n\nEsta acción no se puede deshacer.`)) {
       setIsUpdating(true);
       try {
         if (onDelete) {
@@ -298,21 +318,70 @@ export function ReservationEditModal({
               <div className="space-y-2">
                 {detalles.map((detalle, index) => (
                   <div key={`${detalle}-${index}`} className="flex items-center gap-2">
-                    <Input
-                      value={detalle}
-                      onChange={(e) => actualizarDetalle(index, e.target.value)}
-                      className="flex-1 text-sm bg-white border-gray-300"
-                      placeholder="Detalle..."
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => eliminarDetalle(index)}
-                      className="h-8 w-8 p-0 border-red-200 text-red-600 hover:bg-red-50"
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
+                    {editingDetalleIndex === index ? (
+                      // Modo edición: muestra input temporal
+                      <>
+                        <Input
+                          value={tempDetalleValue}
+                          onChange={(e) => setTempDetalleValue(e.target.value)}
+                          onBlur={() => {
+                            // Al perder el foco, guardar cambios
+                            if (tempDetalleValue.trim()) {
+                              actualizarDetalle(index, tempDetalleValue.trim());
+                            } else {
+                              cancelarEdicionDetalle();
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              // Al presionar Enter, guardar cambios
+                              e.preventDefault();
+                              if (tempDetalleValue.trim()) {
+                                actualizarDetalle(index, tempDetalleValue.trim());
+                              }
+                            } else if (e.key === 'Escape') {
+                              // Al presionar Escape, cancelar edición
+                              e.preventDefault();
+                              cancelarEdicionDetalle();
+                            }
+                          }}
+                          className="flex-1 text-sm bg-white border-blue-300 border-2"
+                          placeholder="Detalle..."
+                          autoFocus
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => cancelarEdicionDetalle()}
+                          className="h-8 w-8 p-0 border-gray-300 text-gray-600 hover:bg-gray-50"
+                          title="Cancelar (Esc)"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </>
+                    ) : (
+                      // Modo vista: muestra texto clickeable
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => iniciarEdicionDetalle(index, detalle)}
+                          className="flex-1 text-left px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-md transition-colors"
+                        >
+                          {detalle || <span className="text-gray-400">Detalle vacío</span>}
+                        </button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => eliminarDetalle(index)}
+                          className="h-8 w-8 p-0 border-red-200 text-red-600 hover:bg-red-50"
+                          title="Eliminar detalle"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>

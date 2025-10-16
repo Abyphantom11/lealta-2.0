@@ -5,6 +5,9 @@ import { toast } from 'sonner';
 import { Reserva } from '../types/reservation';
 import { reservasQueryKeys } from '../../../providers/QueryProvider';
 
+// Type alias para reserva sin campos generados
+type NewReservaData = Omit<Reserva, 'id' | 'codigoQR' | 'estado' | 'fechaCreacion' | 'registroEntradas'>;
+
 // 🚀 OPTIMIZED API CLIENT
 const reservasAPI = {
   // 🔥 Query combinada: Reservas + Stats + Clients en una sola request
@@ -30,7 +33,7 @@ const reservasAPI = {
     return response.json();
   },
 
-  createReserva: async (reservaData: Omit<Reserva, 'id' | 'codigoQR' | 'estado' | 'fechaCreacion' | 'registroEntradas'>, businessId?: string) => {
+  createReserva: async (reservaData: NewReservaData, businessId?: string) => {
     // 🐛 DEBUG: Validar businessId antes de construir URL
     if (!businessId) {
       console.error('🚨 CRITICAL: createReserva llamado sin businessId!');
@@ -174,9 +177,9 @@ export function useReservasOptimized({
 
   // 🔄 MUTATIONS CON OPTIMISTIC UPDATES
   const createMutation = useMutation({
-    mutationFn: (reservaData: Omit<Reserva, 'id' | 'codigoQR' | 'estado' | 'fechaCreacion' | 'registroEntradas'>) =>
+    mutationFn: (reservaData: NewReservaData) =>
       reservasAPI.createReserva(reservaData, businessId),
-    onSuccess: (newReserva) => {
+    onSuccess: () => {
       // 🎯 Invalidación selectiva (solo las queries afectadas)
       queryClient.invalidateQueries({ queryKey: reservasQueryKeys.list(businessId || 'default') });
       queryClient.invalidateQueries({ queryKey: reservasQueryKeys.stats(businessId || 'default') });
@@ -190,14 +193,40 @@ export function useReservasOptimized({
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Reserva> }) =>
-      reservasAPI.updateReserva(id, data, businessId),
-    onSuccess: async (result, { id, data }) => {
-      // 🎯 NO invalidar inmediatamente - dejar que useReservaEditing maneje la actualización optimista
-      // Solo invalidar si es una actualización que no viene de edición inline
-      const isInlineEdit = data && Object.keys(data).length === 1; // Solo un campo = edición inline
+    mutationFn: ({ id, data, businessId: mutationBusinessId }: { id: string; data: Partial<Reserva>; businessId?: string }) =>
+      reservasAPI.updateReserva(id, data, mutationBusinessId || businessId),
+    onSuccess: async (_result, { data }) => {
+      // 🎯 Campos que requieren invalidación completa
+      const fieldsRequiringFullRefresh = new Set(['fecha', 'hora', 'estado']);
+      const isFieldRequiringRefresh = data && Object.keys(data).some(key => fieldsRequiringFullRefresh.has(key));
       
-      if (!isInlineEdit) {
+      // 🎯 Para cambios de fecha, SIEMPRE invalidar y refetch
+      const isDateChange = data && 'fecha' in data;
+      
+      if (isDateChange) {
+        console.log('📅 CAMBIO DE FECHA DETECTADO - Invalidación agresiva');
+        console.log('💾 BusinessId usado:', businessId || 'default');
+        
+        // Invalidar inmediatamente todas las queries relacionadas
+        await Promise.all([
+          queryClient.invalidateQueries({ 
+            queryKey: reservasQueryKeys.all,
+            refetchType: 'all' 
+          }),
+          queryClient.invalidateQueries({ 
+            queryKey: reservasQueryKeys.lists(),
+            refetchType: 'all' 
+          }),
+          queryClient.invalidateQueries({ 
+            queryKey: reservasQueryKeys.stats(businessId || 'default'),
+            refetchType: 'all' 
+          })
+        ]);
+        
+        console.log('✅ Invalidación agresiva completada para cambio de fecha');
+      } else if (!data || Object.keys(data).length > 1 || isFieldRequiringRefresh) {
+        console.log('🔄 Invalidación estándar para:', Object.keys(data || {}));
+        
         await queryClient.invalidateQueries({ 
           queryKey: reservasQueryKeys.list(businessId || 'default'),
           refetchType: 'active' 
@@ -206,6 +235,8 @@ export function useReservasOptimized({
           queryKey: reservasQueryKeys.stats(businessId || 'default'),
           refetchType: 'active' 
         });
+      } else {
+        console.log('⚡ Actualización optimista - Sin invalidación inmediata');
       }
       
       toast.success('✓ Reserva actualizada exitosamente');
@@ -239,12 +270,12 @@ export function useReservasOptimized({
   const clients = includeStats ? combinedQuery.data?.clients : undefined;
 
   // 🔄 MÉTODOS DE ACCIÓN
-  const createReserva = (reservaData: Omit<Reserva, 'id' | 'codigoQR' | 'estado' | 'fechaCreacion' | 'registroEntradas'>) => {
+  const createReserva = (reservaData: NewReservaData) => {
     return createMutation.mutateAsync(reservaData);
   };
 
   const updateReserva = (id: string, data: Partial<Reserva>) => {
-    return updateMutation.mutateAsync({ id, data });
+    return updateMutation.mutateAsync({ id, data, businessId });
   };
 
   const deleteReserva = (id: string) => {
@@ -303,6 +334,86 @@ export function useReservasOptimized({
     });
   };
 
+  // 🎯 OPTIMISTIC UPDATE: Actualizar cualquier campo en el cache local inmediatamente
+  const updateReservaOptimized = async (reservaId: string, updates: Partial<Reserva>) => {
+    const queryKey = reservasQueryKeys.list(businessId || 'default');
+    
+    console.log('🚀 updateReservaOptimized - Inicio:', { reservaId, updates });
+    
+    // Guardar el estado anterior para posible rollback
+    const previousData = queryClient.getQueryData(queryKey);
+    
+    // 1️⃣ Actualización optimista del cache
+    queryClient.setQueryData(queryKey, (oldData: any) => {
+      if (!oldData) return oldData;
+      
+      // Si es query combinada
+      if (oldData.reservas) {
+        const updatedReservas = oldData.reservas.map((reserva: any) => 
+          reserva.id === reservaId 
+            ? { ...reserva, ...updates }
+            : reserva
+        );
+        console.log('✅ Cache actualizado (combined):', updatedReservas.find((r: any) => r.id === reservaId));
+        return {
+          ...oldData,
+          reservas: updatedReservas
+        };
+      }
+      
+      // Si es query simple de reservas
+      if (Array.isArray(oldData)) {
+        const updatedReservas = oldData.map((reserva: any) => 
+          reserva.id === reservaId 
+            ? { ...reserva, ...updates }
+            : reserva
+        );
+        console.log('✅ Cache actualizado (simple):', updatedReservas.find((r: any) => r.id === reservaId));
+        return updatedReservas;
+      }
+      
+      return oldData;
+    });
+
+    // 2️⃣ Ejecutar la actualización en el servidor
+    try {
+      const result = await updateMutation.mutateAsync({ id: reservaId, data: updates, businessId });
+      console.log('✅ Servidor respondió con reserva actualizada:', result.reserva || result);
+      
+      // 3️⃣ Actualizar el cache con la respuesta real del servidor
+      queryClient.setQueryData(queryKey, (oldData: any) => {
+        if (!oldData) return oldData;
+        
+        const serverReserva = result.reserva || result;
+        
+        if (oldData.reservas) {
+          return {
+            ...oldData,
+            reservas: oldData.reservas.map((reserva: any) => 
+              reserva.id === reservaId ? { ...reserva, ...serverReserva } : reserva
+            )
+          };
+        }
+        
+        if (Array.isArray(oldData)) {
+          return oldData.map((reserva: any) => 
+            reserva.id === reservaId ? { ...reserva, ...serverReserva } : reserva
+          );
+        }
+        
+        return oldData;
+      });
+      
+      return result;
+    } catch (error) {
+      // Si falla, revertir al estado anterior
+      console.error('❌ Error en actualización optimista, revirtiendo...', error);
+      queryClient.setQueryData(queryKey, previousData);
+      toast.error('Error al actualizar');
+      throw error;
+    }
+  };
+
   return {
     // 📊 Datos
     reservas,
@@ -320,7 +431,8 @@ export function useReservasOptimized({
     updateReserva,
     deleteReserva,
     refetchReservas,
-    updateReservaAsistencia, // ✅ Nueva función optimistic
+    updateReservaAsistencia, // ✅ Función optimistic para asistencia
+    updateReservaOptimized, // ✅ Función optimistic para cualquier campo
     
     // 🔄 Estados de mutations
     isCreating: createMutation.isPending,

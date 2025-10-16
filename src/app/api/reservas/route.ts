@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { Reserva, EstadoReserva } from '../../reservas/types/reservation';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
@@ -60,8 +60,8 @@ function calculateStats(reservas: Reserva[]) {
 function extractUniqueClients(reservas: Reserva[]) {
   const clientesMap = new Map();
   
-  reservas.forEach(reserva => {
-    if (reserva.cliente && reserva.cliente.id) {
+  for (const reserva of reservas) {
+    if (reserva.cliente?.id) {
       clientesMap.set(reserva.cliente.id, {
         id: reserva.cliente.id,
         nombre: reserva.cliente.nombre,
@@ -71,7 +71,7 @@ function extractUniqueClients(reservas: Reserva[]) {
         ultimaReserva: reserva.fecha
       });
     }
-  });
+  }
   
   return Array.from(clientesMap.values());
 }
@@ -191,9 +191,24 @@ export async function GET(request: NextRequest) {
                               reservation.service?.name || 
                               'Sistema';
         
-        // Procesar fecha de forma segura
+        // Procesar fecha de forma segura - USAR reservedAt como fuente principal
         let fecha = new Date().toISOString().split('T')[0];
-        if (reservation.slot?.date) {
+        if (reservation.reservedAt) {
+          try {
+            // 🎯 USAR reservedAt que es la fecha actualizada
+            fecha = reservation.reservedAt.toISOString().split('T')[0];
+          } catch (e) {
+            console.warn('⚠️ Error parseando fecha de reservedAt:', e);
+            // Fallback a slot.date solo si reservedAt falla
+            if (reservation.slot?.date) {
+              try {
+                fecha = new Date(reservation.slot.date).toISOString().split('T')[0];
+              } catch (error_) {
+                console.warn('⚠️ Error parseando fecha del slot también:', error_);
+              }
+            }
+          }
+        } else if (reservation.slot?.date) {
           try {
             fecha = new Date(reservation.slot.date).toISOString().split('T')[0];
           } catch (e) {
@@ -213,8 +228,8 @@ export async function GET(request: NextRequest) {
             if (reservation.slot?.startTime) {
               try {
                 hora = new Date(reservation.slot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-              } catch (e2) {
-                console.warn('⚠️ Error parseando hora del slot también:', e2);
+              } catch (error_) {
+                console.warn('⚠️ Error parseando hora del slot también:', error_);
               }
             }
           }
@@ -397,6 +412,7 @@ export async function POST(request: NextRequest) {
       }
 
       // ✅ Validar que teléfono tenga al menos 8 dígitos
+      // NOSONAR - replaceAll no disponible en esta versión de TypeScript
       const digitosEnTelefono = data.cliente.telefono.replace(/\D/g, '').length;
       if (digitosEnTelefono < 8) {
         return NextResponse.json(
@@ -433,7 +449,7 @@ export async function POST(request: NextRequest) {
         }
       });
       
-      if (!cliente) {
+      if (cliente === null) {
         cliente = await prisma.cliente.create({
           data: {
             businessId: businessId,
@@ -481,7 +497,7 @@ export async function POST(request: NextRequest) {
         });
       }
       
-      if (!cliente) {
+      if (cliente === null) {
         // ✅ MEJORADO: Crear nuevo cliente usando cédula real si está disponible
         const cedulaReal = data.cliente.id && data.cliente.id !== `c-${Date.now()}` 
           ? data.cliente.id 
@@ -498,23 +514,32 @@ export async function POST(request: NextRequest) {
           }
         });
         console.log('✅ Cliente nuevo creado:', { id: cliente.id, cedula: cedulaReal, nombre: cliente.nombre });
-      } else {
+      } else if (cliente) {
         // ✅ MEJORADO: Actualizar todos los datos del cliente existente
+        const clienteActual = cliente; // Para TypeScript
         cliente = await prisma.cliente.update({
-          where: { id: cliente.id },
+          where: { id: clienteActual.id },
           data: {
             nombre: data.cliente.nombre,
-            telefono: data.cliente.telefono || cliente.telefono,
-            correo: data.cliente.email || cliente.correo,
+            telefono: data.cliente.telefono || clienteActual.telefono,
+            correo: data.cliente.email || clienteActual.correo,
             // Actualizar cédula si ahora tenemos una real y antes era temporal
             ...(data.cliente.id && 
                 data.cliente.id !== `c-${Date.now()}` && 
-                cliente.cedula.startsWith('temp-') && 
+                clienteActual.cedula.startsWith('temp-') && 
                 { cedula: data.cliente.id })
           }
         });
         console.log('✅ Cliente existente actualizado:', { id: cliente.id, nombre: cliente.nombre });
       }
+    }
+
+    // Verificar que cliente fue creado/encontrado
+    if (!cliente) {
+      return NextResponse.json(
+        { success: false, error: 'No se pudo crear o encontrar el cliente' },
+        { status: 500 }
+      );
     }
 
     // 2. Crear o buscar el servicio
@@ -573,7 +598,7 @@ export async function POST(request: NextRequest) {
         where: { id: idToCheck }
       });
       
-      if (!promotorExists) {
+      if (promotorExists === null) {
         console.error('❌ Promotor ID proporcionado NO existe en DB:', idToCheck);
         console.error('❌ Nombre del promotor recibido:', data.promotor?.nombre);
         console.error('❌ BusinessId:', businessId);

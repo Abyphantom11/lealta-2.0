@@ -6,13 +6,19 @@ const nextConfig = {
   },
   
   experimental: {
-    // Solo optimizaciones que funcionan bien
+    // Optimizaciones expandidas para librerías principales
     optimizePackageImports: [
       'lucide-react',
-      'date-fns'
+      'date-fns',
+      '@tanstack/react-query',
+      'framer-motion',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-select',
+      '@radix-ui/react-tooltip',
     ],
     optimizeCss: true,
     swcMinify: true,
+    serverComponentsExternalPackages: ['@prisma/client'],
   },
   
   // Webpack mínimo

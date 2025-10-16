@@ -60,10 +60,10 @@ export async function GET(
           </style>
         </head>
         <body>
-          <div class="container">
+          <div class="container&quot;>
             <h1>🔍 QR No Encontrado</h1>
             <p>El código QR que escaneaste no existe o ha expirado.</p>
-            <div class="qr-code">ID: ${shortId}</div>
+            <div class=&quot;qr-code&quot;>ID: ${shortId}</div>
             <p><small>Si crees que esto es un error, contacta al administrador.</small></p>
           </div>
         </body>
@@ -86,7 +86,7 @@ export async function GET(
         <html>
         <head>
           <title>QR Inactivo</title>
-          <meta charset="utf-8">
+          <meta charset=&quot;utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
           <style>
             body { 
@@ -112,7 +112,7 @@ export async function GET(
           </style>
         </head>
         <body>
-          <div class="container">
+          <div class="container&quot;>
             <h1>⚠️ QR Temporalmente Inactivo</h1>
             <p>Este código QR está temporalmente desactivado.</p>
             <p><strong>Nombre:</strong> ${qrLink.name}</p>
@@ -138,7 +138,7 @@ export async function GET(
         <html>
         <head>
           <title>QR Expirado</title>
-          <meta charset="utf-8">
+          <meta charset=&quot;utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
           <style>
             body { 
@@ -164,7 +164,7 @@ export async function GET(
           </style>
         </head>
         <body>
-          <div class="container">
+          <div class="container&quot;>
             <h1>⏰ QR Expirado</h1>
             <p>Este código QR expiró el ${qrLink.expiresAt.toLocaleDateString()}.</p>
             <p><strong>Campaña:</strong> ${qrLink.name}</p>
@@ -294,7 +294,7 @@ export async function GET(
         <html>
         <head>
           <title>Error de Redirección</title>
-          <meta charset="utf-8">
+          <meta charset=&quot;utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
           <style>
             body { 
@@ -320,7 +320,7 @@ export async function GET(
           </style>
         </head>
         <body>
-          <div class="container">
+          <div class="container&quot;>
             <h1>❌ Error de Redirección</h1>
             <p>Hubo un problema con el destino de este QR code.</p>
             <p><strong>Campaña:</strong> ${qrLink.name}</p>
@@ -345,7 +345,7 @@ export async function GET(
       <html>
       <head>
         <title>Error Interno</title>
-        <meta charset="utf-8">
+        <meta charset=&quot;utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
           body { 

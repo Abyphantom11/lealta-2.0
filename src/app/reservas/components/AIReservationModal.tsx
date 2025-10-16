@@ -13,7 +13,7 @@ import { Sparkles, Loader2, CheckCircle2, AlertCircle, UserCheck } from "lucide-
 interface AIReservationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (reservaData: any) => void;
+  onSubmit: (reservaData: any) => Promise<void>;
   selectedDate?: Date;
   businessId: string;
 }
@@ -37,7 +37,7 @@ export function AIReservationModal({
   onSubmit,
   selectedDate,
   businessId,
-}: AIReservationModalProps) {
+}: Readonly<AIReservationModalProps>) {
   const [inputText, setInputText] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
@@ -190,13 +190,13 @@ export function AIReservationModal({
   const handleCreateReservation = async () => {
     // Validar campos obligatorios
     const camposFaltantes = [];
-    if (!editableData.clienteNombre || !editableData.clienteNombre.trim()) camposFaltantes.push('Nombre');
-    if (!editableData.clienteCedula || !editableData.clienteCedula.trim()) camposFaltantes.push('Cédula');
-    if (!editableData.clienteCorreo || !editableData.clienteCorreo.trim()) camposFaltantes.push('Email');
-    if (!editableData.clienteTelefono || !editableData.clienteTelefono.trim()) camposFaltantes.push('Teléfono');
+    if (!editableData.clienteNombre?.trim()) camposFaltantes.push('Nombre');
+    if (!editableData.clienteCedula?.trim()) camposFaltantes.push('Cédula');
+    if (!editableData.clienteCorreo?.trim()) camposFaltantes.push('Email');
+    if (!editableData.clienteTelefono?.trim()) camposFaltantes.push('Teléfono');
     if (!editableData.fecha) camposFaltantes.push('Fecha');
     if (!editableData.hora) camposFaltantes.push('Hora');
-    if (!editableData.promotorId || !editableData.promotorId.trim()) camposFaltantes.push('Promotor');
+    if (!editableData.promotorId?.trim()) camposFaltantes.push('Promotor');
 
     if (camposFaltantes.length > 0) {
       console.error('❌ [SUBMIT] Campos faltantes:', camposFaltantes);
@@ -215,7 +215,7 @@ export function AIReservationModal({
           email: editableData.clienteCorreo,
           telefono: editableData.clienteTelefono,
         },
-        numeroPersonas: parseInt(editableData.numeroPersonas) || 1,
+        numeroPersonas: Number.parseInt(editableData.numeroPersonas, 10) || 1,
         razonVisita: "Reserva creada con IA",
         beneficiosReserva: "Sin observaciones",
         promotor: {

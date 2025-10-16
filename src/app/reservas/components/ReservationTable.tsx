@@ -6,12 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { CustomCalendar } from "./ui/custom-calendar";
 import { CalendarFullscreenModal } from "./ui/calendar-fullscreen-modal";
-import { Eye, Calendar, User, Search, Plus, Trash2, Clock, Upload } from "lucide-react";
+import { Eye, Calendar, User, Search, Plus, Trash2, Clock, Upload, X } from "lucide-react";
 import { Reserva } from "../types/reservation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { ReservationCard } from "./ReservationCard";
 import ComprobanteUploadModal from "./ComprobanteUploadModal";
+import { DateChangeModal } from "./DateChangeModal";
 import { PromotorTableAutocomplete } from "./PromotorTableAutocomplete";
 import { useReservaEditing } from "../hooks/useReservaEditing";
 
@@ -30,9 +31,11 @@ interface ReservationTableProps {
   onMesaChange?: (id: string, mesa: string) => void;
   onHoraChange?: (id: string, hora: string) => void;
   onPromotorChange?: (reservationId: string, promotorId: string, promotorName: string) => Promise<void>;
-  onDetallesChange?: (id: string, detalles: string[]) => void;
-  onRazonVisitaChange?: (id: string, razon: string) => void;
-  onBeneficiosChange?: (id: string, beneficios: string) => void;
+  // onDetallesChange?: (id: string, detalles: string[]) => void; // No usado actualmente
+  // onRazonVisitaChange?: (id: string, razon: string) => void; // No usado actualmente
+  // onBeneficiosChange?: (id: string, beneficios: string) => void; // No usado actualmente
+  onFechaChange?: (id: string, nuevaFecha: Date) => Promise<void>;
+  onPersonasChange?: (id: string, newPersonas: number) => Promise<void>;
 }
 
 export function ReservationTable({ 
@@ -50,9 +53,8 @@ export function ReservationTable({
   onMesaChange,
   onHoraChange,
   onPromotorChange,
-  onDetallesChange,
-  onRazonVisitaChange,
-  onBeneficiosChange,
+  onFechaChange,
+  onPersonasChange,
 }: Readonly<ReservationTableProps>) {
   // 🎯 Hook unificado de edición (reemplaza toda la lógica de localStorage)
   const { updateField, getFieldValue } = useReservaEditing({ businessId });
@@ -62,6 +64,10 @@ export function ReservationTable({
   // Estados para el dialog de upload
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [selectedReservaId, setSelectedReservaId] = useState<string | null>(null);
+
+  // Estados para el modal de cambio de fecha
+  const [showDateChangeModal, setShowDateChangeModal] = useState(false);
+  const [selectedReservaForDateChange, setSelectedReservaForDateChange] = useState<Reserva | null>(null);
 
   // 🔄 Función para obtener el valor actual de un campo (simplificada)
   const obtenerValorCampo = (reservaId: string, campo: keyof Reserva): any => {
@@ -93,10 +99,9 @@ export function ReservationTable({
   }, [reservas, getFieldValue]);
 
   // Función para agregar un nuevo campo de detalle
-  const agregarDetalle = useCallback((reservaId: string, valor?: string) => {
-    const nuevoValor = valor || '';
+  const agregarDetalle = useCallback((reservaId: string, valor: string = '') => {
     const detallesActuales = getDetallesReserva(reservaId);
-    const nuevosDetalles = [...detallesActuales, nuevoValor];
+    const nuevosDetalles = [...detallesActuales, valor];
     
     // 🎯 Actualizar usando SOLO el hook unificado
     updateField(reservaId, 'detalles', nuevosDetalles);
@@ -107,6 +112,15 @@ export function ReservationTable({
     const detalles = getDetallesReserva(reservaId);
     const nuevosDetalles = [...detalles];
     nuevosDetalles[index] = valor;
+    
+    // 🎯 Actualizar usando SOLO el hook unificado
+    updateField(reservaId, 'detalles', nuevosDetalles);
+  }, [getDetallesReserva, updateField]);
+
+  // Función para eliminar un detalle específico
+  const eliminarDetalle = useCallback((reservaId: string, index: number) => {
+    const detalles = getDetallesReserva(reservaId);
+    const nuevosDetalles = detalles.filter((_, i) => i !== index);
     
     // 🎯 Actualizar usando SOLO el hook unificado
     updateField(reservaId, 'detalles', nuevosDetalles);
@@ -158,6 +172,28 @@ export function ReservationTable({
     }
   };
   
+  // Función para abrir el modal de cambio de fecha
+  const handleOpenDateChangeModal = (reserva: Reserva) => {
+    setSelectedReservaForDateChange(reserva);
+    setShowDateChangeModal(true);
+  };
+
+  // Función para cambiar la fecha de una reserva
+  const handleDateChange = async (nuevaFecha: Date) => {
+    if (!selectedReservaForDateChange || !onFechaChange) {
+      return;
+    }
+
+    try {
+      await onFechaChange(selectedReservaForDateChange.id, nuevaFecha);
+      setShowDateChangeModal(false);
+      setSelectedReservaForDateChange(null);
+    } catch (error) {
+      console.error('Error al cambiar fecha:', error);
+      throw error; // Re-lanzar para que el modal pueda manejar el error
+    }
+  };
+  
   const [showDatePicker, setShowDatePicker] = useState(false);
   const datePickerRef = useRef<HTMLDivElement>(null);
 
@@ -197,6 +233,19 @@ export function ReservationTable({
     const matchesDate = reserva.fecha === format(selectedDate, 'yyyy-MM-dd');
     return matchesDate;
   });
+
+  // 📊 Calcular métricas para el día seleccionado
+  const reservasDelDia = (Array.isArray(baseReservas) ? baseReservas : []).filter(
+    reserva => reserva.fecha === format(selectedDate, 'yyyy-MM-dd')
+  );
+  
+  const metricas = {
+    totalReservas: reservasDelDia.length,
+    totalInvitados: reservasDelDia.reduce((sum, reserva) => sum + (reserva.numeroPersonas || 0), 0),
+    totalAsistentes: reservasDelDia.reduce((sum, reserva) => sum + (reserva.asistenciaActual || 0), 0),
+    reservasActivas: reservasDelDia.filter(r => r.estado === 'Activa').length,
+    reservasEnProgreso: reservasDelDia.filter(r => r.estado === 'En Progreso').length,
+  };
 
   // Obtener todas las fechas únicas que tienen reservas
   // Usar allReservas si está disponible, sino usar reservas (fallback para compatibilidad)
@@ -336,11 +385,27 @@ export function ReservationTable({
           </div>
 
           {/* Mostrar fecha seleccionada o modo búsqueda */}
-          <div className="text-sm text-muted-foreground">
-            {searchTerm.trim() ? (
-              <span>Buscando: <strong>{searchTerm}</strong> (mostrando todas las fechas)</span>
-            ) : (
-              <span>Mostrando: {format(selectedDate, 'dd/MM/yyyy', { locale: es })}</span>
+          <div className="flex flex-col gap-2">
+            <div className="text-sm text-muted-foreground">
+              {searchTerm.trim() ? (
+                <span>Buscando: <strong>{searchTerm}</strong> (mostrando todas las fechas)</span>
+              ) : (
+                <span>Mostrando: {format(selectedDate, 'dd/MM/yyyy', { locale: es })}</span>
+              )}
+            </div>
+            
+            {/* 📊 Métricas del día */}
+            {!searchTerm.trim() && reservasDelDia.length > 0 && (
+              <div className="flex items-center gap-4 text-xs">
+                <div className="flex items-center gap-1.5 bg-purple-50 px-3 py-1.5 rounded-md border border-purple-200">
+                  <span className="font-semibold text-purple-900">{metricas.totalInvitados}</span>
+                  <span className="text-purple-700">Invitado{metricas.totalInvitados === 1 ? '' : 's'}</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-green-50 px-3 py-1.5 rounded-md border border-green-200">
+                  <span className="font-semibold text-green-900">{metricas.totalAsistentes}</span>
+                  <span className="text-green-700">Asistente{metricas.totalAsistentes === 1 ? '' : 's'}</span>
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -371,11 +436,22 @@ export function ReservationTable({
               <TableBody>
                 {filteredReservas.map((reserva) => (
                   <TableRow key={reserva.id} className="hover:bg-white h-12 border-gray-200 bg-white">
-                    {/* Fecha - Solo lectura */}
+                    {/* Fecha - Con botón para cambiar fecha */}
                     <TableCell className="py-2 text-center align-middle w-24">
-                      <span className="text-xs font-medium text-gray-700">
-                        {format(new Date(reserva.fecha + 'T00:00:00'), 'dd/MM', { locale: es })}
-                      </span>
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <span className="text-xs font-medium text-gray-700">
+                          {format(new Date(reserva.fecha + 'T00:00:00'), 'dd/MM', { locale: es })}
+                        </span>
+                        {onFechaChange && (
+                          <button
+                            onClick={() => handleOpenDateChangeModal(reserva)}
+                            className="w-4 h-4 p-0 hover:bg-blue-100 rounded-full flex items-center justify-center group"
+                            title="Cambiar fecha"
+                          >
+                            <Calendar className="h-3 w-3 text-gray-400 group-hover:text-blue-600" />
+                          </button>
+                        )}
+                      </div>
                     </TableCell>
                     {/* Mesa - Editable */}
                     <TableCell className="py-2 text-center align-middle w-20">
@@ -475,15 +551,23 @@ export function ReservationTable({
                     <TableCell className="py-2 text-center align-middle w-40">
                       <div className="flex flex-col items-center justify-center gap-1">
                         {getDetallesReserva(reserva.id).map((detalle, index) => (
-                          <Input
-                            key={`${reserva.id}-detalle-${index}`}
-                            defaultValue={detalle}
-                            placeholder=""
-                            className="w-36 h-6 text-xs border-2 border-gray-300 bg-white hover:bg-gray-100 focus:bg-white focus:border-blue-500 text-center px-2 rounded-md shadow-sm text-gray-900"
-                            onBlur={(e) => {
-                              actualizarDetalle(reserva.id, index, e.target.value);
-                            }}
-                          />
+                          <div key={`${reserva.id}-detalle-${index}`} className="flex items-center gap-1">
+                            <Input
+                              defaultValue={detalle}
+                              placeholder=""
+                              className="w-28 h-6 text-xs border-2 border-gray-300 bg-white hover:bg-gray-100 focus:bg-white focus:border-blue-500 text-center px-2 rounded-md shadow-sm text-gray-900"
+                              onBlur={(e) => {
+                                actualizarDetalle(reserva.id, index, e.target.value);
+                              }}
+                            />
+                            <button
+                              onClick={() => eliminarDetalle(reserva.id, index)}
+                              className="w-5 h-5 flex items-center justify-center hover:bg-red-100 rounded-full cursor-pointer transition-colors border border-red-300 bg-white"
+                              title="Eliminar detalle"
+                            >
+                              <X className="h-3 w-3 text-red-600" />
+                            </button>
+                          </div>
                         ))}
                         {/* Campo principal siempre visible con botón + al lado */}
                         <div className="flex items-center justify-center gap-1">
@@ -623,6 +707,13 @@ export function ReservationTable({
                   reserva={reservaActualizada}
                   onView={() => onViewReserva(reserva.id)}
                   onEdit={onEditReserva ? () => onEditReserva(reservaActualizada) : undefined}
+                  onDateChange={onFechaChange ? async (reservaId, newDate) => {
+                    await onFechaChange(reservaId, newDate);
+                  } : undefined}
+                  onPersonasChange={onPersonasChange ? async (reservaId, newPersonas) => {
+                    await onPersonasChange(reservaId, newPersonas);
+                  } : undefined}
+                  reservedDates={allReservas?.map(r => r.fecha) || []}
                 />
               );
             })
@@ -632,10 +723,12 @@ export function ReservationTable({
                 📅
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Sin reservas
+                Sin reservas para esta fecha
               </h3>
               <p className="text-sm text-gray-500 max-w-sm text-center">
-                No hay reservas para la fecha seleccionada. Selecciona otra fecha para ver las reservas disponibles.
+                No hay reservas para {format(selectedDate, "dd 'de' MMMM, yyyy", { locale: es })}. 
+                {searchTerm ? ' Intenta cambiar el término de búsqueda o ' : ' '}
+                Selecciona otra fecha para ver las reservas disponibles.
               </p>
             </div>
           )}
@@ -664,6 +757,21 @@ export function ReservationTable({
           : null
       }
     />
+
+    {/* Modal para cambiar fecha de reserva */}
+    {selectedReservaForDateChange && (
+      <DateChangeModal
+        isOpen={showDateChangeModal}
+        onClose={() => {
+          setShowDateChangeModal(false);
+          setSelectedReservaForDateChange(null);
+        }}
+        onDateChange={handleDateChange}
+        currentDate={new Date(selectedReservaForDateChange.fecha + 'T00:00:00')}
+        clienteName={selectedReservaForDateChange.cliente.nombre}
+        reservedDates={reservedDates}
+      />
+    )}
     </>
   );
 }

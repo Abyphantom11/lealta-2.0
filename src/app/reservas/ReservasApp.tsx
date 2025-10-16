@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
 import { QrCode, FileText, Calendar as CalendarIcon, Users } from 'lucide-react';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 // Importar todos los componentes originales
 import { useReservasOptimized } from './hooks/useReservasOptimized';
@@ -45,7 +47,8 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
     stats: dashboardStats,
     isLoading,
     createReserva,
-    updateReserva: updateReservaOptimized,
+    updateReserva,
+    updateReservaOptimized, // ✅ Nueva función optimistic
     refetchReservas,
     updateReservaAsistencia, // ✅ Nueva función optimistic
     isCreating,
@@ -68,7 +71,6 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
 
   // 🔄 FUNCIONES ADAPTADORAS (para compatibilidad con componentes existentes)
   const addReserva = createReserva;
-  const updateReserva = updateReservaOptimized;
   const loadReservas = refetchReservas;
   
   // ✅ OPTIMISTIC REFRESH: Actualización inmediata + refetch en background
@@ -299,7 +301,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
     // 🔄 Forzar actualización del modal si está abierto
     if (showEditModal && selectedReservaForEdit?.id === id) {
       setSelectedReservaForEdit(prev => prev ? { ...prev, estado: nuevoEstado } : null);
-      window.dispatchEvent(new CustomEvent('modal-force-update', { 
+      globalThis.dispatchEvent(new CustomEvent('modal-force-update', { 
         detail: { 
           reservaId: id, 
           updates: { estado: nuevoEstado } 
@@ -315,7 +317,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
     // 🔄 Forzar actualización del modal si está abierto
     if (showEditModal && selectedReservaForEdit?.id === id) {
       setSelectedReservaForEdit(prev => prev ? { ...prev, mesa } : null);
-      window.dispatchEvent(new CustomEvent('modal-force-update', { 
+      globalThis.dispatchEvent(new CustomEvent('modal-force-update', { 
         detail: { 
           reservaId: id, 
           updates: { mesa } 
@@ -336,21 +338,13 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
       setSelectedReservaForEdit(prev => prev ? { ...prev, hora } : null);
       
       // Disparar evento para el modal
-      window.dispatchEvent(new CustomEvent('modal-force-update', { 
+      globalThis.dispatchEvent(new CustomEvent('modal-force-update', { 
         detail: { 
           reservaId: id, 
           updates: { hora } 
         } 
       }));
     }
-  };
-
-  const handleRazonVisitaChange = async (id: string, razon: string) => {
-    await updateReserva(id, { razonVisita: razon });
-  };
-
-  const handleBeneficiosChange = async (id: string, beneficios: string) => {
-    await updateReserva(id, { beneficiosReserva: beneficios });
   };
 
   const handlePromotorChange = async (id: string, promotorId: string, promotorNombre: string) => {
@@ -365,8 +359,59 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
     }
   };
 
-  const handleDetallesChange = async (id: string, detalles: string[]) => {
-    await updateReserva(id, { detalles });
+  const handlePersonasChange = async (id: string, newPersonas: number) => {
+    try {
+      console.log('👥 Cambiando número de personas:', { id, newPersonas });
+      
+      // Usar la función optimizada del hook
+      await updateReservaOptimized(id, { numeroPersonas: newPersonas });
+      
+      console.log('✅ Número de personas actualizado');
+    } catch (error) {
+      console.error('❌ Error al cambiar número de personas:', error);
+      toast.error('Error al actualizar el número de personas');
+      throw error;
+    }
+  };
+
+  const handleFechaChange = async (id: string, nuevaFecha: Date) => {
+    const fechaAnterior = selectedDate;
+    const reservaAnterior = reservas.find((r: Reserva) => r.id === id);
+    
+    try {
+      // Formatear la fecha como YYYY-MM-DD para la API
+      const fechaFormateada = nuevaFecha.toISOString().split('T')[0];
+      
+      console.log('🔄 SIMPLIFICADO - Cambiando fecha:', {
+        reservaId: id,
+        de: reservaAnterior?.fecha,
+        a: fechaFormateada
+      });
+      
+      // Usar la función optimizada del hook
+      await updateReservaOptimized(id, { fecha: fechaFormateada });
+      
+      // Navegar inmediatamente a la nueva fecha
+      setSelectedDate(nuevaFecha);
+      
+      console.log('✅ SIMPLIFICADO - Cambio completado');
+      
+      // Toast simple
+      toast.success(
+        `Reserva movida a ${format(nuevaFecha, "dd 'de' MMMM", { locale: es })}`,
+        {
+          action: {
+            label: `Volver a ${format(fechaAnterior, 'dd/MM', { locale: es })}`,
+            onClick: () => setSelectedDate(fechaAnterior)
+          },
+          duration: 4000
+        }
+      );
+    } catch (error) {
+      console.error('❌ Error al cambiar fecha:', error);
+      toast.error('Error al cambiar la fecha');
+      throw error;
+    }
   };
 
   const handleQRScan = async (qrCode: string) => {
@@ -555,7 +600,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
                 <button
                   onClick={() => setShowSinReserva(false)}
                   className={`px-6 py-2.5 rounded-md font-medium transition-all ${
-                    !showSinReserva
+                    showSinReserva === false
                       ? 'bg-white text-blue-600 shadow-sm'
                       : 'text-gray-600 hover:text-gray-800'
                   }`}
@@ -576,7 +621,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
             </div>
 
             {/* Tabla de reservas O Sin Reserva */}
-            {!showSinReserva ? (
+            {showSinReserva === false ? (
               <ReservationTable
                 businessId={businessId}
                 reservas={reservasFiltradas}
@@ -590,10 +635,9 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
                 onEstadoChange={handleEstadoChange}
                 onMesaChange={handleMesaChange}
                 onHoraChange={handleHoraChange}
-                onRazonVisitaChange={handleRazonVisitaChange}
-                onBeneficiosChange={handleBeneficiosChange}
                 onPromotorChange={handlePromotorChange}
-                onDetallesChange={handleDetallesChange}
+                onFechaChange={handleFechaChange}
+                onPersonasChange={handlePersonasChange}
               />
             ) : (
               <div className="bg-white rounded-lg shadow-sm p-6">

@@ -305,19 +305,36 @@ function prepareUpdateData(updates: any, currentMetadata: any, promotorId: strin
 
   // 📅 MANEJAR ACTUALIZACIÓN DE FECHA
   if (updates.fecha !== undefined) {
+    console.log('🚨 CAMBIO DE FECHA DETECTADO EN API:', {
+      fechaRecibida: updates.fecha,
+      tipoDeFecha: typeof updates.fecha,
+      reservaIdActualizando: currentReservation.id,
+      fechaActualEnBD: currentReservation.reservedAt
+    });
+    
     // Obtener la hora actual de la reserva
     const currentReservedAt = new Date(currentReservation.reservedAt);
-    const currentTime = currentReservedAt.toTimeString().split(' ')[0]; // HH:mm:ss
+    const hours = currentReservedAt.getHours();
+    const minutes = currentReservedAt.getMinutes();
     
-    // Crear nueva fecha con la fecha actualizada pero manteniendo la hora
-    const newReservedAt = new Date(updates.fecha + 'T' + currentTime + '.000Z');
+    // Parsear la nueva fecha (formato YYYY-MM-DD)
+    const [year, month, day] = updates.fecha.split('-').map(Number);
+    
+    // 🎯 CREAR NUEVA FECHA MANTENIENDO LA ZONA HORARIA LOCAL (sin UTC)
+    const newReservedAt = new Date(year, month - 1, day, hours, minutes, 0, 0);
     
     updateData.reservedAt = newReservedAt;
     
-    console.log('📅 Actualizando fecha:', {
+    console.log('📅 FECHA PROCESADA PARA ACTUALIZACIÓN:', {
       fechaOriginal: currentReservation.reservedAt,
+      fechaOriginalFormateada: currentReservation.reservedAt.toISOString().split('T')[0],
       nuevaFecha: updates.fecha,
-      nuevaFechaCompleta: newReservedAt.toISOString()
+      horaMantenida: `${hours}:${minutes}`,
+      year, month, day,
+      nuevaFechaCompleta: newReservedAt.toISOString(),
+      nuevaFechaLocal: newReservedAt.toLocaleString('es-ES'),
+      fechaFormateada: newReservedAt.toISOString().split('T')[0],
+      seAsignoReservedAt: true
     });
   }
 
@@ -340,6 +357,15 @@ function formatReservaResponse(updatedReservation: any) {
     })
   });
 
+  const fechaFormateada = updatedReservation.reservedAt.toISOString().split('T')[0];
+  
+  console.log('🔍 FORMATEO DE FECHA EN RESPUESTA:', {
+    reservedAtOriginal: updatedReservation.reservedAt,
+    reservedAtISO: updatedReservation.reservedAt.toISOString(),
+    fechaFormateada: fechaFormateada,
+    reservaId: updatedReservation.id
+  });
+  
   const formatted = {
     id: updatedReservation.id,
     businessId: updatedReservation.businessId,
@@ -356,7 +382,7 @@ function formatReservaResponse(updatedReservation: any) {
       id: updatedReservation.promotorId || '',
       nombre: updatedReservation.promotor?.nombre || 'Sistema'
     },
-    fecha: updatedReservation.reservedAt.toISOString().split('T')[0],
+    fecha: fechaFormateada,
     hora: updatedReservation.reservedAt.toLocaleTimeString('es-ES', { 
       hour: '2-digit', 
       minute: '2-digit'
