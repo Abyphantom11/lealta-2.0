@@ -770,6 +770,7 @@ model Reservation {
   slot         ReservationSlot     @relation(fields: [slotId], references: [id])
   promotor     Promotor?           @relation("PromotorReservations", fields: [promotorId], references: [id], onDelete: SetNull)
   qrCodes      ReservationQRCode[]
+  shareLinks   QRShareLink[]       @relation("ReservationShareLinks") // 🆕 Links compartibles
   hostTracking HostTracking? // 🆕 Tracking de anfitrión si aplica
 
   @@index([businessId])
@@ -955,4 +956,22 @@ model QRClick {
   @@index([qrLinkId])
   @@index([clickedAt])
   @@index([ipAddress])
+}
+
+// 🔗 Links compartibles de QR con mensaje personalizado
+model QRShareLink {
+  id            String   @id @default(cuid())
+  shareId       String   @unique // ID corto para la URL (ej: abc123xyz)
+  reservationId String
+  message       String   @db.Text // Mensaje personalizado que acompaña al QR
+  views         Int      @default(0) // Contador de vistas
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relaciones
+  reservation   Reservation @relation("ReservationShareLinks", fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@index([shareId])
+  @@index([reservationId])
+  @@index([createdAt])
 }

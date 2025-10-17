@@ -69,6 +69,10 @@ export async function GET(
       if (savedConfig.selectedTemplate) {
         response.data.selectedTemplate = savedConfig.selectedTemplate;
       }
+      // ✅ Agregar mensaje personalizado de WhatsApp
+      if (savedConfig.customWhatsappMessage) {
+        response.data.customWhatsappMessage = savedConfig.customWhatsappMessage;
+      }
     }
 
     return NextResponse.json(response);
@@ -90,25 +94,56 @@ export async function PUT(
     const { businessId } = params;
     const body = await request.json();
 
-    // Validar que el negocio existe
-    const businessExists = await prisma.business.findUnique({
-      where: { id: businessId },
-      select: { id: true },
+    console.log('🔧 PUT qr-branding - businessId:', businessId);
+    console.log('📦 Body recibido:', body);
+
+    // Validar que el negocio existe (por ID o slug)
+    const business = await prisma.business.findFirst({
+      where: {
+        OR: [
+          { id: businessId },
+          { slug: businessId }
+        ]
+      },
+      select: { 
+        id: true,
+        qrBrandingConfig: true 
+      },
     });
 
-    if (!businessExists) {
+    if (!business) {
+      console.error('❌ Negocio no encontrado:', businessId);
       return NextResponse.json(
         { error: 'Negocio no encontrado' },
         { status: 404 }
       );
     }
 
-    // Extraer campos específicos
-    const { mensaje, header } = body as Partial<QRBrandingConfig>;
+    console.log('✅ Negocio encontrado, ID real:', business.id);
 
-    // Preparar datos para actualizar
+    // Extraer campos específicos
+    const { mensaje, header, customWhatsappMessage } = body as Partial<QRBrandingConfig & { customWhatsappMessage?: string }>;
+
+    // Obtener configuración actual para preservar datos existentes
+    const currentConfig = (business.qrBrandingConfig as any) || {};
+
+    console.log('📄 Config actual:', currentConfig);
+
+    // Preparar datos para actualizar (merge con config existente)
+    const updatedConfig = {
+      ...currentConfig,
+      ...body,
+    };
+
+    // ✅ Si viene customWhatsappMessage, actualizar en el JSON
+    if (customWhatsappMessage !== undefined) {
+      updatedConfig.customWhatsappMessage = customWhatsappMessage;
+    }
+
+    console.log('📝 Config actualizada:', updatedConfig);
+
     const updateData: any = {
-      qrBrandingConfig: body, // Guardar config completa en JSON
+      qrBrandingConfig: updatedConfig, // Guardar config completa en JSON
     };
 
     // Actualizar campos específicos si vienen en el body
@@ -120,9 +155,9 @@ export async function PUT(
       updateData.qrMostrarLogo = header.mostrarLogo;
     }
 
-    // Actualizar en base de datos
+    // Actualizar en base de datos usando el ID real
     const updatedBusiness = await prisma.business.update({
-      where: { id: businessId },
+      where: { id: business.id }, // ✅ Usar ID real del negocio
       data: updateData,
       select: {
         qrBrandingConfig: true,
@@ -131,6 +166,8 @@ export async function PUT(
         name: true,
       },
     });
+
+    console.log('✅ Actualización exitosa');
 
     return NextResponse.json({
       success: true,

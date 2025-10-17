@@ -101,6 +101,7 @@
     "jsqr": "^1.4.0",
     "lucide-react": "latest",
     "multer": "^2.0.2",
+    "nanoid": "^5.1.6",
     "next": "^14.2.5",
     "next-auth": "latest",
     "node-fetch": "^2.7.0",

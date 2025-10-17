@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Button } from "./ui/button";
-import { Download, MessageCircle, Loader2 } from "lucide-react";
+import { Download, MessageCircle, Loader2, Settings } from "lucide-react";
 import { toast } from "sonner";
 import QRCard from "./QRCard";
 import html2canvas from "html2canvas";
@@ -26,14 +26,25 @@ interface QRCardReserva {
 interface QRCardShareProps {
   readonly reserva: QRCardReserva;
   readonly businessId: string;
+  readonly onUserInteraction?: (isInteracting: boolean) => void;
 }
 
-export function QRCardShare({ reserva, businessId }: QRCardShareProps) {
+export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardShareProps) {
   const [businessName, setBusinessName] = useState('Mi Negocio');
   const [cardDesign, setCardDesign] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSharing, setIsSharing] = useState(false);
+  const [customMessage, setCustomMessage] = useState<string>('');
+  const [showMessageEditor, setShowMessageEditor] = useState(false);
+  const [isSavingMessage, setIsSavingMessage] = useState(false);
   const qrCardRef = useRef<HTMLDivElement>(null);
+
+  // Notificar cuando el usuario abre/cierra el modal de configuración
+  useEffect(() => {
+    if (onUserInteraction) {
+      onUserInteraction(showMessageEditor);
+    }
+  }, [showMessageEditor, onUserInteraction]);
 
   // Cargar configuración del negocio
   useEffect(() => {
@@ -87,6 +98,11 @@ export function QRCardShare({ reserva, businessId }: QRCardShareProps) {
               headerColor: '#ffffff',
               textColor: '#9ca3af',
             });
+          }
+          
+          // ✅ CARGAR MENSAJE PERSONALIZADO
+          if (data.data?.customWhatsappMessage) {
+            setCustomMessage(data.data.customWhatsappMessage);
           }
         } else {
           console.error('❌ Response not OK:', response.status, response.statusText);
@@ -182,110 +198,130 @@ export function QRCardShare({ reserva, businessId }: QRCardShareProps) {
     }
   };
 
-  // Compartir por WhatsApp - Optimizado para evitar bloqueos
+  // 🔗 Compartir por WhatsApp - Nueva estrategia con link compartible
   const handleShareWhatsApp = async () => {
     // Prevenir múltiples clicks
     if (isSharing) return;
     
     setIsSharing(true);
     
-    // Usar requestIdleCallback o setTimeout para no bloquear el UI
-    await new Promise(resolve => setTimeout(resolve, 0));
-    
     try {
-      // Generar imagen del QR Card con html2canvas
-      const blob = await generateQRCardImage();
-      
-      if (!blob) {
-        toast.error('❌ Error al generar la imagen');
-        setIsSharing(false);
-        return;
-      }
+      // Mensaje personalizado
+      const message = customMessage || `Tu reserva en ${businessName} está confirmada. Por favor presenta este QR al llegar.`;
 
-      const fileName = `reserva-${businessName.replace(/\s+/g, '-')}-${reserva.cliente?.nombre?.replace(/\s+/g, '-') || 'cliente'}.png`;
-      const file = new File([blob], fileName, { 
-        type: 'image/png',
-        lastModified: Date.now()
+      // 1️⃣ Crear link compartible con QR + mensaje
+      toast.loading('Generando link compartible...', { id: 'creating-link' });
+      
+      const response = await fetch('/api/share/qr/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reservaId: reserva.id,
+          message: message,
+          businessId: businessId,
+        }),
       });
 
-      // Texto formateado para WhatsApp
-      const whatsappText = 
-        `*Reserva Confirmada - ${businessName}*\n\n` +
-        `📱 *Presenta este QR al llegar*\n` +
-        `🅿️ *Parqueadero gratuito e ilimitado* dentro del edificio (S1, S2, S3, S4).\n` +
-        `🪪 Presentar cédula o pasaporte (en caso de pérdida, traer denuncia con respaldo).\n\n` +
-        `📍 *Dirección:* Diego de Almagro y Ponce Carrasco, Edificio Almagro 240, piso 13\n` +
-        `📎 *Google Maps:* \`https://g.co/kgs/KbKrU5N\`\n\n` +
-        `⏱️ *Tiempo de espera:* 10 minutos.\n` +
-        `❗ Para cambios o cancelaciones, avisarnos por este medio.\n\n` +
-        `✨ ¡Nos vemos pronto!`;
+      if (!response.ok) {
+        throw new Error('Error al crear el link');
+      }
 
-      // 🎯 INTENTO 1: Web Share API con archivo (iOS/Android moderno)
+      const result = await response.json();
+      const shareUrl = result.data.shareUrl;
+
+      toast.dismiss('creating-link');
+
+      // 2️⃣ Preparar texto para compartir con el link
+      const shareText = `${message}\n\n📱 Ver QR y detalles: ${shareUrl}`;
+
+      // 3️⃣ Intentar usar Web Share API (funciona con texto en todos los dispositivos)
       if (navigator.share) {
         try {
-          const canShareFiles = navigator.canShare?.({ files: [file] }) ?? false;
-          
-          if (canShareFiles) {
-            // Usar setTimeout para evitar que el modal se cierre antes del share
-            await new Promise(resolve => setTimeout(resolve, 100));
-            
-            await navigator.share({
-              title: `Reserva - ${businessName}`,
-              text: whatsappText,
-              files: [file]
-            });
+          await navigator.share({
+            title: `Reserva - ${businessName}`,
+            text: shareText,
+          });
 
-            toast.success('💚 Reserva compartida exitosamente', {
-              className: 'bg-green-600 text-white border-0',
-            });
+          toast.success('✅ Reserva compartida exitosamente', {
+            className: 'bg-green-600 text-white border-0',
+            description: 'El link incluye el QR y el mensaje completo',
+            duration: 5000,
+          });
+          
+          setIsSharing(false);
+          return;
+        } catch (error: any) {
+          // Si el usuario cancela, salir silenciosamente
+          if (error.name === 'AbortError') {
             setIsSharing(false);
             return;
           }
-        } catch (shareError: any) {
-          // Si el usuario cancela, no mostrar error
-          if (shareError.name === 'AbortError') {
-            console.log('Usuario canceló el compartir');
-            setIsSharing(false);
-            return;
-          }
-          console.warn('Share API con archivo falló:', shareError);
-          // Continuar con fallback
+          console.log('Share API no disponible, usando WhatsApp directo');
         }
       }
 
-      // 🎯 INTENTO 2: Descargar + Abrir WhatsApp (Desktop/Fallback)
-      // Descargar la imagen
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
+      // 4️⃣ FALLBACK: Abrir WhatsApp directamente con el link
+      const whatsappMessage = encodeURIComponent(shareText);
+      const whatsappUrl = `https://wa.me/?text=${whatsappMessage}`;
       
-      // Limpiar inmediatamente
-      setTimeout(() => {
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-      }, 100);
+      window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
 
-      // Abrir WhatsApp con el texto después de un pequeño delay
-      setTimeout(() => {
-        const message = encodeURIComponent(whatsappText + '\n\n📎 Adjunta la imagen que se acaba de descargar');
-        const whatsappUrl = `https://wa.me/?text=${message}`;
-        window.open(whatsappUrl, '_blank');
-      }, 300);
-
-      toast.success('💚 Imagen descargada. Adjúntala en WhatsApp', {
+      toast.success('✅ WhatsApp abierto', {
         className: 'bg-green-600 text-white border-0',
-        description: 'La imagen del QR se descargó. Ahora ábrela en WhatsApp y adjúntala.',
-        duration: 6000,
+        description: 'El mensaje incluye el link al QR. Solo envíalo.',
+        duration: 5000,
       });
+
     } catch (error) {
       console.error('Error al compartir:', error);
       toast.error('❌ Error al compartir por WhatsApp');
     } finally {
       setIsSharing(false);
+    }
+  };
+
+  // Guardar mensaje personalizado
+  const handleSaveMessage = async () => {
+    if (!businessId) {
+      toast.error('Error: No se pudo identificar el negocio');
+      return;
+    }
+
+    setIsSavingMessage(true);
+    try {
+      console.log('💾 Guardando mensaje para businessId:', businessId);
+      console.log('📝 Mensaje:', customMessage);
+      
+      const response = await fetch(`/api/business/${businessId}/qr-branding`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customWhatsappMessage: customMessage,
+        }),
+      });
+
+      console.log('📡 Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Error response:', errorData);
+        throw new Error(errorData.error || 'Error al guardar el mensaje');
+      }
+
+      const data = await response.json();
+      console.log('✅ Guardado exitoso:', data);
+
+      toast.success('✅ Mensaje guardado exitosamente', {
+        className: 'bg-green-600 text-white border-0',
+      });
+      setShowMessageEditor(false);
+    } catch (error) {
+      console.error('Error saving message:', error);
+      toast.error('❌ Error al guardar el mensaje');
+    } finally {
+      setIsSavingMessage(false);
     }
   };
 
@@ -338,6 +374,14 @@ export function QRCardShare({ reserva, businessId }: QRCardShareProps) {
           )}
           WhatsApp
         </Button>
+        <Button
+          onClick={() => setShowMessageEditor(true)}
+          variant="outline"
+          className="flex items-center gap-2"
+          title="Personalizar mensaje de WhatsApp"
+        >
+          <Settings className="w-4 h-4" />
+        </Button>
       </div>
 
       {/* Instrucciones */}
@@ -349,6 +393,172 @@ export function QRCardShare({ reserva, businessId }: QRCardShareProps) {
           <li>• Presenta el código al llegar al establecimiento</li>
         </ul>
       </div>
+
+      {/* Modal de Edición de Mensaje */}
+      {showMessageEditor && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowMessageEditor(false);
+            }
+          }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-2xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    ⚙️ Personalizar Mensaje de WhatsApp
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Este mensaje se enviará junto con el QR de la reserva
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowMessageEditor(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* Info Box */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-900">
+                  <strong>💡 Nota:</strong> La imagen del QR ya contiene toda la información de la reserva (nombre, fecha, hora, personas). 
+                  Este mensaje se enviará junto con el QR por WhatsApp. Úsalo para:
+                </p>
+                <ul className="text-sm text-blue-800 mt-2 ml-4 space-y-1">
+                  <li>• Compartir la dirección de tu negocio</li>
+                  <li>• Indicar información de parqueadero</li>
+                  <li>• Mencionar requisitos especiales</li>
+                  <li>• Agregar información de contacto</li>
+                </ul>
+              </div>
+
+              {/* Preview del mensaje completo */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  📱 Vista Previa del Mensaje de WhatsApp
+                </label>
+                <div className="bg-gray-50 border border-gray-300 rounded-lg p-4 font-mono text-sm whitespace-pre-wrap">
+                  <div className="text-gray-900">
+                    {customMessage || `Tu reserva en ${businessName} está confirmada. Por favor presenta este QR al llegar.`}
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 La imagen del QR ya contiene toda la información de la reserva (nombre, fecha, hora, personas)
+                </p>
+              </div>
+
+              {/* Editor de Mensaje */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  ✏️ Mensaje para WhatsApp
+                </label>
+                <textarea
+                  value={customMessage}
+                  onChange={(e) => setCustomMessage(e.target.value)}
+                  placeholder="Ejemplo:&#10;&#10;📍 Dirección: Calle Principal #123&#10;🅿️ Parqueadero disponible en el sótano&#10;📞 Contacto: +593 99 123 4567&#10;&#10;Para cambios, responde a este mensaje."
+                  className="w-full h-48 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none font-sans"
+                  maxLength={500}
+                />
+                <div className="flex items-center justify-between mt-2">
+                  <p className="text-xs text-gray-500">
+                    Máximo 500 caracteres
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {customMessage.length}/500
+                  </p>
+                </div>
+              </div>
+
+              {/* Botones Templates Rápidos */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  ⚡ Templates Rápidos
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setCustomMessage(
+                      '📍 Dirección: [Tu dirección aquí]\n' +
+                      '🅿️ Parqueadero disponible\n\n' +
+                      'Para cambios, responde a este mensaje.'
+                    )}
+                    className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-left"
+                  >
+                    📍 Con Dirección
+                  </button>
+                  <button
+                    onClick={() => setCustomMessage(
+                      '🎉 ¡Te esperamos!\n\n' +
+                      '📍 Google Maps: [tu link]\n' +
+                      '📞 Contacto: [tu teléfono]'
+                    )}
+                    className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-left"
+                  >
+                    🎉 Casual
+                  </button>
+                  <button
+                    onClick={() => setCustomMessage(
+                      '📍 [Tu dirección]\n' +
+                      '🪪 Traer documento de identidad\n' +
+                      '👔 Código de vestimenta: Smart Casual'
+                    )}
+                    className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-left"
+                  >
+                    👔 Formal
+                  </button>
+                  <button
+                    onClick={() => setCustomMessage(
+                      '📍 [Tu dirección]\n' +
+                      '🅿️ Parqueadero disponible\n' +
+                      '📞 [Tu teléfono]'
+                    )}
+                    className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-left"
+                  >
+                    📋 Básico
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer con botones */}
+            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 rounded-b-2xl flex gap-3 justify-end">
+              <Button
+                onClick={() => setShowMessageEditor(false)}
+                variant="outline"
+                disabled={isSavingMessage}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleSaveMessage}
+                disabled={isSavingMessage}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {isSavingMessage ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    💾 Guardar Mensaje
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -9,8 +9,7 @@ import {
   Users, 
   Calendar,
   Sparkles,
-  ArrowRight,
-  Star
+  ArrowRight
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -27,12 +26,14 @@ export default function PricingPage() {
   ];
 
   const comparisonItems = [
-    { feature: 'Sin límite de clientes', lealta: true, others: false },
-    { feature: 'Sin límite de reservas', lealta: true, others: false },
-    { feature: 'Portal personalizado', lealta: true, others: '$$$ Extra' },
-    { feature: 'Usuarios staff ilimitados', lealta: true, others: 'Max 5' },
-    { feature: 'Actualizaciones incluidas', lealta: true, others: false },
-    { feature: 'Soporte prioritario', lealta: true, others: '$$$ Extra' },
+    { feature: 'Sistema de Reservas + QR', lealta: true, others: '$449/mes' },
+    { feature: 'Portal Cliente Personalizable', lealta: true, others: '$399/mes' },
+    { feature: 'Registro con OCR (IA)', lealta: true, others: '$50/mes' },
+    { feature: 'Analytics Avanzado', lealta: true, others: '$299/mes' },
+    { feature: 'Fidelización & Gamificación', lealta: true, others: '$599/mes' },
+    { feature: 'Clientes + Reservas Ilimitados', lealta: true, others: false },
+    { feature: 'Staff Ilimitado', lealta: true, others: '5 usuarios' },
+    { feature: 'Sistema de Promotores', lealta: true, others: false },
   ];
 
   return (
@@ -81,9 +82,9 @@ export default function PricingPage() {
           </h1>
 
           <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-            Sin límites artificiales. Sin cargos ocultos. Sin sorpresas.
+            <strong className="text-white">8 sistemas empresariales en uno.</strong>
             <br />
-            <strong className="text-white">Un solo plan, infinitas posibilidades.</strong>
+            Sin límites artificiales. Sin cargos ocultos. Sin sorpresas.
           </p>
         </motion.div>
 
@@ -103,14 +104,14 @@ export default function PricingPage() {
               {/* Badge */}
               <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                 <span className="px-6 py-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm font-bold shadow-lg flex items-center gap-2">
-                  <Star className="w-4 h-4" />
-                  MÁS POPULAR
+                  <Zap className="w-4 h-4" />
+                  TODO INCLUIDO
                 </span>
               </div>
 
               <div className="text-center mb-8">
-                <h2 className="text-3xl font-bold text-white mb-2">Lealta Premium</h2>
-                <p className="text-gray-400">Para negocios que quieren crecer sin límites</p>
+                <h2 className="text-3xl font-bold text-white mb-2">Lealta Pro</h2>
+                <p className="text-gray-400">Todo en uno: Reservas + Fidelización + Registro IA + Analytics</p>
               </div>
 
               {/* Price */}
@@ -205,19 +206,19 @@ export default function PricingPage() {
               </div>
 
               <div className="text-center p-8 rounded-2xl bg-gradient-to-br from-green-500/10 to-green-600/10 border border-green-500/20">
-                <div className="text-4xl font-bold text-green-400 mb-2">$2,000+</div>
-                <div className="text-white font-medium mb-2">Valor generado</div>
-                <div className="text-gray-400 text-sm">en retención y ventas</div>
+                <div className="text-4xl font-bold text-green-400 mb-2">$1,496</div>
+                <div className="text-white font-medium mb-2">Valor real</div>
+                <div className="text-gray-400 text-sm">en herramientas equivalentes</div>
               </div>
             </div>
 
             <div className="mt-8 p-6 rounded-2xl bg-gradient-to-br from-purple-500/5 to-pink-500/5 border border-purple-500/20">
               <div className="text-center text-gray-300">
                 <p className="mb-2">
-                  <strong className="text-white">ROI promedio: 1,920%</strong>
+                  <strong className="text-white">Ahorro: 94.5% vs comprar cada sistema por separado</strong>
                 </p>
                 <p className="text-sm">
-                  Nuestros clientes recuperan la inversión en la primera semana
+                  Reemplaza OpenTable ($449) + Yotpo ($599) + OCR Tools ($50) + Analytics ($299) + más
                 </p>
               </div>
             </div>
@@ -277,12 +278,14 @@ export default function PricingPage() {
                     </tr>
                   ))}
                   <tr className="bg-gradient-to-br from-purple-500/10 to-pink-500/10">
-                    <td className="px-6 py-4 text-white font-bold">Precio mensual</td>
+                    <td className="px-6 py-4 text-white font-bold">Precio mensual TOTAL</td>
                     <td className="px-6 py-4 text-center">
                       <div className="text-2xl font-bold text-green-400">$99</div>
+                      <div className="text-xs text-gray-400">todo incluido</div>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <div className="text-xl font-medium text-gray-400">$150-300+</div>
+                      <div className="text-xl font-bold text-red-400">$1,496+</div>
+                      <div className="text-xs text-gray-400">5+ suscripciones</div>
                     </td>
                   </tr>
                 </tbody>
@@ -360,7 +363,7 @@ export default function PricingPage() {
               ¿Listo para transformar tu negocio?
             </h2>
             <p className="text-xl text-gray-300 mb-8">
-              Únete a más de 100 negocios que ya están fidelizando clientes con Lealta
+              Elimina 5 suscripciones. Ahorra $16,884/año. Una sola plataforma.
             </p>
             <motion.button
               whileHover={{ scale: 1.05 }}

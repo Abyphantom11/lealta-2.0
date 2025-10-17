@@ -351,7 +351,7 @@ export default function BrandedQRGenerator({
     link.click();
   };
 
-  // Función para compartir
+  // 🎯 Función para compartir con estrategia multinivel
   const handleShare = async () => {
     setIsGenerating(true);
     const canvas = canvasRef.current;
@@ -372,7 +372,7 @@ export default function BrandedQRGenerator({
             }
           },
           'image/png',
-          1.0 // Máxima calidad
+          1
         );
       });
 
@@ -382,68 +382,118 @@ export default function BrandedQRGenerator({
         lastModified: Date.now()
       });
 
-      // 🎯 INTENTO 1: Navigator Share API con archivo
-      if (navigator.share) {
-        try {
-          // Verificar si el navegador puede compartir archivos
-          const canShareFiles = navigator.canShare && navigator.canShare({ files: [file] });
-          
-          if (canShareFiles) {
-            // Formatear fecha correctamente
-            let fechaFormateada: string;
-            if (typeof reserva.fecha === 'string') {
-              const dateObj = reserva.fecha.includes('T') 
-                ? new Date(reserva.fecha)
-                : new Date(reserva.fecha + 'T00:00:00');
-              fechaFormateada = format(dateObj, "d 'de' MMMM, yyyy", { locale: es });
-            } else {
-              fechaFormateada = format(reserva.fecha, "d 'de' MMMM, yyyy", { locale: es });
-            }
+      // Formatear fecha correctamente para el mensaje
+      let fechaFormateada: string;
+      if (typeof reserva.fecha === 'string') {
+        const dateObj = reserva.fecha.includes('T') 
+          ? new Date(reserva.fecha)
+          : new Date(reserva.fecha + 'T00:00:00');
+        fechaFormateada = format(dateObj, "d 'de' MMMM, yyyy", { locale: es });
+      } else {
+        fechaFormateada = format(reserva.fecha, "d 'de' MMMM, yyyy", { locale: es });
+      }
 
+      const message = `🍸 Reserva Confirmada\n\n👤 ${reserva.cliente.nombre}\n📅 ${fechaFormateada}\n⏰ ${reserva.hora}\n👥 ${reserva.numeroPersonas} ${reserva.numeroPersonas === 1 ? 'persona' : 'personas'}${reserva.mesa ? `\n🪑 Mesa ${reserva.mesa}` : ''}\n\n📱 Presenta este QR al llegar\n\n✨ ¡Nos vemos pronto!`;
+
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+      // 🎯 NIVEL 3: Compartir completo (Texto + Archivo + Título)
+      if (navigator.share && navigator.canShare) {
+        try {
+          const canShareBoth = navigator.canShare({ 
+            text: message,
+            title: `Reserva - ${config.header.nombreEmpresa}`,
+            files: [file] 
+          });
+          
+          if (canShareBoth) {
             await navigator.share({
               title: `Reserva - ${config.header.nombreEmpresa}`,
-              text: `🍸 Reserva Confirmada\n\n👤 ${reserva.cliente.nombre}\n📅 ${fechaFormateada}\n⏰ ${reserva.hora}\n👥 ${reserva.numeroPersonas} ${reserva.numeroPersonas === 1 ? 'persona' : 'personas'}${reserva.mesa ? `\n🪑 Mesa ${reserva.mesa}` : ''}\n\n📱 Presenta este QR al llegar\n🅿️ Parqueadero gratuito e ilimitado dentro del edificio (S1, S2, S3, S4).\n🪪 Presentar cédula o pasaporte (en caso de pérdida, traer denuncia con respaldo).\n\n📍 Dirección: Diego de Almagro y Ponce Carrasco, Edificio Almagro 240, piso 13\n📎 Google Maps: \`https://g.co/kgs/KbKrU5N\`\n\n⏱️ Tiempo de espera: 10 minutos.\n❗ Para cambios o cancelaciones, avisarnos por este medio.\n\n✨ ¡Nos vemos pronto!`,
+              text: message,
               files: [file],
             });
             onShare?.();
             setIsGenerating(false);
             return;
           }
-        } catch (shareError) {
-          console.warn('Navigator.share con archivo falló:', shareError);
-          // Continuar con fallback
+        } catch (error: any) {
+          if (error.name === 'AbortError') {
+            setIsGenerating(false);
+            return;
+          }
+          console.warn('Nivel 3 falló:', error.message);
+        }
+
+        // 🎯 NIVEL 2: Solo archivo + Copiar mensaje
+        try {
+          const canShareFiles = navigator.canShare({ files: [file] });
+          
+          if (canShareFiles) {
+            // Copiar mensaje primero
+            if (navigator.clipboard?.writeText) {
+              await navigator.clipboard.writeText(message);
+            }
+            
+            await navigator.share({ files: [file] });
+            
+            onShare?.();
+            setIsGenerating(false);
+            return;
+          }
+        } catch (error: any) {
+          if (error.name === 'AbortError') {
+            setIsGenerating(false);
+            return;
+          }
+          console.warn('Nivel 2 falló:', error.message);
         }
       }
 
-      // 🎯 INTENTO 2: Crear link temporal y copiar/compartir
-      const url = URL.createObjectURL(blob);
-      
-      // Para móviles: intentar abrir en nueva ventana para compartir desde ahí
-      if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-        // Crear un link de descarga temporal
+      // 🎯 NIVEL 1: Móvil - Descargar + WhatsApp
+      if (isMobile) {
+        const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
         link.download = fileName;
         document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
+        link.remove();
         
-        // Dar feedback al usuario
-        alert('✅ Imagen descargada. Ahora puedes compartirla desde tu galería a WhatsApp.');
+        // Copiar mensaje
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(message);
+        }
         
-        // Limpiar URL después de un delay
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-      } else {
-        // Desktop: descargar directamente
-        handleDownload();
+        // Abrir WhatsApp
+        setTimeout(() => {
+          const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+          globalThis.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+          URL.revokeObjectURL(url);
+        }, 800);
+        
+        alert('✅ QR descargado y WhatsApp abierto. Adjunta la imagen desde tu galería.');
+        onShare?.();
+        setIsGenerating(false);
+        return;
       }
+
+      // 🎯 FALLBACK Desktop
+      handleDownload();
+      
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(message);
+      }
+      
+      setTimeout(() => {
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        globalThis.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+      }, 300);
 
       onShare?.();
     } catch (error) {
       console.error('Error al compartir:', error);
-      // Último fallback: descargar
       handleDownload();
-      alert('No se pudo compartir directamente. La imagen se ha descargado. Puedes compartirla manualmente desde tu galería.');
+      alert('No se pudo compartir. La imagen se ha descargado.');
     } finally {
       setIsGenerating(false);
     }

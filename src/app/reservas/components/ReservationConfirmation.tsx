@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
 import { Alert, AlertDescription } from "./ui/alert";
 import { CheckCircle } from "lucide-react";
@@ -21,6 +21,8 @@ export function ReservationConfirmation({
   reserva,
 }: Readonly<ReservationConfirmationProps>) {
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isUserInteracting, setIsUserInteracting] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
   const params = useParams();
   const businessSlug = (params?.businessId as string) || '';
 
@@ -31,17 +33,45 @@ export function ReservationConfirmation({
     }
   }, [businessSlug]);
 
+  // Manejar auto-cierre con pausa cuando el usuario interactúa
   useEffect(() => {
     if (isOpen && reserva) {
       setShowSuccess(true);
-      // Auto-cerrar después de 30 segundos si no se hace nada
-      const timer = setTimeout(() => {
+      
+      // Solo crear timer si el usuario NO está interactuando
+      if (!isUserInteracting) {
+        timerRef.current = setTimeout(() => {
+          onClose();
+        }, 30000);
+      }
+      
+      return () => {
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+        }
+      };
+    }
+  }, [isOpen, reserva, onClose, isUserInteracting]);
+
+  // Callback para cuando el usuario abre/cierra el modal de configuración
+  const handleUserInteraction = (isInteracting: boolean) => {
+    setIsUserInteracting(isInteracting);
+    
+    // Si deja de interactuar, reiniciar el timer
+    if (!isInteracting && isOpen && reserva) {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+      timerRef.current = setTimeout(() => {
         onClose();
       }, 30000);
-      
-      return () => clearTimeout(timer);
+    } else if (isInteracting && timerRef.current) {
+      // Si empieza a interactuar, cancelar el timer
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
     }
-  }, [isOpen, reserva, onClose]);
+  };
 
   const handleClose = () => {
     setShowSuccess(false);
@@ -92,6 +122,7 @@ export function ReservationConfirmation({
                 qrToken: reserva.codigoQR || `RES-${reserva.id}`,
               }}
               businessId={businessSlug}
+              onUserInteraction={handleUserInteraction}
             />
           ) : (
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
