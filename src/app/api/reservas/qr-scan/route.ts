@@ -41,17 +41,17 @@ export async function POST(request: NextRequest) {
       
       const reservaConQR = await prisma.reservation.findUnique({
         where: { id: reservaId },
-        include: { qrCodes: true }
+        include: { ReservationQRCode: true }
       });
       
-      if (!reservaConQR || reservaConQR.qrCodes.length === 0) {
+      if (!reservaConQR || !reservaConQR.ReservationQRCode || reservaConQR.ReservationQRCode.length === 0) {
         return NextResponse.json(
           { success: false, message: 'Reserva no encontrada o sin QR' },
           { status: 404 }
         );
       }
       
-      token = reservaConQR.qrCodes[0].qrToken;
+      token = reservaConQR.ReservationQRCode[0].qrToken;
       
     } else {
       console.log('📋 Detectado JSON completo');
@@ -82,10 +82,10 @@ export async function POST(request: NextRequest) {
     const reserva = await prisma.reservation.findUnique({
       where: { id: reservaId },
       include: {
-        cliente: true,
-        service: true,
-        slot: true,
-        qrCodes: true
+        Cliente: true,
+        ReservationService: true,
+        ReservationSlot: true,
+        ReservationQRCode: true
       }
     });
 
@@ -102,15 +102,15 @@ export async function POST(request: NextRequest) {
       customerName: reserva.customerName,
       reservedAt: reserva.reservedAt,
       status: reserva.status,
-      qrCodesCount: reserva.qrCodes.length
+      qrCodesCount: reserva.ReservationQRCode?.length || 0
     });
 
     // Verificar el token QR
-    const qrCodeEntry = reserva.qrCodes.find(qr => qr.qrToken === token);
+    const qrCodeEntry = reserva.ReservationQRCode?.find(qr => qr.qrToken === token);
     
     console.log('🔑 Validación de token:', {
       tokenBuscado: token,
-      tokensDisponibles: reserva.qrCodes.map(qr => qr.qrToken),
+      tokensDisponibles: reserva.ReservationQRCode?.map(qr => qr.qrToken) || [],
       tokenEncontrado: !!qrCodeEntry
     });
     
@@ -201,10 +201,10 @@ export async function POST(request: NextRequest) {
           telefono: reserva.customerPhone || ''
         },
         reserva: {
-          fecha: reserva.slot?.date ? new Date(reserva.slot.date).toISOString().split('T')[0] : '',
-          hora: reserva.slot?.startTime ? 
-            new Date(reserva.slot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '',
-          servicio: reserva.service?.name || '',
+          fecha: reserva.ReservationSlot?.date ? new Date(reserva.ReservationSlot.date).toISOString().split('T')[0] : '',
+          hora: reserva.ReservationSlot?.startTime ? 
+            new Date(reserva.ReservationSlot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '',
+          servicio: reserva.ReservationService?.name || '',
           observaciones: reserva.specialRequests || ''
         }
       });
@@ -280,10 +280,10 @@ export async function POST(request: NextRequest) {
           telefono: reserva.customerPhone || ''
         },
         reserva: {
-          fecha: reserva.slot?.date ? new Date(reserva.slot.date).toISOString().split('T')[0] : '',
-          hora: reserva.slot?.startTime ? 
-            new Date(reserva.slot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '',
-          servicio: reserva.service?.name || '',
+          fecha: reserva.ReservationSlot?.date ? new Date(reserva.ReservationSlot.date).toISOString().split('T')[0] : '',
+          hora: reserva.ReservationSlot?.startTime ? 
+            new Date(reserva.ReservationSlot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '',
+          servicio: reserva.ReservationService?.name || '',
           observaciones: reserva.specialRequests || ''
         }
       });

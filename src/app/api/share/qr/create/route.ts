@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { nanoid } from 'nanoid';
+import crypto from 'node:crypto';
+
+// Función para generar ID único
+function generateId(): string {
+  return crypto.randomBytes(16).toString('hex');
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,25 +36,28 @@ export async function POST(request: NextRequest) {
     const shareId = nanoid(12); // Genera un ID corto pero único
 
     // Crear el share link en la base de datos
+    const now = new Date();
     await prisma.qRShareLink.create({
       data: {
+        id: generateId(),
         shareId,
         reservationId: reservaId,
         message: message || `Tu reserva está confirmada. Por favor presenta este QR al llegar.`,
         views: 0,
+        updatedAt: now,
       },
     });
 
     // Construir la URL completa
-    // Prioridad: 1) NEXT_PUBLIC_APP_URL, 2) Vercel URL, 3) Origin header, 4) localhost
-    const baseUrl = 
-      process.env.NEXT_PUBLIC_APP_URL || 
-      process.env.NEXT_PUBLIC_VERCEL_URL || 
-      process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
-      request.headers.get('origin') || 
-      'http://localhost:3001';
+    // En producción SIEMPRE usar lealta.app, en desarrollo usar el origin actual (Cloudflare/localhost)
+    const isProduction = process.env.NODE_ENV === 'production';
+    const baseUrl = isProduction 
+      ? 'https://lealta.app'  // ✅ Siempre usar dominio principal en producción
+      : request.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001';
     
     const shareUrl = `${baseUrl}/share/qr/${shareId}`;
+    
+    console.log('🔗 Share URL generada:', shareUrl, '| isProduction:', isProduction);
 
     return NextResponse.json({
       success: true,

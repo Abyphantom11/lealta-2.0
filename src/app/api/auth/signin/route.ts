@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { compare } from 'bcryptjs';
 import { z } from 'zod';
-import { randomBytes } from 'crypto';
+import { randomBytes } from 'node:crypto';
 import { UserWithBusiness, SessionData } from '../../../../types/api-routes';
 import { logger } from '@/utils/production-logger';
 
@@ -26,19 +26,13 @@ async function getBusinessFromRequest(request: NextRequest) {
 
   // Para desarrollo local y dominio principal de producción
   if (host.includes('localhost') || host.includes('127.0.0.1') || host === 'lealta.app') {
-    // Para desarrollo local y dominio principal, usar el primer business o crear uno de demo
-    const business =
-      (await prisma.business.findFirst()) ??
-      (await prisma.business.create({
-        data: {
-          name: 'Lealta Demo',
-          slug: 'demo',
-          subdomain: 'demo',
-          settings: {
-            contactEmail: 'demo@lealta.app',
-          },
-        },
-      }));
+    // Para desarrollo local y dominio principal, usar el primer business
+    const business = await prisma.business.findFirst();
+    
+    if (!business) {
+      console.warn('⚠️  No hay business en la base de datos. Se requiere al menos uno para desarrollo.');
+      throw new Error('No hay business disponible en la base de datos');
+    }
 
     console.log('🔍 getBusinessFromRequest - Business encontrado:', business?.name);
     return business;

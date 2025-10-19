@@ -230,3 +230,8 @@ html {
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
 }
+
+/* Forzar fondo blanco en modales de Dialog */
+[data-slot="dialog-content"] {
+  background-color: #ffffff !important;
+}

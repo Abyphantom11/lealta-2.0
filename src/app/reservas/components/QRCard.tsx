@@ -71,6 +71,7 @@ export default function QRCard({
     <div className="flex flex-col items-center gap-4">
       {/* Tarjeta */}
       <div
+        data-qr-card
         className={`relative overflow-hidden ${shadowClass}`}
         style={{
           background: isGradient ? cardDesign.backgroundColor : undefined,

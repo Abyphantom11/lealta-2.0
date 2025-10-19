@@ -3,14 +3,16 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import QRCard from '@/app/reservas/components/QRCard';
-import { Loader2, Download, Share2 } from 'lucide-react';
+import { Loader2, Download, Share2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 interface ShareData {
   reserva: any;
   message: string;
   businessName: string;
   qrToken: string;
+  cardDesign?: any;
 }
 
 export default function ShareQRPage() {
@@ -19,6 +21,7 @@ export default function ShareQRPage() {
   const [data, setData] = useState<ShareData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
     const loadShareData = async () => {
@@ -72,24 +75,89 @@ export default function ShareQRPage() {
     }
   };
 
-  const handleShare = async () => {
-    const shareUrl = window.location.href;
-    const text = data?.message || 'Reserva confirmada';
+  const handleCopyMessage = async () => {
+    if (!data) return;
+    
+    try {
+      const message = data.message || `¡Bienvenido! Tu reserva en ${data.businessName} está confirmada.`;
+      await navigator.clipboard.writeText(message);
+      setIsCopied(true);
+      toast.success('✅ Mensaje copiado', {
+        description: 'Ahora comparte el QR y pega el mensaje en WhatsApp',
+        duration: 3000,
+      });
+      
+      // Reset después de 3 segundos
+      setTimeout(() => setIsCopied(false), 3000);
+    } catch (error) {
+      console.error('Error al copiar:', error);
+      toast.error('❌ Error al copiar el mensaje');
+    }
+  };
 
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `Reserva - ${data?.businessName}`,
-          text: text,
-          url: shareUrl,
-        });
-      } catch (error) {
-        console.log('Share cancelado');
+  const handleShare = async () => {
+    const canvas = document.querySelector('[data-qr-card]') as HTMLElement;
+    if (!canvas || !data) return;
+
+    try {
+      // Generar imagen del QR
+      const html2canvas = (await import('html2canvas')).default;
+      const canvasEl = await html2canvas(canvas, {
+        backgroundColor: null,
+        scale: 2,
+        useCORS: true,
+      });
+
+      // Convertir a blob
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvasEl.toBlob(resolve, 'image/png', 1.0);
+      });
+
+      if (!blob) {
+        throw new Error('No se pudo generar la imagen');
       }
-    } else {
-      // Copiar al portapapeles
-      await navigator.clipboard.writeText(`${text}\n\n${shareUrl}`);
-      alert('Link copiado al portapapeles');
+
+      // Crear archivo
+      const file = new File([blob], 'reserva-qr.png', { type: 'image/png' });
+
+      // Intentar compartir con Web Share API (incluye imagen)
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+          });
+          
+          toast.success('✅ QR compartido exitosamente', {
+            description: 'Recuerda pegar el mensaje copiado en WhatsApp',
+            duration: 5000,
+          });
+          return;
+        } catch (error: any) {
+          if (error.name === 'AbortError') {
+            console.log('Share cancelado por el usuario');
+            return;
+          }
+          console.error('Error compartiendo:', error);
+        }
+      }
+
+      // Fallback: Compartir solo por WhatsApp con imagen descargada
+      // El usuario descarga la imagen y luego puede compartirla manualmente
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'reserva-qr.png';
+      link.click();
+      URL.revokeObjectURL(url);
+
+      toast.success('📥 Imagen descargada', {
+        description: 'Ahora puedes compartirla en WhatsApp con el mensaje copiado',
+        duration: 5000,
+      });
+      
+    } catch (error) {
+      console.error('Error al compartir:', error);
+      alert('Error al generar la imagen. Intenta de nuevo.');
     }
   };
 
@@ -143,30 +211,13 @@ export default function ShareQRPage() {
           </p>
         </div>
 
-        {/* Mensaje Personalizado */}
-        {data.message && (
-          <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-            <div className="flex items-start gap-3">
-              <div className="text-2xl">💬</div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-gray-900 mb-2">
-                  Mensaje importante:
-                </h3>
-                <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                  {data.message}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* QR Card */}
         <div className="bg-white rounded-xl shadow-xl p-6 mb-6">
           <div data-qr-card className="flex justify-center">
             <QRCard
               reserva={data.reserva}
               businessName={data.businessName}
-              cardDesign={{
+              cardDesign={data.cardDesign || {
                 backgroundColor: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%)',
                 borderColor: '#2a2a2a',
                 borderWidth: 1,
@@ -185,41 +236,64 @@ export default function ShareQRPage() {
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-6">
           <h3 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
             <span className="text-xl">📱</span>
-            Cómo usar tu QR:
+            Cómo compartir en WhatsApp:
           </h3>
           <ul className="space-y-2 text-blue-800">
+            {data.message && (
+              <li className="flex items-start gap-2">
+                <span className="text-blue-600 mt-1">1.</span>
+                <span>Copia el mensaje usando el botón &quot;Copiar Mensaje&quot;</span>
+              </li>
+            )}
             <li className="flex items-start gap-2">
-              <span className="text-blue-600 mt-1">•</span>
-              <span>Descarga o guarda el código QR en tu dispositivo</span>
+              <span className="text-blue-600 mt-1">{data.message ? '2.' : '1.'}</span>
+              <span>Presiona &quot;Compartir&quot; y selecciona WhatsApp</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-blue-600 mt-1">•</span>
-              <span>Presenta el código al llegar al establecimiento</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-blue-600 mt-1">•</span>
-              <span>Puedes compartir este link con tus acompañantes</span>
+              <span className="text-blue-600 mt-1">{data.message ? '3.' : '2.'}</span>
+              <span>{data.message ? 'Pega el mensaje copiado en WhatsApp' : 'Envía el QR a tus invitados'}</span>
             </li>
           </ul>
         </div>
 
         {/* Botones de acción */}
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           <Button
             onClick={handleDownload}
             variant="outline"
-            className="flex-1 gap-2"
+            size="icon"
+            className="shrink-0"
+            title="Descargar QR"
           >
-            <Download className="w-4 h-4" />
-            Descargar QR
+            <Download className="w-5 h-5" />
           </Button>
           <Button
             onClick={handleShare}
-            className="flex-1 gap-2 bg-green-600 hover:bg-green-700"
+            size="icon"
+            className="shrink-0 bg-green-600 hover:bg-green-700"
+            title="Compartir en WhatsApp"
           >
-            <Share2 className="w-4 h-4" />
-            Compartir
+            <Share2 className="w-5 h-5" />
           </Button>
+          {data.message && (
+            <Button
+              onClick={handleCopyMessage}
+              variant={isCopied ? "default" : "outline"}
+              className={isCopied ? "flex-1 gap-2 bg-green-600 hover:bg-green-700 text-white" : "flex-1 gap-2"}
+            >
+              {isCopied ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  Copiado
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4" />
+                  Copiar Mensaje
+                </>
+              )}
+            </Button>
+          )}
         </div>
 
         {/* Footer */}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { toast } from 'sonner';
 import { Reserva } from '../types/reservation';
 import { reservasQueryKeys } from '../../../providers/QueryProvider';
@@ -148,28 +149,30 @@ export function useReservasOptimized({
 
   // 🔥 OPTIMIZACIÓN: Query combinada (reservas + stats en una sola request)
   const combinedQuery = useQuery({
-    queryKey: reservasQueryKeys.list(businessId || 'default'),
+    queryKey: reservasQueryKeys.list(businessId || 'default', { includeStats: true }),
     queryFn: () => {
       return reservasAPI.fetchReservasWithStats(businessId || '');
     },
     enabled: enabled && includeStats,
-    staleTime: 5 * 60 * 1000, // 5 minutos fresh (aumentado para evitar refetches innecesarios)
+    staleTime: 0, // 🔥 CRÍTICO: 0 para que invalidateQueries funcione inmediatamente
     gcTime: 10 * 60 * 1000, // 10 minutos en caché
-    refetchOnWindowFocus: false, // Desactivado para evitar sobrescribir ediciones
+    refetchOnWindowFocus: true, // ✅ HABILITADO: Para detectar cambios de otros dispositivos
     refetchOnMount: true,
+    refetchInterval: 30000, // ✅ NUEVO: Polling cada 30 segundos para detectar cambios de otros dispositivos
   });
 
   // 🎯 Query simple solo para reservas (cuando no necesitamos stats)
   const reservasQuery = useQuery({
-    queryKey: reservasQueryKeys.list(businessId || 'default'),
+    queryKey: reservasQueryKeys.list(businessId || 'default', { includeStats: false }),
     queryFn: () => {
       return reservasAPI.fetchReservas(businessId);
     },
     enabled: enabled && !includeStats,
-    staleTime: 5 * 60 * 1000, // 5 minutos fresh (aumentado para evitar refetches innecesarios)
+    staleTime: 0, // 🔥 CRÍTICO: 0 para que invalidateQueries funcione inmediatamente
     gcTime: 10 * 60 * 1000, // 10 minutos en caché
-    refetchOnWindowFocus: false, // Desactivado para evitar sobrescribir ediciones
+    refetchOnWindowFocus: true, // ✅ HABILITADO: Para detectar cambios de otros dispositivos
     refetchOnMount: true,
+    refetchInterval: 30000, // ✅ NUEVO: Polling cada 30 segundos para detectar cambios de otros dispositivos
   });
 
   // Seleccionar la query activa
@@ -180,8 +183,8 @@ export function useReservasOptimized({
     mutationFn: (reservaData: NewReservaData) =>
       reservasAPI.createReserva(reservaData, businessId),
     onSuccess: () => {
-      // 🎯 Invalidación selectiva (solo las queries afectadas)
-      queryClient.invalidateQueries({ queryKey: reservasQueryKeys.list(businessId || 'default') });
+      // 🎯 Invalidar TODAS las listas de reservas (con y sin stats)
+      queryClient.invalidateQueries({ queryKey: reservasQueryKeys.lists() });
       queryClient.invalidateQueries({ queryKey: reservasQueryKeys.stats(businessId || 'default') });
       
       toast.success('✓ Reserva creada exitosamente');
@@ -228,7 +231,7 @@ export function useReservasOptimized({
         console.log('🔄 Invalidación estándar para:', Object.keys(data || {}));
         
         await queryClient.invalidateQueries({ 
-          queryKey: reservasQueryKeys.list(businessId || 'default'),
+          queryKey: reservasQueryKeys.lists(),
           refetchType: 'active' 
         });
         await queryClient.invalidateQueries({ 
@@ -249,9 +252,26 @@ export function useReservasOptimized({
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => reservasAPI.deleteReserva(id, businessId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: reservasQueryKeys.list(businessId || 'default') });
-      queryClient.invalidateQueries({ queryKey: reservasQueryKeys.stats(businessId || 'default') });
+    onSuccess: async () => {
+      console.log('🗑️ Reserva eliminada - Invalidando cache completo...');
+      
+      // 🔥 INVALIDACIÓN AGRESIVA: Forzar refetch inmediato
+      await Promise.all([
+        queryClient.invalidateQueries({ 
+          queryKey: reservasQueryKeys.lists(),
+          refetchType: 'all' // Refetch todas las queries, no solo las activas
+        }),
+        queryClient.invalidateQueries({ 
+          queryKey: reservasQueryKeys.stats(businessId || 'default'),
+          refetchType: 'all'
+        }),
+        queryClient.invalidateQueries({ 
+          queryKey: reservasQueryKeys.all,
+          refetchType: 'all'
+        })
+      ]);
+      
+      console.log('✅ Cache invalidado completamente después de eliminar reserva');
       
       toast.success('✓ Reserva eliminada exitosamente');
     },
@@ -262,9 +282,27 @@ export function useReservasOptimized({
   });
 
   // 📊 DATOS OPTIMIZADOS
-  const reservas = includeStats 
-    ? (combinedQuery.data?.reservas || [])
-    : (reservasQuery.data || []);
+  // 🔥 CRÍTICO: Usar useMemo para crear nueva referencia del array cuando cambien los datos
+  // Esto fuerza a React a detectar el cambio y re-renderizar los componentes
+  const reservas = useMemo(() => {
+    const data = includeStats 
+      ? (combinedQuery.data?.reservas || [])
+      : (reservasQuery.data || []);
+    
+    console.log('🔄 Hook: Creando nueva referencia de reservas array', {
+      count: data.length,
+      dataUpdatedAt: includeStats ? combinedQuery.dataUpdatedAt : reservasQuery.dataUpdatedAt
+    });
+    
+    // Crear nuevo array para garantizar nueva referencia en memoria
+    return [...data];
+  }, [
+    includeStats,
+    combinedQuery.data?.reservas,
+    combinedQuery.dataUpdatedAt,
+    reservasQuery.data,
+    reservasQuery.dataUpdatedAt
+  ]);
   
   const stats = includeStats ? combinedQuery.data?.stats : undefined;
   const clients = includeStats ? combinedQuery.data?.clients : undefined;
@@ -283,55 +321,65 @@ export function useReservasOptimized({
   };
 
   const refetchReservas = async () => {
-    // 🎯 Invalidar y forzar refetch inmediato para sincronización completa
-    await queryClient.invalidateQueries({ 
-      queryKey: reservasQueryKeys.list(businessId || 'default'),
-      refetchType: 'active'
-    });
+    // 🔥 REFETCH DIRECTO - No depender de invalidación
+    console.log('🔄 refetchReservas: Ejecutando refetch directo...');
     
-    await queryClient.invalidateQueries({ 
-      queryKey: reservasQueryKeys.stats(businessId || 'default'),
-      refetchType: 'active'
-    });
-    
-    // Forzar refetch inmediato de la query activa y retornar el resultado
-    if (includeStats) {
-      return await combinedQuery.refetch();
-    } else {
-      return await reservasQuery.refetch();
+    try {
+      const result = includeStats 
+        ? await combinedQuery.refetch()
+        : await reservasQuery.refetch();
+      
+      console.log('✅ Refetch completado:', {
+        success: result.isSuccess,
+        dataLength: result.data?.reservas?.length || result.data?.length || 0
+      });
+      
+      return result;
+    } catch (error) {
+      console.error('❌ Error en refetch:', error);
+      throw error;
     }
   };
 
   // 🎯 OPTIMISTIC UPDATE: Actualizar cache local inmediatamente
   const updateReservaAsistencia = (reservaId: string, nuevaAsistencia: number) => {
-    const queryKey = reservasQueryKeys.list(businessId || 'default');
+    console.log('🎯 updateReservaAsistencia - Inicio:', { 
+      reservaId, 
+      nuevaAsistencia 
+    });
     
-    queryClient.setQueryData(queryKey, (oldData: any) => {
-      if (!oldData) return oldData;
+    // Actualizar cache de query CON stats (combinedQuery)
+    const queryKeyWithStats = reservasQueryKeys.list(businessId || 'default', { includeStats: true });
+    queryClient.setQueryData(queryKeyWithStats, (oldData: any) => {
+      if (!oldData?.reservas) return oldData;
       
-      // Si es query combinada
-      if (oldData.reservas) {
-        return {
-          ...oldData,
-          reservas: oldData.reservas.map((reserva: any) => 
-            reserva.id === reservaId 
-              ? { ...reserva, asistenciaActual: nuevaAsistencia }
-              : reserva
-          )
-        };
-      }
-      
-      // Si es query simple de reservas
-      if (Array.isArray(oldData)) {
-        return oldData.map((reserva: any) => 
+      const updated = {
+        ...oldData,
+        reservas: oldData.reservas.map((reserva: any) => 
           reserva.id === reservaId 
             ? { ...reserva, asistenciaActual: nuevaAsistencia }
             : reserva
-        );
-      }
-      
-      return oldData;
+        )
+      };
+      console.log('✅ Cache actualizado (con stats)');
+      return updated;
     });
+    
+    // Actualizar cache de query SIN stats (reservasQuery)
+    const queryKeyWithoutStats = reservasQueryKeys.list(businessId || 'default', { includeStats: false });
+    queryClient.setQueryData(queryKeyWithoutStats, (oldData: any) => {
+      if (!Array.isArray(oldData)) return oldData;
+      
+      const updated = oldData.map((reserva: any) => 
+        reserva.id === reservaId 
+          ? { ...reserva, asistenciaActual: nuevaAsistencia }
+          : reserva
+      );
+      console.log('✅ Cache actualizado (sin stats)');
+      return updated;
+    });
+    
+    console.log('✅ updateReservaAsistencia - Completado para ambas cachés');
   };
 
   // 🎯 OPTIMISTIC UPDATE: Actualizar cualquier campo en el cache local inmediatamente

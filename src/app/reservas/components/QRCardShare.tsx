@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Button } from "./ui/button";
-import { Download, MessageCircle, Loader2, Settings } from "lucide-react";
+import { Download, MessageCircle, Loader2, Settings, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import QRCard from "./QRCard";
 import html2canvas from "html2canvas";
@@ -21,6 +21,7 @@ interface QRCardReserva {
   numeroPersonas: number;
   razonVisita?: string;
   qrToken: string;
+  mensajePersonalizado?: string;
 }
 
 interface QRCardShareProps {
@@ -37,6 +38,7 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
   const [customMessage, setCustomMessage] = useState<string>('');
   const [showMessageEditor, setShowMessageEditor] = useState(false);
   const [isSavingMessage, setIsSavingMessage] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
   const qrCardRef = useRef<HTMLDivElement>(null);
 
   // Notificar cuando el usuario abre/cierra el modal de configuración
@@ -198,7 +200,7 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
     }
   };
 
-  // 🔗 Compartir por WhatsApp - Nueva estrategia con link compartible
+  // 🔗 Compartir por WhatsApp - Estrategia: Imagen + Mensaje
   const handleShareWhatsApp = async () => {
     // Prevenir múltiples clicks
     if (isSharing) return;
@@ -206,45 +208,64 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
     setIsSharing(true);
     
     try {
-      // Mensaje personalizado
-      const message = customMessage || `Tu reserva en ${businessName} está confirmada. Por favor presenta este QR al llegar.`;
+      toast.loading('Generando imagen del QR...', { id: 'generating-image' });
 
-      // 1️⃣ Crear link compartible con QR + mensaje
-      toast.loading('Generando link compartible...', { id: 'creating-link' });
-      
-      const response = await fetch('/api/share/qr/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          reservaId: reserva.id,
-          message: message,
-          businessId: businessId,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al crear el link');
+      // 1️⃣ Verificar que el QR Card esté en el DOM
+      const qrCardElement = document.querySelector('[data-qr-card]') as HTMLElement;
+      if (!qrCardElement) {
+        toast.dismiss('generating-image');
+        toast.error('❌ Error: No se encontró el QR Card', {
+          description: 'Por favor recarga la página e intenta de nuevo',
+        });
+        setIsSharing(false);
+        return;
       }
 
-      const result = await response.json();
-      const shareUrl = result.data.shareUrl;
+      // 2️⃣ Generar imagen con html2canvas
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(qrCardElement, {
+        backgroundColor: null,
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
 
-      toast.dismiss('creating-link');
+      // 3️⃣ Convertir a blob/file
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, 'image/png', 1);
+      });
 
-      // 2️⃣ Preparar texto para compartir con el link
-      const shareText = `${message}\n\n📱 Ver QR y detalles: ${shareUrl}`;
+      if (!blob) {
+        toast.dismiss('generating-image');
+        toast.error('❌ Error al generar la imagen', {
+          description: 'No se pudo crear la imagen del QR',
+        });
+        setIsSharing(false);
+        return;
+      }
 
-      // 3️⃣ Intentar usar Web Share API (funciona con texto en todos los dispositivos)
-      if (navigator.share) {
+      const file = new File([blob], `reserva-${reserva.id.slice(0, 8)}.png`, { 
+        type: 'image/png' 
+      });
+
+      toast.dismiss('generating-image');
+
+      console.log('🔍 Debug compartir:', {
+        tieneArchivo: !!file,
+        tamañoArchivo: blob.size,
+        soportaShareConArchivos: navigator.canShare?.({ files: [file] })
+      });
+
+      // 4️⃣ Intentar compartir SOLO la imagen (sin texto)
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
         try {
           await navigator.share({
-            title: `Reserva - ${businessName}`,
-            text: shareText,
+            files: [file],
           });
 
-          toast.success('✅ Reserva compartida exitosamente', {
+          toast.success('✅ QR compartido exitosamente', {
             className: 'bg-green-600 text-white border-0',
-            description: 'El link incluye el QR y el mensaje completo',
+            description: 'Recuerda pegar el mensaje copiado en WhatsApp',
             duration: 5000,
           });
           
@@ -256,19 +277,21 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
             setIsSharing(false);
             return;
           }
-          console.log('Share API no disponible, usando WhatsApp directo');
+          console.log('Share API no disponible, usando fallback');
         }
       }
 
-      // 4️⃣ FALLBACK: Abrir WhatsApp directamente con el link
-      const whatsappMessage = encodeURIComponent(shareText);
-      const whatsappUrl = `https://wa.me/?text=${whatsappMessage}`;
-      
-      window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+      // 5️⃣ FALLBACK: Descargar imagen solamente
+      const imageUrl = URL.createObjectURL(blob);
+      const downloadLink = document.createElement('a');
+      downloadLink.href = imageUrl;
+      downloadLink.download = `reserva-qr-${reserva.id.slice(0, 8)}.png`;
+      downloadLink.click();
+      URL.revokeObjectURL(imageUrl);
 
-      toast.success('✅ WhatsApp abierto', {
+      toast.success('📥 Imagen descargada', {
         className: 'bg-green-600 text-white border-0',
-        description: 'El mensaje incluye el link al QR. Solo envíalo.',
+        description: 'Ahora puedes compartirla en WhatsApp con el mensaje copiado',
         duration: 5000,
       });
 
@@ -277,6 +300,25 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
       toast.error('❌ Error al compartir por WhatsApp');
     } finally {
       setIsSharing(false);
+    }
+  };
+
+  // Copiar mensaje al portapapeles
+  const handleCopyMessage = async () => {
+    try {
+      const message = customMessage || reserva.mensajePersonalizado || `¡Bienvenido! Tu reserva en ${businessName} está confirmada.`;
+      await navigator.clipboard.writeText(message);
+      setIsCopied(true);
+      toast.success('✅ Mensaje copiado', {
+        description: 'Ahora comparte el QR y pega el mensaje en WhatsApp',
+        duration: 3000,
+      });
+      
+      // Reset después de 3 segundos
+      setTimeout(() => setIsCopied(false), 3000);
+    } catch (error) {
+      console.error('Error al copiar:', error);
+      toast.error('❌ Error al copiar el mensaje');
     }
   };
 
@@ -353,27 +395,48 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
       </div>
 
       {/* Botones de acción */}
-      <div className="flex gap-3 justify-center">
+      <div className="flex gap-2 justify-center">
         <Button
           onClick={handleDownload}
           variant="outline"
-          className="flex items-center gap-2"
+          size="icon"
+          className="shrink-0"
+          title="Descargar"
         >
-          <Download className="w-4 h-4" />
-          Descargar
+          <Download className="w-5 h-5" />
         </Button>
         <Button
           onClick={handleShareWhatsApp}
           disabled={isSharing}
-          className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+          size="icon"
+          className="shrink-0 bg-green-600 hover:bg-green-700"
+          title="Compartir en WhatsApp"
         >
           {isSharing ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <Loader2 className="w-5 h-5 animate-spin" />
           ) : (
-            <MessageCircle className="w-4 h-4" />
+            <MessageCircle className="w-5 h-5" />
           )}
-          WhatsApp
         </Button>
+        {customMessage && (
+          <Button
+            onClick={handleCopyMessage}
+            variant={isCopied ? "default" : "outline"}
+            className={isCopied ? "flex-1 gap-2 bg-green-600 hover:bg-green-700 text-white" : "flex-1 gap-2"}
+          >
+            {isCopied ? (
+              <>
+                <Check className="w-4 h-4" />
+                Copiado
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4" />
+                Copiar Mensaje
+              </>
+            )}
+          </Button>
+        )}
         <Button
           onClick={() => setShowMessageEditor(true)}
           variant="outline"

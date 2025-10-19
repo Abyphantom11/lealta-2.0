@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Alert, AlertDescription } from "./ui/alert";
@@ -43,13 +43,17 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
   // Estados para el diálogo de incremento
   const [showDialog, setShowDialog] = useState(false);
   const [reservaDetectada, setReservaDetectada] = useState<ReservaDetectada | null>(null);
-  // ✅ Ya no usamos incrementoTemporal - siempre será +1
+  const [incrementoExtra, setIncrementoExtra] = useState(0); // ✅ Personas adicionales además del escaneo inicial
   
   // Referencias
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isScanningRef = useRef(isScanning); // ✅ Ref para evitar dependencias circulares
+  
+  // Sincronizar ref con estado
+  isScanningRef.current = isScanning;
 
   // Función para obtener información del QR sin incrementar
   const getQRInfo = useCallback(async (qrData: string) => {
@@ -148,9 +152,7 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
               setError(result.message || 'Error al procesar QR');
               // Reiniciar escaneo después de 2 segundos
               setTimeout(() => {
-                if (scanIntervalRef.current === null && isScanning) {
-                  scanIntervalRef.current = setInterval(scanQRCode, 200);
-                }
+                scanIntervalRef.current ??= setInterval(scanQRCode, 200);
               }, 2000);
             }
             
@@ -160,9 +162,7 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
             onError?.(errorMessage);
             // Reiniciar escaneo después de 2 segundos
             setTimeout(() => {
-              if (scanIntervalRef.current === null && isScanning) {
-                scanIntervalRef.current = setInterval(scanQRCode, 200);
-              }
+              scanIntervalRef.current ??= setInterval(scanQRCode, 200);
             }, 2000);
           } finally {
             setIsProcessing(false);
@@ -172,7 +172,7 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
     } catch {
       // Ignorar errores de escaneo para no saturar la consola
     }
-  }, [isProcessing, showDialog, getQRInfo, onScan, onError, isScanning]);
+  }, [isProcessing, showDialog, getQRInfo, onScan, onError]);
 
 
 
@@ -226,11 +226,20 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
 
   // Función para detener cámara
   const stopCamera = useCallback(() => {
+    // Detener todos los tracks del stream
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      for (const track of streamRef.current.getTracks()) {
+        track.stop();
+      }
       streamRef.current = null;
     }
     
+    // Limpiar el video element
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    
+    // Limpiar el intervalo de escaneo
     if (scanIntervalRef.current) {
       clearInterval(scanIntervalRef.current);
       scanIntervalRef.current = null;
@@ -246,7 +255,7 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
     const newFacingMode = facingMode === "user" ? "environment" : "user";
     setFacingMode(newFacingMode);
     
-    if (isScanning) {
+    if (isScanningRef.current) {
       stopCamera();
       setTimeout(async () => {
         try {
@@ -273,7 +282,7 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
         }
       }, 500);
     }
-  }, [facingMode, isScanning, stopCamera, scanQRCode]);
+  }, [facingMode, stopCamera, scanQRCode]);
 
   // ✅ Funciones de incremento/decremento eliminadas - ya no son necesarias
 
@@ -284,6 +293,8 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
     try {
       setIsProcessing(true);
       
+      const totalIncremento = 1 + incrementoExtra; // 1 del escaneo + personas adicionales
+      
       const response = await fetch('/api/reservas/qr-scan', {
         method: 'POST',
         headers: { 
@@ -293,7 +304,7 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
         body: JSON.stringify({ 
           qrCode: `res-${reservaDetectada.reservaId}`, // Usar formato simple
           action: 'increment',
-          increment: 1, // ✅ Siempre incrementar en 1
+          increment: totalIncremento, // ✅ 1 del escaneo + incremento extra
           businessId
         }),
       });
@@ -319,10 +330,10 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
       // Cerrar diálogo y reiniciar escaneo
       setShowDialog(false);
       setReservaDetectada(null);
-      // ✅ Ya no reseteamos incrementoTemporal
+      setIncrementoExtra(0);
       
       setTimeout(() => {
-        if (isScanning && scanIntervalRef.current === null) {
+        if (isScanningRef.current && scanIntervalRef.current === null) {
           scanIntervalRef.current = setInterval(scanQRCode, 200);
         }
       }, 3000);
@@ -333,18 +344,38 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
     } finally {
       setIsProcessing(false);
     }
-  }, [reservaDetectada, isScanning, scanQRCode, businessId, onRefreshNeeded]); // ✅ incrementoTemporal eliminado de dependencies
+  }, [reservaDetectada, scanQRCode, businessId, onRefreshNeeded, incrementoExtra]);
 
   // Función para cancelar y continuar
   const cancelarYContinuar = useCallback(() => {
     setShowDialog(false);
+    setIncrementoExtra(0);
     setReservaDetectada(null);
     // ✅ Ya no reseteamos incrementoTemporal
     
-    if (isScanning && scanIntervalRef.current === null) {
+    if (isScanningRef.current && scanIntervalRef.current === null) {
       scanIntervalRef.current = setInterval(scanQRCode, 200);
     }
-  }, [isScanning, scanQRCode]);
+  }, [scanQRCode]);
+
+  // 🧹 Cleanup: Detener cámara cuando el componente se desmonte
+  useEffect(() => {
+    return () => {
+      // Limpiar stream de video
+      if (streamRef.current) {
+        for (const track of streamRef.current.getTracks()) {
+          track.stop();
+        }
+        streamRef.current = null;
+      }
+      
+      // Limpiar intervalo de escaneo
+      if (scanIntervalRef.current) {
+        clearInterval(scanIntervalRef.current);
+        scanIntervalRef.current = null;
+      }
+    };
+  }, []); // Solo al desmontar
 
   // No renderizar en SSR
   if (!isClient) {
@@ -411,7 +442,7 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
             {!isScanning && (
               <div className="text-white text-center">
                 <Camera className="mx-auto mb-2 h-12 w-12 opacity-50" />
-                <p>Presiona "Iniciar Cámara" para escanear QR</p>
+                <p>Presiona &quot;Iniciar Cámara&quot; para escanear QR</p>
               </div>
             )}
 
@@ -462,17 +493,41 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
                 )}
               </div>
               
-              {/* Estado actual */}
+              {/* Estado actual con botones de incremento/decremento */}
               <div className="text-center bg-blue-50 p-3 rounded-lg border">
                 <p className="text-sm font-medium text-gray-700 mb-2">Estado actual:</p>
-                <div className="text-2xl font-bold text-gray-900">
-                  <span className="text-blue-600">{reservaDetectada.actual}</span>
-                  <span className="text-gray-400 mx-2">/</span>
-                  <span className="text-gray-600">{reservaDetectada.total}</span>
-                  {reservaDetectada.exceso > 0 && (
-                    <span className="text-orange-600 ml-2 text-lg">(+{reservaDetectada.exceso})</span>
-                  )}
+                <div className="flex items-center justify-center gap-3">
+                  <Button
+                    onClick={() => setIncrementoExtra(prev => Math.max(-1, prev - 1))}
+                    size="sm"
+                    className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Quitar una persona"
+                    disabled={incrementoExtra <= -1}
+                  >
+                    −
+                  </Button>
+                  <div className="text-2xl font-bold text-gray-900">
+                    <span className="text-blue-600">{reservaDetectada.actual}</span>
+                    <span className="text-gray-400 mx-2">/</span>
+                    <span className="text-gray-600">{reservaDetectada.total}</span>
+                    {reservaDetectada.exceso > 0 && (
+                      <span className="text-orange-600 ml-2 text-lg">(+{reservaDetectada.exceso})</span>
+                    )}
+                  </div>
+                  <Button
+                    onClick={() => setIncrementoExtra(prev => prev + 1)}
+                    size="sm"
+                    className="h-8 w-8 p-0 bg-blue-600 hover:bg-blue-700 text-white rounded-full"
+                    title="Agregar una persona más"
+                  >
+                    +
+                  </Button>
                 </div>
+                {incrementoExtra !== 0 && (
+                  <p className="text-sm text-blue-700 mt-2">
+                    {incrementoExtra > 0 ? '+' : ''}{incrementoExtra} {Math.abs(incrementoExtra) === 1 ? 'persona' : 'personas'}
+                  </p>
+                )}
               </div>
               
               {/* Mensaje de registro */}
@@ -488,7 +543,7 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
               {/* Preview del resultado */}
               <div className="text-center text-sm text-gray-600">
                 {(() => {
-                  const nuevoTotal = reservaDetectada.actual + 1; // ✅ Siempre +1
+                  const nuevoTotal = reservaDetectada.actual + 1 + incrementoExtra; // ✅ 1 del escaneo + extra
                   const exceso = Math.max(0, nuevoTotal - reservaDetectada.total);
                   return (
                     <span>

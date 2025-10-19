@@ -6,8 +6,14 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import crypto from 'node:crypto';
 
 const prisma = new PrismaClient();
+
+// Función para generar ID único
+function generateId(): string {
+  return crypto.randomBytes(16).toString('hex');
+}
 
 // GET - Listar promotores
 export async function GET(request: NextRequest) {
@@ -72,7 +78,7 @@ export async function GET(request: NextRequest) {
       include: {
         _count: {
           select: {
-            reservations: true,
+            Reservation: true,
           },
         },
       },
@@ -85,7 +91,7 @@ export async function GET(request: NextRequest) {
       telefono: p.telefono,
       email: p.email,
       activo: p.activo,
-      totalReservas: p._count.reservations,
+      totalReservas: p._count.Reservation,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
     }));
@@ -181,18 +187,21 @@ export async function POST(request: NextRequest) {
 
     // Crear promotor
     console.log('✅ Creando nuevo promotor...');
+    const now = new Date();
     const nuevoPromotor = await prisma.promotor.create({
       data: {
+        id: generateId(),
         businessId,
         nombre: nombre.trim(),
         telefono: telefono?.trim() || null,
         email: email?.trim() || null,
         activo: true,
+        updatedAt: now,
       },
       include: {
         _count: {
           select: {
-            reservations: true,
+            Reservation: true,
           },
         },
       },
@@ -209,7 +218,7 @@ export async function POST(request: NextRequest) {
         telefono: nuevoPromotor.telefono,
         email: nuevoPromotor.email,
         activo: nuevoPromotor.activo,
-        totalReservas: nuevoPromotor._count.reservations,
+        totalReservas: (nuevoPromotor as any)._count.Reservation,
         createdAt: nuevoPromotor.createdAt,
         updatedAt: nuevoPromotor.updatedAt,
       },
