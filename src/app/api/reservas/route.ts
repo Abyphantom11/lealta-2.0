@@ -11,6 +11,11 @@ function generateQRCode(): string {
   return `QR-${Date.now()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 }
 
+// Función para generar ID único
+function generateId(): string {
+  return crypto.randomBytes(16).toString('hex');
+}
+
 // Función para generar número de reserva único
 // Función para mapear estado de Prisma a nuestro tipo
 function mapPrismaStatusToReserva(status: string): EstadoReserva {
@@ -146,11 +151,11 @@ export async function GET(request: NextRequest) {
       reservations = await prisma.reservation.findMany({
         where: whereClause,
         include: {
-          cliente: true,
-          service: true,
-          slot: true,
-          qrCodes: true,
-          promotor: {
+          Cliente: true,
+          ReservationService: true,
+          ReservationSlot: true,
+          ReservationQRCode: true,
+          Promotor: {
             select: {
               id: true,
               nombre: true,
@@ -168,10 +173,10 @@ export async function GET(request: NextRequest) {
       reservations = await prisma.reservation.findMany({
         where: whereClause,
         include: {
-          cliente: true,
-          service: true,
-          slot: true,
-          qrCodes: true
+          Cliente: true,
+          ReservationService: true,
+          ReservationSlot: true,
+          ReservationQRCode: true
         },
         orderBy: {
           createdAt: 'asc'
@@ -187,8 +192,8 @@ export async function GET(request: NextRequest) {
         const metadata = (reservation.metadata as any) || {};
         
         // Extraer nombre del promotor de forma segura
-        const promotorNombre = (reservation as any).promotor?.nombre || 
-                              reservation.service?.name || 
+        const promotorNombre = (reservation as any).Promotor?.nombre || 
+                              reservation.ReservationService?.name || 
                               'Sistema';
         
         // Procesar fecha de forma segura - USAR reservedAt como fuente principal
@@ -199,18 +204,18 @@ export async function GET(request: NextRequest) {
             fecha = reservation.reservedAt.toISOString().split('T')[0];
           } catch (e) {
             console.warn('⚠️ Error parseando fecha de reservedAt:', e);
-            // Fallback a slot.date solo si reservedAt falla
-            if (reservation.slot?.date) {
+            // Fallback a ReservationSlot.date solo si reservedAt falla
+            if (reservation.ReservationSlot?.date) {
               try {
-                fecha = new Date(reservation.slot.date).toISOString().split('T')[0];
+                fecha = new Date(reservation.ReservationSlot.date).toISOString().split('T')[0];
               } catch (error_) {
                 console.warn('⚠️ Error parseando fecha del slot también:', error_);
               }
             }
           }
-        } else if (reservation.slot?.date) {
+        } else if (reservation.ReservationSlot?.date) {
           try {
-            fecha = new Date(reservation.slot.date).toISOString().split('T')[0];
+            fecha = new Date(reservation.ReservationSlot.date).toISOString().split('T')[0];
           } catch (e) {
             console.warn('⚠️ Error parseando fecha del slot:', e);
           }
@@ -224,18 +229,18 @@ export async function GET(request: NextRequest) {
             hora = reservation.reservedAt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
           } catch (e) {
             console.warn('⚠️ Error parseando hora de reservedAt:', e);
-            // Fallback a slot.startTime solo si reservedAt falla
-            if (reservation.slot?.startTime) {
+            // Fallback a ReservationSlot.startTime solo si reservedAt falla
+            if (reservation.ReservationSlot?.startTime) {
               try {
-                hora = new Date(reservation.slot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                hora = new Date(reservation.ReservationSlot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
               } catch (error_) {
                 console.warn('⚠️ Error parseando hora del slot también:', error_);
               }
             }
           }
-        } else if (reservation.slot?.startTime) {
+        } else if (reservation.ReservationSlot?.startTime) {
           try {
-            hora = new Date(reservation.slot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+            hora = new Date(reservation.ReservationSlot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
           } catch (e) {
             console.warn('⚠️ Error parseando hora del slot:', e);
           }
@@ -244,10 +249,11 @@ export async function GET(request: NextRequest) {
         return {
           id: reservation.id,
           cliente: {
-            id: reservation.cliente?.id || `temp-${Date.now()}`,
-            nombre: reservation.customerName || 'Sin nombre',
-            telefono: reservation.customerPhone || undefined,
-            email: reservation.customerEmail || undefined
+            id: reservation.Cliente?.id || `temp-${Date.now()}`,
+            // 🔄 PRIORIDAD: usar nombre de la relación Cliente si existe, sino customerName
+            nombre: reservation.Cliente?.nombre || reservation.customerName || 'Sin nombre',
+            telefono: reservation.Cliente?.telefono || reservation.customerPhone || undefined,
+            email: reservation.Cliente?.correo || reservation.customerEmail || undefined
           },
           numeroPersonas: reservation.guestCount || 1,
           razonVisita: reservation.specialRequests || 'Reserva general',
@@ -260,7 +266,7 @@ export async function GET(request: NextRequest) {
           fecha,
           hora,
           codigoQR: `res-${reservation.id}`,
-          asistenciaActual: reservation.qrCodes?.[0]?.scanCount || 0,
+          asistenciaActual: reservation.ReservationQRCode?.[0]?.scanCount || 0,
           estado: mapPrismaStatusToReserva(reservation.status),
           fechaCreacion: reservation.createdAt?.toISOString() || new Date().toISOString(),
           fechaModificacion: reservation.updatedAt?.toISOString() || new Date().toISOString(),
@@ -450,14 +456,17 @@ export async function POST(request: NextRequest) {
       });
       
       if (cliente === null) {
+        const now = new Date();
         cliente = await prisma.cliente.create({
           data: {
+            id: generateId(),
             businessId: businessId,
             cedula: 'EXPRESS',
             nombre: 'Cliente Express',
             telefono: 'N/A',
             correo: 'express@reserva.local',
-            puntos: 0
+            puntos: 0,
+            registeredAt: now
           }
         });
         console.log('✅ Cliente EXPRESS creado para business:', businessId);
@@ -503,14 +512,17 @@ export async function POST(request: NextRequest) {
           ? data.cliente.id 
           : `temp-${Date.now()}`;
         
+        const now = new Date();
         cliente = await prisma.cliente.create({
           data: {
+            id: generateId(),
             businessId: businessId,
             cedula: cedulaReal, // ✅ Usar cédula real del formulario
             nombre: data.cliente.nombre,
             telefono: data.cliente.telefono || '',
             correo: data.cliente.email || `temp-${Date.now()}@temp.com`,
-            puntos: 0
+            puntos: 0,
+            registeredAt: now
           }
         });
         console.log('✅ Cliente nuevo creado:', { id: cliente.id, cedula: cedulaReal, nombre: cliente.nombre });
@@ -551,15 +563,20 @@ export async function POST(request: NextRequest) {
     });
     
     // Usar nullish coalescing operator para simplificar
-    service ??= await prisma.reservationService.create({
-      data: {
-        businessId: businessId,
-        name: data.promotor.nombre,
-        description: 'Servicio de reserva',
-        capacity: 100,
-        duration: 240
-      }
-    });
+    if (!service) {
+      const now = new Date();
+      service = await prisma.reservationService.create({
+        data: {
+          id: generateId(),
+          businessId: businessId,
+          name: data.promotor.nombre,
+          description: 'Servicio de reserva',
+          capacity: 100,
+          duration: 240,
+          updatedAt: now
+        }
+      });
+    }
 
     // 3. Crear slot de tiempo
     const fechaSlot = new Date(data.fecha);
@@ -569,15 +586,18 @@ export async function POST(request: NextRequest) {
     const endTime = new Date(startTime);
     endTime.setHours(endTime.getHours() + 4); // 4 horas de duración por defecto
 
+    const now = new Date();
     const slot = await prisma.reservationSlot.create({
       data: {
+        id: generateId(),
         businessId: businessId,
         serviceId: service.id,
         date: fechaSlot,
         startTime: startTime,
         endTime: endTime,
         capacity: data.numeroPersonas,
-        reservedCount: data.numeroPersonas
+        reservedCount: data.numeroPersonas,
+        updatedAt: now
       }
     });
 
@@ -642,8 +662,10 @@ export async function POST(request: NextRequest) {
       promotorId: promotorId
     });
     
+    const nowReservation = new Date();
     const reservation = await prisma.reservation.create({
       data: {
+        id: generateId(),
         businessId: businessId,
         clienteId: cliente.id,
         serviceId: service.id,
@@ -659,10 +681,11 @@ export async function POST(request: NextRequest) {
         specialRequests: data.razonVisita,
         notes: data.beneficiosReserva,
         reservedAt: reservedAtDate,
-        promotorId: promotorId
+        promotorId: promotorId,
+        updatedAt: nowReservation
       },
       include: {
-        promotor: {
+        Promotor: {
           select: {
             id: true,
             nombre: true,
@@ -678,8 +701,10 @@ export async function POST(request: NextRequest) {
     // Calcular fecha de expiración: 12 horas después de la hora específica de la reserva
     const qrExpirationDate = new Date(reservedAtDate.getTime() + (12 * 60 * 60 * 1000)); // +12 horas desde la hora de llegada
     
+    const nowQR = new Date();
     await prisma.reservationQRCode.create({
       data: {
+        id: generateId(),
         businessId: businessId,
         reservationId: reservation.id,
         qrToken: qrToken,
@@ -692,7 +717,8 @@ export async function POST(request: NextRequest) {
           hora: data.hora
         }),
         expiresAt: qrExpirationDate,
-        status: 'ACTIVE'
+        status: 'ACTIVE',
+        updatedAt: nowQR
       }
     });
 
@@ -702,8 +728,10 @@ export async function POST(request: NextRequest) {
     const MIN_GUESTS_FOR_HOST_TRACKING = 4; // Umbral: 4+ invitados
     if (data.numeroPersonas >= MIN_GUESTS_FOR_HOST_TRACKING && !isExpressReservation) {
       try {
+        const nowHost = new Date();
         await prisma.hostTracking.create({
           data: {
+            id: generateId(),
             businessId: businessId,
             reservationId: reservation.id,
             clienteId: cliente.id,
@@ -712,6 +740,7 @@ export async function POST(request: NextRequest) {
             reservationDate: reservedAtDate,
             guestCount: data.numeroPersonas,
             isActive: true,
+            updatedAt: nowHost
           },
         });
         console.log(`🏠 [HOST TRACKING] Auto-activado para ${data.cliente.nombre} (${data.numeroPersonas} invitados)`);
@@ -734,8 +763,8 @@ export async function POST(request: NextRequest) {
       razonVisita: data.razonVisita,
       beneficiosReserva: data.beneficiosReserva,
       // ✅ Devolver datos reales del promotor desde la DB
-      promotor: reservation.promotor 
-        ? { id: reservation.promotor.id, nombre: reservation.promotor.nombre }
+      promotor: (reservation as any).Promotor 
+        ? { id: (reservation as any).Promotor.id, nombre: (reservation as any).Promotor.nombre }
         : { id: '', nombre: 'Sistema' },
       promotorId: reservation.promotorId || undefined, // ✅ Incluir el promotorId que se guardó en la DB
       fecha: data.fecha,

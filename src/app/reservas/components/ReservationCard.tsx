@@ -1,13 +1,14 @@
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { Calendar, Clock, Users, CheckCircle, Eye, Edit } from "lucide-react";
+import { Calendar, Clock, Users, CheckCircle, Eye, Edit, Pencil } from "lucide-react";
 import { Reserva } from "../types/reservation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useEffect, useState } from "react";
 import { DateChangeModal } from "./DateChangeModal";
 import { PersonasAjusteModal } from "./PersonasAjusteModal";
+import { EditNameModal } from "./EditNameModal";
 
 interface ReservationCardProps {
   reserva: Reserva;
@@ -15,6 +16,7 @@ interface ReservationCardProps {
   onEdit?: () => void; // ✅ Nueva prop para editar
   onDateChange?: (reservaId: string, newDate: Date) => Promise<void>; // ✅ Nueva prop para cambiar fecha
   onPersonasChange?: (reservaId: string, newPersonas: number) => Promise<void>; // ✅ Nueva prop para cambiar personas
+  onNameChange?: (reservaId: string, clienteId: string, newName: string) => Promise<void>; // ✅ Nueva prop para cambiar nombre
   reservedDates?: string[]; // Fechas que ya tienen reservas
 }
 
@@ -48,15 +50,21 @@ const getEstadoColor = (estado: Reserva['estado']) => {
   }
 };
 
-export const ReservationCard = ({ reserva, onView, onEdit, onDateChange, onPersonasChange, reservedDates = [] }: ReservationCardProps) => {
+export const ReservationCard = ({ reserva, onView, onEdit, onDateChange, onPersonasChange, onNameChange, reservedDates = [] }: ReservationCardProps) => {
   const [renderKey, setRenderKey] = useState(0);
   const [showDateChangeModal, setShowDateChangeModal] = useState(false);
   const [showPersonasModal, setShowPersonasModal] = useState(false);
+  const [showEditNameModal, setShowEditNameModal] = useState(false);
   
   // 🔄 Monitorear cambios en las props de reserva
   useEffect(() => {
     // Logs removidos para producción
   }, [reserva]);
+  
+  // 🔄 Monitorear cambios específicos en el nombre del cliente
+  useEffect(() => {
+    setRenderKey(prev => prev + 1);
+  }, [reserva.cliente.nombre]);
   
   // 🔄 Listener para re-renders forzados desde actualizaciones móviles
   useEffect(() => {
@@ -72,7 +80,7 @@ export const ReservationCard = ({ reserva, onView, onEdit, onDateChange, onPerso
     return () => {
       globalThis.removeEventListener('force-card-refresh', handleForceRefresh as EventListener);
     };
-  }, [reserva.id, renderKey]);
+  }, [reserva.id]);
 
   // Verificar si tiene comprobante de pago
   const tieneComprobante = Boolean(reserva.comprobanteUrl || reserva.comprobanteSubido);
@@ -88,6 +96,13 @@ export const ReservationCard = ({ reserva, onView, onEdit, onDateChange, onPerso
   const handlePersonasChange = async (newPersonas: number) => {
     if (onPersonasChange) {
       await onPersonasChange(reserva.id, newPersonas);
+    }
+  };
+
+  // Manejar cambio de nombre
+  const handleNameChange = async (newName: string) => {
+    if (onNameChange) {
+      await onNameChange(reserva.id, reserva.cliente.id, newName);
     }
   };
 
@@ -109,9 +124,16 @@ export const ReservationCard = ({ reserva, onView, onEdit, onDateChange, onPerso
         currentPersonas={reserva.numeroPersonas}
         clienteName={reserva.cliente.nombre}
       />
+
+      <EditNameModal
+        isOpen={showEditNameModal}
+        onClose={() => setShowEditNameModal(false)}
+        onConfirm={handleNameChange}
+        currentName={reserva.cliente.nombre}
+      />
     <Card className={`mb-3 border-l-4 ${getEstadoColor(reserva.estado)} hover:shadow-md transition-shadow ${
       tieneComprobante ? 'bg-fuchsia-50/30' : ''
-    }`}>
+    }`} key={renderKey}>
       <CardContent className="p-4">
         {/* Header de la tarjeta */}
         <div className="flex justify-between items-start mb-3">
@@ -130,7 +152,20 @@ export const ReservationCard = ({ reserva, onView, onEdit, onDateChange, onPerso
                 </span>
               )}
             </div>
-            <h3 className="font-semibold text-base truncate">{reserva.cliente.nombre}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-base truncate">{reserva.cliente.nombre}</h3>
+              {onNameChange && (
+                <button
+                  type="button"
+                  onClick={() => setShowEditNameModal(true)}
+                  className="p-1 hover:bg-gray-100 rounded transition-colors"
+                  title="Editar nombre del cliente"
+                  aria-label="Editar nombre del cliente"
+                >
+                  <Pencil className="h-3.5 w-3.5 text-gray-500 hover:text-blue-600" />
+                </button>
+              )}
+            </div>
             <p className="text-sm text-muted-foreground truncate">{reserva.cliente.telefono}</p>
           </div>
         </div>

@@ -6,13 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { CustomCalendar } from "./ui/custom-calendar";
 import { CalendarFullscreenModal } from "./ui/calendar-fullscreen-modal";
-import { Eye, Calendar, User, Search, Plus, Trash2, Clock, Upload, X } from "lucide-react";
+import { Eye, Calendar, User, Search, Plus, Trash2, Clock, Upload, X, Pencil } from "lucide-react";
 import { Reserva } from "../types/reservation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { ReservationCard } from "./ReservationCard";
 import ComprobanteUploadModal from "./ComprobanteUploadModal";
 import { DateChangeModal } from "./DateChangeModal";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 import { PromotorTableAutocomplete } from "./PromotorTableAutocomplete";
 import { useReservaEditing } from "../hooks/useReservaEditing";
 
@@ -36,6 +37,7 @@ interface ReservationTableProps {
   // onBeneficiosChange?: (id: string, beneficios: string) => void; // No usado actualmente
   onFechaChange?: (id: string, nuevaFecha: Date) => Promise<void>;
   onPersonasChange?: (id: string, newPersonas: number) => Promise<void>;
+  onNameChange?: (reservaId: string, clienteId: string, newName: string) => Promise<void>;
 }
 
 export function ReservationTable({ 
@@ -55,6 +57,7 @@ export function ReservationTable({
   onPromotorChange,
   onFechaChange,
   onPersonasChange,
+  onNameChange,
 }: Readonly<ReservationTableProps>) {
   // 🎯 Hook unificado de edición (reemplaza toda la lógica de localStorage)
   const { updateField, getFieldValue } = useReservaEditing({ businessId });
@@ -68,6 +71,10 @@ export function ReservationTable({
   // Estados para el modal de cambio de fecha
   const [showDateChangeModal, setShowDateChangeModal] = useState(false);
   const [selectedReservaForDateChange, setSelectedReservaForDateChange] = useState<Reserva | null>(null);
+
+  // ✏️ Estados para edición de nombre del cliente
+  const [editingClienteName, setEditingClienteName] = useState<string | null>(null);
+  const [tempClienteName, setTempClienteName] = useState<string>("");
 
   // 🔄 Función para obtener el valor actual de un campo (simplificada)
   const obtenerValorCampo = (reservaId: string, campo: keyof Reserva): any => {
@@ -169,6 +176,47 @@ export function ReservationTable({
     } catch (error: any) {
       console.error('Error al eliminar comprobante:', error);
       toast.error('❌ Error al eliminar comprobante');
+    }
+  };
+  
+  // ✏️ Funciones para editar nombre del cliente
+  const handleStartEditingName = (reservaId: string, currentName: string) => {
+    console.log('✏️ Iniciando edición de nombre:', { reservaId, currentName });
+    setEditingClienteName(reservaId);
+    setTempClienteName(currentName);
+  };
+
+  const handleCancelEditingName = () => {
+    setEditingClienteName(null);
+    setTempClienteName("");
+  };
+
+  const handleSaveClientName = async (reservaId: string, clienteId: string) => {
+    if (!tempClienteName.trim()) {
+      toast.error('El nombre no puede estar vacío');
+      return;
+    }
+
+    console.log('🔄 Guardando nombre del cliente:', {
+      reservaId,
+      clienteId,
+      newName: tempClienteName.trim(),
+      onNameChangeDefined: !!onNameChange
+    });
+
+    try {
+      if (onNameChange) {
+        await onNameChange(reservaId, clienteId, tempClienteName.trim());
+        setEditingClienteName(null);
+        setTempClienteName("");
+        console.log('✅ Nombre guardado exitosamente');
+      } else {
+        console.error('❌ onNameChange no está definido');
+        toast.error('Error: función de guardado no disponible');
+      }
+    } catch (error) {
+      console.error('❌ Error al actualizar nombre:', error);
+      // El error ya se maneja en handleNameChange del padre
     }
   };
   
@@ -311,39 +359,54 @@ export function ReservationTable({
   return (
     <>
       <Card className="rounded-md border shadow-sm mx-auto max-w-7xl bg-white border-gray-200">
-      <CardHeader className="flex flex-row items-center justify-between gap-4 p-4 pb-2">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 p-4 pb-2 flex-wrap">
         <CardTitle className="text-lg font-semibold text-gray-900">Reservas</CardTitle>
       </CardHeader>
       <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
         {/* Filtros simples */}
-        <div className="flex items-center gap-4 p-4 pb-2 border-b border-gray-200">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-4 pb-2 border-b border-gray-200">
           {/* Buscador */}
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <div className="relative flex-1 sm:max-w-sm">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
             <Input
               type="text"
-              placeholder="Buscar por cliente, promotor..."
+              placeholder="Buscar cliente o promotor..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-white border-gray-200 text-gray-900 placeholder-gray-500"
+              className="pl-10 pr-10 bg-white border-gray-200 text-gray-900 placeholder-gray-500 w-full"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
             />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                type="button"
+                aria-label="Limpiar búsqueda"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
-          {/* Selector de fecha */}
-          <div className="relative" ref={datePickerRef}>
-            <button
-              className={`min-h-[44px] md:min-h-[36px] px-3 md:px-3 py-1.5 md:py-1.5 text-xs md:text-sm border border-gray-300 rounded-md cursor-pointer transition-all duration-200 hover:bg-blue-50 hover:border-blue-300 active:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 bg-white text-black font-medium ${showDatePicker ? 'bg-blue-100 border-blue-300' : ''}`}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setShowDatePicker(!showDatePicker);
-              }}
-              type="button"
-              style={{ zIndex: 10, position: 'relative' }}
-            >
-              <Calendar className="mr-1.5 h-3.5 w-3.5 md:h-4 md:w-4 inline" />
-              {showDatePicker ? 'Cerrar calendario' : 'Filtrar fecha'}
-            </button>
+          {/* Selector de fecha y Métricas */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative" ref={datePickerRef}>
+              <button
+                className={`min-h-[44px] md:min-h-[32px] px-2.5 md:px-2.5 py-1.5 md:py-1 text-xs border border-gray-300 rounded-md cursor-pointer transition-all duration-200 hover:bg-blue-50 hover:border-blue-300 active:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 bg-white text-black font-medium flex items-center gap-1.5 ${showDatePicker ? 'bg-blue-100 border-blue-300' : ''}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowDatePicker(!showDatePicker);
+                }}
+                type="button"
+                style={{ zIndex: 10, position: 'relative' }}
+              >
+                <Calendar className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{showDatePicker ? 'Cerrar' : 'Filtrar'}</span>
+              </button>
             
             {/* Desktop: Popover normal */}
             {showDatePicker && (
@@ -368,6 +431,21 @@ export function ReservationTable({
                 />
               </div>
             )}
+            </div>
+          
+            {/* 📊 Métricas del día - Compactas y en línea */}
+            {!searchTerm.trim() && reservasDelDia.length > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 bg-purple-50 px-2 py-1 rounded-md border border-purple-200 text-xs">
+                  <span className="font-semibold text-purple-900">{metricas.totalInvitados}</span>
+                  <span className="text-purple-700">Invitado{metricas.totalInvitados === 1 ? '' : 's'}</span>
+                </div>
+                <div className="flex items-center gap-1 bg-green-50 px-2 py-1 rounded-md border border-green-200 text-xs">
+                  <span className="font-semibold text-green-900">{metricas.totalAsistentes}</span>
+                  <span className="text-green-700">Asistente{metricas.totalAsistentes === 1 ? '' : 's'}</span>
+                </div>
+              </div>
+            )}
           </div>
           
           {/* Mobile: Modal fullscreen */}
@@ -385,27 +463,11 @@ export function ReservationTable({
           </div>
 
           {/* Mostrar fecha seleccionada o modo búsqueda */}
-          <div className="flex flex-col gap-2">
-            <div className="text-sm text-muted-foreground">
-              {searchTerm.trim() ? (
-                <span>Buscando: <strong>{searchTerm}</strong> (mostrando todas las fechas)</span>
-              ) : (
-                <span>Mostrando: {format(selectedDate, 'dd/MM/yyyy', { locale: es })}</span>
-              )}
-            </div>
-            
-            {/* 📊 Métricas del día */}
-            {!searchTerm.trim() && reservasDelDia.length > 0 && (
-              <div className="flex items-center gap-4 text-xs">
-                <div className="flex items-center gap-1.5 bg-purple-50 px-3 py-1.5 rounded-md border border-purple-200">
-                  <span className="font-semibold text-purple-900">{metricas.totalInvitados}</span>
-                  <span className="text-purple-700">Invitado{metricas.totalInvitados === 1 ? '' : 's'}</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-green-50 px-3 py-1.5 rounded-md border border-green-200">
-                  <span className="font-semibold text-green-900">{metricas.totalAsistentes}</span>
-                  <span className="text-green-700">Asistente{metricas.totalAsistentes === 1 ? '' : 's'}</span>
-                </div>
-              </div>
+          <div className="text-sm text-muted-foreground">
+            {searchTerm.trim() ? (
+              <span>Buscando: <strong>{searchTerm}</strong> (mostrando todas las fechas)</span>
+            ) : (
+              <span>Mostrando: {format(selectedDate, 'dd/MM/yyyy', { locale: es })}</span>
             )}
           </div>
         </div>
@@ -472,7 +534,7 @@ export function ReservationTable({
                       </div>
                     </TableCell>
                     
-                    {/* Cliente */}
+                    {/* Cliente - Editable con modal */}
                     <TableCell className={`py-2 text-center align-middle w-44 ${
                       obtenerValorCampo(reserva.id, 'comprobanteSubido') ? 'bg-fuchsia-50' : ''
                     }`}>
@@ -482,9 +544,25 @@ export function ReservationTable({
                             Pago en reserva
                           </span>
                         )}
-                        <div className="flex items-center justify-center gap-1">
+                        <div className="flex items-center justify-center gap-1 group">
                           <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                           <p className="font-medium text-xs truncate max-w-36 text-gray-900">{reserva.cliente.nombre}</p>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            onClick={() => {
+                              console.log('🖊️ Click en botón editar nombre:', { 
+                                reservaId: reserva.id, 
+                                clienteNombre: reserva.cliente.nombre,
+                                clienteId: reserva.cliente.id
+                              });
+                              handleStartEditingName(reserva.id, reserva.cliente.nombre);
+                            }}
+                            title="Editar nombre"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
                         </div>
                       </div>
                     </TableCell>
@@ -713,6 +791,9 @@ export function ReservationTable({
                   onPersonasChange={onPersonasChange ? async (reservaId, newPersonas) => {
                     await onPersonasChange(reservaId, newPersonas);
                   } : undefined}
+                  onNameChange={onNameChange ? async (reservaId, clienteId, newName) => {
+                    await onNameChange(reservaId, clienteId, newName);
+                  } : undefined}
                   reservedDates={allReservas?.map(r => r.fecha) || []}
                 />
               );
@@ -772,6 +853,92 @@ export function ReservationTable({
         reservedDates={reservedDates}
       />
     )}
+
+    {/* Modal para editar nombre del cliente */}
+    <Dialog 
+      open={editingClienteName !== null} 
+      onOpenChange={(open) => {
+        console.log('🔄 Modal cambió estado:', { open, editingClienteName });
+        if (!open) handleCancelEditingName();
+      }}
+    >
+      <DialogContent className="sm:max-w-[425px] border border-gray-200 shadow-xl">
+        <DialogHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 -m-6 p-6 mb-4 border-b border-gray-100">
+          <DialogTitle className="flex items-center gap-3 text-gray-900 text-lg font-semibold">
+            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+              <User className="h-5 w-5 text-blue-600" />
+            </div>
+            Editar nombre del cliente
+          </DialogTitle>
+          <DialogDescription className="text-gray-600 mt-2">
+            Este cambio se reflejará en la base de datos del cliente
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <label htmlFor="clienteName" className="text-sm font-medium text-gray-700">
+              Nombre del cliente
+            </label>
+            <Input
+              id="clienteName"
+              value={tempClienteName}
+              onChange={(e) => setTempClienteName(e.target.value)}
+              placeholder="Ingresa el nombre completo"
+              className="w-full"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const reserva = reservas.find(r => r.id === editingClienteName);
+                  if (reserva) {
+                    handleSaveClientName(reserva.id, reserva.cliente.id);
+                  }
+                } else if (e.key === 'Escape') {
+                  handleCancelEditingName();
+                }
+              }}
+            />
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleCancelEditingName}
+            className="border-gray-300"
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            onClick={() => {
+              const reserva = reservas.find(r => r.id === editingClienteName);
+              console.log('🔍 Buscando reserva para guardar:', {
+                editingClienteName,
+                reservaEncontrada: !!reserva,
+                clienteId: reserva?.cliente?.id,
+                reserva: reserva ? {
+                  id: reserva.id,
+                  clienteNombre: reserva.cliente.nombre,
+                  clienteId: reserva.cliente.id
+                } : null
+              });
+              
+              if (reserva) {
+                handleSaveClientName(reserva.id, reserva.cliente.id);
+              } else {
+                console.error('❌ No se encontró la reserva con id:', editingClienteName);
+                toast.error('Error: No se encontró la reserva');
+              }
+            }}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            Guardar cambios
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </>
   );
 }

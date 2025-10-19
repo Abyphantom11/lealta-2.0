@@ -204,7 +204,7 @@ export default function QRCard({
               Código
             </div>
             <div
-              className="text-sm font-medium truncate"
+              className="text-[10px] font-mono font-medium break-all leading-tight"
               style={{ color: cardDesign.headerColor }}
             >
               {reserva.qrToken}

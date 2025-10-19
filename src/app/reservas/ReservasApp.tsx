@@ -66,26 +66,45 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
 
   // 🔍 Monitorear cambios en las reservas del hook principal
   useEffect(() => {
-    // Log simplificado solo para errores si es necesario
+    console.log('🔔 ReservasApp: reservas cambiaron', {
+      count: reservas.length,
+      timestamp: new Date().toISOString()
+    });
+    if (reservas.length > 0) {
+      console.log('📋 Primera reserva:', {
+        id: reservas[0].id?.substring(0, 8),
+        nombre: reservas[0].nombreCliente,
+        asistencia: reservas[0].asistenciaActual,
+        max: reservas[0].numeroPersonas
+      });
+    }
   }, [reservas]);
 
   // 🔄 FUNCIONES ADAPTADORAS (para compatibilidad con componentes existentes)
   const addReserva = createReserva;
   const loadReservas = refetchReservas;
   
-  // ✅ OPTIMISTIC REFRESH: Actualización inmediata + refetch en background
-  const forceRefreshOptimistic = useCallback((reservaId?: string, nuevaAsistencia?: number) => {
-    // 1. Si tenemos datos específicos, actualizar inmediatamente
+  // ✅ FORCE REFRESH: Refetch INMEDIATO después de actualizar asistencia
+  const forceRefreshOptimistic = useCallback(async (reservaId?: string, nuevaAsistencia?: number) => {
+    console.log('🔄 forceRefreshOptimistic llamado', { reservaId, nuevaAsistencia, businessId });
+    
+    // 1. Si tenemos datos específicos, actualizar inmediatamente (optimistic)
     if (reservaId && nuevaAsistencia !== undefined) {
+      console.log('✅ Actualizando cache optimista');
       updateReservaAsistencia(reservaId, nuevaAsistencia);
-      toast.success('✓ Asistencia actualizada', { duration: 1500 });
     }
     
-    // 2. Refetch en background para confirmar
-    refetchReservas().catch(() => {
-      toast.error('❌ Error al sincronizar');
-    });
-  }, [updateReservaAsistencia, refetchReservas]);
+    // 2. 🔥 FORZAR REFETCH INMEDIATO - No confiar en invalidación
+    console.log('🔥 FORZANDO REFETCH INMEDIATO...');
+    try {
+      await refetchReservas();
+      console.log('✅ Refetch completado exitosamente');
+    } catch (error) {
+      console.error('❌ Error en refetch:', error);
+    }
+    
+    toast.success('✓ Asistencia actualizada', { duration: 1500 });
+  }, [updateReservaAsistencia, businessId, refetchReservas]);
   
   // Mantener forceRefresh original para otros casos
   const forceRefresh = useCallback(async () => {
@@ -374,6 +393,38 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
     }
   };
 
+  const handleNameChange = async (reservaId: string, clienteId: string, newName: string) => {
+    try {
+      console.log('✏️ Cambiando nombre del cliente:', { clienteId, newName });
+      
+      // Llamar al API para actualizar el nombre
+      const response = await fetch(`/api/clientes/${clienteId}/update-name`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: newName }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al actualizar el nombre');
+      }
+
+      // Refrescar las reservas para obtener el nombre actualizado
+      await refetchReservas();
+
+      // 🔄 Forzar actualización de la tarjeta específica
+      globalThis.dispatchEvent(new CustomEvent('force-card-refresh', { 
+        detail: { reservaId } 
+      }));
+
+      toast.success('Nombre actualizado correctamente');
+      console.log('✅ Nombre del cliente actualizado');
+    } catch (error) {
+      console.error('❌ Error al cambiar nombre:', error);
+      toast.error('Error al actualizar el nombre');
+      throw error;
+    }
+  };
+
   const handleFechaChange = async (id: string, nuevaFecha: Date) => {
     const fechaAnterior = selectedDate;
     const reservaAnterior = reservas.find((r: Reserva) => r.id === id);
@@ -467,6 +518,12 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
   // Datos calculados
   const reservasDelDia = getReservasByDate(selectedDate);
   const currentStats = getDashboardStats();
+  
+  console.log('📊 Datos calculados:', {
+    reservasDelDiaCount: reservasDelDia.length,
+    selectedDate: selectedDate.toISOString().split('T')[0],
+    timestamp: new Date().toISOString()
+  });
 
   // Filtrar reservas por estado (el searchTerm se maneja dentro de ReservationTable)
   const reservasFiltradas = reservasDelDia
@@ -638,6 +695,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
                 onPromotorChange={handlePromotorChange}
                 onFechaChange={handleFechaChange}
                 onPersonasChange={handlePersonasChange}
+                onNameChange={handleNameChange}
               />
             ) : (
               <div className="bg-white rounded-lg shadow-sm p-6">

@@ -344,7 +344,7 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
   return (
     <div className="space-y-3">
       {/* QR Card - Se renderiza para captura */}
-      <div ref={qrCardRef} className="flex justify-center p-2 sm:p-4" style={{ minWidth: '320px', minHeight: '400px', maxWidth: '100%' }}>
+      <div ref={qrCardRef} className="flex justify-center p-2 sm:p-4" style={{ minWidth: '320px', minHeight: '520px', maxWidth: '100%' }}>
         <QRCard
           reserva={reserva}
           businessName={businessName}
