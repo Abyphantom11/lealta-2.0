@@ -95,6 +95,7 @@ export type ConnectionStatus =
   | 'connecting'
   | 'connected'
   | 'reconnecting'
+  | 'error'
   | 'failed';
 
 export interface ConnectionState {

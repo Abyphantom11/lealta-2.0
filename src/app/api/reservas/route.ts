@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { Reserva, EstadoReserva } from '../../reservas/types/reservation';
 import crypto from 'node:crypto';
+import { emitReservationEvent } from './events/route';
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
@@ -723,6 +724,19 @@ export async function POST(request: NextRequest) {
     });
 
     console.log('✅ Reserva creada exitosamente:', reservation.id);
+
+    // 🔥 EMITIR EVENTO SSE: Nueva reserva creada
+    const businessIdNum = Number.parseInt(businessId);
+    if (!Number.isNaN(businessIdNum)) {
+      emitReservationEvent(businessIdNum, {
+        type: 'reservation-created',
+        reservationId: reservation.id,
+        customerName: data.cliente.nombre,
+        guestCount: data.numeroPersonas,
+        reservedAt: reservedAtDate.toISOString(),
+        status: reservation.status
+      });
+    }
 
     // 🏠 AUTO-ACTIVAR TRACKING DE ANFITRIÓN para reservas grandes
     const MIN_GUESTS_FOR_HOST_TRACKING = 4; // Umbral: 4+ invitados

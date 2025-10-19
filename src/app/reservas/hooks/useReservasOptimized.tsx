@@ -5,6 +5,8 @@ import { useMemo } from 'react';
 import { toast } from 'sonner';
 import { Reserva } from '../types/reservation';
 import { reservasQueryKeys } from '../../../providers/QueryProvider';
+import { useRealtimeSync } from './useRealtimeSync';
+import { REALTIME_CONFIG } from '../utils/realtime-config';
 
 // Type alias para reserva sin campos generados
 type NewReservaData = Omit<Reserva, 'id' | 'codigoQR' | 'estado' | 'fechaCreacion' | 'registroEntradas'>;
@@ -147,6 +149,18 @@ export function useReservasOptimized({
 }: UseReservasOptimizedOptions = {}) {
   const queryClient = useQueryClient();
 
+  // 🔥 REAL-TIME: Integrar SSE para actualizaciones en tiempo real
+  const { 
+    isConnected: isSSEConnected,
+    isRealtimeEnabled,
+    status: realtimeStatus 
+  } = useRealtimeSync({
+    businessId: businessId ? Number.parseInt(businessId) : 0,
+    enabled: enabled && REALTIME_CONFIG.sse.enabled,
+    showToasts: true,
+    autoUpdateCache: true
+  });
+
   // 🔥 OPTIMIZACIÓN: Query combinada (reservas + stats en una sola request)
   const combinedQuery = useQuery({
     queryKey: reservasQueryKeys.list(businessId || 'default', { includeStats: true }),
@@ -154,11 +168,12 @@ export function useReservasOptimized({
       return reservasAPI.fetchReservasWithStats(businessId || '');
     },
     enabled: enabled && includeStats,
-    staleTime: 0, // 🔥 CRÍTICO: 0 para que invalidateQueries funcione inmediatamente
+    staleTime: 60000, // 1 minuto - datos considerados fresh
     gcTime: 10 * 60 * 1000, // 10 minutos en caché
-    refetchOnWindowFocus: true, // ✅ HABILITADO: Para detectar cambios de otros dispositivos
-    refetchOnMount: true,
-    refetchInterval: 30000, // ✅ NUEVO: Polling cada 30 segundos para detectar cambios de otros dispositivos
+    refetchOnWindowFocus: true,
+    refetchOnMount: false, // ❌ NO refetch al montar - usar caché
+    // 🔥 POLLING ADAPTIVO: Solo si SSE no está activo
+    refetchInterval: isRealtimeEnabled ? false : REALTIME_CONFIG.polling.interval,
   });
 
   // 🎯 Query simple solo para reservas (cuando no necesitamos stats)
@@ -168,11 +183,12 @@ export function useReservasOptimized({
       return reservasAPI.fetchReservas(businessId);
     },
     enabled: enabled && !includeStats,
-    staleTime: 0, // 🔥 CRÍTICO: 0 para que invalidateQueries funcione inmediatamente
+    staleTime: 60000, // 1 minuto - datos considerados fresh
     gcTime: 10 * 60 * 1000, // 10 minutos en caché
-    refetchOnWindowFocus: true, // ✅ HABILITADO: Para detectar cambios de otros dispositivos
-    refetchOnMount: true,
-    refetchInterval: 30000, // ✅ NUEVO: Polling cada 30 segundos para detectar cambios de otros dispositivos
+    refetchOnWindowFocus: true,
+    refetchOnMount: false, // ❌ NO refetch al montar - usar caché
+    // 🔥 POLLING ADAPTIVO: Solo si SSE no está activo
+    refetchInterval: isRealtimeEnabled ? false : REALTIME_CONFIG.polling.interval,
   });
 
   // Seleccionar la query activa
@@ -490,6 +506,11 @@ export function useReservasOptimized({
     // 📈 Métricas de optimización
     lastUpdated: activeQuery.dataUpdatedAt,
     queryCount: queryClient.getQueryCache().getAll().length,
+    
+    // 🔥 NUEVO: Estados de Real-Time
+    isRealtimeEnabled,
+    isSSEConnected,
+    realtimeStatus,
   };
 }
 

@@ -10,9 +10,12 @@ export const REALTIME_CONFIG = {
   // 📡 Server-Sent Events Configuration
   sse: {
     enabled: true, // ✅ Activar/desactivar SSE globalmente
-    reconnectDelay: 3000, // 3 segundos delay inicial para reconexión
-    maxReconnectAttempts: 5, // Máximo 5 intentos antes de fallar
+    endpoint: '/api/reservas/events', // 🔗 Endpoint SSE
     heartbeatInterval: 30000, // Heartbeat cada 30 segundos para mantener conexión
+    reconnection: {
+      delays: [3000, 6000, 12000, 24000, 48000], // Exponential backoff: 3s, 6s, 12s, 24s, 48s
+      maxAttempts: 5, // Máximo 5 intentos antes de fallar
+    },
   },
   
   // 🔄 Polling Fallback Configuration

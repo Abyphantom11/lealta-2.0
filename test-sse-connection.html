@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test SSE Connection - Lealta</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #2563eb;
+      margin-bottom: 10px;
+    }
+    .status {
+      padding: 12px;
+      border-radius: 8px;
+      margin: 15px 0;
+      font-weight: 500;
+    }
+    .status.disconnected {
+      background: #fee;
+      color: #c00;
+    }
+    .status.connecting {
+      background: #fef3c7;
+      color: #d97706;
+    }
+    .status.connected {
+      background: #d1fae5;
+      color: #047857;
+    }
+    .events {
+      margin-top: 20px;
+      max-height: 400px;
+      overflow-y: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 15px;
+      background: #f9fafb;
+    }
+    .event {
+      margin: 10px 0;
+      padding: 12px;
+      background: white;
+      border-radius: 6px;
+      border-left: 4px solid #2563eb;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .event-type {
+      font-weight: 600;
+      color: #2563eb;
+      margin-bottom: 5px;
+    }
+    .event-data {
+      font-size: 14px;
+      color: #6b7280;
+    }
+    .event-time {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 5px;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: #2563eb;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #1d4ed8;
+    }
+    .btn-secondary {
+      background: #6b7280;
+      color: white;
+    }
+    .btn-secondary:hover {
+      background: #4b5563;
+    }
+    .btn-danger {
+      background: #dc2626;
+      color: white;
+    }
+    .btn-danger:hover {
+      background: #b91c1c;
+    }
+    input {
+      padding: 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      width: 200px;
+      margin-right: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔥 Test SSE Real-Time</h1>
+    <p>Prueba de conexión Server-Sent Events para Reservas Lealta</p>
+    
+    <div>
+      <label for="businessId">Business ID:</label>
+      <input type="text" id="businessId" value="1" placeholder="Business ID">
+      <button class="btn-primary" onclick="connectSSE()">Conectar SSE</button>
+      <button class="btn-danger" onclick="disconnectSSE()">Desconectar</button>
+      <button class="btn-secondary" onclick="clearEvents()">Limpiar Log</button>
+    </div>
+    
+    <div id="status" class="status disconnected">
+      🔴 Desconectado
+    </div>
+    
+    <h3>Eventos recibidos:</h3>
+    <div id="events" class="events">
+      <p style="color: #9ca3af;">Esperando conexión...</p>
+    </div>
+  </div>
+
+  <script>
+    let eventSource = null;
+    const eventsContainer = document.getElementById('events');
+    const statusDiv = document.getElementById('status');
+
+    function updateStatus(status, message) {
+      statusDiv.className = `status ${status}`;
+      statusDiv.innerHTML = message;
+    }
+
+    function addEvent(type, data) {
+      const eventDiv = document.createElement('div');
+      eventDiv.className = 'event';
+      
+      const now = new Date().toLocaleTimeString('es-ES');
+      
+      eventDiv.innerHTML = `
+        <div class="event-type">${getEventIcon(type)} ${type}</div>
+        <div class="event-data">${JSON.stringify(data, null, 2)}</div>
+        <div class="event-time">${now}</div>
+      `;
+      
+      if (eventsContainer.children[0]?.tagName === 'P') {
+        eventsContainer.innerHTML = '';
+      }
+      
+      eventsContainer.insertBefore(eventDiv, eventsContainer.firstChild);
+    }
+
+    function getEventIcon(type) {
+      const icons = {
+        'connected': '✅',
+        'heartbeat': '💓',
+        'qr-scanned': '📱',
+        'reservation-created': '🎫',
+        'reservation-updated': '✏️',
+        'reservation-cancelled': '❌'
+      };
+      return icons[type] || '📨';
+    }
+
+    function connectSSE() {
+      if (eventSource) {
+        disconnectSSE();
+      }
+
+      const businessId = document.getElementById('businessId').value;
+      if (!businessId) {
+        alert('Por favor ingresa un Business ID');
+        return;
+      }
+
+      updateStatus('connecting', '🟡 Conectando...');
+      
+      // Conectar al endpoint SSE
+      const url = `/api/reservas/events?businessId=${businessId}`;
+      console.log('Conectando a:', url);
+      
+      eventSource = new EventSource(url);
+
+      eventSource.onopen = () => {
+        updateStatus('connected', '🟢 Conectado - Escuchando eventos en tiempo real');
+        console.log('✅ SSE Conectado');
+      };
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('📨 Evento recibido:', data);
+          addEvent(data.type, data);
+        } catch (error) {
+          console.error('Error parseando evento:', error);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        console.error('❌ Error SSE:', error);
+        updateStatus('disconnected', '🔴 Error de conexión - Reconectando...');
+        
+        // EventSource reconecta automáticamente, pero después de 3 errores cerramos
+        setTimeout(() => {
+          if (eventSource && eventSource.readyState === EventSource.CLOSED) {
+            updateStatus('disconnected', '🔴 Desconectado - Haz clic en Conectar para reintentar');
+            eventSource = null;
+          }
+        }, 5000);
+      };
+    }
+
+    function disconnectSSE() {
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+        updateStatus('disconnected', '🔴 Desconectado manualmente');
+        console.log('🔌 SSE Desconectado');
+      }
+    }
+
+    function clearEvents() {
+      eventsContainer.innerHTML = '<p style="color: #9ca3af;">Log limpiado. Esperando eventos...</p>';
+    }
+
+    // Limpiar al cerrar la página
+    window.addEventListener('beforeunload', () => {
+      disconnectSSE();
+    });
+  </script>
+</body>
+</html>
