@@ -89,6 +89,7 @@ export async function getBusinessDayConfig(businessId?: string): Promise<Busines
 /**
  * Calcula el día comercial actual basado en la hora de reseteo
  * ✅ ARREGLADO: Usa timezone del negocio en lugar de UTC
+ * ✅ CLIENTE: Llama al API del servidor para obtener el día correcto
  * @param businessId ID del negocio (opcional)
  * @param customDate Fecha personalizada para testing (opcional)
  * @returns Día comercial actual
@@ -98,6 +99,33 @@ export async function getCurrentBusinessDay(
   customDate?: Date
 ): Promise<DayOfWeek> {
   try {
+    // ✅ Si estamos en el CLIENTE (navegador), preguntar al servidor
+    if (typeof window !== 'undefined' && !customDate) {
+      try {
+        const response = await fetch(`/api/business-day/current?businessId=${businessId || 'default'}`, {
+          cache: 'no-store',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.businessDay) {
+            console.log(`🗓️ [CLIENT] Día comercial desde servidor: ${data.businessDay}`);
+            return data.businessDay as DayOfWeek;
+          }
+        }
+        
+        console.warn('⚠️ [CLIENT] Error en API, usando cálculo local');
+        // Continuar con cálculo local si falla
+      } catch (apiError) {
+        console.warn('⚠️ [CLIENT] Error llamando API business-day:', apiError);
+        // Continuar con cálculo local si falla
+      }
+    }
+
+    // ✅ SERVIDOR o FALLBACK: Calcular localmente
     const config = await getBusinessDayConfig(businessId);
     
     // ✅ CORRECCIÓN CRÍTICA: Usar timezone de Ecuador

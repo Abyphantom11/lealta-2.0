@@ -228,14 +228,18 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
       
       if (!diaParaBuscar) {
         try {
+          // ✅ SIEMPRE usar API del servidor para obtener día comercial correcto
           diaParaBuscar = await getCurrentBusinessDay(businessId);
+          debugLog(`🗓️ [getFavoritoDelDia] Día comercial desde servidor: ${diaParaBuscar}`);
         } catch (error) {
-          console.error('Error obteniendo día comercial para favorito:', error);
+          console.error('❌ Error obteniendo día comercial para favorito:', error);
+          // ⚠️ Fallback: usar día natural (medianoche) solo si falla la API
           const diasSemana: DayOfWeek[] = [
             'domingo', 'lunes', 'martes', 'miercoles', 
             'jueves', 'viernes', 'sabado'
           ];
           diaParaBuscar = diasSemana[new Date().getDay()];
+          debugLog(`⚠️ [getFavoritoDelDia] Usando fallback día natural: ${diaParaBuscar}`);
         }
       }
       

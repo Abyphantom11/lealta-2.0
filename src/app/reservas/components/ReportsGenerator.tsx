@@ -310,7 +310,7 @@ export default function ReportsGenerator({ businessId, businessName }: Readonly<
                 🏆 Top 5 Promotores (Mayor Asistencia)
               </h4>
               <div className="space-y-2">
-                {preview.rankings.top5Promotores.map((promotor: any, idx: number) => (
+                {preview.rankings.top5Promotores.filter((promotor: any) => promotor && promotor.nombre).map((promotor: any, idx: number) => (
                   <div key={promotor.id} className="flex items-center justify-between bg-white p-3 rounded-lg">
                     <div className="flex items-center gap-3">
                       <span className="text-2xl font-bold text-orange-500">#{idx + 1}</span>
@@ -353,6 +353,7 @@ export default function ReportsGenerator({ businessId, businessName }: Readonly<
                   </thead>
                   <tbody>
                     {preview.metricas.porPromotor
+                      .filter((promotor: any) => promotor && promotor.nombre)
                       .sort((a: any, b: any) => b.personasAsistieron - a.personasAsistieron)
                       .map((promotor: any) => (
                         <tr key={promotor.id} className="border-b border-gray-100 hover:bg-gray-50">
@@ -413,7 +414,7 @@ export default function ReportsGenerator({ businessId, businessName }: Readonly<
             <div className="bg-white border-2 border-green-100 p-4 rounded-lg">
               <h4 className="font-semibold text-gray-800 mb-2 text-sm">👥 Top 3 Clientes</h4>
               <ul className="space-y-1 text-xs">
-                {preview.rankings.top5Clientes.slice(0, 3).map((cliente: any, idx: number) => (
+                {preview.rankings.top5Clientes.slice(0, 3).filter((cliente: any) => cliente && cliente.nombre).map((cliente: any, idx: number) => (
                   <li key={`cliente-${cliente.id || cliente.nombre}-${idx}`} className="flex justify-between">
                     <span className="text-gray-600 truncate">{cliente.nombre}</span>
                     <span className="font-bold text-green-600">{cliente.cantidad}</span>
