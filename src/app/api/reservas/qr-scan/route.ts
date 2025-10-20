@@ -284,6 +284,23 @@ export async function POST(request: NextRequest) {
 
       console.log('✅ Asistencia incrementada:', { newAsistencia, maxAsistencia, exceso });
 
+      // 🔥 EMITIR EVENTO SSE: QR escaneado
+      if (reserva.businessId) {
+        const businessIdNum = Number.parseInt(reserva.businessId);
+        if (!Number.isNaN(businessIdNum)) {
+          emitReservationEvent(businessIdNum, {
+            type: 'qr-scanned',
+            reservationId: reservaId,
+            customerName: reserva.customerName || 'Cliente',
+            scanCount: newAsistencia,
+            maxGuests: maxAsistencia,
+            increment: increment,
+            isFirstScan: esPrimerEscaneo,
+            newStatus: esPrimerEscaneo ? 'CHECKED_IN' : reserva.status
+          });
+        }
+      }
+
       return NextResponse.json({
         success: true,
         message: message,

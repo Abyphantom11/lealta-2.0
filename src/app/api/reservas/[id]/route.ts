@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { EstadoReserva } from '@/app/reservas/types/reservation';
+import { emitReservationEvent } from '../events/route';
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
@@ -608,6 +609,21 @@ export async function PUT(
       horaEnRespuesta: reserva.hora
     });
 
+    // 🔥 EMITIR EVENTO SSE: Reserva actualizada
+    if (businessId) {
+      const businessIdNum = Number.parseInt(businessId);
+      if (!Number.isNaN(businessIdNum)) {
+        emitReservationEvent(businessIdNum, {
+          type: 'reservation-updated',
+          reservationId: id,
+          customerName: updatedReservation.customerName || 'Cliente',
+          guestCount: updatedReservation.guestCount,
+          status: updatedReservation.status,
+          updates: updates
+        });
+      }
+    }
+
     return NextResponse.json({ 
       success: true,
       reserva,
@@ -660,6 +676,18 @@ export async function DELETE(
     });
 
     console.log('✅ Reserva eliminada exitosamente:', reservationId);
+
+    // 🔥 EMITIR EVENTO SSE: Reserva eliminada
+    if (reservation.businessId) {
+      const businessIdNum = Number.parseInt(reservation.businessId);
+      if (!Number.isNaN(businessIdNum)) {
+        emitReservationEvent(businessIdNum, {
+          type: 'reservation-deleted',
+          reservationId: reservationId,
+          customerName: reservation.customerName || 'Cliente'
+        });
+      }
+    }
 
     return NextResponse.json({
       success: true,

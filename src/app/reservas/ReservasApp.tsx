@@ -54,6 +54,10 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
     isCreating,
     isUpdating,
     isDeleting,
+    // 🔥 NUEVO: Estados Real-Time
+    isRealtimeEnabled,
+    isSSEConnected,
+    realtimeStatus,
   } = useReservasOptimized({ 
     businessId, 
     enabled: true, 
@@ -776,6 +780,36 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
             >
               Cerrar
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 🔥 INDICADOR DE TIEMPO REAL */}
+      {isSSEConnected && (
+        <div className="fixed bottom-4 right-4 z-50 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-3 backdrop-blur-sm">
+            <div className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold">Tiempo Real</span>
+              <span className="text-xs opacity-90">
+                {realtimeStatus === 'connected' ? 'Conectado' : 
+                 realtimeStatus === 'connecting' ? 'Conectando...' :
+                 realtimeStatus === 'reconnecting' ? 'Reconectando...' : 'Activo'}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ⚠️ INDICADOR DE RECONEXIÓN */}
+      {isRealtimeEnabled && realtimeStatus === 'reconnecting' && (
+        <div className="fixed bottom-4 right-4 z-50 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="bg-gradient-to-r from-yellow-500 to-orange-600 text-white px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-3 backdrop-blur-sm">
+            <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
+            <span className="text-sm font-medium">Reconectando...</span>
           </div>
         </div>
       )}

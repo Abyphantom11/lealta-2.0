@@ -149,7 +149,7 @@ export function useReservasOptimized({
 }: UseReservasOptimizedOptions = {}) {
   const queryClient = useQueryClient();
 
-  // � Helper centralizado para invalidar cache
+  // ✅ Helper centralizado para invalidar cache
   const invalidateReservasCache = async (scope: 'all' | 'standard' = 'standard') => {
     if (scope === 'all') {
       // Invalidación completa (cambios estructurales: fecha, estado, etc.)
@@ -167,7 +167,7 @@ export function useReservasOptimized({
     }
   };
 
-  // �🔥 OPTIMIZACIÓN: Query unificada (elimina redundancia)
+  // 🔥 OPTIMIZACIÓN: Query unificada (elimina redundancia)
   const mainQuery = useQuery({
     queryKey: reservasQueryKeys.list(businessId || 'default', { includeStats }),
     queryFn: () => {
