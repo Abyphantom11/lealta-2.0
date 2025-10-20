@@ -108,6 +108,9 @@ export default function ReservationForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // 🆕 Correo por defecto si no se proporciona
+    const DEFAULT_EMAIL = 'noemail@reserva.local';
+    
     // 🆕 Validación diferente según el modo
     if (isExpressMode) {
       // Modo Express - Solo validar nombre, fecha, hora y promotor
@@ -121,27 +124,28 @@ export default function ReservationForm({
         return;
       }
     } else {
-      // Modo Normal - Validación completa
+      // Modo Normal - Validación SIN email obligatorio
       if (!formData.clienteNombre || 
           !formData.clienteCedula || 
-          !formData.clienteCorreo || 
           !formData.clienteTelefono ||
           !formData.fecha || 
           !formData.hora || 
           !formData.promotorId) {
         toast.error('❌ Campos incompletos', {
-          description: 'Complete todos los campos: Nombre, Cédula, Email, Teléfono, Fecha, Hora y Promotor'
+          description: 'Complete: Nombre, Cédula, Teléfono, Fecha, Hora y Promotor'
         });
         return;
       }
 
-      // ✅ Validar formato de email (solo modo normal)
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.clienteCorreo)) {
-        toast.error('❌ Email inválido', {
-          description: 'Por favor ingrese un email válido'
-        });
-        return;
+      // ✅ Validar formato de email SOLO si se proporciona
+      if (formData.clienteCorreo && formData.clienteCorreo.trim() !== '') {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.clienteCorreo)) {
+          toast.error('❌ Email inválido', {
+            description: 'Por favor ingrese un email válido o déjelo vacío'
+          });
+          return;
+        }
       }
 
       // ✅ Validar que teléfono tenga al menos 8 dígitos (solo modo normal)
@@ -157,15 +161,21 @@ export default function ReservationForm({
     setIsSubmitting(true);
     
     try {
+      // 🆕 Email por defecto si está vacío
+      const DEFAULT_EMAIL = 'noemail@reserva.local';
+      const emailToUse = isExpressMode 
+        ? 'express@reserva.local' 
+        : (formData.clienteCorreo?.trim() || DEFAULT_EMAIL);
+      
       // 🆕 Datos según el modo
       const reservaData: Omit<Reserva, 'id' | 'codigoQR' | 'fechaCreacion' | 'registroEntradas'> = {
         cliente: {
           id: isExpressMode ? 'EXPRESS' : formData.clienteCedula,
           nombre: formData.clienteNombre,
-          email: isExpressMode ? 'express@reserva.local' : formData.clienteCorreo,
+          email: emailToUse, // ✅ Usa email por defecto si está vacío
           telefono: isExpressMode ? 'N/A' : formData.clienteTelefono // 🆕 N/A para express
         },
-        numeroPersonas: parseInt(formData.invitados) || 1,
+        numeroPersonas: Number.parseInt(formData.invitados) || 1,
         razonVisita: isExpressMode ? "⚡ Reserva Express" : (formData.servicio || "Reserva general"), // 🆕 Identificador
         beneficiosReserva: "Sin observaciones",
         promotor: {
@@ -241,7 +251,18 @@ export default function ReservationForm({
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
+            {/* 🔄 PRIMERO: Cédula (solo si no es modo express) */}
+            {!isExpressMode && (
+              <CedulaSearch
+                businessId={businessId}
+                value={formData.clienteCedula}
+                onChange={(cedula) => handleInputChange('clienteCedula', cedula)}
+                onClienteFound={handleClienteFound}
+              />
+            )}
+            
+            {/* 🔄 SEGUNDO: Nombre */}
+            <div className={`space-y-2 ${!isExpressMode ? '' : 'sm:col-span-2'}`}>
               <Label htmlFor="clienteNombre" className="text-sm font-medium text-gray-800">
                 Nombre Completo *
               </Label>
@@ -261,32 +282,22 @@ export default function ReservationForm({
                 </p>
               )}
             </div>
-            
-            {!isExpressMode && (
-              <CedulaSearch
-                businessId={businessId}
-                value={formData.clienteCedula}
-                onChange={(cedula) => handleInputChange('clienteCedula', cedula)}
-                onClienteFound={handleClienteFound}
-              />
-            )}
           </div>
           
           {!isExpressMode && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="clienteCorreo" className="text-sm font-medium text-gray-800">
-                  Correo Electrónico *
+                  Correo Electrónico (opcional)
                 </Label>
                 <Input
                   id="clienteCorreo"
                   type="email"
                   value={formData.clienteCorreo}
                   onChange={(e) => handleInputChange('clienteCorreo', e.target.value)}
-                  placeholder="ejemplo@correo.com"
+                  placeholder="Opcional: ejemplo@correo.com"
                   className="min-h-[44px] text-gray-900 placeholder:text-gray-500"
                   disabled={clienteExistente}
-                  required
                 />
               </div>
               
