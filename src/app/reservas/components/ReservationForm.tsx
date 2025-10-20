@@ -85,13 +85,13 @@ export default function ReservationForm({
   // ✅ Manejar cuando se encuentra un cliente existente
   const handleClienteFound = (cliente: { id: string; cedula: string; nombre: string; email: string; telefono: string } | null) => {
     if (cliente) {
-      // Cliente encontrado - Auto-llenar campos
+      // Cliente encontrado - Auto-llenar campos (asegurar strings)
       setClienteExistente(true);
       setFormData(prev => ({
         ...prev,
-        clienteNombre: cliente.nombre,
-        clienteCorreo: cliente.email,
-        clienteTelefono: cliente.telefono,
+        clienteNombre: cliente.nombre || '',
+        clienteCorreo: cliente.email || '',
+        clienteTelefono: cliente.telefono || '',
       }));
     } else {
       // Cliente nuevo - Limpiar campos para permitir registro

@@ -88,9 +88,9 @@ export function CedulaSearch({
           onClienteFound({
             id: clienteExacto.id,
             cedula: clienteExacto.cedula,
-            nombre: clienteExacto.nombre,
-            email: clienteExacto.correo,
-            telefono: clienteExacto.telefono,
+            nombre: clienteExacto.nombre || '',
+            email: clienteExacto.correo || clienteExacto.email || '',
+            telefono: clienteExacto.telefono || '',
           });
         } else {
           setSearchStatus('not-found');
