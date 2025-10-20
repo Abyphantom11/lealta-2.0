@@ -64,7 +64,7 @@ export const ReservationCard = ({ reserva, onView, onEdit, onDateChange, onPerso
   // 🔄 Monitorear cambios específicos en el nombre del cliente
   useEffect(() => {
     setRenderKey(prev => prev + 1);
-  }, [reserva.cliente.nombre]);
+  }, [reserva.cliente?.nombre]);
   
   // 🔄 Listener para re-renders forzados desde actualizaciones móviles
   useEffect(() => {
@@ -101,7 +101,7 @@ export const ReservationCard = ({ reserva, onView, onEdit, onDateChange, onPerso
 
   // Manejar cambio de nombre
   const handleNameChange = async (newName: string) => {
-    if (onNameChange) {
+    if (onNameChange && reserva.cliente?.id) {
       await onNameChange(reserva.id, reserva.cliente.id, newName);
     }
   };
@@ -113,7 +113,7 @@ export const ReservationCard = ({ reserva, onView, onEdit, onDateChange, onPerso
         onClose={() => setShowDateChangeModal(false)}
         onDateChange={handleDateChange}
         currentDate={new Date(reserva.fecha + 'T00:00:00')}
-        clienteName={reserva.cliente.nombre}
+        clienteName={reserva.cliente?.nombre || 'Sin nombre'}
         reservedDates={reservedDates}
       />
       
@@ -122,14 +122,14 @@ export const ReservationCard = ({ reserva, onView, onEdit, onDateChange, onPerso
         onClose={() => setShowPersonasModal(false)}
         onConfirm={handlePersonasChange}
         currentPersonas={reserva.numeroPersonas}
-        clienteName={reserva.cliente.nombre}
+        clienteName={reserva.cliente?.nombre || 'Sin nombre'}
       />
 
       <EditNameModal
         isOpen={showEditNameModal}
         onClose={() => setShowEditNameModal(false)}
         onConfirm={handleNameChange}
-        currentName={reserva.cliente.nombre}
+        currentName={reserva.cliente?.nombre || ''}
       />
     <Card className={`mb-3 border-l-4 ${getEstadoColor(reserva.estado)} hover:shadow-md transition-shadow ${
       tieneComprobante ? 'bg-fuchsia-50/30' : ''
@@ -153,7 +153,7 @@ export const ReservationCard = ({ reserva, onView, onEdit, onDateChange, onPerso
               )}
             </div>
             <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-base truncate">{reserva.cliente.nombre}</h3>
+              <h3 className="font-semibold text-base truncate">{reserva.cliente?.nombre || 'Sin nombre'}</h3>
               {onNameChange && (
                 <button
                   type="button"
@@ -166,7 +166,7 @@ export const ReservationCard = ({ reserva, onView, onEdit, onDateChange, onPerso
                 </button>
               )}
             </div>
-            <p className="text-sm text-muted-foreground truncate">{reserva.cliente.telefono}</p>
+            <p className="text-sm text-muted-foreground truncate">{reserva.cliente?.telefono || 'Sin teléfono'}</p>
           </div>
         </div>
 

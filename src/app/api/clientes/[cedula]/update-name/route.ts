@@ -1,77 +1,26 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth.config';
+import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * POST /api/clientes/[cedula]/update-name
- * Actualizar el nombre de un cliente
+ * DEPRECATED: Este endpoint ya no se usa.
+ * El nombre del cliente se actualiza directamente en la reserva (customerName).
  * 
- * Soporta tanto cédula como ID para compatibilidad con código legacy
+ * Usar: PUT /api/reservas/[id]?businessId=xxx con { customerName: "nuevo nombre" }
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { cedula: string } }
-) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: 'No autenticado' },
-        { status: 401 }
-      );
-    }
 
-    const { cedula } = params;
-    const { nombre } = await request.json();
+export async function POST() {
+  return NextResponse.json(
+    { 
+      success: false, 
+      error: 'Este endpoint está deprecado. Usa PUT /api/reservas/[id] con customerName',
+      deprecatedSince: '2025-10-20'
+    },
+    { status: 410 } // 410 Gone - recurso ya no disponible
+  );
+}
 
-    if (!nombre) {
-      return NextResponse.json(
-        { success: false, error: 'El nombre es requerido' },
-        { status: 400 }
-      );
-    }
-
-    // Buscar cliente por cédula o ID
-    // Si el parámetro parece un ID de Prisma (empieza con 'cl' y tiene más de 20 caracteres),
-    // buscar por ID para compatibilidad con código legacy
-    const searchCondition = cedula.startsWith('cl') && cedula.length > 20
-      ? { id: cedula }
-      : { cedula: cedula };
-
-    const cliente = await prisma.cliente.findFirst({
-      where: searchCondition
-    });
-
-    if (!cliente) {
-      return NextResponse.json(
-        { success: false, error: 'Cliente no encontrado' },
-        { status: 404 }
-      );
-    }
-
-    // Actualizar nombre
-    const updatedCliente = await prisma.cliente.update({
-      where: { id: cliente.id },
-      data: { nombre }
-    });
-
-    return NextResponse.json({
-      success: true,
-      cliente: {
-        id: updatedCliente.id,
-        nombre: updatedCliente.nombre,
-        cedula: updatedCliente.cedula
-      }
-    });
-
-  } catch (error) {
-    console.error('❌ Error actualizando nombre del cliente:', error);
-    return NextResponse.json(
-      { success: false, error: 'Error interno del servidor' },
-      { status: 500 }
-    );
-  }
+// Agregar soporte para PATCH para evitar error 405
+export async function PATCH() {
+  return POST();
 }

@@ -132,7 +132,7 @@ export default function QRCard({
               textShadow: isDarkCard ? '0 2px 10px rgba(0,0,0,0.5)' : 'none'
             }}
           >
-            {reserva.cliente.nombre}
+            {reserva.cliente?.nombre || 'Sin nombre'}
           </div>
         </div>
 

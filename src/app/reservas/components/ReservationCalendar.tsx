@@ -58,7 +58,7 @@ export function ReservationCalendar({ reservas, selectedDate, onDateSelect }: Re
           <Calendar
             mode="single"
             selected={selectedDate}
-            onSelect={(date) => date && onDateSelect(date)}
+            onSelect={(date: Date | undefined) => date && onDateSelect(date)}
             modifiers={modifiers}
             modifiersStyles={modifiersStyles}
             className="w-full"
@@ -85,7 +85,7 @@ export function ReservationCalendar({ reservas, selectedDate, onDateSelect }: Re
                   className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex-1">
-                    <p className="font-semibold text-foreground">{reserva.cliente.nombre}</p>
+                    <p className="font-semibold text-foreground">{reserva.cliente?.nombre || 'Sin nombre'}</p>
                     <p className="text-sm text-muted-foreground mt-1">
                       {reserva.hora} • {reserva.asistenciaActual}/{reserva.numeroPersonas} personas
                     </p>

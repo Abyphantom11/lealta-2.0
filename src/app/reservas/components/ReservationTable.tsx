@@ -191,7 +191,7 @@ export function ReservationTable({
     setTempClienteName("");
   };
 
-  const handleSaveClientName = async (reservaId: string, clienteId: string) => {
+  const handleSaveClientName = async (reservaId: string, clienteId: string | undefined) => {
     if (!tempClienteName.trim()) {
       toast.error('El nombre no puede estar vacío');
       return;
@@ -199,14 +199,15 @@ export function ReservationTable({
 
     console.log('🔄 Guardando nombre del cliente:', {
       reservaId,
-      clienteId,
+      clienteId: clienteId || 'no-client',
       newName: tempClienteName.trim(),
       onNameChangeDefined: !!onNameChange
     });
 
     try {
       if (onNameChange) {
-        await onNameChange(reservaId, clienteId, tempClienteName.trim());
+        // Pasar un ID genérico si no hay clienteId (la función actualizada no lo usa)
+        await onNameChange(reservaId, clienteId || 'no-client', tempClienteName.trim());
         setEditingClienteName(null);
         setTempClienteName("");
         console.log('✅ Nombre guardado exitosamente');
@@ -270,7 +271,7 @@ export function ReservationTable({
     // Si hay término de búsqueda, buscar en nombre de cliente o promotor
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase().trim();
-      const matchesCliente = reserva.cliente.nombre.toLowerCase().includes(searchLower);
+      const matchesCliente = (reserva.cliente?.nombre || '').toLowerCase().includes(searchLower);
       const matchesPromotor = (reserva.promotor?.nombre || '').toLowerCase().includes(searchLower);
       
       // Cuando hay búsqueda, mostrar TODAS las fechas que coincidan
@@ -546,7 +547,7 @@ export function ReservationTable({
                         )}
                         <div className="flex items-center justify-center gap-1 group">
                           <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                          <p className="font-medium text-xs truncate max-w-36 text-gray-900">{reserva.cliente.nombre}</p>
+                          <p className="font-medium text-xs truncate max-w-36 text-gray-900">{reserva.cliente?.nombre || 'Sin nombre'}</p>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -554,10 +555,10 @@ export function ReservationTable({
                             onClick={() => {
                               console.log('🖊️ Click en botón editar nombre:', { 
                                 reservaId: reserva.id, 
-                                clienteNombre: reserva.cliente.nombre,
-                                clienteId: reserva.cliente.id
+                                clienteNombre: reserva.cliente?.nombre,
+                                clienteId: reserva.cliente?.id
                               });
-                              handleStartEditingName(reserva.id, reserva.cliente.nombre);
+                              handleStartEditingName(reserva.id, reserva.cliente?.nombre || '');
                             }}
                             title="Editar nombre"
                           >
@@ -829,7 +830,7 @@ export function ReservationTable({
       reservaId={selectedReservaId || ''}
       clienteNombre={
         selectedReservaId 
-          ? reservas.find(r => r.id === selectedReservaId)?.cliente.nombre || 'Cliente'
+          ? reservas.find(r => r.id === selectedReservaId)?.cliente?.nombre || 'Cliente'
           : 'Cliente'
       }
       comprobanteExistente={
@@ -849,7 +850,7 @@ export function ReservationTable({
         }}
         onDateChange={handleDateChange}
         currentDate={new Date(selectedReservaForDateChange.fecha + 'T00:00:00')}
-        clienteName={selectedReservaForDateChange.cliente.nombre}
+        clienteName={selectedReservaForDateChange.cliente?.nombre || 'Sin nombre'}
         reservedDates={reservedDates}
       />
     )}
@@ -891,7 +892,7 @@ export function ReservationTable({
                 if (e.key === 'Enter') {
                   const reserva = reservas.find(r => r.id === editingClienteName);
                   if (reserva) {
-                    handleSaveClientName(reserva.id, reserva.cliente.id);
+                    handleSaveClientName(reserva.id, reserva.cliente?.id);
                   }
                 } else if (e.key === 'Escape') {
                   handleCancelEditingName();
@@ -920,13 +921,13 @@ export function ReservationTable({
                 clienteId: reserva?.cliente?.id,
                 reserva: reserva ? {
                   id: reserva.id,
-                  clienteNombre: reserva.cliente.nombre,
-                  clienteId: reserva.cliente.id
+                  clienteNombre: reserva.cliente?.nombre,
+                  clienteId: reserva.cliente?.id
                 } : null
               });
               
               if (reserva) {
-                handleSaveClientName(reserva.id, reserva.cliente.id);
+                handleSaveClientName(reserva.id, reserva.cliente?.id);
               } else {
                 console.error('❌ No se encontró la reserva con id:', editingClienteName);
                 toast.error('Error: No se encontró la reserva');

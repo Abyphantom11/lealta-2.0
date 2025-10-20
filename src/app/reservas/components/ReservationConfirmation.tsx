@@ -110,10 +110,10 @@ export function ReservationConfirmation({
               reserva={{
                 id: reserva.id,
                 cliente: {
-                  id: reserva.cliente.id,
-                  nombre: reserva.cliente.nombre,
-                  telefono: reserva.cliente.telefono || '',
-                  email: reserva.cliente.email || '',
+                  id: reserva.cliente?.id || '',
+                  nombre: reserva.cliente?.nombre || 'Sin nombre',
+                  telefono: reserva.cliente?.telefono || '',
+                  email: reserva.cliente?.email || '',
                 },
                 fecha: reserva.fecha,
                 hora: reserva.hora,

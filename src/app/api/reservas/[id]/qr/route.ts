@@ -23,10 +23,10 @@ export async function GET(
         id: reservaId,
       },
       include: {
-        cliente: true,
-        service: true,
-        slot: true,
-        qrCodes: {
+        Cliente: true,
+        ReservationService: true,
+        ReservationSlot: true,
+        ReservationQRCode: {
           where: {
             status: 'ACTIVE'
           },
@@ -45,14 +45,14 @@ export async function GET(
       );
     }
 
-    if (!reserva.qrCodes || reserva.qrCodes.length === 0) {
+    if (!reserva.ReservationQRCode || reserva.ReservationQRCode.length === 0) {
       return NextResponse.json(
         { success: false, message: 'No hay código QR activo para esta reserva' },
         { status: 404 }
       );
     }
 
-    const qrCode = reserva.qrCodes[0];
+    const qrCode = reserva.ReservationQRCode[0];
 
     // Verificar si el QR code ha expirado
     if (qrCode.expiresAt && new Date() > qrCode.expiresAt) {
@@ -70,14 +70,14 @@ export async function GET(
         token: qrCode.qrToken,
         timestamp: qrCode.createdAt.getTime(),
         cliente: reserva.customerName,
-        fecha: reserva.slot?.date ? 
-          new Date(reserva.slot.date).toISOString().split('T')[0] : '',
-        hora: reserva.slot?.startTime ? 
-          new Date(reserva.slot.startTime).toLocaleTimeString('es-ES', { 
+        fecha: reserva.ReservationSlot?.date ? 
+          new Date(reserva.ReservationSlot.date).toISOString().split('T')[0] : '',
+        hora: reserva.ReservationSlot?.startTime ? 
+          new Date(reserva.ReservationSlot.startTime).toLocaleTimeString('es-ES', { 
             hour: '2-digit', 
             minute: '2-digit' 
           }) : '',
-        servicio: reserva.service?.name || '',
+        servicio: reserva.ReservationService?.name || '',
         invitados: reserva.guestCount,
         estado: reserva.status,
         expiresAt: qrCode.expiresAt
@@ -90,14 +90,14 @@ export async function GET(
           telefono: reserva.customerPhone,
           email: reserva.customerEmail
         },
-        fecha: reserva.slot?.date ? 
-          new Date(reserva.slot.date).toISOString().split('T')[0] : '',
-        hora: reserva.slot?.startTime ? 
-          new Date(reserva.slot.startTime).toLocaleTimeString('es-ES', { 
+        fecha: reserva.ReservationSlot?.date ? 
+          new Date(reserva.ReservationSlot.date).toISOString().split('T')[0] : '',
+        hora: reserva.ReservationSlot?.startTime ? 
+          new Date(reserva.ReservationSlot.startTime).toLocaleTimeString('es-ES', { 
             hour: '2-digit', 
             minute: '2-digit' 
           }) : '',
-        servicio: reserva.service?.name || '',
+        servicio: reserva.ReservationService?.name || '',
         invitados: reserva.guestCount,
         observaciones: reserva.specialRequests,
         estado: reserva.status,

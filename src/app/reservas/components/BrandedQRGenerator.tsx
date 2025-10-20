@@ -138,7 +138,7 @@ export default function BrandedQRGenerator({
     if (config.camposMostrados.nombreCliente) {
       detalles.push({
         label: config.etiquetas.nombreCliente,
-        value: reserva.cliente.nombre,
+        value: reserva.cliente?.nombre || 'Sin nombre',
         campo: 'nombreCliente'
       });
     }
@@ -393,7 +393,7 @@ export default function BrandedQRGenerator({
         fechaFormateada = format(reserva.fecha, "d 'de' MMMM, yyyy", { locale: es });
       }
 
-      const message = `🍸 Reserva Confirmada\n\n👤 ${reserva.cliente.nombre}\n📅 ${fechaFormateada}\n⏰ ${reserva.hora}\n👥 ${reserva.numeroPersonas} ${reserva.numeroPersonas === 1 ? 'persona' : 'personas'}${reserva.mesa ? `\n🪑 Mesa ${reserva.mesa}` : ''}\n\n📱 Presenta este QR al llegar\n\n✨ ¡Nos vemos pronto!`;
+      const message = `🍸 Reserva Confirmada\n\n👤 ${reserva.cliente?.nombre || 'Sin nombre'}\n📅 ${fechaFormateada}\n⏰ ${reserva.hora}\n👥 ${reserva.numeroPersonas} ${reserva.numeroPersonas === 1 ? 'persona' : 'personas'}${reserva.mesa ? `\n🪑 Mesa ${reserva.mesa}` : ''}\n\n📱 Presenta este QR al llegar\n\n✨ ¡Nos vemos pronto!`;
 
       const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 

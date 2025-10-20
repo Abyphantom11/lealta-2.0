@@ -4,19 +4,59 @@ import Credentials from 'next-auth/providers/credentials';
 import { prisma } from './prisma';
 import { compare } from 'bcryptjs';
 
+// Detectar si estamos en desarrollo (Cloudflare Tunnel/localhost)
+const isDevelopment = process.env.NODE_ENV === 'development';
+
 export const authOptions: NextAuthOptions = {
-  session: { strategy: 'jwt' },
+  session: { 
+    strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 días
+    updateAge: 24 * 60 * 60, // Actualizar sesión cada 24 horas
+  },
+  jwt: {
+    maxAge: 30 * 24 * 60 * 60, // 30 días para el JWT también
+  },
   cookies: {
     sessionToken: {
-      name: `next-auth.session-token`,
+      name: `${isDevelopment ? '__Secure-' : ''}next-auth.session-token`,
       options: {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: process.env.NODE_ENV === 'production'
+        // En desarrollo con Cloudflare Tunnel, usar secure siempre
+        secure: true, // Siempre true para ambos ambientes
+        maxAge: 30 * 24 * 60 * 60, // 30 días
+        domain: isDevelopment ? undefined : process.env.NEXTAUTH_COOKIE_DOMAIN,
       }
-    }
+    },
+    callbackUrl: {
+      name: `${isDevelopment ? '__Secure-' : ''}next-auth.callback-url`,
+      options: {
+        httpOnly: false,
+        sameSite: 'lax',
+        path: '/',
+        secure: true,
+        domain: isDevelopment ? undefined : process.env.NEXTAUTH_COOKIE_DOMAIN,
+      }
+    },
+    csrfToken: {
+      name: `${isDevelopment ? '__Host-' : ''}next-auth.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: true,
+        domain: isDevelopment ? undefined : process.env.NEXTAUTH_COOKIE_DOMAIN,
+      }
+    },
   },
+  // Páginas personalizadas
+  pages: {
+    signIn: '/admin/login',
+    error: '/admin/login',
+  },
+  // Debug solo en desarrollo
+  debug: isDevelopment,
   providers: [
     Credentials({
       name: 'Backoffice',

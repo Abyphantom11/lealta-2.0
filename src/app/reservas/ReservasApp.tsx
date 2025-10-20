@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Toaster, toast } from 'sonner';
 import { QrCode, FileText, Calendar as CalendarIcon, Users } from 'lucide-react';
 import { format } from 'date-fns';
@@ -54,18 +54,56 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
     isCreating,
     isUpdating,
     isDeleting,
-    // 🔥 NUEVO: Estados Real-Time
-    isRealtimeEnabled,
-    isSSEConnected,
-    realtimeStatus,
   } = useReservasOptimized({ 
     businessId, 
     enabled: true, 
     includeStats: true 
   });
 
+  // ✅ CÁLCULO INICIAL DEL DÍA COMERCIAL (antes del primer render)
+  // Calcular de forma síncrona la fecha inicial basada en la hora de Ecuador
+  const getInitialDate = useMemo(() => {
+    try {
+      const now = new Date();
+      
+      // Obtener componentes de fecha/hora en Ecuador
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Guayaquil',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        hour12: false
+      });
+      
+      const parts = formatter.formatToParts(now);
+      const year = parseInt(parts.find(p => p.type === 'year')?.value || '2025');
+      const month = parseInt(parts.find(p => p.type === 'month')?.value || '1');
+      const day = parseInt(parts.find(p => p.type === 'day')?.value || '1');
+      const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
+      
+      console.log('📅 [ReservasApp] Parsing fecha Ecuador:', { year, month, day, hour });
+      
+      const currentDate = new Date(year, month - 1, day);
+      
+      // Si es antes de las 4 AM, usar el día anterior
+      if (hour < 4) {
+        currentDate.setDate(currentDate.getDate() - 1);
+        console.log('📅 [ReservasApp] Es antes de 4 AM, usando día anterior:', format(currentDate, 'yyyy-MM-dd'));
+      } else {
+        console.log('📅 [ReservasApp] Es después de 4 AM, usando día actual:', format(currentDate, 'yyyy-MM-dd'));
+      }
+      
+      return currentDate;
+    } catch (error) {
+      console.error('❌ Error calculando fecha inicial:', error);
+      // Fallback a fecha actual
+      return new Date();
+    }
+  }, []);
+
   // Estados adicionales para compatibilidad con componentes existentes
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(getInitialDate);
   const statusFilter = 'Todos'; // Valor fijo por ahora, se puede hacer dinámico después
 
   // 🔍 Monitorear cambios en las reservas del hook principal
@@ -377,17 +415,21 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
 
   const handleNameChange = async (reservaId: string, clienteId: string, newName: string) => {
     try {
-      console.log('✏️ Cambiando nombre del cliente:', { clienteId, newName });
+      console.log('✏️ Cambiando nombre en reserva:', { reservaId, clienteId, newName, businessId });
       
-      // Llamar al API para actualizar el nombre
-      const response = await fetch(`/api/clientes/${clienteId}/update-name`, {
-        method: 'PATCH',
+      // Actualizar el nombre directamente en la reserva (customerName)
+      const response = await fetch(`/api/reservas/${reservaId}?businessId=${businessId}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre: newName }),
+        body: JSON.stringify({ 
+          customerName: newName 
+        }),
       });
 
       if (!response.ok) {
-        throw new Error('Error al actualizar el nombre');
+        const errorData = await response.json();
+        console.error('❌ Error del servidor:', errorData);
+        throw new Error(errorData.error || 'Error al actualizar el nombre');
       }
 
       // Refrescar las reservas para obtener el nombre actualizado
@@ -784,7 +826,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
         </div>
       )}
 
-      {/* 🔥 INDICADOR DE TIEMPO REAL */}
+      {/* 🔥 INDICADOR DE TIEMPO REAL - TEMPORALMENTE DESHABILITADO
       {isSSEConnected && (
         <div className="fixed bottom-4 right-4 z-50 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-3 backdrop-blur-sm">
@@ -804,7 +846,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
         </div>
       )}
 
-      {/* ⚠️ INDICADOR DE RECONEXIÓN */}
+      {/* ⚠️ INDICADOR DE RECONEXIÓN - TEMPORALMENTE DESHABILITADO
       {isRealtimeEnabled && realtimeStatus === 'reconnecting' && (
         <div className="fixed bottom-4 right-4 z-50 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <div className="bg-gradient-to-r from-yellow-500 to-orange-600 text-white px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-3 backdrop-blur-sm">
@@ -813,6 +855,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
           </div>
         </div>
       )}
+      */}
     </div>
   );
 }

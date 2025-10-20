@@ -224,7 +224,7 @@ export function ReservationEditModal({
           <div className="bg-gray-50 p-3 rounded-lg">
             <div className="flex items-center gap-2 mb-2">
               <User className="h-4 w-4 text-gray-600" />
-              <span className="font-medium text-gray-900">{reserva.cliente.nombre}</span>
+              <span className="font-medium text-gray-900">{reserva.cliente?.nombre || 'Sin nombre'}</span>
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Calendar className="h-4 w-4" />
@@ -475,7 +475,7 @@ export function ReservationEditModal({
         onUpload={handleUploadComprobante}
         onRemoveComprobante={handleRemoveComprobante}
         reservaId={reserva.id}
-        clienteNombre={reserva.cliente.nombre}
+        clienteNombre={reserva.cliente?.nombre || 'Sin nombre'}
         comprobanteExistente={comprobanteUrl}
       />
     </Dialog>

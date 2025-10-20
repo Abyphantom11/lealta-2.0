@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
         id: p.id,
         titulo: p.title,
         descripcion: p.description || '',
-        descuento: parseInt(p.discount?.replace('%', '') || '0') || 0,
+        descuento: Number.parseInt(p.discount?.replace('%', '') || '0') || 0,
         imagenUrl: p.imageUrl || '',
         dia: p.dia,
         activo: p.active,

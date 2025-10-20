@@ -12,14 +12,18 @@ export async function GET(request: NextRequest) {
     // Calcular día comercial en el servidor (con timezone correcto)
     const currentDay = await getCurrentBusinessDay(businessId);
     
+    console.log(`🗓️ [API /business-day/current] Día calculado: ${currentDay} para businessId: ${businessId}`);
+    
     return NextResponse.json({
       success: true,
       businessDay: currentDay,
       timestamp: new Date().toISOString()
     }, {
       headers: {
-        // Cache por 1 minuto para reducir llamadas
-        'Cache-Control': 'public, max-age=60, stale-while-revalidate=30'
+        // ✅ NO CACHE - Siempre calcular fresh para el día comercial
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       }
     });
   } catch (error) {

@@ -390,7 +390,7 @@ export function QRCodeGeneratorEnhanced({ reserva, initialValue }: QRCodeGenerat
                 <div className="min-w-0">
                   <p className="font-medium text-gray-900">{reserva.cliente?.nombre || 'Sin nombre'}</p>
                   {reserva.cliente?.telefono && (
-                    <p className="text-xs text-gray-600">{reserva.cliente.telefono}</p>
+                    <p className="text-xs text-gray-600">{reserva.cliente?.telefono}</p>
                   )}
                 </div>
               </div>

@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getBusinessIdFromRequest } from '@/lib/business-utils';
 import { getCurrentBusinessDay } from '@/lib/business-day-utils';
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 import { generateId } from '@/lib/generateId';
 
 const prisma = new PrismaClient();

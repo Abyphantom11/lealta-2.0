@@ -210,7 +210,7 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
       const defaultMessage = `🎉 ¡Tu reserva está confirmada!
 
 📍 ${businessName}
-👤 ${reserva.cliente.nombre}
+👤 ${reserva.cliente?.nombre || 'Sin nombre'}
 📅 ${new Date(reserva.fecha).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
 🕐 ${reserva.hora}
 👥 ${reserva.numeroPersonas} ${reserva.numeroPersonas === 1 ? 'persona' : 'personas'}
@@ -368,7 +368,7 @@ Presenta este código QR al llegar 📱`;
       const defaultMessage = `🎉 ¡Tu reserva está confirmada!
 
 📍 ${businessName}
-👤 ${reserva.cliente.nombre}
+👤 ${reserva.cliente?.nombre || 'Sin nombre'}
 📅 ${new Date(reserva.fecha).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
 🕐 ${reserva.hora}
 👥 ${reserva.numeroPersonas} ${reserva.numeroPersonas === 1 ? 'persona' : 'personas'}

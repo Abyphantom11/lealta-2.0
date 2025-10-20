@@ -37,17 +37,17 @@ export async function POST(request: NextRequest) {
       // Buscar el token en la base de datos
       const reservaConQR = await prisma.reservation.findUnique({
         where: { id: reservaId },
-        include: { qrCodes: true }
+        include: { ReservationQRCode: true }
       });
       
-      if (!reservaConQR || reservaConQR.qrCodes.length === 0) {
+      if (!reservaConQR || reservaConQR.ReservationQRCode.length === 0) {
         return NextResponse.json(
           { success: false, message: 'Reserva no encontrada o sin QR' },
           { status: 404 }
         );
       }
       
-      token = reservaConQR.qrCodes[0].qrToken;
+      token = reservaConQR.ReservationQRCode[0].qrToken;
       timestamp = Date.now(); // Usar timestamp actual
       console.log('🔑 DEBUG qr-info - Token encontrado:', token);
       
@@ -84,10 +84,10 @@ export async function POST(request: NextRequest) {
         id: reservaId,
       },
       include: {
-        cliente: true,
-        service: true,
-        slot: true,
-        qrCodes: true
+        Cliente: true,
+        ReservationService: true,
+        ReservationSlot: true,
+        ReservationQRCode: true
       }
     });
 
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     // Verificar que el código QR no esté expirado (12 horas después de la hora de la reserva)
     const currentTime = new Date();
-    const reservationDateTime = new Date(reserva.slot.startTime);
+    const reservationDateTime = new Date(reserva.ReservationSlot.startTime);
     const expirationTime = new Date(reservationDateTime.getTime() + (12 * 60 * 60 * 1000)); // 12 horas después
     
     // DEBUG: Log de fechas para debugging
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
     console.log('✅ QR VALID - Continuing validation');
 
     // Verificar el token QR
-    const qrCodeEntry = reserva.qrCodes.find(qr => qr.qrToken === token);
+    const qrCodeEntry = reserva.ReservationQRCode.find((qr: any) => qr.qrToken === token);
     if (!qrCodeEntry) {
       return NextResponse.json(
         { success: false, message: 'Token QR inválido' },
@@ -160,10 +160,10 @@ export async function POST(request: NextRequest) {
         telefono: reserva.customerPhone || ''
       },
       reserva: {
-        fecha: reserva.slot?.date ? new Date(reserva.slot.date).toISOString().split('T')[0] : '',
-        hora: reserva.slot?.startTime ? 
-          new Date(reserva.slot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '',
-        servicio: reserva.service?.name || '',
+        fecha: reserva.ReservationSlot?.date ? new Date(reserva.ReservationSlot.date).toISOString().split('T')[0] : '',
+        hora: reserva.ReservationSlot?.startTime ? 
+          new Date(reserva.ReservationSlot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '',
+        servicio: reserva.ReservationService?.name || '',
         observaciones: reserva.specialRequests || ''
       }
     });

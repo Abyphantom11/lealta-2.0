@@ -57,20 +57,20 @@ export async function GET(request: NextRequest) {
         },
       },
       include: {
-        clienteCliente: {
+        Cliente: {
           select: {
             id: true,
             nombre: true,
             correo: true,
           },
         },
-        qrCodes: {
+        ReservationQRCode: {
           select: {
             scanCount: true,
             lastScannedAt: true,
           },
         },
-        promotor: {
+        Promotor: {
           select: {
             id: true,
             nombre: true,
@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
     
     // Calcular asistentes reales desde los QR codes escaneados
     const totalAsistentesReales = reservations.reduce((sum, r) => {
-      const scanCount = r.qrCodes[0]?.scanCount || 0;
+      const scanCount = r.ReservationQRCode[0]?.scanCount || 0;
       return sum + scanCount;
     }, 0);
 
@@ -166,7 +166,7 @@ export async function GET(request: NextRequest) {
     let canceladas = 0; // ✅ NUEVO: Cliente canceló con aviso
 
     reservations.forEach((r) => {
-      const scanCount = r.qrCodes[0]?.scanCount || 0;
+      const scanCount = r.ReservationQRCode[0]?.scanCount || 0;
       
       // Primero verificar si fue cancelada explícitamente
       if (r.status === 'CANCELLED') {
@@ -212,8 +212,8 @@ export async function GET(request: NextRequest) {
     // ==========================================
     const reservasPorPromotor = reservations.reduce((acc, r) => {
       const promotorId = r.promotorId || 'sin-promotor';
-      const promotorNombre = r.promotor?.nombre || 'Sin asignar';
-      const scanCount = r.qrCodes[0]?.scanCount || 0;
+      const promotorNombre = r.Promotor?.nombre || 'Sin asignar';
+      const scanCount = r.ReservationQRCode[0]?.scanCount || 0;
       
       if (!acc[promotorId]) {
         acc[promotorId] = {
@@ -313,12 +313,12 @@ export async function GET(request: NextRequest) {
 
     // Top 5 clientes con más reservas
     const reservasPorCliente = reservations.reduce((acc, r) => {
-      if (r.cliente) {
-        const key = r.cliente.id;
+      if (r.Cliente) {
+        const key = r.Cliente.id;
         if (!acc[key]) {
           acc[key] = {
-            id: r.cliente.id,
-            nombre: r.cliente.nombre,
+            id: r.Cliente.id,
+            nombre: r.Cliente.nombre,
             cantidad: 0,
           };
         }
@@ -351,7 +351,7 @@ export async function GET(request: NextRequest) {
     // ==========================================
     const detalleReservas = reservations.map((r) => {
       const metadata = (r.metadata as any) || {};
-      const scanCount = r.qrCodes[0]?.scanCount || 0;
+      const scanCount = r.ReservationQRCode[0]?.scanCount || 0;
       
       return {
         id: r.id,
@@ -360,14 +360,14 @@ export async function GET(request: NextRequest) {
           hour: '2-digit',
           minute: '2-digit',
         }),
-        cliente: r.cliente?.nombre || r.customerName || 'Sin nombre',
-        email: r.cliente?.correo || r.customerEmail || '',
+        cliente: r.Cliente?.nombre || r.customerName || 'Sin nombre',
+        email: r.Cliente?.correo || r.customerEmail || '',
         mesa: metadata.mesa || '',
         esperadas: r.guestCount,
         asistentes: scanCount,
         estado: r.status,
         comprobante: (r.isPaid || r.paymentReference) ? 'Sí' : 'No',
-        promotor: r.promotor?.nombre || 'Sin asignar',
+        promotor: r.Promotor?.nombre || 'Sin asignar',
         promotorId: r.promotorId || null,
       };
     });

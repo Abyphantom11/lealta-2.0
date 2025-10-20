@@ -1,6 +1,5 @@
 import '@testing-library/jest-dom'
 import { TextEncoder, TextDecoder } from 'node:util'
-import { vi } from 'vitest'
 
 // Polyfill para APIs Web de Next.js
 globalThis.TextEncoder = TextEncoder
@@ -8,7 +7,7 @@ globalThis.TextDecoder = TextDecoder
 
 // Mock de fetch global si no existe
 if (!globalThis.fetch) {
-  globalThis.fetch = vi.fn()
+  globalThis.fetch = jest.fn()
 }
 
 // Mock de Request, Response, Headers para Next.js Web APIs

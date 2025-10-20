@@ -102,17 +102,20 @@ export async function getCurrentBusinessDay(
     // ✅ Si estamos en el CLIENTE (navegador), preguntar al servidor
     if (typeof window !== 'undefined' && !customDate) {
       try {
-        const response = await fetch(`/api/business-day/current?businessId=${businessId || 'default'}`, {
+        // Agregar timestamp para evitar cache del navegador
+        const timestamp = Date.now();
+        const response = await fetch(`/api/business-day/current?businessId=${businessId || 'default'}&_t=${timestamp}`, {
           cache: 'no-store',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache'
           }
         });
 
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.businessDay) {
-            console.log(`🗓️ [CLIENT] Día comercial desde servidor: ${data.businessDay}`);
+            console.log(`🗓️ [CLIENT] Día comercial desde servidor: ${data.businessDay} (timestamp: ${data.timestamp})`);
             return data.businessDay as DayOfWeek;
           }
         }
@@ -144,17 +147,15 @@ export async function getCurrentBusinessDay(
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit'
+      second: '2-digit',
+      weekday: 'long'
     });
     
-    // Parsear el string para obtener hora y minuto local
-    // Formato: "MM/DD/YYYY, HH:MM:SS"
-    const [datePart, timePart] = localTimeString.split(', ');
-    const [month, day, year] = datePart.split('/').map(Number);
-    const [hour, minute] = timePart.split(':').map(Number);
-    
-    // Crear fecha en el timezone local del negocio
-    const localDate = new Date(year, month - 1, day, hour, minute);
+    // Parsear el string para obtener hora, minuto y día de la semana
+    // Formato: "DayName, MM/DD/YYYY, HH:MM:SS"
+    const parts = localTimeString.split(', ');
+    const [month, day, year] = parts[1].split('/').map(Number);
+    const [hour, minute] = parts[2].split(':').map(Number);
     
     const currentHour = hour;
     const currentMinute = minute;
@@ -165,19 +166,23 @@ export async function getCurrentBusinessDay(
     const currentTimeInMinutes = currentHour * 60 + currentMinute;
     const resetTimeInMinutes = resetHour * 60 + resetMinute;
     
-    let businessDay: Date;
+    // ✅ FIX CRÍTICO: Usar UTC para crear la fecha y evitar problemas de timezone
+    // Crear la fecha en UTC para luego solo manipular el día
+    const localDateUTC = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
+    
+    let businessDayIndex: number;
     
     if (currentTimeInMinutes < resetTimeInMinutes) {
       // Antes de la hora de reseteo = día anterior
-      businessDay = new Date(localDate);
-      businessDay.setDate(businessDay.getDate() - 1);
+      const yesterdayUTC = new Date(localDateUTC);
+      yesterdayUTC.setUTCDate(yesterdayUTC.getUTCDate() - 1);
+      businessDayIndex = yesterdayUTC.getUTCDay();
     } else {
       // Después de la hora de reseteo = día actual
-      businessDay = new Date(localDate);
+      businessDayIndex = localDateUTC.getUTCDay();
     }
   
-    const dayIndex = businessDay.getDay();
-    const businessDayName = DAYS_OF_WEEK[dayIndex];
+    const businessDayName = DAYS_OF_WEEK[businessDayIndex];
     
     // Debug logging SIEMPRE para diagnosticar timezone
     console.log(`🗓️ [getCurrentBusinessDay] Calculation:`, {
@@ -185,14 +190,15 @@ export async function getCurrentBusinessDay(
       timezone,
       serverTime: now.toISOString(),
       localTime: localTimeString,
+      localDate: `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`,
       localHour: currentHour,
       localMinute: currentMinute,
       resetHour: `${resetHour}:${resetMinute.toString().padStart(2, '0')}`,
       currentTime: `${currentHour}:${currentMinute.toString().padStart(2, '0')}`,
       isAfterReset: currentTimeInMinutes >= resetTimeInMinutes,
-      naturalDay: DAYS_OF_WEEK[localDate.getDay()],
-      businessDay: businessDayName,
-      date: businessDay.toDateString()
+      naturalDayIndex: localDateUTC.getUTCDay(),
+      businessDayIndex,
+      businessDay: businessDayName
     });
     
     return businessDayName;

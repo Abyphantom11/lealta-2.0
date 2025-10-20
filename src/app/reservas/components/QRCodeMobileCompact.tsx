@@ -234,7 +234,7 @@ ${reserva.razonVisita ? `📍 Servicio: ${reserva.razonVisita}` : ''}
                   <span className="font-medium text-gray-900 dark:text-white">{reserva.cliente?.nombre || 'Sin nombre'}</span>
                 </div>
                 {reserva.cliente?.telefono && (
-                  <span className="text-xs text-gray-500 dark:text-gray-400">{reserva.cliente.telefono}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{reserva.cliente?.telefono}</span>
                 )}
               </div>
 

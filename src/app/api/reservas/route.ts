@@ -67,13 +67,13 @@ function extractUniqueClients(reservas: Reserva[]) {
   const clientesMap = new Map();
   
   for (const reserva of reservas) {
-    if (reserva.Cliente?.id) {
-      clientesMap.set(reserva.Cliente.id, {
-        id: reserva.Cliente.id,
-        nombre: reserva.Cliente.nombre,
-        telefono: reserva.Cliente.telefono,
-        email: reserva.Cliente.email,
-        totalReservas: (clientesMap.get(reserva.Cliente.id)?.totalReservas || 0) + 1,
+    if (reserva.cliente?.id) {
+      clientesMap.set(reserva.cliente.id, {
+        id: reserva.cliente.id,
+        nombre: reserva.cliente.nombre,
+        telefono: reserva.cliente.telefono,
+        email: reserva.cliente.email,
+        totalReservas: (clientesMap.get(reserva.cliente.id)?.totalReservas || 0) + 1,
         ultimaReserva: reserva.fecha
       });
     }
@@ -249,7 +249,7 @@ export async function GET(request: NextRequest) {
         
         return {
           id: reservation.id,
-          clienteCliente: {
+          cliente: {
             id: reservation.Cliente?.id || `temp-${Date.now()}`,
             // 🔄 PRIORIDAD: usar customerName (nombre específico de esta reserva) antes que Cliente.nombre
             nombre: reservation.customerName || reservation.Cliente?.nombre || 'Sin nombre',
@@ -282,7 +282,7 @@ export async function GET(request: NextRequest) {
         // Retornar una reserva mínima en caso de error
         return {
           id: reservation.id,
-          clienteCliente: {
+          cliente: {
             id: `temp-${Date.now()}`,
             nombre: reservation.customerName || 'Error al cargar',
             telefono: undefined,
@@ -786,7 +786,7 @@ export async function POST(request: NextRequest) {
     // Retornar la reserva creada
     const reservaCreada: Reserva = {
       id: reservation.id,
-      clienteCliente: {
+      cliente: {
         id: cliente.id,
         nombre: data.cliente.nombre,
         telefono: data.cliente.telefono,

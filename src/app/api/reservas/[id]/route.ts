@@ -252,6 +252,8 @@ function prepareUpdateData(updates: any, currentMetadata: any, promotorId: strin
 
   const updateData: any = {};
   
+  // Soportar actualización directa de customerName o a través de cliente.nombre
+  if (updates.customerName !== undefined) updateData.customerName = updates.customerName;
   if (updates.cliente?.nombre !== undefined) updateData.customerName = updates.cliente.nombre;
   if (updates.cliente?.telefono !== undefined) updateData.customerPhone = updates.cliente.telefono;
   if (updates.cliente?.email !== undefined) updateData.customerEmail = updates.cliente.email;
@@ -388,8 +390,8 @@ function formatReservaResponse(updatedReservation: any) {
       hour: '2-digit', 
       minute: '2-digit'
     }),
-    codigoQR: updatedReservation.qrCodes[0]?.qrToken || '',
-    asistenciaActual: updatedReservation.qrCodes[0]?.scanCount || 0,
+    codigoQR: updatedReservation.ReservationQRCode?.[0]?.qrToken || `res-${updatedReservation.id}`,
+    asistenciaActual: updatedReservation.ReservationQRCode?.[0]?.scanCount || 0,
     estado: mapPrismaStatusToReserva(updatedReservation.status),
     fechaCreacion: updatedReservation.createdAt.toISOString(),
     fechaModificacion: updatedReservation.updatedAt.toISOString(),

@@ -21,10 +21,10 @@ export async function POST(request: NextRequest) {
         id: reservaId,
       },
       include: {
-        cliente: true,
-        service: true,
-        slot: true,
-        qrCodes: true
+        Cliente: true,
+        ReservationService: true,
+        ReservationSlot: true,
+        ReservationQRCode: true
       }
     });
 
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar el token QR
-    const qrCodeEntry = reserva.qrCodes.find(qr => qr.qrToken === token);
+    const qrCodeEntry = reserva.ReservationQRCode.find((qr: any) => qr.qrToken === token);
     if (!qrCodeEntry) {
       return NextResponse.json(
         { success: false, message: 'Token QR inválido' },
@@ -77,9 +77,9 @@ export async function POST(request: NextRequest) {
         updatedAt: new Date(),
       },
       include: {
-        cliente: true,
-        slot: true,
-        service: true
+        Cliente: true,
+        ReservationSlot: true,
+        ReservationService: true
       }
     });
 
@@ -112,10 +112,10 @@ export async function POST(request: NextRequest) {
         telefono: updatedReserva.customerPhone || ''
       },
       reserva: {
-        fecha: updatedReserva.slot?.date ? new Date(updatedReserva.slot.date).toISOString().split('T')[0] : '',
-        hora: updatedReserva.slot?.startTime ? 
-          new Date(updatedReserva.slot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '',
-        servicio: updatedReserva.service?.name || '',
+        fecha: updatedReserva.ReservationSlot?.date ? new Date(updatedReserva.ReservationSlot.date).toISOString().split('T')[0] : '',
+        hora: updatedReserva.ReservationSlot?.startTime ? 
+          new Date(updatedReserva.ReservationSlot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '',
+        servicio: updatedReserva.ReservationService?.name || '',
         observaciones: updatedReserva.specialRequests || ''
       }
     });

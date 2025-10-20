@@ -84,11 +84,11 @@ export async function POST(
         metadata: updatedMetadata
       },
       include: {
-        cliente: true,
-        service: true,
-        slot: true,
-        promotor: true,
-        qrCodes: true
+        Cliente: true,
+        ReservationService: true,
+        ReservationSlot: true,
+        Promotor: true,
+        ReservationQRCode: true
       }
     });
 
@@ -138,11 +138,11 @@ export async function DELETE(
         metadata: restMetadata
       },
       include: {
-        cliente: true,
-        service: true,
-        slot: true,
-        promotor: true,
-        qrCodes: true
+        Cliente: true,
+        ReservationService: true,
+        ReservationSlot: true,
+        Promotor: true,
+        ReservationQRCode: true
       }
     });
 
