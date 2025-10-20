@@ -250,38 +250,36 @@ export default function ReservationForm({
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* 🔄 PRIMERO: Cédula (solo si no es modo express) */}
-            {!isExpressMode && (
-              <CedulaSearch
-                businessId={businessId}
-                value={formData.clienteCedula}
-                onChange={(cedula) => handleInputChange('clienteCedula', cedula)}
-                onClienteFound={handleClienteFound}
-              />
+          {/* 🔄 PRIMERO: Cédula (solo si no es modo express) */}
+          {!isExpressMode && (
+            <CedulaSearch
+              businessId={businessId}
+              value={formData.clienteCedula}
+              onChange={(cedula) => handleInputChange('clienteCedula', cedula)}
+              onClienteFound={handleClienteFound}
+            />
+          )}
+          
+          {/* 🔄 SEGUNDO: Nombre */}
+          <div className="space-y-2">
+            <Label htmlFor="clienteNombre" className="text-sm font-medium text-gray-800">
+              Nombre Completo *
+            </Label>
+            <Input
+              id="clienteNombre"
+              type="text"
+              value={formData.clienteNombre}
+              onChange={(e) => handleInputChange('clienteNombre', e.target.value)}
+              placeholder="Ej: Juan Pérez"
+              className="min-h-[44px] text-gray-900 placeholder:text-gray-500"
+              disabled={clienteExistente}
+              required
+            />
+            {clienteExistente && (
+              <p className="text-xs text-green-600">
+                ✓ Datos del cliente registrado
+              </p>
             )}
-            
-            {/* 🔄 SEGUNDO: Nombre */}
-            <div className={`space-y-2 ${!isExpressMode ? '' : 'sm:col-span-2'}`}>
-              <Label htmlFor="clienteNombre" className="text-sm font-medium text-gray-800">
-                Nombre Completo *
-              </Label>
-              <Input
-                id="clienteNombre"
-                type="text"
-                value={formData.clienteNombre}
-                onChange={(e) => handleInputChange('clienteNombre', e.target.value)}
-                placeholder="Ej: Juan Pérez"
-                className="min-h-[44px] text-gray-900 placeholder:text-gray-500"
-                disabled={clienteExistente}
-                required
-              />
-              {clienteExistente && (
-                <p className="text-xs text-green-600">
-                  ✓ Datos del cliente registrado
-                </p>
-              )}
-            </div>
           </div>
           
           {!isExpressMode && (
