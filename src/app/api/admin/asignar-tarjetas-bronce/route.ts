@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
+import { generateId } from '@/lib/generateId';
 
 const prisma = new PrismaClient();
 
@@ -29,18 +30,16 @@ export async function POST(request: NextRequest) {
           const cliente = await prisma.cliente.findFirst({
             where: { 
               id: clienteId,
-              businessId: session.businessId // ✅ FILTRO DE BUSINESS SECURITY
-            },
-          include: { tarjetaLealtad: true }
-        });
-
-        if (!cliente) {
+            businessId: session.businessId // ✅ FILTRO DE BUSINESS SECURITY
+          },
+          include: { TarjetaLealtad: true }
+        });        if (!cliente) {
           errores.push(`Cliente con ID ${clienteId} no encontrado`);
           continue;
         }
 
         // Verificar que no tenga tarjeta ya asignada
-        if (cliente.tarjetaLealtad) {
+        if (cliente.TarjetaLealtad) {
           errores.push(`Cliente ${cliente.nombre} ya tiene tarjeta asignada`);
           continue;
         }
@@ -48,12 +47,14 @@ export async function POST(request: NextRequest) {
         // Asignar tarjeta Bronce
         await prisma.tarjetaLealtad.create({
           data: {
+            id: generateId(),
             clienteId: clienteId,
             nivel: 'Bronce',
             activa: true,
             asignacionManual: true, // Es una asignación manual masiva
             fechaAsignacion: new Date(),
-            businessId: 'demo-business-id', // Usar business válido
+            businessId: session.businessId,
+            updatedAt: new Date(),
           },
         });
 

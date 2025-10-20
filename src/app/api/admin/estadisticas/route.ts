@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { TopCliente, ProductosConsumo, ProductoConsumo, GoalsConfig, ProductVentasData, EmpleadoStats } from '../../../../types/api-routes';
 import { withAuth } from '../../../../middleware/requireAuth';
 import { prisma } from '../../../../lib/prisma';
+import { nanoid } from 'nanoid';
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
@@ -94,14 +95,14 @@ export async function GET(request: NextRequest) {
         },
       },
       include: {
-        cliente: {
+        Cliente: {
           select: {
             nombre: true,
             cedula: true,
             puntos: true,
           },
         },
-        empleado: {
+        User: {
           select: {
             name: true,
             email: true,
@@ -155,7 +156,7 @@ export async function GET(request: NextRequest) {
       topClientes = await prisma.cliente.findMany({
         where: {
           businessId: targetBusinessId, // ✅ FILTRO POR BUSINESS (SuperAdmin flexible)
-          consumos: {
+          Consumo: {
             some: {
               registeredAt: {
                 gte: fechaInicio,
@@ -165,7 +166,7 @@ export async function GET(request: NextRequest) {
           },
         },
         include: {
-          consumos: {
+          Consumo: {
             where: {
               businessId: targetBusinessId, // ✅ FILTRO POR BUSINESS AGREGADO
               registeredAt: {
@@ -183,7 +184,13 @@ export async function GET(request: NextRequest) {
           totalGastado: 'desc',
         },
         take: 10,
-      });
+      }) as any; // Mapearemos los datos después para ajustar al tipo TopCliente
+      
+      // Mapear Consumo a consumos para que coincida con el tipo TopCliente
+      topClientes = (topClientes as any[]).map((cliente: any) => ({
+        ...cliente,
+        consumos: cliente.Consumo || []
+      }));
     } catch (error) {
       console.error('🚨 Error obteniendo top clientes:', error);
       topClientes = [];
@@ -194,7 +201,7 @@ export async function GET(request: NextRequest) {
       clientesActivos = await prisma.cliente.count({
         where: {
           businessId: targetBusinessId, // ✅ FILTRO POR BUSINESS AGREGADO
-          consumos: {
+          Consumo: {
             some: {
               businessId: targetBusinessId, // ✅ DOBLE FILTRO por seguridad
               registeredAt: {
@@ -215,7 +222,7 @@ export async function GET(request: NextRequest) {
       const clientesDelPeriodo = await prisma.cliente.findMany({
         where: {
           businessId: targetBusinessId, // ✅ FILTRO POR BUSINESS (SuperAdmin flexible)
-          consumos: {
+          Consumo: {
             some: {
               registeredAt: {
                 gte: fechaInicio,
@@ -225,7 +232,7 @@ export async function GET(request: NextRequest) {
           },
         },
         include: {
-          consumos: {
+          Consumo: {
             where: {
               businessId: targetBusinessId, // ✅ FILTRO POR BUSINESS AGREGADO
               registeredAt: {
@@ -238,7 +245,7 @@ export async function GET(request: NextRequest) {
       });
       
       // Contar cuántos tienen más de 1 consumo en el período
-      clientesRecurrentes = clientesDelPeriodo.filter(cliente => cliente.consumos.length > 1).length;
+      clientesRecurrentes = clientesDelPeriodo.filter(cliente => cliente.Consumo.length > 1).length;
     } catch (error) {
       console.error('🚨 Error obteniendo clientes recurrentes:', error);
       // Fallback: calcular manualmente desde los consumos obtenidos
@@ -262,7 +269,9 @@ export async function GET(request: NextRequest) {
       // Si no existen metas, crear las predeterminadas
       businessGoals ??= await prisma.businessGoals.create({
         data: {
+          id: nanoid(),
           businessId: targetBusinessId,
+          updatedAt: new Date(),
           // Los valores por defecto ya están definidos en el schema
         }
       });
@@ -382,10 +391,10 @@ export async function GET(request: NextRequest) {
       id: consumo.id,
       fecha: consumo.registeredAt,
       cliente: {
-        nombre: consumo.cliente.nombre,
-        cedula: consumo.cliente.cedula,
+        nombre: consumo.Cliente?.nombre || 'Desconocido',
+        cedula: consumo.Cliente?.cedula || 'N/A',
       },
-      empleado: consumo.empleado.name || 'Staff',
+      empleado: consumo.User?.name || 'Staff',
       total: consumo.total,
       puntos: consumo.puntos,
       tipo: consumo.ocrText?.startsWith('MANUAL:') ? 'MANUAL' : 'OCR',
@@ -396,7 +405,7 @@ export async function GET(request: NextRequest) {
     const estadisticasPorEmpleado = consumos.reduce(
       (acc, consumo) => {
         const empleadoId = consumo.empleadoId;
-        const empleadoNombre = consumo.empleado.name || 'Staff';
+        const empleadoNombre = consumo.User?.name || 'Staff';
 
         if (!acc[empleadoId]) {
           acc[empleadoId] = {

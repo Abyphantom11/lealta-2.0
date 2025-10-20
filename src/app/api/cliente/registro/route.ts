@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      cliente: {
+      clienteCliente: {
         id: nuevoCliente.id,
         cedula: nuevoCliente.cedula,
         nombre: nuevoCliente.nombre,

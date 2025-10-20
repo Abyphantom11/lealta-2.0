@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getBusinessIdFromRequest } from '@/lib/business-utils';
+import { generateId } from '@/lib/generateId';
 
 const prisma = new PrismaClient();
 
@@ -120,6 +121,7 @@ export async function POST(request: NextRequest) {
 
     const favoritoDelDia = await prisma.portalFavoritoDelDia.create({
       data: {
+        id: generateId(),
         businessId,
         productName,
         description,
@@ -128,7 +130,8 @@ export async function POST(request: NextRequest) {
         specialPrice,
         specialOffer,
         date: targetDate,
-        active: true
+        active: true,
+        updatedAt: new Date()
       }
     });
 

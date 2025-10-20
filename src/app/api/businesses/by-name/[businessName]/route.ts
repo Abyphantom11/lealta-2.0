@@ -91,10 +91,8 @@ export async function GET(
     
     console.log(`✅ Negocio encontrado: ${business.name} (ID: ${business.id})`);
     
-    return NextResponse.json({
-      success: true,
-      data: business
-    });
+    // Devolver el objeto business directamente para compatibilidad con el frontend
+    return NextResponse.json(business);
     
   } catch (error) {
     console.error('❌ Error en /api/businesses/by-name:', error);

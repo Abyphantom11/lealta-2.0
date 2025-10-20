@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
+import { generateId } from '@/lib/generateId';
 
 const prisma = new PrismaClient();
 
@@ -25,7 +26,9 @@ export async function GET(request: NextRequest) {
         console.log('🆕 Creando metas por defecto...');
         goals = await prisma.businessGoals.create({
           data: {
+            id: generateId(),
             businessId: session.businessId, // ✅ SECURITY FILTER
+            updatedAt: new Date()
             // Los valores por defecto ya están definidos en el schema
           }
       });
@@ -94,6 +97,7 @@ export async function PUT(request: NextRequest) {
         targetActiveClients: targetActiveClients || undefined,
       },
       create: {
+        id: generateId(),
         businessId: session.businessId, // ✅ SECURITY FILTER
         dailyRevenue: dailyRevenue || 100,
         weeklyRevenue: weeklyRevenue || 700,
@@ -109,6 +113,7 @@ export async function PUT(request: NextRequest) {
         targetConversionRate: targetConversionRate || 80,
         targetTopClient: targetTopClient || 150,
         targetActiveClients: targetActiveClients || 50,
+        updatedAt: new Date()
       }
     });
 

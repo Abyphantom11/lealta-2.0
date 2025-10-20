@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getBusinessIdFromRequest } from '@/lib/business-utils';
+import { generateId } from '@/lib/generateId';
 
 const prisma = new PrismaClient();
 
@@ -26,6 +27,7 @@ export async function GET(request: NextRequest) {
     if (!tarjetasConfig) {
       tarjetasConfig = await prisma.portalTarjetasConfig.create({
         data: {
+          id: generateId(),
           businessId,
           showLevels: true,
           showProgress: true,
@@ -46,7 +48,8 @@ export async function GET(request: NextRequest) {
             primaryColor: '#8B5CF6',
             secondaryColor: '#A78BFA',
             accentColor: '#F59E0B'
-          }
+          },
+          updatedAt: new Date()
         }
       });
     }
@@ -98,6 +101,7 @@ export async function PUT(request: NextRequest) {
         visualConfig
       },
       create: {
+        id: generateId(),
         businessId,
         showLevels: showLevels ?? true,
         showProgress: showProgress ?? true,
@@ -118,7 +122,8 @@ export async function PUT(request: NextRequest) {
           primaryColor: '#8B5CF6',
           secondaryColor: '#A78BFA',
           accentColor: '#F59E0B'
-        }
+        },
+        updatedAt: new Date()
       }
     });
 
@@ -171,6 +176,7 @@ export async function POST(request: NextRequest) {
         }
       },
       create: {
+        id: generateId(),
         businessId,
         showLevels: true,
         showProgress: true,
@@ -191,7 +197,8 @@ export async function POST(request: NextRequest) {
           primaryColor: '#8B5CF6',
           secondaryColor: '#A78BFA',
           accentColor: '#F59E0B'
-        }
+        },
+        updatedAt: new Date()
       }
     });
 

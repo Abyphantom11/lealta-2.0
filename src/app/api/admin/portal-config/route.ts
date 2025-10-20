@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
 import { notifyConfigChange } from '../../../../lib/sse-notifications';
+import { generateId } from '@/lib/generateId';
 import fs from 'fs';
 import path from 'path';
 
@@ -237,13 +238,15 @@ export async function PUT(request: NextRequest) {
           const banner = banners[i];
           await prisma.portalBanner.create({
             data: {
+              id: generateId(),
               businessId: session.businessId,
               title: banner.titulo || `Banner ${i + 1}`,
               description: banner.descripcion || '',
               imageUrl: banner.imagenUrl || null,
               dia: banner.dia || null, // Guardar el día de la semana
               active: banner.activo !== undefined ? banner.activo : true,
-              orden: i
+              orden: i,
+              updatedAt: new Date()
             }
           });
         }
@@ -264,6 +267,7 @@ export async function PUT(request: NextRequest) {
           const promo = promociones[i];
           await prisma.portalPromocion.create({
             data: {
+              id: generateId(),
               businessId: session.businessId,
               title: promo.titulo || `Promoción ${i + 1}`,
               description: promo.descripcion || '',
@@ -271,7 +275,8 @@ export async function PUT(request: NextRequest) {
               discount: promo.descuento ? `${promo.descuento}%` : null,
               dia: promo.dia || null, // Guardar el día de la semana
               active: promo.activo !== undefined ? promo.activo : true,
-              orden: i
+              orden: i,
+              updatedAt: new Date()
             }
           });
         }
@@ -292,13 +297,15 @@ export async function PUT(request: NextRequest) {
           const reward = recompensas[i];
           await prisma.portalRecompensa.create({
             data: {
+              id: generateId(),
               businessId: session.businessId,
               title: reward.nombre || `Recompensa ${i + 1}`,
               description: reward.descripcion || '',
               imageUrl: reward.imagenUrl || null,
               pointsCost: reward.puntosRequeridos || 100,
               active: reward.activo !== undefined ? reward.activo : true,
-              orden: i
+              orden: i,
+              updatedAt: new Date()
             }
           });
         }
@@ -319,12 +326,14 @@ export async function PUT(request: NextRequest) {
           const fav = favoritoDelDia[i];
           await prisma.portalFavoritoDelDia.create({
             data: {
+              id: generateId(),
               businessId: session.businessId,
               productName: fav.nombre || `Favorito ${i + 1}`,
               description: fav.descripcion || '',
               imageUrl: fav.imagenUrl || null,
               dia: fav.dia || null, // Guardar el día de la semana
-              active: fav.activo !== undefined ? fav.activo : true
+              active: fav.activo !== undefined ? fav.activo : true,
+              updatedAt: new Date()
             }
           });
         }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { generateId } from '@/lib/generateId';
 
 // 🧪 ENDPOINT DE DEBUG PARA VISITAS - VERSION SIMPLIFICADA
 
@@ -36,10 +37,12 @@ export async function POST(request: NextRequest) {
 
     // Test 4: Crear visita mínima
     const visitaData = {
+      id: generateId(),
       sessionId: sessionId,
       businessId: testBusinessId,
       path: path || '/cliente',
-      isRegistered: false
+      isRegistered: false,
+      updatedAt: new Date()
     };
 
     console.log('🧪 Creando visita con datos:', visitaData);

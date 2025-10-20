@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     const hostTrackings = await prisma.hostTracking.findMany({
       where: whereClause,
       include: {
-        anfitrion: {
+        Cliente: {
           select: {
             id: true,
             nombre: true,
@@ -70,9 +70,9 @@ export async function GET(request: NextRequest) {
             reservedAt: true,
           },
         },
-        guestConsumos: {
+        GuestConsumo: {
           include: {
-            consumo: {
+            Consumo: {
               select: {
                 id: true,
                 total: true,
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
                 productos: true,
                 registeredAt: true,
                 clienteId: true,
-                cliente: {
+                Cliente: {
                   select: {
                     nombre: true,
                     cedula: true,
@@ -104,23 +104,23 @@ export async function GET(request: NextRequest) {
 
     // Calcular estadísticas para cada anfitrión
     const hostTrackingsWithStats = hostTrackings.map((ht) => {
-      const totalConsumo = ht.guestConsumos.reduce(
-        (sum, gc) => sum + gc.consumo.total,
+      const totalConsumo = ht.GuestConsumo.reduce(
+        (sum, gc) => sum + gc.Consumo.total,
         0
       );
-      const totalPuntos = ht.guestConsumos.reduce(
-        (sum, gc) => sum + gc.consumo.puntos,
+      const totalPuntos = ht.GuestConsumo.reduce(
+        (sum, gc) => sum + gc.Consumo.puntos,
         0
       );
       const invitadosRegistrados = new Set(
-        ht.guestConsumos.map((gc) => gc.consumo.clienteId)
+        ht.GuestConsumo.map((gc) => gc.Consumo.clienteId)
       ).size;
 
       // Productos más consumidos
       const productosMap = new Map<string, number>();
-      ht.guestConsumos.forEach((gc) => {
+      ht.GuestConsumo.forEach((gc) => {
         try {
-          const productos = gc.consumo.productos as any[];
+          const productos = gc.Consumo.productos as any[];
           if (Array.isArray(productos)) {
             productos.forEach((p) => {
               const nombre = p.nombre || 'Desconocido';
@@ -148,31 +148,31 @@ export async function GET(request: NextRequest) {
         isActive: ht.isActive,
         createdAt: ht.createdAt,
         anfitrion: {
-          id: ht.anfitrion.id,
-          nombre: ht.anfitrion.nombre,
-          cedula: ht.anfitrion.cedula,
-          correo: ht.anfitrion.correo,
-          telefono: ht.anfitrion.telefono,
-          puntos: ht.anfitrion.puntos,
-          totalGastado: ht.anfitrion.totalGastado,
+          id: ht.Cliente.id,
+          nombre: ht.Cliente.nombre,
+          cedula: ht.Cliente.cedula,
+          correo: ht.Cliente.correo,
+          telefono: ht.Cliente.telefono,
+          puntos: ht.Cliente.puntos,
+          totalGastado: ht.Cliente.totalGastado,
         },
         stats: {
-          consumosVinculados: ht.guestConsumos.length,
+          consumosVinculados: ht.GuestConsumo.length,
           totalConsumo,
           totalPuntos,
           invitadosRegistrados,
-          promedioConsumo: ht.guestConsumos.length > 0 
-            ? totalConsumo / ht.guestConsumos.length 
+          promedioConsumo: ht.GuestConsumo.length > 0 
+            ? totalConsumo / ht.GuestConsumo.length 
             : 0,
           topProductos,
         },
         // Incluir detalle de invitados si es necesario
-        invitados: ht.guestConsumos.map((gc) => ({
+        invitados: ht.GuestConsumo.map((gc) => ({
           guestName: gc.guestName,
           guestCedula: gc.guestCedula,
-          consumoTotal: gc.consumo.total,
-          consumoPuntos: gc.consumo.puntos,
-          consumoFecha: gc.consumo.registeredAt,
+          consumoTotal: gc.Consumo.total,
+          consumoPuntos: gc.Consumo.puntos,
+          consumoFecha: gc.Consumo.registeredAt,
         })),
       };
     });
@@ -243,7 +243,7 @@ export async function PATCH(request: NextRequest) {
       where: { id: hostTrackingId },
       data: { isActive },
       include: {
-        anfitrion: {
+        Cliente: {
           select: {
             nombre: true,
           },
@@ -251,7 +251,7 @@ export async function PATCH(request: NextRequest) {
       },
     });
 
-    console.log(`✅ [ADMIN HOST TRACKING] Estado actualizado para ${updated.anfitrion.nombre}`);
+    console.log(`✅ [ADMIN HOST TRACKING] Estado actualizado para ${updated.Cliente.nombre}`);
 
     return NextResponse.json({
       success: true,

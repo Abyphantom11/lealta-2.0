@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { format } from 'date-fns';
+import { nanoid } from 'nanoid';
 
 export const dynamic = 'force-dynamic';
 
@@ -240,12 +241,14 @@ export async function POST(request: NextRequest) {
     // Crear registro
     const registro = await prisma.sinReserva.create({
       data: {
+        id: nanoid(),
         businessId: business.id,
         numeroPersonas,
         fecha: fechaRegistro,
         hora: horaRegistro,
         registradoPor,
-        notas
+        notas,
+        updatedAt: now
       }
     });
 

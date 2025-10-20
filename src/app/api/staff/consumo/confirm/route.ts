@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../../lib/prisma';
 import { z } from 'zod';
+import { nanoid } from 'nanoid';
 
 // Forzar renderizado dinámico para esta ruta que usa autenticación
 export const dynamic = 'force-dynamic';
@@ -27,6 +28,7 @@ async function getOrCreateDefaultLocation(businessId?: string): Promise<string> 
 
     location = await prisma.location.create({
       data: {
+        id: nanoid(),
         name: 'Ubicación Principal',
         businessId: business.id,
       },
@@ -82,6 +84,7 @@ export async function POST(request: NextRequest) {
     // Crear registro de consumo
     const consumo = await prisma.consumo.create({
       data: {
+        id: nanoid(),
         clienteId: cliente.id,
         businessId: validatedData.businessId || cliente.businessId,
         locationId: locationId,
@@ -112,6 +115,7 @@ export async function POST(request: NextRequest) {
       if (!hostTracking) {
         hostTracking = await prisma.hostTracking.create({
           data: {
+            id: nanoid(),
             businessId: validatedData.businessId || cliente.businessId,
             reservationId: validatedData.reservationId,
             clienteId: cliente.id,
@@ -119,6 +123,7 @@ export async function POST(request: NextRequest) {
             tableNumber: undefined, // Se puede actualizar luego
             reservationDate: new Date(), // Se puede actualizar luego
             guestCount: 1,
+            updatedAt: new Date(),
           },
         });
       } else {
@@ -133,6 +138,7 @@ export async function POST(request: NextRequest) {
       // Crear GuestConsumo vinculado
       await prisma.guestConsumo.create({
         data: {
+          id: nanoid(),
           businessId: validatedData.businessId || cliente.businessId,
           hostTrackingId: hostTracking.id,
           consumoId: consumo.id,
@@ -160,19 +166,19 @@ export async function POST(request: NextRequest) {
         }
       },
       include: {
-        tarjetaLealtad: true
+        TarjetaLealtad: true
       }
     });
 
     // ✅ SINCRONIZAR: Actualizar también puntosProgreso en tarjeta (SIEMPRE - tanto automáticas como manuales)
-    if (clienteActualizado.tarjetaLealtad) {
+    if (clienteActualizado.TarjetaLealtad) {
       await prisma.tarjetaLealtad.update({
         where: { clienteId: cliente.id },
         data: {
           puntosProgreso: clienteActualizado.puntosAcumulados
         }
       });
-      console.log(`📊 PuntosProgreso actualizados a ${clienteActualizado.puntosAcumulados} (tarjeta ${clienteActualizado.tarjetaLealtad.asignacionManual ? 'manual' : 'automática'})`);
+      console.log(`📊 PuntosProgreso actualizados a ${clienteActualizado.puntosAcumulados} (tarjeta ${clienteActualizado.TarjetaLealtad.asignacionManual ? 'manual' : 'automática'})`);
     }
 
     // Disparar evaluación automática de nivel

@@ -1,4 +1,6 @@
 // Tests para utilidades de business y storage - Funcionalidad crítica
+import { describe, it, expect, beforeEach } from 'vitest';
+
 describe('Business Utilities', () => {
   describe('Business ID validation', () => {
     it('should validate business ID format', () => {
@@ -44,27 +46,26 @@ describe('Business Utilities', () => {
   describe('Session management', () => {
     const mockLocalStorage: {
       data: Record<string, string>;
-      getItem: jest.Mock<string | null, [string]>;
-      setItem: jest.Mock<void, [string, string]>;
-      removeItem: jest.Mock<void, [string]>;
-      clear: jest.Mock<void, []>;
+      getItem: (key: string) => string | null;
+      setItem: (key: string, value: string) => void;
+      removeItem: (key: string) => void;
+      clear: () => void;
     } = {
       data: {},
-      getItem: jest.fn((key: string): string | null => mockLocalStorage.data[key] || null),
-      setItem: jest.fn((key: string, value: string): void => {
+      getItem: (key: string): string | null => mockLocalStorage.data[key] || null,
+      setItem: (key: string, value: string): void => {
         mockLocalStorage.data[key] = value;
-      }),
-      removeItem: jest.fn((key: string): void => {
+      },
+      removeItem: (key: string): void => {
         delete mockLocalStorage.data[key];
-      }),
-      clear: jest.fn((): void => {
+      },
+      clear: (): void => {
         mockLocalStorage.data = {};
-      })
+      }
     };
 
     beforeEach(() => {
       mockLocalStorage.clear();
-      jest.clearAllMocks();
     });
 
     it('should store client session correctly', () => {
@@ -76,14 +77,11 @@ describe('Business Utilities', () => {
 
       const key = `client-session-${sessionData.businessId}`;
       mockLocalStorage.setItem(key, JSON.stringify(sessionData));
-
-      expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
-        key,
-        JSON.stringify(sessionData)
-      );
       
+      // Verificar que los datos se guardaron correctamente
       const stored = mockLocalStorage.getItem(key);
       expect(stored).toBe(JSON.stringify(sessionData));
+      expect(mockLocalStorage.data[key]).toBe(JSON.stringify(sessionData));
     });
 
     it('should retrieve client session correctly', () => {

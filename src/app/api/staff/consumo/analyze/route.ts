@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
       requiresConfirmation: true,
       data: {
         // Información del cliente
-        cliente: {
+        clienteCliente: {
           id: cliente.id,
           nombre: cliente.nombre,
           cedula: cliente.cedula,

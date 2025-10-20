@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { ProductCreateData } from '../../../../../types/api-routes';
 import { withAuth, AuthConfigs } from '../../../../../middleware/requireAuth';
+import { nanoid } from 'nanoid';
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
@@ -54,9 +55,13 @@ export async function POST(request: NextRequest) {
     if (opciones) productData.opciones = opciones;
 
     const producto = await prisma.menuProduct.create({
-      data: productData,
+      data: {
+        id: nanoid(),
+        ...productData,
+        updatedAt: new Date(),
+      },
       include: {
-        category: {
+        MenuCategory: {
           select: {
             id: true,
             nombre: true,
@@ -91,12 +96,12 @@ export async function GET(request: NextRequest) {
 
     const productos = await prisma.menuProduct.findMany({
       where: {
-        category: {
+        MenuCategory: {
           businessId: businessId,
         },
       },
       include: {
-        category: {
+        MenuCategory: {
           select: {
             id: true,
             nombre: true,
@@ -170,7 +175,7 @@ export async function PUT(request: NextRequest) {
       where: { id },
       data: updateData,
       include: {
-        category: {
+        MenuCategory: {
           select: {
             id: true,
             nombre: true,

@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
         totalGastado: true,
         totalVisitas: true,
         // Incluir consumos para calcular estadísticas actualizadas
-        consumos: {
+        Consumo: {
           select: {
             total: true,
             puntos: true,
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
           },
         },
         // Incluir información de tarjeta si existe
-        tarjetaLealtad: {
+        TarjetaLealtad: {
           select: {
             nivel: true,
             activa: true,
@@ -89,12 +89,12 @@ export async function GET(request: NextRequest) {
       const visitasTotal = cliente.totalVisitas;
 
       // Información de tarjeta de lealtad
-      const tarjetaInfo = cliente.tarjetaLealtad
+      const tarjetaInfo = cliente.TarjetaLealtad
         ? {
-            nivel: cliente.tarjetaLealtad.nivel,
-            activa: cliente.tarjetaLealtad.activa,
-            asignacionManual: cliente.tarjetaLealtad.asignacionManual,
-            fechaAsignacion: cliente.tarjetaLealtad.fechaAsignacion,
+            nivel: cliente.TarjetaLealtad.nivel,
+            activa: cliente.TarjetaLealtad.activa,
+            asignacionManual: cliente.TarjetaLealtad.asignacionManual,
+            fechaAsignacion: cliente.TarjetaLealtad.fechaAsignacion,
           }
         : null;
 

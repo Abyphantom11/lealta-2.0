@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
         businessId: businessId || 'cmfr2y0ia0000eyvw7ef3k20u' // fallback al business por defecto
       },
       include: {
-        tarjetaLealtad: true
+        TarjetaLealtad: true
       }
     });
 
@@ -27,14 +27,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Cliente no encontrado' }, { status: 404 });
     }
 
-    if (!cliente.tarjetaLealtad) {
+    if (!cliente.TarjetaLealtad) {
       return NextResponse.json({ success: false, error: 'Cliente no tiene tarjeta de lealtad' }, { status: 400 });
     }
 
     // Obtener datos actuales
     const puntosAcumulados = cliente.puntosAcumulados || 0;
-    const esAsignacionManual = cliente.tarjetaLealtad.asignacionManual;
-    const puntosProgresoActual = cliente.tarjetaLealtad.puntosProgreso || 0;
+    const esAsignacionManual = cliente.TarjetaLealtad.asignacionManual;
+    const puntosProgresoActual = cliente.TarjetaLealtad.puntosProgreso || 0;
 
     // Recalcular progreso correctamente
     let nuevoPuntosProgreso;
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
         puntosProgresoAnterior: puntosProgresoActual,
         puntosProgresoNuevo: nuevoPuntosProgreso,
         asignacionManual: esAsignacionManual,
-        nivel: cliente.tarjetaLealtad.nivel
+        nivel: cliente.TarjetaLealtad.nivel
       }
     });
 

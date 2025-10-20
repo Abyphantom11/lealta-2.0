@@ -66,13 +66,13 @@ function extractUniqueClients(reservas: Reserva[]) {
   const clientesMap = new Map();
   
   for (const reserva of reservas) {
-    if (reserva.cliente?.id) {
-      clientesMap.set(reserva.cliente.id, {
-        id: reserva.cliente.id,
-        nombre: reserva.cliente.nombre,
-        telefono: reserva.cliente.telefono,
-        email: reserva.cliente.email,
-        totalReservas: (clientesMap.get(reserva.cliente.id)?.totalReservas || 0) + 1,
+    if (reserva.Cliente?.id) {
+      clientesMap.set(reserva.Cliente.id, {
+        id: reserva.Cliente.id,
+        nombre: reserva.Cliente.nombre,
+        telefono: reserva.Cliente.telefono,
+        email: reserva.Cliente.email,
+        totalReservas: (clientesMap.get(reserva.Cliente.id)?.totalReservas || 0) + 1,
         ultimaReserva: reserva.fecha
       });
     }
@@ -248,12 +248,12 @@ export async function GET(request: NextRequest) {
         
         return {
           id: reservation.id,
-          cliente: {
+          clienteCliente: {
             id: reservation.Cliente?.id || `temp-${Date.now()}`,
-            // 🔄 PRIORIDAD: usar nombre de la relación Cliente si existe, sino customerName
-            nombre: reservation.Cliente?.nombre || reservation.customerName || 'Sin nombre',
-            telefono: reservation.Cliente?.telefono || reservation.customerPhone || undefined,
-            email: reservation.Cliente?.correo || reservation.customerEmail || undefined
+            // 🔄 PRIORIDAD: usar customerName (nombre específico de esta reserva) antes que Cliente.nombre
+            nombre: reservation.customerName || reservation.Cliente?.nombre || 'Sin nombre',
+            telefono: reservation.customerPhone || reservation.Cliente?.telefono || undefined,
+            email: reservation.customerEmail || reservation.Cliente?.correo || undefined
           },
           numeroPersonas: reservation.guestCount || 1,
           razonVisita: reservation.specialRequests || 'Reserva general',
@@ -281,7 +281,7 @@ export async function GET(request: NextRequest) {
         // Retornar una reserva mínima en caso de error
         return {
           id: reservation.id,
-          cliente: {
+          clienteCliente: {
             id: `temp-${Date.now()}`,
             nombre: reservation.customerName || 'Error al cargar',
             telefono: undefined,
@@ -527,22 +527,41 @@ export async function POST(request: NextRequest) {
         });
         console.log('✅ Cliente nuevo creado:', { id: cliente.id, cedula: cedulaReal, nombre: cliente.nombre });
       } else if (cliente) {
-        // ✅ MEJORADO: Actualizar todos los datos del cliente existente
-        const clienteActual = cliente; // Para TypeScript
-        cliente = await prisma.cliente.update({
-          where: { id: clienteActual.id },
-          data: {
-            nombre: data.cliente.nombre,
-            telefono: data.cliente.telefono || clienteActual.telefono,
-            correo: data.cliente.email || clienteActual.correo,
-            // Actualizar cédula si ahora tenemos una real y antes era temporal
-            ...(data.cliente.id && 
-                data.cliente.id !== `c-${Date.now()}` && 
-                clienteActual.cedula.startsWith('temp-') && 
-                { cedula: data.cliente.id })
-          }
-        });
-        console.log('✅ Cliente existente actualizado:', { id: cliente.id, nombre: cliente.nombre });
+        // ✅ Cliente existente encontrado - NO actualizamos el nombre para preservar reservas anteriores
+        // Solo actualizamos datos de contacto si mejoramos la información
+        const clienteActual = cliente;
+        
+        const shouldUpdateEmail = data.cliente.email && 
+                                  data.cliente.email !== clienteActual.correo && 
+                                  !clienteActual.correo.includes('temp-');
+        
+        const shouldUpdatePhone = data.cliente.telefono && 
+                                  data.cliente.telefono !== clienteActual.telefono;
+        
+        const shouldUpdateCedula = data.cliente.id && 
+                                   data.cliente.id !== `c-${Date.now()}` && 
+                                   clienteActual.cedula.startsWith('temp-');
+        
+        // Solo actualizar si hay datos nuevos que agregar
+        if (shouldUpdateEmail || shouldUpdatePhone || shouldUpdateCedula) {
+          cliente = await prisma.cliente.update({
+            where: { id: clienteActual.id },
+            data: {
+              // NO actualizamos nombre para preservar reservas anteriores
+              ...(shouldUpdatePhone && { telefono: data.cliente.telefono }),
+              ...(shouldUpdateEmail && { correo: data.cliente.email }),
+              ...(shouldUpdateCedula && { cedula: data.cliente.id })
+            }
+          });
+          console.log('✅ Cliente existente actualizado (solo contacto):', { 
+            id: cliente.id, 
+            nombre: cliente.nombre,
+            emailActualizado: shouldUpdateEmail,
+            telefonoActualizado: shouldUpdatePhone
+          });
+        } else {
+          console.log('✅ Usando cliente existente sin cambios:', { id: cliente.id, nombre: cliente.nombre });
+        }
       }
     }
 
@@ -753,7 +772,7 @@ export async function POST(request: NextRequest) {
     // Retornar la reserva creada
     const reservaCreada: Reserva = {
       id: reservation.id,
-      cliente: {
+      clienteCliente: {
         id: cliente.id,
         nombre: data.cliente.nombre,
         telefono: data.cliente.telefono,

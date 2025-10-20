@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       const reservas = await prisma.reservation.findMany({
         where: businessId ? { businessId } : {},
         include: {
-          cliente: {
+          Cliente: {
             select: {
               id: true,
               nombre: true,
@@ -73,14 +73,14 @@ export async function GET(request: NextRequest) {
 
       reservas.forEach(reserva => {
         // Si la reserva tiene cliente asociado
-        if (reserva.cliente) {
-          const clienteId = reserva.cliente.id;
+        if (reserva.Cliente) {
+          const clienteId = reserva.Cliente.id;
           
           if (!clientesMap.has(clienteId)) {
             clientesMap.set(clienteId, {
-              id: reserva.cliente.id,
-              nombre: reserva.cliente.nombre,
-              cedula: reserva.cliente.cedula,
+              id: reserva.Cliente.id,
+              nombre: reserva.Cliente.nombre,
+              cedula: reserva.Cliente.cedula,
               totalReservas: 0,
               totalInvitados: 0,
               asistencias: 0,

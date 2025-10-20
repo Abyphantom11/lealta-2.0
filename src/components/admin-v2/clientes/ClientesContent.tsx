@@ -5,18 +5,30 @@ import {
   Search,
   Filter,
   X,
-  MoreVertical
+  MoreVertical,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { Cliente } from '@/types/admin';
+import EditClientModal from './EditClientModal';
 
 // ✅ OPTIMIZACIÓN: Componente memoizado para items individuales de clientes
 interface ClienteItemProps {
   cliente: Cliente;
   getClientInitials: (nombre: string) => string;
   getColorNivel: (nivel: string) => string;
+  onEdit: (cliente: Cliente) => void;
+  onDelete: (cliente: Cliente) => void;
 }
 
-const ClienteItem = React.memo<ClienteItemProps>(({ cliente, getClientInitials, getColorNivel }) => {
+const ClienteItem = React.memo<ClienteItemProps>(({ 
+  cliente, 
+  getClientInitials, 
+  getColorNivel,
+  onEdit,
+  onDelete 
+}) => {
+  const [showMenu, setShowMenu] = useState(false);
   // Función para calcular nivel automático
   const calcularNivelAutomatico = (client: Cliente) => {
     const { puntos, totalGastado = 0, totalVisitas = 0 } = client;
@@ -96,10 +108,48 @@ const ClienteItem = React.memo<ClienteItemProps>(({ cliente, getClientInitials, 
           Activo
         </span>
       </td>
-      <td className="py-4">
-        <button className="text-dark-400 hover:text-white transition-colors">
+      <td className="py-4 relative">
+        <button 
+          onClick={() => setShowMenu(!showMenu)}
+          className="text-dark-400 hover:text-white transition-colors"
+        >
           <MoreVertical className="w-4 h-4" />
         </button>
+        
+        {/* Menú desplegable */}
+        {showMenu && (
+          <>
+            {/* Overlay para cerrar el menú */}
+            <div 
+              className="fixed inset-0 z-10" 
+              onClick={() => setShowMenu(false)}
+            />
+            
+            {/* Menú de opciones */}
+            <div className="absolute right-0 top-8 z-20 bg-dark-800 border border-dark-600 rounded-lg shadow-xl py-1 min-w-[150px]">
+              <button
+                onClick={() => {
+                  onEdit(cliente);
+                  setShowMenu(false);
+                }}
+                className="w-full flex items-center space-x-2 px-4 py-2 hover:bg-dark-700 transition-colors text-white text-sm"
+              >
+                <Edit className="w-4 h-4" />
+                <span>Editar</span>
+              </button>
+              <button
+                onClick={() => {
+                  onDelete(cliente);
+                  setShowMenu(false);
+                }}
+                className="w-full flex items-center space-x-2 px-4 py-2 hover:bg-dark-700 transition-colors text-red-400 text-sm"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Eliminar</span>
+              </button>
+            </div>
+          </>
+        )}
       </td>
     </tr>
   );
@@ -129,6 +179,10 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '', busin
   // Estados para historial de canjes
   const [historialCanjes, setHistorialCanjes] = useState<any[]>([]);
   const [loadingHistorial, setLoadingHistorial] = useState(false);
+
+  // Estados para el modal de edición
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
 
   // Cargar clientes al montar el componente
   useEffect(() => {
@@ -183,6 +237,50 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '', busin
 
     fetchHistorialCanjes();
   }, [activeTab]);
+
+  // Función para abrir el modal de edición
+  const handleEditCliente = useCallback((cliente: Cliente) => {
+    setSelectedCliente(cliente);
+    setIsEditModalOpen(true);
+  }, []);
+
+  // Función para eliminar un cliente
+  const handleDeleteCliente = useCallback(async (cliente: Cliente) => {
+    if (!confirm(`¿Estás seguro de eliminar al cliente ${cliente.nombre}?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/clientes/${cliente.cedula}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Remover el cliente de la lista
+        setClientes(prev => prev.filter(c => c.id !== cliente.id));
+        setFilteredClientes(prev => prev.filter(c => c.id !== cliente.id));
+        alert('Cliente eliminado exitosamente');
+      } else {
+        alert(data.error || 'Error al eliminar el cliente');
+      }
+    } catch (error) {
+      console.error('Error eliminando cliente:', error);
+      alert('Error de conexión al eliminar el cliente');
+    }
+  }, []);
+
+  // Función para actualizar un cliente después de editar
+  const handleClienteUpdated = useCallback((clienteActualizado: Cliente) => {
+    setClientes(prev =>
+      prev.map(c => (c.id === clienteActualizado.id ? clienteActualizado : c))
+    );
+    setFilteredClientes(prev =>
+      prev.map(c => (c.id === clienteActualizado.id ? clienteActualizado : c))
+    );
+  }, []);
 
   // Función para filtrar clientes localmente
   const filterClientsLocally = useCallback(
@@ -424,6 +522,8 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '', busin
                         cliente={client}
                         getClientInitials={getClientInitials}
                         getColorNivel={getColorNivel}
+                        onEdit={handleEditCliente}
+                        onDelete={handleDeleteCliente}
                       />
                     ));
                   })()}
@@ -510,6 +610,14 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '', busin
           </>
         )}
       </div>
+
+      {/* Modal de Edición */}
+      <EditClientModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        cliente={selectedCliente}
+        onClienteUpdated={handleClienteUpdated}
+      />
     </div>
   );
 };

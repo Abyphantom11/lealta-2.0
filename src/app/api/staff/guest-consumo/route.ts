@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { generateId } from '@/lib/generateId';
 
 // Forzar renderizado dinámico
 export const dynamic = 'force-dynamic';
@@ -40,13 +41,13 @@ export async function POST(request: NextRequest) {
     const hostTracking = await prisma.hostTracking.findUnique({
       where: { id: data.hostTrackingId },
       include: {
-        anfitrion: {
+        Cliente: {
           select: {
             nombre: true,
             cedula: true,
           },
         },
-        reservation: {
+        Reservation: {
           select: {
             businessId: true,
           },
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
     const consumo = await prisma.consumo.findUnique({
       where: { id: data.consumoId },
       include: {
-        cliente: {
+        Cliente: {
           select: {
             nombre: true,
             cedula: true,
@@ -99,10 +100,10 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Verificar aislamiento de business
-    if (consumo.businessId !== hostTracking.reservation.businessId) {
+    if (consumo.businessId !== hostTracking.Reservation.businessId) {
       console.error('❌ [GUEST CONSUMO] Business ID mismatch:', {
         consumoBusinessId: consumo.businessId,
-        hostTrackingBusinessId: hostTracking.reservation.businessId,
+        hostTrackingBusinessId: hostTracking.Reservation.businessId,
       });
       return NextResponse.json(
         {
@@ -131,17 +132,18 @@ export async function POST(request: NextRequest) {
     // 5. Crear el vínculo
     const guestConsumo = await prisma.guestConsumo.create({
       data: {
+        id: generateId(),
         businessId: consumo.businessId,
         hostTrackingId: data.hostTrackingId,
         consumoId: data.consumoId,
-        guestCedula: data.guestCedula || consumo.cliente.cedula,
-        guestName: data.guestName || consumo.cliente.nombre,
+        guestCedula: data.guestCedula || consumo.Cliente.cedula,
+        guestName: data.guestName || consumo.Cliente.nombre,
       },
     });
 
     console.log('✅ [GUEST CONSUMO] Vinculación exitosa:', {
       guestConsumoId: guestConsumo.id,
-      anfitrion: hostTracking.anfitrion.nombre,
+      anfitrion: hostTracking.Cliente.nombre,
       invitado: guestConsumo.guestName,
       monto: consumo.total,
     });
@@ -149,9 +151,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: guestConsumo,
-      message: `Consumo vinculado a ${hostTracking.anfitrion.nombre}`,
+      message: `Consumo vinculado a ${hostTracking.Cliente.nombre}`,
       details: {
-        anfitrionNombre: hostTracking.anfitrion.nombre,
+        anfitrionNombre: hostTracking.Cliente.nombre,
         invitadoNombre: guestConsumo.guestName,
         montoConsumo: consumo.total,
         puntosConsumo: consumo.puntos,
@@ -206,9 +208,9 @@ export async function GET(request: NextRequest) {
     const guestConsumo = await prisma.guestConsumo.findUnique({
       where: { consumoId },
       include: {
-        hostTracking: {
+        HostTracking: {
           include: {
-            anfitrion: {
+            Cliente: {
               select: {
                 nombre: true,
                 cedula: true,

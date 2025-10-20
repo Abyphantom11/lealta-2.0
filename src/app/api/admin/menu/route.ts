@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { MenuCategoryUpdateData } from '../../../../types/api-routes';
 import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
+import { generateId } from '@/lib/generateId';
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
         businessId: session.businessId, // ✅ FILTRO POR BUSINESS (actualizado)
       },
       include: {
-        productos: {
+        MenuProduct: {
           where: { disponible: true },
           orderBy: { orden: 'asc' },
         },
@@ -69,6 +70,7 @@ export async function POST(request: NextRequest) {
     
     const categoria = await prisma.menuCategory.create({
       data: {
+        id: generateId(),
         businessId: session.businessId, // ✅ FILTRO POR BUSINESS (actualizado)
         nombre,
         descripcion: descripcion || null,

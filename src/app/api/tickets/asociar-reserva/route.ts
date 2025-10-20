@@ -1,178 +1,85 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-// POST /api/tickets/asociar-reserva - Asociar un ticket con una reserva
-export async function POST(request: NextRequest) {
-  try {
-    const { ticketId, reservaId, businessId, ticketAmount, ticketItems } = await request.json();
+/**
+ * ⚠️ FUNCIONALIDAD NO IMPLEMENTADA
+ * 
+ * Este endpoint requiere el modelo `TicketReservaAssociation` en el schema de Prisma.
+ * 
+ * Para implementar esta funcionalidad:
+ * 
+ * 1. Agregar el modelo a prisma/schema.prisma:
+ *    ```prisma
+ *    model TicketReservaAssociation {
+ *      id            String      @id
+ *      ticketId      String
+ *      reservaId     String
+ *      businessId    String
+ *      associatedAt  DateTime    @default(now())
+ *      ticketAmount  Decimal?    @db.Decimal(10, 2)
+ *      ticketItems   Json?
+ *      updatedAt     DateTime
+ *      
+ *      Reservation   Reservation @relation(fields: [reservaId], references: [id])
+ *      Business      Business    @relation(fields: [businessId], references: [id])
+ *      
+ *      @@index([businessId])
+ *      @@index([reservaId])
+ *      @@index([ticketId])
+ *      @@unique([ticketId, businessId])
+ *    }
+ *    ```
+ * 
+ * 2. Agregar relaciones en los modelos existentes:
+ *    ```prisma
+ *    model Reservation {
+ *      // ...campos existentes...
+ *      TicketAssociations TicketReservaAssociation[]
+ *    }
+ *    
+ *    model Business {
+ *      // ...campos existentes...
+ *      TicketAssociations TicketReservaAssociation[]
+ *    }
+ *    ```
+ * 
+ * 3. Ejecutar: npx prisma migrate dev --name add-ticket-associations
+ * 
+ * 4. Implementar la lógica de negocio en este archivo
+ */
 
-    if (!ticketId || !reservaId || !businessId) {
-      return NextResponse.json(
-        { success: false, error: 'ticketId, reservaId y businessId son requeridos' },
-        { status: 400 }
-      );
-    }
-
-    console.log('🔗 Asociando ticket con reserva:', { ticketId, reservaId, businessId, ticketAmount });
-
-    // Verificar que la reserva existe y pertenece al business
-    const reserva = await prisma.reservation.findFirst({
-      where: {
-        id: reservaId,
-        businessId: businessId
-      }
-    });
-
-    if (!reserva) {
-      return NextResponse.json(
-        { success: false, error: 'Reserva no encontrada' },
-        { status: 404 }
-      );
-    }
-
-    // Buscar si ya existe una asociación para este ticket
-    let ticketReservaAssociation = await prisma.ticketReservaAssociation.findFirst({
-      where: {
-        ticketId: ticketId,
-        businessId: businessId
-      }
-    });
-
-    if (ticketReservaAssociation) {
-      // Actualizar la asociación existente
-      ticketReservaAssociation = await prisma.ticketReservaAssociation.update({
-        where: { id: ticketReservaAssociation.id },
-        data: {
-          reservaId: reservaId,
-          updatedAt: new Date(),
-          ticketAmount: ticketAmount || null,
-          ticketItems: ticketItems || null
-        },
-        include: {
-          reservation: {
-            include: {
-              cliente: true
-            }
-          }
-        }
-      });
-    } else {
-      // Crear nueva asociación
-      ticketReservaAssociation = await prisma.ticketReservaAssociation.create({
-        data: {
-          ticketId: ticketId,
-          reservaId: reservaId,
-          businessId: businessId,
-          associatedAt: new Date(),
-          ticketAmount: ticketAmount || null,
-          ticketItems: ticketItems || null
-        },
-        include: {
-          reservation: {
-            include: {
-              cliente: true
-            }
-          }
-        }
-      });
-    }
-
-    console.log('✅ Asociación creada/actualizada exitosamente');
-
-    return NextResponse.json({
-      success: true,
-      association: {
-        id: ticketReservaAssociation.id,
-        ticketId: ticketReservaAssociation.ticketId,
-        reservaId: ticketReservaAssociation.reservaId,
-        reservaNombre: (ticketReservaAssociation as any).reservation?.cliente?.nombre || 'Cliente sin nombre',
-        associatedAt: ticketReservaAssociation.associatedAt,
-        ticketAmount: ticketReservaAssociation.ticketAmount,
-        ticketItems: ticketReservaAssociation.ticketItems
-      }
-    });
-
-  } catch (error) {
-    console.error('❌ Error asociando ticket con reserva:', error);
-    return NextResponse.json(
-      { success: false, error: 'Error interno del servidor' },
-      { status: 500 }
-    );
-  }
+/**
+ * POST /api/tickets/asociar-reserva
+ * Asociar un ticket de consumo con una reservación
+ * 
+ * @returns 501 Not Implemented
+ */
+export async function POST() {
+  return NextResponse.json(
+    { 
+      success: false, 
+      error: 'POST: Funcionalidad no implementada. Requiere modelo TicketReservaAssociation en Prisma schema.',
+      documentation: 'Ver comentarios en el código fuente para instrucciones de implementación'
+    },
+    { status: 501 }
+  );
 }
 
-// GET /api/tickets/asociar-reserva - Obtener todas las asociaciones de tickets con reservas
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const businessId = searchParams.get('businessId');
-    const reservaId = searchParams.get('reservaId');
-
-    if (!businessId) {
-      return NextResponse.json(
-        { success: false, error: 'businessId es requerido' },
-        { status: 400 }
-      );
-    }
-
-    const whereClause: any = { businessId };
-    if (reservaId) {
-      whereClause.reservaId = reservaId;
-    }
-
-    const associations = await prisma.ticketReservaAssociation.findMany({
-      where: whereClause,
-      include: {
-        reservation: {
-          include: {
-            cliente: true
-          }
-        }
-      },
-      orderBy: {
-        associatedAt: 'desc'
-      }
-    });
-
-    // Calcular el consumo total por reserva
-    const consumoPorReserva = associations.reduce((acc: any, association) => {
-      const reservaId = association.reservaId;
-      if (!acc[reservaId]) {
-        acc[reservaId] = {
-          reservaId,
-          reservaNombre: (association as any).reservation?.cliente?.nombre || 'Cliente sin nombre',
-          tickets: [],
-          consumoTotal: 0
-        };
-      }
-      
-      // Agregar información del ticket
-      acc[reservaId].tickets.push({
-        ticketId: association.ticketId,
-        associatedAt: association.associatedAt,
-        ticketAmount: association.ticketAmount || 0,
-        ticketItems: association.ticketItems
-      });
-      
-      // Sumar al consumo total
-      acc[reservaId].consumoTotal += association.ticketAmount || 0;
-      
-      return acc;
-    }, {});
-
-    return NextResponse.json({
-      success: true,
-      associations,
-      consumoPorReserva: Object.values(consumoPorReserva)
-    });
-
-  } catch (error) {
-    console.error('❌ Error obteniendo asociaciones:', error);
-    return NextResponse.json(
-      { success: false, error: 'Error interno del servidor' },
-      { status: 500 }
-    );
-  }
+/**
+ * GET /api/tickets/asociar-reserva
+ * Obtener asociaciones de tickets con reservaciones
+ * 
+ * @returns 501 Not Implemented
+ */
+export async function GET() {
+  return NextResponse.json(
+    { 
+      success: false, 
+      error: 'GET: Funcionalidad no implementada. Requiere modelo TicketReservaAssociation en Prisma schema.',
+      documentation: 'Ver comentarios en el código fuente para instrucciones de implementación'
+    },
+    { status: 501 }
+  );
 }
+

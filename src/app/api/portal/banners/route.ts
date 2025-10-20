@@ -4,6 +4,7 @@ import { getBusinessIdFromRequest } from '@/lib/business-utils';
 import { getCurrentBusinessDay } from '@/lib/business-day-utils';
 import fs from 'fs';
 import path from 'path';
+import { generateId } from '@/lib/generateId';
 
 const prisma = new PrismaClient();
 
@@ -144,13 +145,15 @@ export async function POST(request: NextRequest) {
 
     const banner = await prisma.portalBanner.create({
       data: {
+        id: generateId(),
         businessId,
         title,
         description,
         imageUrl,
         linkUrl,
         orden,
-        active: true
+        active: true,
+        updatedAt: new Date()
       }
     });
 

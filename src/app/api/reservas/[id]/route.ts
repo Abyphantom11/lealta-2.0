@@ -80,10 +80,10 @@ export async function GET(
         businessId 
       },
       include: {
-        service: true,
-        slot: true,
-        qrCodes: true,
-        promotor: true // ✅ Incluir datos del promotor
+        ReservationService: true,
+        ReservationSlot: true,
+        ReservationQRCode: true,
+        Promotor: true // ✅ Incluir datos del promotor
       }
     });
 
@@ -109,7 +109,7 @@ export async function GET(
       beneficiosReserva: reservation.notes || '',
       promotor: {
         id: reservation.promotorId || '',
-        nombre: reservation.promotor?.nombre || 'Sistema'
+        nombre: reservation.Promotor?.nombre || 'Sistema'
       },
       promotorId: reservation.promotorId || undefined, // ✅ Incluir promotorId
       fecha: reservation.reservedAt.toISOString().split('T')[0],
@@ -118,7 +118,7 @@ export async function GET(
         minute: '2-digit' 
       }),
       codigoQR: `res-${reservation.id}`,
-      asistenciaActual: reservation.qrCodes[0]?.scanCount || 0,
+      asistenciaActual: reservation.ReservationQRCode[0]?.scanCount || 0,
       estado: mapPrismaStatusToReserva(reservation.status),
       fechaCreacion: reservation.createdAt.toISOString(),
       fechaModificacion: reservation.updatedAt.toISOString(),
@@ -555,7 +555,7 @@ export async function PUT(
       updatedReservation = await prisma.reservation.update({
         where: { id, businessId },
         data: updateData,
-        include: { qrCodes: true, promotor: true }
+        include: { ReservationQRCode: true, Promotor: true }
       });
       
       console.log('✅ SERVIDOR - Reserva actualizada exitosamente en BD:', {
@@ -569,7 +569,7 @@ export async function PUT(
       });
 
       // 🎯 Si se actualizó la fecha u hora (reservedAt cambió), actualizar también el expiresAt del QR
-      if (updateData.reservedAt && updatedReservation.qrCodes.length > 0) {
+      if (updateData.reservedAt && updatedReservation.ReservationQRCode.length > 0) {
         const newReservedAt = new Date(updatedReservation.reservedAt);
         const newQrExpiresAt = new Date(newReservedAt.getTime() + (12 * 60 * 60 * 1000)); // +12 horas
         
@@ -633,7 +633,7 @@ export async function DELETE(
     const reservation = await prisma.reservation.findUnique({
       where: { id: reservationId },
       include: {
-        qrCodes: true
+        ReservationQRCode: true
       }
     });
 
@@ -647,11 +647,11 @@ export async function DELETE(
 
     // Eliminar en el orden correcto (por las foreign keys)
     // 1. Eliminar códigos QR asociados
-    if (reservation.qrCodes.length > 0) {
+    if (reservation.ReservationQRCode.length > 0) {
       await prisma.reservationQRCode.deleteMany({
         where: { reservationId: reservationId }
       });
-      console.log(`✅ ${reservation.qrCodes.length} códigos QR eliminados`);
+      console.log(`✅ ${reservation.ReservationQRCode.length} códigos QR eliminados`);
     }
 
     // 2. Eliminar la reserva

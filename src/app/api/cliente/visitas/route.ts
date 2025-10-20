@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/utils/production-logger';
+import { generateId } from '@/lib/generateId';
 
 // 📊 API PARA REGISTRAR VISITAS AL PORTAL CLIENTE
 // Este endpoint registra cada visita al portal para analytics del admin
@@ -58,6 +59,7 @@ async function createVisita(data: {
 }) {
   return await prisma.visita.create({
     data: {
+      id: generateId(),
       sessionId: data.sessionId,
       clienteId: data.clienteId || null,
       businessId: data.businessId,
@@ -66,7 +68,8 @@ async function createVisita(data: {
       userAgent: data.userAgent,
       ip: data.ip,
       isRegistered: !!data.clienteId,
-      timestamp: new Date()
+      timestamp: new Date(),
+      updatedAt: new Date()
     }
   });
 }
@@ -241,7 +244,7 @@ export async function GET(request: NextRequest) {
         timestamp: { gte: fechaInicio }
       },
       include: {
-        cliente: {
+        Cliente: {
           select: { nombre: true, cedula: true }
         }
       },
@@ -258,8 +261,8 @@ export async function GET(request: NextRequest) {
       visitasRecientes: visitas.slice(0, 10).map(v => ({
         id: v.id,
         timestamp: v.timestamp,
-        cliente: v.cliente?.nombre || 'Anónimo',
-        cedula: v.cliente?.cedula || null,
+        cliente: v.Cliente?.nombre || 'Anónimo',
+        cedula: v.Cliente?.cedula || null,
         path: v.path,
         isRegistered: v.isRegistered
       }))

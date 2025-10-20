@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { generateId } from '@/lib/generateId';
 
 // Forzar renderizado dinámico (no estático)
 export const dynamic = 'force-dynamic';
@@ -65,6 +66,7 @@ export async function PUT(request: NextRequest) {
       where: { businessId },
       update: updateData,
       create: {
+        id: generateId(),
         businessId,
         promocionesTitle: promocionesTitle || 'Promociones Especiales',
         recompensasTitle: recompensasTitle || 'Recompensas',
@@ -73,6 +75,7 @@ export async function PUT(request: NextRequest) {
         eventos: [],
         recompensas: [],
         updatedBy: 'system',
+        updatedAt: new Date(),
       },
     });
 

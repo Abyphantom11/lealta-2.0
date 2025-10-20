@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
       incrementCount: currentAsistencia,
       maxAsistencia: maxAsistencia,
       exceso: exceso,
-      cliente: {
+      clienteCliente: {
         nombre: reserva.customerName || 'Cliente',
         telefono: reserva.customerPhone || ''
       },

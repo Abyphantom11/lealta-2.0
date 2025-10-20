@@ -365,7 +365,7 @@ export async function POST(request: NextRequest) {
       isBatchProcess: true,
       data: {
         // Información del cliente
-        cliente: {
+        clienteCliente: {
           id: cliente.id,
           nombre: cliente.nombre,
           cedula: cliente.cedula,

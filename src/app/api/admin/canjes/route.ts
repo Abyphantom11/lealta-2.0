@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const canjes = await prisma.historialCanje.findMany({
       where: {
         // Filtrar por business a través de la relación cliente
-        cliente: {
+        Cliente: {
           businessId: session.businessId, // ✅ FILTRO POR BUSINESS (actualizado)
         },
       },

@@ -6,6 +6,7 @@ import { geminiAnalyzer } from '../../../../lib/ai/gemini-analyzer';
 import { logger } from '@/utils/production-logger';
 import { getBlobStorageToken } from '@/lib/blob-storage-utils';
 import { withAuth } from '@/middleware/requireAuth';
+import { nanoid } from 'nanoid';
 
 // Forzar renderizado dinámico para esta ruta que usa autenticación
 export const dynamic = 'force-dynamic';
@@ -32,6 +33,7 @@ async function getOrCreateDefaultLocation(businessId?: string): Promise<string> 
 
     location = await prisma.location.create({
       data: {
+        id: nanoid(),
         name: 'Ubicación Principal',
         businessId: business.id,
       },
@@ -185,11 +187,13 @@ async function loadPuntosConfiguration(businessId?: string): Promise<number> {
     logger.info('⚙️ Creating default points config in DATABASE for business:', businessId);
     const newConfig = await prisma.puntosConfig.create({
       data: {
+        id: nanoid(),
         businessId,
         puntosPorDolar: 4,
         bonusPorRegistro: 100,
         maxPuntosPorDolar: 10,
-        maxBonusRegistro: 1000
+        maxBonusRegistro: 1000,
+        updatedAt: new Date(),
       }
     });
     
@@ -205,6 +209,7 @@ async function createConsumo(cliente: any, validatedData: any, analysis: any, mo
 
   return await prisma.consumo.create({
     data: {
+      id: nanoid(),
       clienteId: cliente.id,
       businessId: validatedData.businessId,
       locationId: locationId,
@@ -232,15 +237,15 @@ async function updateClientePuntos(cliente: any, puntosGenerados: number) {
       puntos: { increment: puntosGenerados },
       puntosAcumulados: { increment: puntosGenerados }
     },
-    include: { tarjetaLealtad: true }
+    include: { TarjetaLealtad: true }
   });
 }
 
 async function syncTarjetaPuntos(clienteActualizado: any) {
-  if (clienteActualizado.tarjetaLealtad) {
+  if (clienteActualizado.TarjetaLealtad) {
     // 🎯 LÓGICA CORREGIDA: Para tarjetas manuales, mantener progreso correcto
-    const esAsignacionManual = clienteActualizado.tarjetaLealtad.asignacionManual;
-    const puntosProgresoActual = clienteActualizado.tarjetaLealtad.puntosProgreso || 0;
+    const esAsignacionManual = clienteActualizado.TarjetaLealtad.asignacionManual;
+    const puntosProgresoActual = clienteActualizado.TarjetaLealtad.puntosProgreso || 0;
     const puntosAcumulados = clienteActualizado.puntosAcumulados || 0;
     
     let nuevoPuntosProgreso;

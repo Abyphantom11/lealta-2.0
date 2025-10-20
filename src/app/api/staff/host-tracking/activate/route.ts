@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { generateId } from '@/lib/generateId';
 
 // Forzar renderizado dinámico
 export const dynamic = 'force-dynamic';
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
     const reservation = await prisma.reservation.findUnique({
       where: { id: data.reservationId },
       include: {
-        cliente: true,
+        Cliente: true,
       },
     });
 
@@ -116,6 +117,7 @@ export async function POST(request: NextRequest) {
     // 5. Crear el HostTracking
     const hostTracking = await prisma.hostTracking.create({
       data: {
+        id: generateId(),
         businessId: data.businessId,
         reservationId: data.reservationId,
         clienteId: data.clienteId,
@@ -124,16 +126,17 @@ export async function POST(request: NextRequest) {
         reservationDate: new Date(data.reservationDate),
         guestCount: data.guestCount,
         isActive: true,
+        updatedAt: new Date()
       },
       include: {
-        anfitrion: {
+        Cliente: {
           select: {
             nombre: true,
             cedula: true,
             correo: true,
           },
         },
-        reservation: {
+        Reservation: {
           select: {
             reservationNumber: true,
             status: true,
@@ -144,7 +147,7 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ [ACTIVATE HOST] Tracking creado exitosamente:', {
       id: hostTracking.id,
-      anfitrion: hostTracking.anfitrion.nombre,
+      anfitrion: hostTracking.Cliente.nombre,
       mesa: hostTracking.tableNumber,
       invitados: hostTracking.guestCount,
     });
@@ -203,7 +206,7 @@ export async function GET(request: NextRequest) {
     const hostTracking = await prisma.hostTracking.findUnique({
       where: { reservationId },
       include: {
-        anfitrion: {
+        Cliente: {
           select: {
             nombre: true,
             cedula: true,

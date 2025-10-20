@@ -31,13 +31,13 @@ export async function GET(request: NextRequest) {
         puntos: true,
         totalGastado: true,
         totalVisitas: true,
-        business: {
+        Business: {
           select: {
             name: true,
             slug: true,
           }
         },
-        tarjetaLealtad: {
+        TarjetaLealtad: {
           select: {
             nivel: true,
             activa: true,
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       sampleClients: clientes.map(c => ({
         cedula: c.cedula,
         nombre: c.nombre,
-        business: c.business?.name,
+        business: c.Business?.name,
         puntos: c.puntos
       })),
       fullData: clientes

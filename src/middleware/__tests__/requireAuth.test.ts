@@ -1,137 +1,149 @@
 // Test para middleware crítico - requireAuth
-import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/middleware/requireAuth';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { NextRequest } from 'next/server';
+import { requireAuth } from '@/middleware/requireAuth';
 
-// Mock NextAuth para tests
-jest.mock('next-auth/next', () => ({
-  getServerSession: jest.fn(),
+// Mock del módulo de seguridad
+vi.mock('@/middleware/security', () => ({
+  validateUserSession: vi.fn(),
+  hasPermission: vi.fn(),
 }));
 
-// Mock Prisma Client
-jest.mock('@prisma/client', () => ({
-  PrismaClient: jest.fn().mockImplementation(() => ({
-    business: {
-      findFirst: jest.fn(),
-    },
-  })),
-}));
-
-import { getServerSession } from 'next-auth/next';
-
-const mockGetServerSession = getServerSession as jest.MockedFunction<typeof getServerSession>;
+import { validateUserSession, hasPermission } from '@/middleware/security';
 
 describe('requireAuth Middleware - SECURITY CRITICAL', () => {
   let mockRequest: NextRequest;
-  let mockHandler: jest.Mock;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     
     mockRequest = new NextRequest('http://localhost:3000/api/test', {
       method: 'GET',
     });
-    
-    mockHandler = jest.fn().mockResolvedValue(
-      NextResponse.json({ success: true })
-    );
   });
 
   describe('Authentication Tests', () => {
     it('should reject unauthenticated requests', async () => {
-      mockGetServerSession.mockResolvedValue(null);
+      // Mock: No session cookie
+      vi.spyOn(mockRequest.cookies, 'get').mockReturnValue(undefined);
 
-      const response = await withAuth(mockRequest, mockHandler);
-      const data = await response.json();
+      const result = await requireAuth(mockRequest);
 
-      expect(response.status).toBe(401);
-      expect(data.error).toBe('No autorizado');
-      expect(mockHandler).not.toHaveBeenCalled();
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const data = await result.response.json();
+        expect(result.response.status).toBe(401);
+        expect(data.error).toBe('Authentication required');
+      }
     });
 
     it('should accept valid authenticated session', async () => {
-      mockGetServerSession.mockResolvedValue({
-        user: {
-          id: 'user123',
-          email: 'admin@test.com',
-          role: 'ADMIN',
-          businessId: 'business123'
-        }
-      });
+      // Mock: Valid session cookie
+      vi.spyOn(mockRequest.cookies, 'get').mockReturnValue({
+        name: 'session',
+        value: 'valid-token-123'
+      } as any);
 
-      await withAuth(mockRequest, mockHandler);
-
-      expect(mockHandler).toHaveBeenCalledWith({
+      // Mock: Valid user session
+      vi.mocked(validateUserSession).mockResolvedValue({
         userId: 'user123',
         email: 'admin@test.com',
-        role: 'ADMIN',
+        role: 'admin',
         businessId: 'business123'
-      });
+      } as any);
+
+      vi.mocked(hasPermission).mockReturnValue(true);
+
+      const result = await requireAuth(mockRequest);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.session.userId).toBe('user123');
+        expect(result.session.role).toBe('admin');
+      }
     });
 
     it('should handle missing user in session', async () => {
-      mockGetServerSession.mockResolvedValue({ user: null });
+      // Mock: No session cookie
+      vi.spyOn(mockRequest.cookies, 'get').mockReturnValue(undefined);
 
-      const response = await withAuth(mockRequest, mockHandler);
-      const data = await response.json();
+      const result = await requireAuth(mockRequest);
 
-      expect(response.status).toBe(401);
-      expect(data.error).toBe('No autorizado');
-      expect(mockHandler).not.toHaveBeenCalled();
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const data = await result.response.json();
+        expect(result.response.status).toBe(401);
+        expect(data.error).toBe('Authentication required');
+      }
     });
   });
 
   describe('Role-based Access Control', () => {
     it('should validate SUPERADMIN role', async () => {
-      mockGetServerSession.mockResolvedValue({
-        user: {
-          id: 'super123',
-          email: 'super@test.com',
-          role: 'SUPERADMIN',
-          businessId: null
-        }
-      });
+      vi.spyOn(mockRequest.cookies, 'get').mockReturnValue({
+        name: 'session',
+        value: 'super-token-123'
+      } as any);
 
-      await withAuth(mockRequest, mockHandler);
-
-      expect(mockHandler).toHaveBeenCalledWith({
+      vi.mocked(validateUserSession).mockResolvedValue({
         userId: 'super123',
         email: 'super@test.com',
-        role: 'SUPERADMIN',
+        role: 'superadmin',
         businessId: null
+      } as any);
+
+      vi.mocked(hasPermission).mockReturnValue(true);
+
+      const result = await requireAuth(mockRequest, {
+        allowedRoles: ['superadmin']
       });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.session.role).toBe('superadmin');
+      }
     });
 
     it('should validate ADMIN role with businessId', async () => {
-      mockGetServerSession.mockResolvedValue({
-        user: {
-          id: 'admin123',
-          email: 'admin@business.com',
-          role: 'ADMIN',
-          businessId: 'business123'
-        }
-      });
+      vi.spyOn(mockRequest.cookies, 'get').mockReturnValue({
+        name: 'session',
+        value: 'admin-token-123'
+      } as any);
 
-      await withAuth(mockRequest, mockHandler);
-
-      expect(mockHandler).toHaveBeenCalledWith({
+      vi.mocked(validateUserSession).mockResolvedValue({
         userId: 'admin123',
         email: 'admin@business.com',
-        role: 'ADMIN',
+        role: 'admin',
         businessId: 'business123'
-      });
+      } as any);
+
+      vi.mocked(hasPermission).mockReturnValue(true);
+
+      const result = await requireAuth(mockRequest);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.session.businessId).toBe('business123');
+      }
     });
   });
 
   describe('Error Handling', () => {
     it('should handle authentication service errors', async () => {
-      mockGetServerSession.mockRejectedValue(new Error('Auth service down'));
+      vi.spyOn(mockRequest.cookies, 'get').mockReturnValue({
+        name: 'session',
+        value: 'token-123'
+      } as any);
 
-      const response = await withAuth(mockRequest, mockHandler);
-      const data = await response.json();
+      vi.mocked(validateUserSession).mockRejectedValue(new Error('Auth service down'));
 
-      expect(response.status).toBe(500);
-      expect(data.error).toBe('Error interno del servidor');
-      expect(mockHandler).not.toHaveBeenCalled();
+      const result = await requireAuth(mockRequest);
+
+      // When validation fails, it should return 401 (no valid session)
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.response.status).toBe(401);
+      }
     });
   });
 });

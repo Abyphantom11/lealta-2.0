@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
+import { emitReservationEvent } from '../events/route';
 
 interface QRData {
   reservaId: string;
@@ -196,7 +197,7 @@ export async function POST(request: NextRequest) {
         incrementCount: currentAsistencia,
         maxAsistencia: maxAsistencia,
         exceso: exceso,
-        cliente: {
+        clienteCliente: {
           nombre: reserva.customerName || 'Cliente',
           telefono: reserva.customerPhone || ''
         },
@@ -254,6 +255,22 @@ export async function POST(request: NextRequest) {
 
       const exceso = Math.max(0, newAsistencia - maxAsistencia);
       
+      // 🔥 EMITIR EVENTO SSE para sincronización en tiempo real
+      try {
+        emitReservationEvent(reserva.businessId, {
+          type: 'asistencia_updated',
+          reservaId: reservaId,
+          asistenciaActual: newAsistencia,
+          increment: increment,
+          isFirstCheckIn: esPrimerEscaneo,
+          newStatus: esPrimerEscaneo ? 'CHECKED_IN' : reserva.status
+        });
+        console.log('📡 Evento SSE emitido - asistencia_updated');
+      } catch (sseError) {
+        console.error('⚠️ Error emitiendo evento SSE:', sseError);
+        // No fallar la operación si SSE falla
+      }
+      
       let message = '';
       if (increment === 1) {
         message = exceso > 0 ? 
@@ -275,7 +292,7 @@ export async function POST(request: NextRequest) {
         maxAsistencia: maxAsistencia,
         exceso: exceso,
         increment: increment,
-        cliente: {
+        clienteCliente: {
           nombre: reserva.customerName || 'Cliente',
           telefono: reserva.customerPhone || ''
         },

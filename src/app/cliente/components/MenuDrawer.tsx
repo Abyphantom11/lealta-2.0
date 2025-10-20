@@ -25,6 +25,8 @@ const MenuDrawer: React.FC<MenuDrawerProps> = ({
   loadCategoryProducts,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
+  const [startY, setStartY] = useState(0);
+  const [startTime, setStartTime] = useState(0);
 
   // Función para manejar navegación hacia atrás
   const handleBackNavigation = useCallback(async () => {
@@ -140,47 +142,6 @@ const MenuDrawer: React.FC<MenuDrawerProps> = ({
             exit={{ y: '-100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             style={{ height: '85vh' }}
-            drag="y"
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={0.2}
-            onDragStart={() => setIsDragging(true)}
-            onDragEnd={(_, info) => {
-              setIsDragging(false);
-              // Cerrar si se arrastra hacia arriba más de 80px o con velocidad suficiente
-              if (info.offset.y < -80 || info.velocity.y < -500) {
-                setIsMenuDrawerOpen(false);
-              }
-            }}
-            onTouchStart={(e) => {
-              // Guardar la posición inicial del toque
-              const touch = e.touches[0];
-              const startY = touch.clientY;
-              const timestamp = Date.now();
-              e.currentTarget.setAttribute('data-start-y', startY.toString());
-              e.currentTarget.setAttribute('data-start-time', timestamp.toString());
-            }}
-            onTouchMove={(e) => {
-              // Prevenir scroll del body mientras se arrastra
-              if (isDragging) {
-                e.preventDefault();
-              }
-            }}
-            onTouchEnd={(e) => {
-              // Calcular la distancia y velocidad del deslizamiento
-              const startY = parseFloat(e.currentTarget.getAttribute('data-start-y') || '0');
-              const startTime = parseFloat(e.currentTarget.getAttribute('data-start-time') || '0');
-              const endY = e.changedTouches[0].clientY;
-              const endTime = Date.now();
-              
-              const deltaY = startY - endY;
-              const deltaTime = endTime - startTime;
-              const velocity = deltaY / deltaTime; // px/ms
-              
-              // Si se deslizó hacia arriba más de 100px o con velocidad rápida, cerrar el menú
-              if (deltaY > 100 || velocity > 0.5) {
-                setIsMenuDrawerOpen(false);
-              }
-            }}
           >
             {/* Header del Drawer */}
             <div className="p-3 border-b border-gray-800 flex-shrink-0">
@@ -248,8 +209,47 @@ const MenuDrawer: React.FC<MenuDrawerProps> = ({
               />
             </div>
             
-            {/* Indicador visual para gestos - Posicionado en la parte inferior */}
-            <div className="flex flex-col items-center py-3 pt-2 cursor-pointer flex-shrink-0 border-t border-gray-700/50">
+            {/* Indicador visual para gestos - Zona de Handle para cerrar */}
+            <motion.div 
+              className="flex flex-col items-center py-3 pt-2 cursor-pointer flex-shrink-0 border-t border-gray-700/50"
+              drag="y"
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={0.2}
+              onDragStart={() => setIsDragging(true)}
+              onDragEnd={(_, info) => {
+                setIsDragging(false);
+                // Cerrar si se arrastra hacia arriba más de 80px o con velocidad suficiente
+                if (info.offset.y < -80 || info.velocity.y < -500) {
+                  setIsMenuDrawerOpen(false);
+                }
+              }}
+              onTouchStart={(e) => {
+                // Guardar la posición inicial del toque
+                const touch = e.touches[0];
+                setStartY(touch.clientY);
+                setStartTime(Date.now());
+              }}
+              onTouchMove={(e) => {
+                // Prevenir scroll del body mientras se arrastra
+                if (isDragging) {
+                  e.preventDefault();
+                }
+              }}
+              onTouchEnd={(e) => {
+                // Calcular la distancia y velocidad del deslizamiento
+                const endY = e.changedTouches[0].clientY;
+                const endTime = Date.now();
+                
+                const deltaY = startY - endY;
+                const deltaTime = endTime - startTime;
+                const velocity = deltaY / deltaTime; // px/ms
+                
+                // Si se deslizó hacia arriba más de 100px o con velocidad rápida, cerrar el menú
+                if (deltaY > 100 || velocity > 0.5) {
+                  setIsMenuDrawerOpen(false);
+                }
+              }}
+            >
               <motion.div 
                 className="w-12 h-1.5 bg-gray-500 rounded-full"
                 initial={{ opacity: 0.6 }}
@@ -274,7 +274,7 @@ const MenuDrawer: React.FC<MenuDrawerProps> = ({
               >
                 {isDragging ? 'Suelta para cerrar' : 'Desliza hacia arriba para cerrar'}
               </motion.p>
-            </div>
+            </motion.div>
           </motion.div>
         </>
       )}

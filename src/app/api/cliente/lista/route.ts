@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
           registeredAt: true,
           lastLogin: true,
           businessId: true,
-          tarjetaLealtad: {
+          TarjetaLealtad: {
             select: {
               nivel: true,
               activa: true,

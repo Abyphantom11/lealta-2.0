@@ -5,6 +5,17 @@ import { z } from 'zod';
 // Forzar renderizado dinámico
 export const dynamic = 'force-dynamic';
 
+// Tipo para invitados
+type Invitado = {
+  guestName: string | null;
+  guestCedula: string | null;
+  consumoId: string;
+  consumoTotal: number;
+  consumoPuntos: number;
+  consumoFecha: string;
+  productos: Array<{ nombre: string; cantidad: number; precio: number }>;
+};
+
 // Schema de validación
 const querySchema = z.object({
   businessId: z.string().min(1, 'businessId es requerido'),
@@ -69,23 +80,23 @@ export async function GET(request: NextRequest) {
     const hostTrackings = await prisma.hostTracking.findMany({
       where: whereCondition,
       include: {
-        anfitrion: {
+        Cliente: {
           select: {
             id: true,
             nombre: true,
             cedula: true,
           },
         },
-        reservation: {
+        Reservation: {
           select: {
             id: true,
             reservationNumber: true,
             reservedAt: true,
           },
         },
-        guestConsumos: {
+        GuestConsumo: {
           include: {
-            consumo: {
+            Consumo: {
               select: {
                 id: true,
                 total: true,
@@ -107,18 +118,18 @@ export async function GET(request: NextRequest) {
     // 3. Formatear los datos
     const reservasFormateadas = hostTrackings.map((ht) => {
       // Calcular estadísticas
-      const invitados = ht.guestConsumos.map((gc) => {
+      const invitados = ht.GuestConsumo.map((gc) => {
         // Parsear productos desde JSON
-        const productosJson = gc.consumo.productos;
+        const productosJson = gc.Consumo.productos;
         const productosArray = Array.isArray(productosJson) ? productosJson : [];
 
         return {
           guestName: gc.guestName,
           guestCedula: gc.guestCedula,
           consumoId: gc.consumoId,
-          consumoTotal: gc.consumo.total,
-          consumoPuntos: gc.consumo.puntos,
-          consumoFecha: gc.consumo.registeredAt.toISOString(),
+          consumoTotal: gc.Consumo.total,
+          consumoPuntos: gc.Consumo.puntos,
+          consumoFecha: gc.Consumo.registeredAt.toISOString(),
           productos: productosArray.map((p: any) => ({
             nombre: p.nombre || p.name || 'Producto',
             cantidad: p.cantidad || 1,
@@ -127,13 +138,13 @@ export async function GET(request: NextRequest) {
         };
       });
 
-      const totalConsumo = invitados.reduce((sum, inv) => sum + inv.consumoTotal, 0);
-      const totalPuntos = invitados.reduce((sum, inv) => sum + inv.consumoPuntos, 0);
+      const totalConsumo = invitados.reduce((sum: number, inv: Invitado) => sum + inv.consumoTotal, 0);
+      const totalPuntos = invitados.reduce((sum: number, inv: Invitado) => sum + inv.consumoPuntos, 0);
 
       // Calcular top productos
       const productosCount: Record<string, { cantidad: number; totalVendido: number }> = {};
       
-      invitados.forEach((invitado) => {
+      invitados.forEach((invitado: Invitado) => {
         invitado.productos.forEach((producto) => {
           if (!productosCount[producto.nombre]) {
             productosCount[producto.nombre] = { cantidad: 0, totalVendido: 0 };
@@ -154,13 +165,13 @@ export async function GET(request: NextRequest) {
 
       return {
         id: ht.id,
-        reservationNumber: ht.reservation.reservationNumber,
+        reservationNumber: ht.Reservation.reservationNumber,
         reservationDate: ht.reservationDate.toISOString(),
         tableNumber: ht.tableNumber,
         guestCount: ht.guestCount,
         anfitrion: {
-          nombre: ht.anfitrion.nombre,
-          cedula: ht.anfitrion.cedula,
+          nombre: ht.Cliente.nombre,
+          cedula: ht.Cliente.cedula,
         },
         invitados,
         stats: {

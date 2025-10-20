@@ -50,7 +50,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
     updateReserva,
     updateReservaOptimized, // ✅ Nueva función optimistic
     refetchReservas,
-    updateReservaAsistencia, // ✅ Nueva función optimistic
+    registrarAsistencia, // 🔥 Mutation para asistencia con optimistic update
     isCreating,
     isUpdating,
     isDeleting,
@@ -84,29 +84,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
   const addReserva = createReserva;
   const loadReservas = refetchReservas;
   
-  // ✅ FORCE REFRESH: Refetch INMEDIATO después de actualizar asistencia
-  const forceRefreshOptimistic = useCallback(async (reservaId?: string, nuevaAsistencia?: number) => {
-    console.log('🔄 forceRefreshOptimistic llamado', { reservaId, nuevaAsistencia, businessId });
-    
-    // 1. Si tenemos datos específicos, actualizar inmediatamente (optimistic)
-    if (reservaId && nuevaAsistencia !== undefined) {
-      console.log('✅ Actualizando cache optimista');
-      updateReservaAsistencia(reservaId, nuevaAsistencia);
-    }
-    
-    // 2. 🔥 FORZAR REFETCH INMEDIATO - No confiar en invalidación
-    console.log('🔥 FORZANDO REFETCH INMEDIATO...');
-    try {
-      await refetchReservas();
-      console.log('✅ Refetch completado exitosamente');
-    } catch (error) {
-      console.error('❌ Error en refetch:', error);
-    }
-    
-    toast.success('✓ Asistencia actualizada', { duration: 1500 });
-  }, [updateReservaAsistencia, businessId, refetchReservas]);
-  
-  // Mantener forceRefresh original para otros casos
+  // ✅ Refetch manual solo cuando sea explícitamente necesario
   const forceRefresh = useCallback(async () => {
     try {
       await refetchReservas();
@@ -465,50 +443,13 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
     }
   };
 
+  // ✅ Handler llamado por QRScannerClean cuando detecta un QR
+  // QRScannerClean maneja el flujo completo internamente:
+  // 1. Detecta QR y llama este handler
+  // 2. Obtiene info del endpoint y muestra diálogo de confirmación
+  // 3. Usuario confirma → QRScannerClean llama registrarAsistencia (mutation) → optimistic update ✅
   const handleQRScan = async (qrCode: string) => {
     console.log('🔍 QR escaneado:', qrCode);
-    
-    try {
-      // 1. Obtener información de la reserva escaneada
-      const qrInfoResponse = await fetch('/api/reservas/qr-scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          qrCode,
-          action: 'info',
-          businessId: businessId || 'default-business-id'
-        })
-      });
-
-      if (!qrInfoResponse.ok) {
-        throw new Error('Error al obtener información del QR');
-      }
-
-      const qrInfo = await qrInfoResponse.json();
-      console.log('📋 Info de QR:', qrInfo);
-
-      // 2. Obtener la asistencia actual de la base de datos
-      const asistenciaActual = qrInfo.incrementCount || 0;
-      
-      // 3. Actualizar inmediatamente la tabla (optimistic update)
-      forceRefreshOptimistic(qrInfo.reservaId, asistenciaActual);
-      
-      // 4. Mostrar notificación de éxito
-      toast.success(
-        `✅ Reserva de ${qrInfo.cliente?.nombre || 'Cliente'} - ${asistenciaActual}/${qrInfo.maxAsistencia} personas`,
-        { 
-          duration: 3000,
-          className: 'bg-green-600 text-white border-0',
-        }
-      );
-      
-      console.log('✅ Tabla actualizada automáticamente para reserva:', qrInfo.reservaId, 'nueva asistencia:', asistenciaActual);
-      
-    } catch (error) {
-      console.error('❌ Error procesando QR scan:', error);
-      // Fallback: recargar todas las reservas si hay error
-      await loadReservas();
-    }
   };
 
   const handleQRError = (error: string) => {
@@ -735,7 +676,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
                 businessId={businessId}
                 onScan={handleQRScan}
                 onError={handleQRError}
-                onRefreshNeeded={forceRefreshOptimistic}
+                registrarAsistencia={registrarAsistencia}
               />
             </div>
           </div>

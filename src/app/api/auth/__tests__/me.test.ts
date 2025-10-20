@@ -1,7 +1,8 @@
 // Test para API /auth/me - Endpoint crítico de autenticación
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock de NextRequest para evitar problemas
-global.Request = global.Request || 
+globalThis.Request = globalThis.Request || 
   class MockRequest {
     url: string;
     headers: Map<string, string>;
@@ -12,15 +13,15 @@ global.Request = global.Request ||
   } as any;
 
 // Mock simplificado del middleware de auth
-const mockGetCurrentUser = jest.fn();
+const mockGetCurrentUser = vi.fn();
 
-jest.mock('../../../../lib/auth/unified-middleware', () => ({
+vi.mock('../../../../lib/auth/unified-middleware', () => ({
   getCurrentUser: mockGetCurrentUser,
 }));
 
 describe('/api/auth/me', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should validate user data structure', () => {

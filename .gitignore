@@ -195,3 +195,10 @@ public/uploads/*
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# ⚠️ SECURITY: Archivos con credenciales reales (NO COMMITEAR)
+VERCEL_ENV_CONFIG.md
+test-db-quick.js
+**/credentials.*
+**/secrets.*
+**/*-credentials.*

@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     const cliente = await prisma.cliente.findUnique({
       where: { id: clienteId },
       include: {
-        tarjetaLealtad: true
+        TarjetaLealtad: true
       }
     });
 
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Solo verificar ascensos para tarjetas asignadas manualmente
-    if (!cliente.tarjetaLealtad?.asignacionManual) {
+    if (!cliente.TarjetaLealtad?.asignacionManual) {
       return NextResponse.json({
         hasManualLevelUp: false,
         message: 'Tarjeta no es asignación manual'
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     
     // Verificar localStorage del servidor (simulado con base de datos temporal o cache)
     // Para simplificar, usamos el updatedAt de la tarjeta como indicador
-    const lastUpdate = cliente.tarjetaLealtad.updatedAt;
+    const lastUpdate = cliente.TarjetaLealtad.updatedAt;
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     
     // Si la tarjeta fue actualizada en los últimos 5 minutos, probablemente fue un ascenso manual
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     if (isRecentManualUpdate) {
       // Determinar el nivel anterior basado en la lógica de niveles
       const niveles = ['Bronce', 'Plata', 'Oro', 'Diamante', 'Platino'];
-      const nivelActualIndex = niveles.indexOf(cliente.tarjetaLealtad.nivel);
+      const nivelActualIndex = niveles.indexOf(cliente.TarjetaLealtad.nivel);
       
       if (nivelActualIndex > 0) {
         const nivelAnterior = niveles[nivelActualIndex - 1];
@@ -59,8 +59,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           hasManualLevelUp: true,
           nivelAnterior,
-          nivelNuevo: cliente.tarjetaLealtad.nivel,
-          cliente: {
+          nivelNuevo: cliente.TarjetaLealtad.nivel,
+          clienteCliente: {
             id: cliente.id,
             nombre: cliente.nombre,
             cedula: cliente.cedula

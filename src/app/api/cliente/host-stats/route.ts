@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
           include: {
             consumo: {
               include: {
-                cliente: {
+                clienteCliente: {
                   select: {
                     nombre: true,
                     cedula: true,

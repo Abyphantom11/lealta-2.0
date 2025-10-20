@@ -21,10 +21,10 @@ export async function POST(
     const reservation = await prisma.reservation.findUnique({
       where: { id: reservationId },
       include: {
-        cliente: true,
-        service: true,
-        slot: true,
-        qrCodes: true
+        Cliente: true,
+        ReservationService: true,
+        ReservationSlot: true,
+        ReservationQRCode: true
       }
     });
 
@@ -39,7 +39,7 @@ export async function POST(
 
     // Actualizar el QR code y el estado de la reserva
     let updatedReservation = reservation;
-    let updatedQrCode = reservation.qrCodes[0];
+    let updatedQrCode = reservation.ReservationQRCode[0];
 
     if (updatedQrCode) {
       updatedQrCode = await prisma.reservationQRCode.update({
@@ -62,7 +62,7 @@ export async function POST(
     const shouldActivate = newScanCount === 1 && reservation.status === 'PENDING';
     
     if (shouldActivate) {
-      updatedReservation = await prisma.reservation.update({
+      const updated = await prisma.reservation.update({
         where: { id: reservationId },
         data: {
           status: 'CONFIRMED',
@@ -70,12 +70,13 @@ export async function POST(
           checkedInAt: new Date()
         },
         include: {
-          cliente: true,
-          service: true,
-          slot: true,
-          qrCodes: true
+          Cliente: true,
+          ReservationService: true,
+          ReservationSlot: true,
+          ReservationQRCode: true
         }
       });
+      updatedReservation = updated;
     }
 
     // Registrar en el log de auditoría (si existe la tabla)
@@ -97,18 +98,18 @@ export async function POST(
     const response = {
       id: updatedReservation.id,
       businessId: updatedReservation.businessId,
-      cliente: updatedReservation.cliente ? {
-        id: updatedReservation.cliente.id,
-        nombre: updatedReservation.cliente.nombre,
-        telefono: updatedReservation.cliente.telefono || undefined,
-        email: updatedReservation.cliente.correo || undefined,
+      cliente: updatedReservation.Cliente ? {
+        id: updatedReservation.Cliente.id,
+        nombre: updatedReservation.Cliente.nombre,
+        telefono: updatedReservation.Cliente.telefono || undefined,
+        email: updatedReservation.Cliente.correo || undefined,
       } : null,
       numeroPersonas: updatedReservation.guestCount,
       razonVisita: updatedReservation.specialRequests || '',
       beneficiosReserva: updatedReservation.notes || '',
       promotor: { id: userId || session.userId, nombre: session.userId },
       fecha: updatedReservation.reservedAt.toISOString().split('T')[0],
-      hora: new Date(updatedReservation.slot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+      hora: updatedReservation.ReservationSlot ? new Date(updatedReservation.ReservationSlot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '',
       codigoQR: updatedQrCode?.qrToken || '',
       asistenciaActual: updatedQrCode?.scanCount || 0,
       estado: updatedReservation.status,

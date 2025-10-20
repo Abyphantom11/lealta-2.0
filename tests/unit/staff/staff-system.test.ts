@@ -329,6 +329,18 @@ describe('Staff System Tests', () => {
 
     it('should handle missing or invalid data gracefully', () => {
       const processTicketData = (rawData: any) => {
+        // Manejar null/undefined
+        if (!rawData) {
+          return {
+            id: Date.now().toString(),
+            cliente: 'Cliente Anónimo',
+            cedula: '',
+            total: 0,
+            puntos: 0,
+            items: []
+          };
+        }
+        
         return {
           id: rawData.id || Date.now().toString(),
           cliente: rawData.clienteNombre || rawData.cliente || 'Cliente Anónimo',

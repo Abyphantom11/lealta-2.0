@@ -12,7 +12,7 @@ import { useIsClient } from "./hooks/useClient";
 interface QRScannerCleanProps {
   onScan: (qrCode: string) => Promise<void>;
   onError?: (error: string) => void;
-  onRefreshNeeded?: (reservaId?: string, nuevaAsistencia?: number) => void; // ✅ OPTIMISTIC: Callback con datos específicos
+  registrarAsistencia?: (params: { qrCode: string; increment: number }) => Promise<any>;
   businessId?: string;
 }
 
@@ -30,7 +30,7 @@ interface ReservaDetectada {
   exceso: number;
 }
 
-export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }: Readonly<QRScannerCleanProps>) {
+export function QRScannerClean({ onScan, onError, registrarAsistencia, businessId }: Readonly<QRScannerCleanProps>) {
   const isClient = useIsClient();
   
   // Estados básicos
@@ -294,37 +294,48 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
       setIsProcessing(true);
       
       const totalIncremento = 1 + incrementoExtra; // 1 del escaneo + personas adicionales
+      const qrCode = `res-${reservaDetectada.reservaId}`;
       
-      const response = await fetch('/api/reservas/qr-scan', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...(businessId && { 'x-business-id': businessId })
-        },
-        body: JSON.stringify({ 
-          qrCode: `res-${reservaDetectada.reservaId}`, // Usar formato simple
-          action: 'increment',
-          increment: totalIncremento, // ✅ 1 del escaneo + incremento extra
-          businessId
-        }),
-      });
+      // 🔥 Usar mutation si está disponible (invalidación automática)
+      if (registrarAsistencia) {
+        const result = await registrarAsistencia({
+          qrCode,
+          increment: totalIncremento
+        });
+        
+        const nuevoActual = result.incrementCount;
+        const exceso = result.exceso || 0;
+        const excesoText = exceso > 0 ? ` (+${exceso})` : '';
+        
+        setSuccess(`✅ ${result.message}. Total: ${nuevoActual}/${result.maxAsistencia}${excesoText}`);
+      } else {
+        // Fallback: Fetch manual (legacy)
+        const response = await fetch('/api/reservas/qr-scan', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(businessId && { 'x-business-id': businessId })
+          },
+          body: JSON.stringify({ 
+            qrCode,
+            action: 'increment',
+            increment: totalIncremento,
+            businessId
+          }),
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al incrementar asistencia');
-      }
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Error al incrementar asistencia');
+        }
 
-      const data = await response.json();
-      
-      const nuevoActual = data.incrementCount;
-      const exceso = data.exceso || 0;
-      const excesoText = exceso > 0 ? ` (+${exceso})` : '';
-      
-      setSuccess(`✅ ${data.message}. Total: ${nuevoActual}/${data.maxAsistencia}${excesoText}`);
-      
-      // ✅ OPTIMISTIC: Notificar refrescar con datos específicos para actualización inmediata
-      if (onRefreshNeeded) {
-        onRefreshNeeded(reservaDetectada.reservaId, nuevoActual);
+        const data = await response.json();
+        
+        const nuevoActual = data.incrementCount;
+        const exceso = data.exceso || 0;
+        const excesoText = exceso > 0 ? ` (+${exceso})` : '';
+        
+        setSuccess(`✅ ${data.message}. Total: ${nuevoActual}/${data.maxAsistencia}${excesoText}`);
       }
       
       // Cerrar diálogo y reiniciar escaneo
@@ -344,7 +355,7 @@ export function QRScannerClean({ onScan, onError, onRefreshNeeded, businessId }:
     } finally {
       setIsProcessing(false);
     }
-  }, [reservaDetectada, scanQRCode, businessId, onRefreshNeeded, incrementoExtra]);
+  }, [reservaDetectada, scanQRCode, businessId, registrarAsistencia, incrementoExtra]);
 
   // Función para cancelar y continuar
   const cancelarYContinuar = useCallback(() => {

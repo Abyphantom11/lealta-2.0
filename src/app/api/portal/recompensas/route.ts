@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getBusinessIdFromRequest } from '@/lib/business-utils';
+import { generateId } from '@/lib/generateId';
 
 const prisma = new PrismaClient();
 
@@ -90,6 +91,7 @@ export async function POST(request: NextRequest) {
 
     const recompensa = await prisma.portalRecompensa.create({
       data: {
+        id: generateId(),
         businessId,
         title,
         description,
@@ -99,7 +101,8 @@ export async function POST(request: NextRequest) {
         stock: unlimited ? null : stock,
         unlimited,
         orden,
-        active: true
+        active: true,
+        updatedAt: new Date()
       }
     });
 

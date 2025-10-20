@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
         businessId, // ✅ FILTRAR POR BUSINESS ID
       },
       include: {
-        tarjetaLealtad: true, // Incluir información de la tarjeta
+        TarjetaLealtad: true, // Incluir información de la tarjeta
       },
     });
 
@@ -65,14 +65,14 @@ export async function POST(request: NextRequest) {
           nombre: cliente.nombre,
           puntos: cliente.puntos,
           visitas: cliente.totalVisitas,
-          tarjetaLealtad: cliente.tarjetaLealtad
+          tarjetaLealtad: cliente.TarjetaLealtad
             ? {
-                nivel: cliente.tarjetaLealtad.nivel,
-                activa: cliente.tarjetaLealtad.activa,
-                fechaAsignacion: cliente.tarjetaLealtad.fechaAsignacion,
+                nivel: cliente.TarjetaLealtad.nivel,
+                activa: cliente.TarjetaLealtad.activa,
+                fechaAsignacion: cliente.TarjetaLealtad.fechaAsignacion,
                 puntos: cliente.puntos, // Los puntos canjeables del cliente
-                puntosProgreso: cliente.tarjetaLealtad.puntosProgreso || cliente.puntos, // ✅ FALLBACK: Usar puntos del cliente si puntosProgreso es null
-                asignacionManual: cliente.tarjetaLealtad.asignacionManual || false, // ✅ AGREGAR CAMPO MANUAL
+                puntosProgreso: cliente.TarjetaLealtad.puntosProgreso || cliente.puntos, // ✅ FALLBACK: Usar puntos del cliente si puntosProgreso es null
+                asignacionManual: cliente.TarjetaLealtad.asignacionManual || false, // ✅ AGREGAR CAMPO MANUAL
               }
             : {
                 nivel: 'Bronce',

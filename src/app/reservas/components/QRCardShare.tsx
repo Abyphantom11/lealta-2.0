@@ -200,28 +200,46 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
     }
   };
 
-  // 🔗 Compartir por WhatsApp - Estrategia: Imagen + Mensaje
+  // 🔗 REFACTORIZADO: Compartir por WhatsApp - Simple y directo
   const handleShareWhatsApp = async () => {
-    // Prevenir múltiples clicks
     if (isSharing) return;
-    
     setIsSharing(true);
     
     try {
-      toast.loading('Generando imagen del QR...', { id: 'generating-image' });
+      // PASO 1: Crear el mensaje (con fallback garantizado)
+      const defaultMessage = `🎉 ¡Tu reserva está confirmada!
 
-      // 1️⃣ Verificar que el QR Card esté en el DOM
+📍 ${businessName}
+👤 ${reserva.cliente.nombre}
+📅 ${new Date(reserva.fecha).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+🕐 ${reserva.hora}
+👥 ${reserva.numeroPersonas} ${reserva.numeroPersonas === 1 ? 'persona' : 'personas'}
+
+Presenta este código QR al llegar 📱`;
+
+      // Primero intentar customMessage, luego mensajePersonalizado, luego default
+      let mensaje = defaultMessage;
+      if (customMessage?.trim() && customMessage.trim().length > 0) {
+        mensaje = customMessage.trim();
+        console.log('📋 Usando mensaje personalizado (custom):', mensaje);
+      } else if (reserva.mensajePersonalizado?.trim() && reserva.mensajePersonalizado.trim().length > 0) {
+        mensaje = reserva.mensajePersonalizado.trim();
+        console.log('📋 Usando mensaje personalizado (reserva):', mensaje);
+      } else {
+        console.log('📋 Usando mensaje por defecto:', mensaje);
+      }
+
+      // PASO 2: Generar la imagen del QR
+      toast.loading('📸 Generando imagen del QR...', { id: 'generating' });
+
       const qrCardElement = document.querySelector('[data-qr-card]') as HTMLElement;
       if (!qrCardElement) {
-        toast.dismiss('generating-image');
-        toast.error('❌ Error: No se encontró el QR Card', {
-          description: 'Por favor recarga la página e intenta de nuevo',
-        });
+        toast.dismiss('generating');
+        toast.error('❌ No se encontró el QR');
         setIsSharing(false);
         return;
       }
 
-      // 2️⃣ Generar imagen con html2canvas
       const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(qrCardElement, {
         backgroundColor: null,
@@ -230,70 +248,110 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
         logging: false,
       });
 
-      // 3️⃣ Convertir a blob/file
       const blob = await new Promise<Blob | null>((resolve) => {
         canvas.toBlob(resolve, 'image/png', 1);
       });
 
       if (!blob) {
-        toast.dismiss('generating-image');
-        toast.error('❌ Error al generar la imagen', {
-          description: 'No se pudo crear la imagen del QR',
-        });
+        toast.dismiss('generating');
+        toast.error('❌ Error al generar la imagen');
         setIsSharing(false);
         return;
       }
 
-      const file = new File([blob], `reserva-${reserva.id.slice(0, 8)}.png`, { 
-        type: 'image/png' 
-      });
+      toast.dismiss('generating');
 
-      toast.dismiss('generating-image');
+      // PASO 3: Copiar mensaje al portapapeles PRIMERO (WhatsApp lo leerá automáticamente)
+      const file = new File([blob], `reserva-qr.png`, { type: 'image/png' });
+      
+      // Determinar qué tipo de mensaje se está usando
+      const esPersonalizado = (customMessage?.trim() && customMessage.trim().length > 0) || 
+                             (reserva.mensajePersonalizado?.trim() && reserva.mensajePersonalizado.trim().length > 0);
+      
+      // 🔑 CLAVE: Copiar mensaje ANTES de compartir para que WhatsApp lo detecte
+      try {
+        await navigator.clipboard.writeText(mensaje);
+        console.log('✅ Mensaje copiado al portapapeles - WhatsApp lo detectará');
+      } catch (err) {
+        console.warn('⚠️ No se pudo copiar mensaje:', err);
+      }
+      
+      if (navigator.share) {
+        const canShareFiles = navigator.canShare?.({ files: [file] }) ?? false;
+        
+        if (canShareFiles) {
+          try {
+            // Pequeño delay para asegurar que el mensaje esté en el portapapeles
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            // Compartir SOLO la imagen (WhatsApp leerá el texto del portapapeles)
+            await navigator.share({
+              files: [file]
+            });
 
-      console.log('🔍 Debug compartir:', {
-        tieneArchivo: !!file,
-        tamañoArchivo: blob.size,
-        soportaShareConArchivos: navigator.canShare?.({ files: [file] })
-      });
-
-      // 4️⃣ Intentar compartir SOLO la imagen (sin texto)
-      if (navigator.share && navigator.canShare?.({ files: [file] })) {
-        try {
-          await navigator.share({
-            files: [file],
-          });
-
-          toast.success('✅ QR compartido exitosamente', {
-            className: 'bg-green-600 text-white border-0',
-            description: 'Recuerda pegar el mensaje copiado en WhatsApp',
-            duration: 5000,
-          });
-          
-          setIsSharing(false);
-          return;
-        } catch (error: any) {
-          // Si el usuario cancela, salir silenciosamente
-          if (error.name === 'AbortError') {
+            toast.success('✅ ¡Perfecto!', {
+              description: esPersonalizado 
+                ? '🎉 Imagen enviada - El mensaje personalizado está listo en WhatsApp' 
+                : '🎉 Imagen enviada - El mensaje está listo en WhatsApp',
+              duration: 5000,
+              className: 'bg-green-600 text-white border-0',
+            });
+            
             setIsSharing(false);
             return;
+          } catch (error: any) {
+            if (error.name === 'AbortError') {
+              setIsSharing(false);
+              return;
+            }
+            console.warn('Share API falló:', error);
           }
-          console.log('Share API no disponible, usando fallback');
         }
       }
 
-      // 5️⃣ FALLBACK: Descargar imagen solamente
-      const imageUrl = URL.createObjectURL(blob);
-      const downloadLink = document.createElement('a');
-      downloadLink.href = imageUrl;
-      downloadLink.download = `reserva-qr-${reserva.id.slice(0, 8)}.png`;
-      downloadLink.click();
-      URL.revokeObjectURL(imageUrl);
+      // PASO 4: FALLBACK - Copiar imagen + abrir WhatsApp Web
+      let imagenCopiada = false;
+      
+      if (navigator.clipboard && 'write' in navigator.clipboard) {
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob })
+          ]);
+          imagenCopiada = true;
+        } catch (err) {
+          console.warn('No se pudo copiar imagen:', err);
+        }
+      }
 
-      toast.success('📥 Imagen descargada', {
-        className: 'bg-green-600 text-white border-0',
-        description: 'Ahora puedes compartirla en WhatsApp con el mensaje copiado',
-        duration: 5000,
-      });
+      // Copiar el mensaje al portapapeles
+      try {
+        await navigator.clipboard.writeText(mensaje);
+      } catch (err) {
+        console.warn('No se pudo copiar mensaje:', err);
+      }
+
+      if (imagenCopiada) {
+        toast.success('� Imagen y mensaje copiados', {
+          description: 'Abriendo WhatsApp... Pega el mensaje primero, luego la imagen (Ctrl+V)',
+          duration: 6000,
+        });
+      } else {
+        // Descargar la imagen si no se pudo copiar
+        const imageUrl = URL.createObjectURL(blob);
+        const downloadLink = document.createElement('a');
+        downloadLink.href = imageUrl;
+        downloadLink.download = `reserva-qr-${reserva.id.slice(0, 8)}.png`;
+        downloadLink.click();
+        URL.revokeObjectURL(imageUrl);
+        
+        toast.success('📥 Mensaje copiado + Imagen descargada', {
+          description: 'Abriendo WhatsApp... Pega el mensaje (Ctrl+V) y adjunta la imagen',
+          duration: 6000,
+        });
+      }
+
+      // Abrir WhatsApp Web solo en fallback (comentado para no interferir)
+      // window.open('https://wa.me/', '_blank');
 
     } catch (error) {
       console.error('Error al compartir:', error);
@@ -306,10 +364,31 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
   // Copiar mensaje al portapapeles
   const handleCopyMessage = async () => {
     try {
-      const message = customMessage || reserva.mensajePersonalizado || `¡Bienvenido! Tu reserva en ${businessName} está confirmada.`;
-      await navigator.clipboard.writeText(message);
+      // Usar la MISMA lógica que handleShareWhatsApp
+      const defaultMessage = `🎉 ¡Tu reserva está confirmada!
+
+📍 ${businessName}
+👤 ${reserva.cliente.nombre}
+📅 ${new Date(reserva.fecha).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+🕐 ${reserva.hora}
+👥 ${reserva.numeroPersonas} ${reserva.numeroPersonas === 1 ? 'persona' : 'personas'}
+
+Presenta este código QR al llegar 📱`;
+
+      let mensaje = defaultMessage;
+      if (customMessage?.trim() && customMessage.trim().length > 0) {
+        mensaje = customMessage.trim();
+      } else if (reserva.mensajePersonalizado?.trim() && reserva.mensajePersonalizado.trim().length > 0) {
+        mensaje = reserva.mensajePersonalizado.trim();
+      }
+      
+      await navigator.clipboard.writeText(mensaje);
       setIsCopied(true);
-      toast.success('✅ Mensaje copiado', {
+      
+      const esPersonalizado = (customMessage?.trim() && customMessage.trim().length > 0) || 
+                             (reserva.mensajePersonalizado?.trim() && reserva.mensajePersonalizado.trim().length > 0);
+      
+      toast.success(esPersonalizado ? '✅ Mensaje personalizado copiado' : '✅ Mensaje copiado', {
         description: 'Ahora comparte el QR y pega el mensaje en WhatsApp',
         duration: 3000,
       });
@@ -395,90 +474,112 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
       </div>
 
       {/* Botones de acción */}
-      <div className="flex gap-2 justify-center">
-        <Button
-          onClick={handleDownload}
-          variant="outline"
-          size="icon"
-          className="shrink-0"
-          title="Descargar"
-        >
-          <Download className="w-5 h-5" />
-        </Button>
+      <div className="space-y-2">
+        {/* Botón principal de WhatsApp - Más grande y destacado */}
         <Button
           onClick={handleShareWhatsApp}
           disabled={isSharing}
-          size="icon"
-          className="shrink-0 bg-green-600 hover:bg-green-700"
-          title="Compartir en WhatsApp"
+          className="w-full bg-green-600 hover:bg-green-700 text-white h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all"
         >
           {isSharing ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
+            <>
+              <Loader2 className="w-5 h-5 animate-spin mr-2" />
+              Preparando...
+            </>
           ) : (
-            <MessageCircle className="w-5 h-5" />
+            <>
+              <MessageCircle className="w-5 h-5 mr-2" />
+              Compartir por WhatsApp
+            </>
           )}
         </Button>
-        {customMessage && (
+
+        {/* Botones secundarios */}
+        <div className="flex gap-2">
           <Button
-            onClick={handleCopyMessage}
-            variant={isCopied ? "default" : "outline"}
-            className={isCopied ? "flex-1 gap-2 bg-green-600 hover:bg-green-700 text-white" : "flex-1 gap-2"}
+            onClick={handleDownload}
+            variant="outline"
+            className="flex-1"
+            title="Descargar imagen del QR"
           >
-            {isCopied ? (
-              <>
-                <Check className="w-4 h-4" />
-                Copiado
-              </>
-            ) : (
-              <>
-                <Copy className="w-4 h-4" />
-                Copiar Mensaje
-              </>
-            )}
+            <Download className="w-4 h-4 mr-2" />
+            Descargar
           </Button>
-        )}
-        <Button
-          onClick={() => setShowMessageEditor(true)}
-          variant="outline"
-          className="flex items-center gap-2"
-          title="Personalizar mensaje de WhatsApp"
-        >
-          <Settings className="w-4 h-4" />
-        </Button>
+          
+          {customMessage && (
+            <Button
+              onClick={handleCopyMessage}
+              variant={isCopied ? "default" : "outline"}
+              className={isCopied ? "flex-1 bg-green-600 hover:bg-green-700 text-white" : "flex-1"}
+            >
+              {isCopied ? (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Copiado
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copiar
+                </>
+              )}
+            </Button>
+          )}
+          
+          <Button
+            onClick={() => setShowMessageEditor(true)}
+            variant="outline"
+            className="flex items-center gap-2"
+            title="Personalizar mensaje de WhatsApp"
+          >
+            <Settings className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
 
-      {/* Instrucciones */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
-        <p className="font-semibold text-blue-900 mb-1">📱 Instrucciones</p>
-        <ul className="text-blue-800 space-y-1 text-xs">
-          <li>• Descarga o comparte el código QR personalizado</li>
-          <li>• Envíalo a tus invitados por WhatsApp</li>
-          <li>• Presenta el código al llegar al establecimiento</li>
-        </ul>
+      {/* Instrucciones mejoradas */}
+      <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
+        <p className="font-semibold text-green-900 mb-2 flex items-center gap-2">
+          <MessageCircle className="w-4 h-4" />
+          Cómo compartir por WhatsApp
+        </p>
+        <ol className="text-green-800 space-y-1.5 text-xs ml-1">
+          <li className="flex items-start gap-2">
+            <span className="font-bold min-w-[20px]">1.</span>
+            <span>Toca el botón verde de WhatsApp ⬆️</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="font-bold min-w-[20px]">2.</span>
+            <span>El mensaje se copia automáticamente 📋</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="font-bold min-w-[20px]">3.</span>
+            <span>Comparte la imagen del QR por WhatsApp 📱</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="font-bold min-w-[20px]">4.</span>
+            <span>Pega el mensaje copiado en WhatsApp ✅</span>
+          </li>
+        </ol>
       </div>
 
       {/* Modal de Edición de Mensaje */}
       {showMessageEditor && (
         <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setShowMessageEditor(false);
             }
           }}
         >
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto mx-auto mb-0 sm:mb-auto animate-slide-up">
             {/* Header */}
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-2xl">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-5 rounded-t-2xl">
               <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">
-                    ⚙️ Personalizar Mensaje de WhatsApp
-                  </h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Este mensaje se enviará junto con el QR de la reserva
-                  </p>
-                </div>
+                <h3 className="text-xl font-bold text-gray-900">
+                  ✏️ Personalizar Mensaje
+                </h3>
                 <button
                   onClick={() => setShowMessageEditor(false)}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -491,110 +592,27 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
             </div>
 
             {/* Content */}
-            <div className="p-6 space-y-6">
-              {/* Info Box */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-900">
-                  <strong>💡 Nota:</strong> La imagen del QR ya contiene toda la información de la reserva (nombre, fecha, hora, personas). 
-                  Este mensaje se enviará junto con el QR por WhatsApp. Úsalo para:
+            <div className="p-8">
+              <textarea
+                value={customMessage}
+                onChange={(e) => setCustomMessage(e.target.value)}
+                placeholder="Escribe tu mensaje personalizado aquí...&#10;&#10;Ejemplo:&#10;📍 Dirección: Calle Principal #123&#10;🅿️ Parqueadero disponible&#10;📞 Contacto: +593 99 123 4567"
+                className="w-full h-64 px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm"
+                maxLength={500}
+                autoFocus
+              />
+              <div className="flex items-center justify-between mt-3">
+                <p className="text-xs text-gray-400">
+                  Este mensaje se enviará junto con el QR
                 </p>
-                <ul className="text-sm text-blue-800 mt-2 ml-4 space-y-1">
-                  <li>• Compartir la dirección de tu negocio</li>
-                  <li>• Indicar información de parqueadero</li>
-                  <li>• Mencionar requisitos especiales</li>
-                  <li>• Agregar información de contacto</li>
-                </ul>
-              </div>
-
-              {/* Preview del mensaje completo */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  📱 Vista Previa del Mensaje de WhatsApp
-                </label>
-                <div className="bg-gray-50 border border-gray-300 rounded-lg p-4 font-mono text-sm whitespace-pre-wrap">
-                  <div className="text-gray-900">
-                    {customMessage || `Tu reserva en ${businessName} está confirmada. Por favor presenta este QR al llegar.`}
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  💡 La imagen del QR ya contiene toda la información de la reserva (nombre, fecha, hora, personas)
+                <p className="text-xs font-medium text-gray-600">
+                  {customMessage.length}/500
                 </p>
-              </div>
-
-              {/* Editor de Mensaje */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ✏️ Mensaje para WhatsApp
-                </label>
-                <textarea
-                  value={customMessage}
-                  onChange={(e) => setCustomMessage(e.target.value)}
-                  placeholder="Ejemplo:&#10;&#10;📍 Dirección: Calle Principal #123&#10;🅿️ Parqueadero disponible en el sótano&#10;📞 Contacto: +593 99 123 4567&#10;&#10;Para cambios, responde a este mensaje."
-                  className="w-full h-48 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none font-sans"
-                  maxLength={500}
-                />
-                <div className="flex items-center justify-between mt-2">
-                  <p className="text-xs text-gray-500">
-                    Máximo 500 caracteres
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {customMessage.length}/500
-                  </p>
-                </div>
-              </div>
-
-              {/* Botones Templates Rápidos */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ⚡ Templates Rápidos
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setCustomMessage(
-                      '📍 Dirección: [Tu dirección aquí]\n' +
-                      '🅿️ Parqueadero disponible\n\n' +
-                      'Para cambios, responde a este mensaje.'
-                    )}
-                    className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-left"
-                  >
-                    📍 Con Dirección
-                  </button>
-                  <button
-                    onClick={() => setCustomMessage(
-                      '🎉 ¡Te esperamos!\n\n' +
-                      '📍 Google Maps: [tu link]\n' +
-                      '📞 Contacto: [tu teléfono]'
-                    )}
-                    className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-left"
-                  >
-                    🎉 Casual
-                  </button>
-                  <button
-                    onClick={() => setCustomMessage(
-                      '📍 [Tu dirección]\n' +
-                      '🪪 Traer documento de identidad\n' +
-                      '👔 Código de vestimenta: Smart Casual'
-                    )}
-                    className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-left"
-                  >
-                    👔 Formal
-                  </button>
-                  <button
-                    onClick={() => setCustomMessage(
-                      '📍 [Tu dirección]\n' +
-                      '🅿️ Parqueadero disponible\n' +
-                      '📞 [Tu teléfono]'
-                    )}
-                    className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-left"
-                  >
-                    📋 Básico
-                  </button>
-                </div>
               </div>
             </div>
 
             {/* Footer con botones */}
-            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 rounded-b-2xl flex gap-3 justify-end">
+            <div className="sticky bottom-0 bg-white border-t border-gray-100 px-8 py-5 rounded-b-2xl flex gap-3 justify-end">
               <Button
                 onClick={() => setShowMessageEditor(false)}
                 variant="outline"

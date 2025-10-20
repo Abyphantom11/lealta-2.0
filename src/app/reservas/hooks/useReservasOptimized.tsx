@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { toast } from 'sonner';
-import { Reserva } from '../types/reservation';
+import { Reserva, EstadoReserva } from '../types/reservation';
 import { reservasQueryKeys } from '../../../providers/QueryProvider';
 
 // Type alias para reserva sin campos generados
@@ -140,6 +140,8 @@ interface UseReservasOptimizedOptions {
   includeStats?: boolean;
 }
 
+// 🧠 POLLING: Usamos intervalo fijo de 30 segundos (como en bd16e02)
+
 export function useReservasOptimized({ 
   businessId, 
   enabled = true, 
@@ -147,50 +149,127 @@ export function useReservasOptimized({
 }: UseReservasOptimizedOptions = {}) {
   const queryClient = useQueryClient();
 
-  // 🔥 OPTIMIZACIÓN: Query combinada (reservas + stats en una sola request)
-  const combinedQuery = useQuery({
-    queryKey: reservasQueryKeys.list(businessId || 'default', { includeStats: true }),
-    queryFn: () => {
-      return reservasAPI.fetchReservasWithStats(businessId || '');
-    },
-    enabled: enabled && includeStats,
-    staleTime: 0, // 🔥 CRÍTICO: 0 para que invalidateQueries funcione inmediatamente
-    gcTime: 10 * 60 * 1000, // 10 minutos en caché
-    refetchOnWindowFocus: true, // ✅ HABILITADO: Para detectar cambios de otros dispositivos
-    refetchOnMount: true,
-    refetchInterval: 30000, // ✅ NUEVO: Polling cada 30 segundos para detectar cambios de otros dispositivos
-  });
+  // � Helper centralizado para invalidar cache
+  const invalidateReservasCache = async (scope: 'all' | 'standard' = 'standard') => {
+    if (scope === 'all') {
+      // Invalidación completa (cambios estructurales: fecha, estado, etc.)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: reservasQueryKeys.all, refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: reservasQueryKeys.lists(), refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: reservasQueryKeys.stats(businessId || 'default'), refetchType: 'all' })
+      ]);
+    } else {
+      // Invalidación estándar (la mayoría de casos)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: reservasQueryKeys.lists(), refetchType: 'all' }),
+        queryClient.invalidateQueries({ queryKey: reservasQueryKeys.stats(businessId || 'default'), refetchType: 'all' })
+      ]);
+    }
+  };
 
-  // 🎯 Query simple solo para reservas (cuando no necesitamos stats)
-  const reservasQuery = useQuery({
-    queryKey: reservasQueryKeys.list(businessId || 'default', { includeStats: false }),
+  // �🔥 OPTIMIZACIÓN: Query unificada (elimina redundancia)
+  const mainQuery = useQuery({
+    queryKey: reservasQueryKeys.list(businessId || 'default', { includeStats }),
     queryFn: () => {
-      return reservasAPI.fetchReservas(businessId);
+      return includeStats 
+        ? reservasAPI.fetchReservasWithStats(businessId || '')
+        : reservasAPI.fetchReservas(businessId);
     },
-    enabled: enabled && !includeStats,
-    staleTime: 0, // 🔥 CRÍTICO: 0 para que invalidateQueries funcione inmediatamente
+    enabled: enabled,
+    staleTime: 60000, // 1 minuto - datos considerados fresh
     gcTime: 10 * 60 * 1000, // 10 minutos en caché
-    refetchOnWindowFocus: true, // ✅ HABILITADO: Para detectar cambios de otros dispositivos
-    refetchOnMount: true,
-    refetchInterval: 30000, // ✅ NUEVO: Polling cada 30 segundos para detectar cambios de otros dispositivos
+    refetchOnWindowFocus: true,
+    refetchOnMount: false, // ❌ NO refetch al montar - usar caché
+    // 🧠 POLLING SIMPLIFICADO (como en bd16e02 que funcionaba)
+    refetchInterval: 30000, // 30 segundos - polling constante
+    refetchIntervalInBackground: false, // ❌ NO polling en background
   });
 
   // Seleccionar la query activa
-  const activeQuery = includeStats ? combinedQuery : reservasQuery;
+  const activeQuery = mainQuery;
 
   // 🔄 MUTATIONS CON OPTIMISTIC UPDATES
   const createMutation = useMutation({
     mutationFn: (reservaData: NewReservaData) =>
       reservasAPI.createReserva(reservaData, businessId),
-    onSuccess: () => {
-      // 🎯 Invalidar TODAS las listas de reservas (con y sin stats)
-      queryClient.invalidateQueries({ queryKey: reservasQueryKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: reservasQueryKeys.stats(businessId || 'default') });
+    onMutate: async (reservaData) => {
+      console.log('🎯 [CREATE] Iniciando actualización optimista');
       
+      // Cancelar refetches en progreso
+      await queryClient.cancelQueries({ queryKey: reservasQueryKeys.lists() });
+      
+      // Snapshot para rollback
+      const previousReservas = queryClient.getQueryData(
+        reservasQueryKeys.list(businessId || 'default', includeStats)
+      );
+      
+      // Crear reserva temporal con ID temporal
+      const tempId = `temp-${Date.now()}`;
+      const tempReserva: any = {
+        ...reservaData,
+        id: tempId,
+        estado: 'En Progreso' as EstadoReserva,
+        codigoQR: '',
+        asistenciaActual: 0,
+        fechaCreacion: new Date().toISOString(),
+        fechaModificacion: new Date().toISOString(),
+        registroEntradas: [],
+        _isOptimistic: true // Flag para identificar temporales
+      };
+      
+      // Actualización optimista en la caché
+      queryClient.setQueryData(
+        reservasQueryKeys.list(businessId || 'default', includeStats),
+        (old: any) => {
+          if (!old?.reservas) return old;
+          return {
+            ...old,
+            reservas: [tempReserva, ...old.reservas]
+          };
+        }
+      );
+      
+      console.log('✅ [CREATE] Reserva temporal agregada al cache');
+      
+      return { previousReservas, tempId };
+    },
+    onSuccess: async (newReserva, _variables, context) => {
+      console.log('✅ [CREATE] Reserva creada en servidor', { id: newReserva?.id });
+      
+      // Reemplazar reserva temporal con la real del servidor
+      if (context?.tempId && newReserva) {
+        queryClient.setQueryData(
+          reservasQueryKeys.list(businessId || 'default', includeStats),
+          (old: any) => {
+            if (!old?.reservas) return old;
+            return {
+              ...old,
+              reservas: old.reservas.map((r: any) => 
+                r.id === context.tempId ? { ...newReserva, _isOptimistic: false } : r
+              )
+            };
+          }
+        );
+      }
+      
+      // 🚀 NO ESPERAR: Invalidar en background
+      invalidateReservasCache('standard').catch(err => 
+        console.error('Error al invalidar cache:', err)
+      );
       toast.success('✓ Reserva creada exitosamente');
     },
-    onError: (error) => {
-      console.error('Error creating reserva:', error);
+    onError: (error, _variables, context) => {
+      console.error('❌ [CREATE] Error al crear', error);
+      
+      // Rollback: Restaurar datos anteriores
+      if (context?.previousReservas) {
+        queryClient.setQueryData(
+          reservasQueryKeys.list(businessId || 'default', includeStats),
+          context.previousReservas
+        );
+        console.log('🔄 [CREATE] Rollback aplicado');
+      }
+      
       toast.error('❌ Error al crear la reserva');
     },
   });
@@ -198,86 +277,191 @@ export function useReservasOptimized({
   const updateMutation = useMutation({
     mutationFn: ({ id, data, businessId: mutationBusinessId }: { id: string; data: Partial<Reserva>; businessId?: string }) =>
       reservasAPI.updateReserva(id, data, mutationBusinessId || businessId),
+    onMutate: async ({ id, data }) => {
+      console.log('🎯 [UPDATE] Iniciando actualización optimista', { id, fields: Object.keys(data) });
+      
+      await queryClient.cancelQueries({ queryKey: reservasQueryKeys.lists() });
+      
+      const previousReservas = queryClient.getQueryData(
+        reservasQueryKeys.list(businessId || 'default', includeStats)
+      );
+      
+      queryClient.setQueryData(
+        reservasQueryKeys.list(businessId || 'default', includeStats),
+        (old: any) => {
+          if (!old?.reservas) return old;
+          return {
+            ...old,
+            reservas: old.reservas.map((r: Reserva) => 
+              r.id === id ? { ...r, ...data, fechaModificacion: new Date().toISOString() } : r
+            )
+          };
+        }
+      );
+      
+      console.log('✅ [UPDATE] Caché actualizada optimistamente');
+      return { previousReservas, id };
+    },
     onSuccess: async (_result, { data }) => {
-      // 🎯 Campos que requieren invalidación completa
-      const fieldsRequiringFullRefresh = new Set(['fecha', 'hora', 'estado']);
-      const isFieldRequiringRefresh = data && Object.keys(data).some(key => fieldsRequiringFullRefresh.has(key));
+      const structuralFields = new Set(['fecha', 'hora', 'estado', 'businessId']);
+      const requiresFullInvalidation = data && Object.keys(data).some(key => structuralFields.has(key));
       
-      // 🎯 Para cambios de fecha, SIEMPRE invalidar y refetch
-      const isDateChange = data && 'fecha' in data;
-      
-      if (isDateChange) {
-        console.log('📅 CAMBIO DE FECHA DETECTADO - Invalidación agresiva');
-        console.log('💾 BusinessId usado:', businessId || 'default');
-        
-        // Invalidar inmediatamente todas las queries relacionadas
-        await Promise.all([
-          queryClient.invalidateQueries({ 
-            queryKey: reservasQueryKeys.all,
-            refetchType: 'all' 
-          }),
-          queryClient.invalidateQueries({ 
-            queryKey: reservasQueryKeys.lists(),
-            refetchType: 'all' 
-          }),
-          queryClient.invalidateQueries({ 
-            queryKey: reservasQueryKeys.stats(businessId || 'default'),
-            refetchType: 'all' 
-          })
-        ]);
-        
-        console.log('✅ Invalidación agresiva completada para cambio de fecha');
-      } else if (!data || Object.keys(data).length > 1 || isFieldRequiringRefresh) {
-        console.log('🔄 Invalidación estándar para:', Object.keys(data || {}));
-        
-        await queryClient.invalidateQueries({ 
-          queryKey: reservasQueryKeys.lists(),
-          refetchType: 'active' 
-        });
-        await queryClient.invalidateQueries({ 
-          queryKey: reservasQueryKeys.stats(businessId || 'default'),
-          refetchType: 'active' 
-        });
+      if (requiresFullInvalidation) {
+        console.log('📅 [UPDATE] Cambio estructural detectado:', Object.keys(data || {}));
+        // 🚀 NO ESPERAR: Invalidar en background
+        invalidateReservasCache('all').catch(err => 
+          console.error('Error al invalidar cache:', err)
+        );
       } else {
-        console.log('⚡ Actualización optimista - Sin invalidación inmediata');
+        console.log('🔄 [UPDATE] Cambio simple:', Object.keys(data || {}));
+        // 🚀 NO ESPERAR: Invalidar en background
+        invalidateReservasCache('standard').catch(err => 
+          console.error('Error al invalidar cache:', err)
+        );
       }
       
       toast.success('✓ Reserva actualizada exitosamente');
     },
-    onError: (error) => {
-      console.error('Error updating reserva:', error);
+    onError: (error, _variables, context) => {
+      console.error('❌ [UPDATE] Error al actualizar', error);
+      
+      if (context?.previousReservas) {
+        queryClient.setQueryData(
+          reservasQueryKeys.list(businessId || 'default', includeStats),
+          context.previousReservas
+        );
+        console.log('🔄 [UPDATE] Rollback aplicado');
+      }
+      
       toast.error('❌ Error al actualizar la reserva');
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => reservasAPI.deleteReserva(id, businessId),
+    onMutate: async (id) => {
+      console.log('🎯 [DELETE] Iniciando eliminación optimista', { id });
+      
+      await queryClient.cancelQueries({ queryKey: reservasQueryKeys.lists() });
+      
+      const previousReservas = queryClient.getQueryData(
+        reservasQueryKeys.list(businessId || 'default', includeStats)
+      );
+      
+      queryClient.setQueryData(
+        reservasQueryKeys.list(businessId || 'default', includeStats),
+        (old: any) => {
+          if (!old?.reservas) return old;
+          return {
+            ...old,
+            reservas: old.reservas.filter((r: Reserva) => r.id !== id)
+          };
+        }
+      );
+      
+      console.log('✅ [DELETE] Reserva removida del caché optimistamente');
+      return { previousReservas, id };
+    },
     onSuccess: async () => {
-      console.log('🗑️ Reserva eliminada - Invalidando cache completo...');
-      
-      // 🔥 INVALIDACIÓN AGRESIVA: Forzar refetch inmediato
-      await Promise.all([
-        queryClient.invalidateQueries({ 
-          queryKey: reservasQueryKeys.lists(),
-          refetchType: 'all' // Refetch todas las queries, no solo las activas
-        }),
-        queryClient.invalidateQueries({ 
-          queryKey: reservasQueryKeys.stats(businessId || 'default'),
-          refetchType: 'all'
-        }),
-        queryClient.invalidateQueries({ 
-          queryKey: reservasQueryKeys.all,
-          refetchType: 'all'
-        })
-      ]);
-      
-      console.log('✅ Cache invalidado completamente después de eliminar reserva');
-      
+      console.log('✅ [DELETE] Reserva eliminada en servidor');
+      // 🚀 NO ESPERAR: Invalidar en background
+      invalidateReservasCache('all').catch(err => 
+        console.error('Error al invalidar cache:', err)
+      );
       toast.success('✓ Reserva eliminada exitosamente');
     },
-    onError: (error) => {
-      console.error('Error deleting reserva:', error);
+    onError: (error, _id, context) => {
+      console.error('❌ [DELETE] Error al eliminar', error);
+      
+      if (context?.previousReservas) {
+        queryClient.setQueryData(
+          reservasQueryKeys.list(businessId || 'default', includeStats),
+          context.previousReservas
+        );
+        console.log('🔄 [DELETE] Rollback aplicado');
+      }
+      
       toast.error('❌ Error al eliminar la reserva');
+    },
+  });
+
+  // 🎯 MUTATION: Registrar Asistencia con Optimistic Updates
+  const updateAsistenciaMutation = useMutation({
+    mutationFn: async ({ qrCode, increment }: { qrCode: string; increment: number }) => {
+      const response = await fetch('/api/reservas/qr-scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          qrCode, 
+          action: 'increment', 
+          increment,
+          businessId 
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al registrar asistencia');
+      }
+
+      return response.json();
+    },
+    onMutate: async ({ qrCode, increment }) => {
+      console.log('🎯 [ASISTENCIA] Iniciando actualización optimista', { qrCode, increment });
+      
+      // Cancelar refetches en progreso para evitar sobrescribir cambios
+      await queryClient.cancelQueries({ queryKey: reservasQueryKeys.lists() });
+      
+      // Snapshot de datos anteriores para rollback
+      const previousReservas = queryClient.getQueryData(
+        reservasQueryKeys.list(businessId || 'default', includeStats)
+      );
+      
+      // Extraer ID de la reserva del qrCode (formato: res-{id} o {id})
+      const reservaId = qrCode.startsWith('res-') ? qrCode.substring(4) : qrCode;
+      
+      // Actualización optimista en la caché
+      queryClient.setQueryData(
+        reservasQueryKeys.list(businessId || 'default', includeStats),
+        (old: any) => {
+          if (!old?.reservas) return old;
+          
+          return {
+            ...old,
+            reservas: old.reservas.map((r: Reserva) => 
+              r.id === reservaId 
+                ? { ...r, asistenciaActual: (r.asistenciaActual || 0) + increment }
+                : r
+            )
+          };
+        }
+      );
+      
+      console.log('✅ [ASISTENCIA] Caché actualizada optimistamente');
+      
+      return { previousReservas, reservaId };
+    },
+    onSuccess: async (_result, _variables, context) => {
+      console.log('✅ [ASISTENCIA] Registro exitoso', { reservaId: context?.reservaId });
+      // 🚀 NO ESPERAR: Invalidar en background para no bloquear UI
+      invalidateReservasCache('standard').catch(err => 
+        console.error('Error al invalidar cache:', err)
+      );
+      toast.success('✓ Asistencia registrada correctamente');
+    },
+    onError: (error, _variables, context) => {
+      console.error('❌ [ASISTENCIA] Error al registrar', error);
+      
+      // Rollback: Restaurar datos anteriores
+      if (context?.previousReservas) {
+        queryClient.setQueryData(
+          reservasQueryKeys.list(businessId || 'default', includeStats),
+          context.previousReservas
+        );
+        console.log('🔄 [ASISTENCIA] Rollback aplicado');
+      }
+      
+      toast.error(`❌ ${error instanceof Error ? error.message : 'Error al registrar asistencia'}`);
     },
   });
 
@@ -286,26 +470,24 @@ export function useReservasOptimized({
   // Esto fuerza a React a detectar el cambio y re-renderizar los componentes
   const reservas = useMemo(() => {
     const data = includeStats 
-      ? (combinedQuery.data?.reservas || [])
-      : (reservasQuery.data || []);
+      ? (mainQuery.data?.reservas || [])
+      : (mainQuery.data || []);
     
     console.log('🔄 Hook: Creando nueva referencia de reservas array', {
       count: data.length,
-      dataUpdatedAt: includeStats ? combinedQuery.dataUpdatedAt : reservasQuery.dataUpdatedAt
+      dataUpdatedAt: mainQuery.dataUpdatedAt
     });
     
     // Crear nuevo array para garantizar nueva referencia en memoria
     return [...data];
   }, [
     includeStats,
-    combinedQuery.data?.reservas,
-    combinedQuery.dataUpdatedAt,
-    reservasQuery.data,
-    reservasQuery.dataUpdatedAt
+    mainQuery.data,
+    mainQuery.dataUpdatedAt
   ]);
   
-  const stats = includeStats ? combinedQuery.data?.stats : undefined;
-  const clients = includeStats ? combinedQuery.data?.clients : undefined;
+  const stats = includeStats ? mainQuery.data?.stats : undefined;
+  const clients = includeStats ? mainQuery.data?.clients : undefined;
 
   // 🔄 MÉTODOS DE ACCIÓN
   const createReserva = (reservaData: NewReservaData) => {
@@ -325,9 +507,7 @@ export function useReservasOptimized({
     console.log('🔄 refetchReservas: Ejecutando refetch directo...');
     
     try {
-      const result = includeStats 
-        ? await combinedQuery.refetch()
-        : await reservasQuery.refetch();
+      const result = await mainQuery.refetch();
       
       console.log('✅ Refetch completado:', {
         success: result.isSuccess,
@@ -348,35 +528,35 @@ export function useReservasOptimized({
       nuevaAsistencia 
     });
     
-    // Actualizar cache de query CON stats (combinedQuery)
-    const queryKeyWithStats = reservasQueryKeys.list(businessId || 'default', { includeStats: true });
-    queryClient.setQueryData(queryKeyWithStats, (oldData: any) => {
-      if (!oldData?.reservas) return oldData;
-      
-      const updated = {
-        ...oldData,
-        reservas: oldData.reservas.map((reserva: any) => 
+    // Actualizar cache de la query principal
+    const queryKey = reservasQueryKeys.list(businessId || 'default', { includeStats });
+    queryClient.setQueryData(queryKey, (oldData: any) => {
+      if (includeStats) {
+        // Con stats: estructura { reservas, stats, clients }
+        if (!oldData?.reservas) return oldData;
+        
+        const updated = {
+          ...oldData,
+          reservas: oldData.reservas.map((reserva: any) => 
+            reserva.id === reservaId 
+              ? { ...reserva, asistenciaActual: nuevaAsistencia }
+              : reserva
+          )
+        };
+        console.log('✅ Cache actualizado (con stats)');
+        return updated;
+      } else {
+        // Sin stats: array directo
+        if (!Array.isArray(oldData)) return oldData;
+        
+        const updated = oldData.map((reserva: any) => 
           reserva.id === reservaId 
             ? { ...reserva, asistenciaActual: nuevaAsistencia }
             : reserva
-        )
-      };
-      console.log('✅ Cache actualizado (con stats)');
-      return updated;
-    });
-    
-    // Actualizar cache de query SIN stats (reservasQuery)
-    const queryKeyWithoutStats = reservasQueryKeys.list(businessId || 'default', { includeStats: false });
-    queryClient.setQueryData(queryKeyWithoutStats, (oldData: any) => {
-      if (!Array.isArray(oldData)) return oldData;
-      
-      const updated = oldData.map((reserva: any) => 
-        reserva.id === reservaId 
-          ? { ...reserva, asistenciaActual: nuevaAsistencia }
-          : reserva
-      );
-      console.log('✅ Cache actualizado (sin stats)');
-      return updated;
+        );
+        console.log('✅ Cache actualizado (sin stats)');
+        return updated;
+      }
     });
     
     console.log('✅ updateReservaAsistencia - Completado para ambas cachés');
@@ -479,8 +659,9 @@ export function useReservasOptimized({
     updateReserva,
     deleteReserva,
     refetchReservas,
-    updateReservaAsistencia, // ✅ Función optimistic para asistencia
+    updateReservaAsistencia, // ✅ Función optimistic para asistencia (legacy)
     updateReservaOptimized, // ✅ Función optimistic para cualquier campo
+    registrarAsistencia: updateAsistenciaMutation.mutateAsync, // 🔥 Nueva mutation para asistencia
     
     // 🔄 Estados de mutations
     isCreating: createMutation.isPending,

@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
         },
       },
       include: {
-        cliente: {
+        clienteCliente: {
           select: {
             id: true,
             nombre: true,

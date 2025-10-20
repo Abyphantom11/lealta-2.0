@@ -6,6 +6,7 @@ import {
   TipoNotificacion,
 } from '@/lib/notificaciones';
 import { withAuth, AuthConfigs } from '@/middleware/requireAuth';
+import { generateId } from '@/lib/generateId';
 
 // Type assertion temporal mientras se resuelve la compatibilidad JSON
 const extendedPrisma = prisma as any;
@@ -155,6 +156,7 @@ async function createNewCard(cliente: any, nivel: string, asignacionManual: bool
 
   const nuevaTarjeta = await extendedPrisma.tarjetaLealtad.create({
     data: {
+      id: generateId(),
       clienteId: cliente.id,
       nivel,
       asignacionManual,
@@ -169,6 +171,7 @@ async function createNewCard(cliente: any, nivel: string, asignacionManual: bool
           puntosProgresoNuevo: puntosRequeridosNivel
         },
       },
+      updatedAt: new Date()
     },
   });
 
@@ -201,7 +204,7 @@ export async function POST(request: NextRequest) {
 
       const cliente = await prisma.cliente.findUnique({
         where: { id: clienteId },
-        include: { tarjetaLealtad: true, consumos: true },
+        include: { TarjetaLealtad: true, Consumo: true },
       });
 
       if (!cliente) {
@@ -217,7 +220,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (cliente.tarjetaLealtad) {
+      if (cliente.TarjetaLealtad) {
         const { tarjetaActualizada, changeAnalysis, tipoOperacion } = await updateExistingCard(
           cliente,
           nivel,
@@ -233,7 +236,7 @@ export async function POST(request: NextRequest) {
 
         if (asignacionManual && changeAnalysis.esAscenso) {
           Object.assign(responseData, {
-            nivelAnterior: cliente.tarjetaLealtad.nivel,
+            nivelAnterior: cliente.TarjetaLealtad.nivel,
             nivelNuevo: nivel,
             actualizado: true,
             esSubida: true,

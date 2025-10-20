@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { nanoid } from 'nanoid';
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
@@ -170,11 +171,13 @@ export async function POST(request: NextRequest) {
         console.log('⚙️ Creando configuración por defecto en DATABASE para business:', user.businessId);
         const newConfig = await prisma.puntosConfig.create({
           data: {
+            id: nanoid(),
             businessId: user.businessId,
             puntosPorDolar: 4,
             bonusPorRegistro: 100,
             maxPuntosPorDolar: 10,
-            maxBonusRegistro: 1000
+            maxBonusRegistro: 1000,
+            updatedAt: new Date(),
           }
         });
         puntosPorDolar = newConfig.puntosPorDolar;
@@ -197,6 +200,7 @@ export async function POST(request: NextRequest) {
       // 1. Crear el registro de consumo
       const consumo = await tx.consumo.create({
         data: {
+          id: nanoid(),
           clienteId: cliente.id,
           locationId: locationId,
           productos: productos.map((p: any) => ({
@@ -223,19 +227,19 @@ export async function POST(request: NextRequest) {
           totalVisitas: { increment: 1 },
         },
         include: {
-          tarjetaLealtad: true
+          TarjetaLealtad: true
         }
       });
 
       // ✅ SINCRONIZAR: Actualizar también puntosProgreso en tarjeta (SIEMPRE - tanto automáticas como manuales)
-      if (clienteActualizado.tarjetaLealtad) {
+      if (clienteActualizado.TarjetaLealtad) {
         await tx.tarjetaLealtad.update({
           where: { clienteId: cliente.id },
           data: {
             puntosProgreso: clienteActualizado.puntosAcumulados
           }
         });
-        console.log(`📊 PuntosProgreso actualizados a ${clienteActualizado.puntosAcumulados} (tarjeta ${clienteActualizado.tarjetaLealtad.asignacionManual ? 'manual' : 'automática'})`);
+        console.log(`📊 PuntosProgreso actualizados a ${clienteActualizado.puntosAcumulados} (tarjeta ${clienteActualizado.TarjetaLealtad.asignacionManual ? 'manual' : 'automática'})`);
       }
 
       // 3. Buscar o crear productos en MenuProduct (opcional)
@@ -263,6 +267,7 @@ export async function POST(request: NextRequest) {
 
           categoria ??= await tx.menuCategory.create({
             data: {
+              id: nanoid(),
               businessId: businessId,
               nombre: 'Sin Categoría',
               descripcion: 'Productos agregados automáticamente',
@@ -273,11 +278,13 @@ export async function POST(request: NextRequest) {
           // Crear nuevo producto
           await tx.menuProduct.create({
             data: {
+              id: nanoid(),
               categoryId: categoria.id,
               nombre: producto.nombre.trim(),
               descripcion: `Producto agregado automáticamente desde consumo manual`,
               disponible: true,
               tipoProducto: 'simple',
+              updatedAt: new Date(),
             },
           });
         }
@@ -317,7 +324,7 @@ export async function POST(request: NextRequest) {
       message: 'Consumo registrado exitosamente',
       data: {
         consumoId: result.consumo.id,
-        cliente: {
+        clienteCliente: {
           nombre: result.cliente.nombre,
           puntosNuevos: puntosGanados,
           puntosTotal: result.cliente.puntos,
@@ -381,7 +388,7 @@ export async function GET(request: NextRequest) {
         },
       },
       include: {
-        cliente: {
+        Cliente: {
           select: {
             nombre: true,
             cedula: true,

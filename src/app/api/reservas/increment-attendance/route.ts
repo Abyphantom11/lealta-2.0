@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
       maxAsistencia: maxAsistencia,
       exceso: exceso,
       increment: increment,
-      cliente: {
+      clienteCliente: {
         nombre: updatedReserva.customerName || 'Cliente',
         telefono: updatedReserva.customerPhone || ''
       },

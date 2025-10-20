@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     const cliente = await prisma.cliente.findUnique({
       where: { id: clienteId },
       include: {
-        tarjetaLealtad: true
+        TarjetaLealtad: true
       }
     });
 
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar si hay un ascenso manual pendiente de notificar
-    const tarjeta = cliente.tarjetaLealtad;
+    const tarjeta = cliente.TarjetaLealtad;
     const notifications = [];
 
     if (tarjeta?.asignacionManual) {
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       notifications,
-      cliente: {
+      clienteCliente: {
         id: cliente.id,
         cedula: cliente.cedula,
         nombre: cliente.nombre,

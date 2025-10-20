@@ -50,16 +50,16 @@ export async function GET(
     const cliente = await prisma.cliente.findFirst({
       where: whereCondition,
       include: {
-        tarjetaLealtad: true, // ✨ Agregar información de tarjeta de lealtad
-        consumos: {
+        TarjetaLealtad: true, // ✨ Agregar información de tarjeta de lealtad
+        Consumo: {
           include: {
-            empleado: {
+            User: {
               select: {
                 name: true,
                 email: true,
               },
             },
-            location: {
+            Location: {
               select: {
                 name: true,
               },
@@ -80,21 +80,21 @@ export async function GET(
     }
 
     // Calcular estadísticas del cliente
-    const totalConsumos = cliente.consumos.length;
-    const totalGastadoCalculado = cliente.consumos.reduce(
+    const totalConsumos = cliente.Consumo.length;
+    const totalGastadoCalculado = cliente.Consumo.reduce(
       (sum, c) => sum + c.total,
       0
     );
-    const totalPuntosGanados = cliente.consumos.reduce(
+    const totalPuntosGanados = cliente.Consumo.reduce(
       (sum, c) => sum + c.puntos,
       0
     );
 
     // Último consumo
-    const ultimoConsumo = cliente.consumos[0];
+    const ultimoConsumo = cliente.Consumo[0];
 
     // Productos más consumidos
-    const productosConsumidos = cliente.consumos.reduce(
+    const productosConsumidos = cliente.Consumo.reduce(
       (acc, consumo) => {
         // ✨ Extraer productos del objeto anidado
         let productos = [];
@@ -131,7 +131,7 @@ export async function GET(
       .map(([nombre, cantidad]) => ({ nombre, cantidad }));
 
     // Historial formateado
-    const historial = cliente.consumos.map(consumo => {
+    const historial = cliente.Consumo.map(consumo => {
       // ✨ Extraer productos del objeto anidado usando la misma lógica
       let productos = [];
       if (consumo.productos && typeof consumo.productos === 'object') {
@@ -150,8 +150,8 @@ export async function GET(
         fecha: consumo.registeredAt,
         total: consumo.total,
         puntos: consumo.puntos,
-        empleado: consumo.empleado.name || 'Staff',
-        ubicacion: consumo.location?.name || 'Ubicación principal',
+        empleado: consumo.User.name || 'Staff',
+        ubicacion: consumo.Location?.name || 'Ubicación principal',
         tipo: consumo.ocrText?.startsWith('MANUAL:') ? 'MANUAL' : 'OCR',
         productos: productos,
         pagado: consumo.pagado,
@@ -163,7 +163,7 @@ export async function GET(
     const seiseMesesAtras = new Date();
     seiseMesesAtras.setMonth(seiseMesesAtras.getMonth() - 6);
 
-    const consumosPorMes = cliente.consumos
+    const consumosPorMes = cliente.Consumo
       .filter(c => c.registeredAt >= seiseMesesAtras)
       .reduce(
         (acc, consumo) => {
@@ -194,12 +194,12 @@ export async function GET(
         riskLevel: cliente.riskLevel,
         registeredAt: cliente.registeredAt,
         // ✨ Agregar información de tarjeta de lealtad
-        tarjetaLealtad: cliente.tarjetaLealtad ? {
-          id: cliente.tarjetaLealtad.id,
-          nivel: cliente.tarjetaLealtad.nivel,
-          fechaAsignacion: cliente.tarjetaLealtad.fechaAsignacion,
-          asignacionManual: cliente.tarjetaLealtad.asignacionManual,
-          activa: cliente.tarjetaLealtad.activa,
+        tarjetaLealtad: cliente.TarjetaLealtad ? {
+          id: cliente.TarjetaLealtad.id,
+          nivel: cliente.TarjetaLealtad.nivel,
+          fechaAsignacion: cliente.TarjetaLealtad.fechaAsignacion,
+          asignacionManual: cliente.TarjetaLealtad.asignacionManual,
+          activa: cliente.TarjetaLealtad.activa,
         } : null,
       },
       estadisticas: {

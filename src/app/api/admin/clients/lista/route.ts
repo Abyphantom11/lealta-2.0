@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
         businessId: businessId
       },
       include: {
-        tarjetaLealtad: true
+        TarjetaLealtad: true
       },
       orderBy: {
         id: 'desc'

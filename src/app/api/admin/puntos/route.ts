@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
 import { prisma } from '@/lib/prisma';
+import { nanoid } from 'nanoid';
 
 interface ConfiguracionPuntos {
   puntosPorDolar: number;
@@ -29,11 +30,13 @@ export async function GET(request: NextRequest) {
         console.log(`⚙️ Creating default points config for business: ${session.businessId}`);
         puntosConfig = await prisma.puntosConfig.create({
           data: {
+            id: nanoid(),
             businessId: session.businessId,
             puntosPorDolar: 2,
             bonusPorRegistro: 100,
             maxPuntosPorDolar: 10,
-            maxBonusRegistro: 1000
+            maxBonusRegistro: 1000,
+            updatedAt: new Date(),
           }
         });
       }
@@ -97,11 +100,13 @@ export async function POST(request: NextRequest) {
           maxBonusRegistro: 1000
         },
         create: {
+          id: nanoid(),
           businessId: session.businessId,
           puntosPorDolar: body.puntosPorDolar || 2,
           bonusPorRegistro: body.bonusPorRegistro || 100,
           maxPuntosPorDolar: 10,
-          maxBonusRegistro: 1000
+          maxBonusRegistro: 1000,
+          updatedAt: new Date(),
         }
       });
 

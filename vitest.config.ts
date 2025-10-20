@@ -8,8 +8,15 @@ export default defineConfig({
     globals: true,
     environment: 'happy-dom',
     setupFiles: ['./tests/setup.ts'],
-    include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-    exclude: ['node_modules', 'dist', '.next', 'coverage'],
+    include: ['**/*.test.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    exclude: [
+      'node_modules',
+      'dist',
+      '.next',
+      'coverage',
+      '**/*.spec.ts',  // Excluir archivos de Playwright (.spec.ts)
+      '**/*.spec.tsx', // Excluir archivos de Playwright React
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],

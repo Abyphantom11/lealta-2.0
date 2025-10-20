@@ -46,8 +46,8 @@ export async function POST(request: NextRequest) {
         businessId
       },
       include: {
-        tarjetaLealtad: true,
-        business: true
+        TarjetaLealtad: true,
+        Business: true
       }
     });
 

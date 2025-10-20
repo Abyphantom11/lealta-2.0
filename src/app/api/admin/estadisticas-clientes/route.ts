@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
         businessId: businessId, // ✅ FILTRO POR BUSINESS
       },
       include: {
-        tarjetaLealtad: true,
-        consumos: {
+        TarjetaLealtad: true,
+        Consumo: {
           take: 1,
           orderBy: { registeredAt: 'desc' },
         },

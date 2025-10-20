@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { headers } from 'next/headers';
 import { withAuth, AuthConfigs } from '../../../../middleware/requireAuth';
+import { generateId } from '@/lib/generateId';
 
 const prisma = new PrismaClient();
 
@@ -62,16 +63,17 @@ export async function POST(request: NextRequest) {
     // Crear nueva visita
     const nuevaVisita = await prisma.visita.create({
       data: {
+        id: generateId(),
         businessId: session.businessId,
         clienteId: body.clienteId || null,
         sessionId: body.sessionId,
-        businessId: session.businessId,
         path: body.path,
         referrer: body.referrer || null,
         userAgent,
         ip,
         isRegistered: !!body.clienteId,
-        timestamp: new Date()
+        timestamp: new Date(),
+        updatedAt: new Date()
       }
     });
 
@@ -200,12 +202,14 @@ async function actualizarEstadisticaPeriodo(
       updatedAt: new Date()
     },
     create: {
+      id: generateId(),
       fecha: fechaReferencia,
       periodo,
       totalVisitas,
       visitasRegistradas,
       visitasAnonimas,
-      sesionesUnicas: totalSesionesUnicas
+      sesionesUnicas: totalSesionesUnicas,
+      updatedAt: new Date()
     }
   });
 }

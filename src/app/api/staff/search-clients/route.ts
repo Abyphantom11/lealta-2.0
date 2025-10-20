@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
         totalGastado: true,
         totalVisitas: true,
         // Incluir información de tarjeta si existe
-        tarjetaLealtad: {
+        TarjetaLealtad: {
           select: {
             nivel: true,
             activa: true,
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
           },
         },
         // Incluir business info para debugging
-        business: {
+        Business: {
           select: {
             name: true,
             slug: true,
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
     const clientesProcessados = clientes.map(cliente => ({
       id: cliente.id,
       businessId: cliente.businessId,
-      businessName: cliente.business?.name || 'Unknown',
+      businessName: cliente.Business?.name || 'Unknown',
       nombre: cliente.nombre,
       cedula: cliente.cedula,
       email: cliente.correo, // Mapear correo a email para compatibilidad
@@ -87,11 +87,11 @@ export async function GET(request: NextRequest) {
       puntos: cliente.puntos,
       visitas: cliente.totalVisitas,
       totalGastado: cliente.totalGastado,
-      tarjetaFidelizacion: cliente.tarjetaLealtad ? {
-        nivel: cliente.tarjetaLealtad.nivel,
-        activa: cliente.tarjetaLealtad.activa,
-        asignacionManual: cliente.tarjetaLealtad.asignacionManual,
-        fechaAsignacion: cliente.tarjetaLealtad.fechaAsignacion,
+      tarjetaFidelizacion: cliente.TarjetaLealtad ? {
+        nivel: cliente.TarjetaLealtad.nivel,
+        activa: cliente.TarjetaLealtad.activa,
+        asignacionManual: cliente.TarjetaLealtad.asignacionManual,
+        fechaAsignacion: cliente.TarjetaLealtad.fechaAsignacion,
       } : null,
     }));
 

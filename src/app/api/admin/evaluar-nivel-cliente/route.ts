@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { nanoid } from 'nanoid';
 import {
   enviarNotificacionClientes,
   TipoNotificacion,
@@ -81,6 +82,7 @@ async function updateExistingCard(cliente: any, nivelCorrespondiente: string, ni
 async function createNewCard(cliente: any, nivelCorrespondiente: string) {
   return await prisma.tarjetaLealtad.create({
     data: {
+      id: nanoid(),
       clienteId: cliente.id,
       businessId: cliente.businessId,
       nivel: nivelCorrespondiente,
@@ -88,6 +90,7 @@ async function createNewCard(cliente: any, nivelCorrespondiente: string) {
       fechaAsignacion: new Date(),
       asignacionManual: false,
       puntosProgreso: cliente.puntosAcumulados || cliente.puntos || 0,
+      updatedAt: new Date(),
       historicoNiveles: JSON.stringify([
         {
           fecha: new Date().toISOString(),
@@ -141,7 +144,7 @@ export async function POST(request: NextRequest) {
     
     const cliente = await prisma.cliente.findUnique({
       where: whereClause as any,
-      include: { tarjetaLealtad: true, consumos: true },
+      include: { TarjetaLealtad: true, Consumo: true },
     }) as any;
 
     if (!cliente) {
@@ -240,8 +243,8 @@ export async function PUT(request: NextRequest) {
         businessId: businessId, // ✅ FILTRO POR BUSINESS
       },
       include: {
-        tarjetaLealtad: true,
-        consumos: true,
+        TarjetaLealtad: true,
+        Consumo: true,
       },
     });
 
@@ -249,13 +252,13 @@ export async function PUT(request: NextRequest) {
 
     for (const cliente of clientes) {
       const nivelCorrespondiente = await evaluarNivelCliente(cliente, businessId);
-      const nivelActual = cliente.tarjetaLealtad?.nivel || 'Bronce';
+      const nivelActual = cliente.TarjetaLealtad?.nivel || 'Bronce';
 
       if (nivelActual !== nivelCorrespondiente) {
         // Actualizar cliente
-        if (cliente.tarjetaLealtad) {
+        if (cliente.TarjetaLealtad) {
           await prisma.tarjetaLealtad.update({
-            where: { id: cliente.tarjetaLealtad.id },
+            where: { id: cliente.TarjetaLealtad.id },
             data: {
               nivel: nivelCorrespondiente,
               fechaAsignacion: new Date(),
@@ -265,12 +268,14 @@ export async function PUT(request: NextRequest) {
         } else {
           await prisma.tarjetaLealtad.create({
             data: {
+              id: nanoid(),
               clienteId: cliente.id,
               businessId: cliente.businessId,
               nivel: nivelCorrespondiente,
               activa: true,
               fechaAsignacion: new Date(),
               asignacionManual: false,
+              updatedAt: new Date(),
             },
           });
         }
