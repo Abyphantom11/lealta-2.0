@@ -12,6 +12,18 @@ export const prisma: PrismaClientInstance =
   new PrismaClient({
     // Solo logs de errores, no queries para evitar spam
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+    // Optimizaciones para Vercel
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL,
+      },
+    },
   });
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+
+// Desconectar Prisma al finalizar en serverless
+if (process.env.VERCEL) {
+  // En Vercel, cerrar conexiones después de cada request
+  prisma.$disconnect();
+}
