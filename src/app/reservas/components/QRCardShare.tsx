@@ -284,8 +284,9 @@ Presenta este código QR al llegar 📱`;
             // Pequeño delay para asegurar que el mensaje esté en el portapapeles
             await new Promise(resolve => setTimeout(resolve, 200));
             
-            // Compartir SOLO la imagen (WhatsApp leerá el texto del portapapeles)
+            // Compartir imagen + texto (para evitar "can't send empty message")
             await navigator.share({
+              text: mensaje,
               files: [file]
             });
 
