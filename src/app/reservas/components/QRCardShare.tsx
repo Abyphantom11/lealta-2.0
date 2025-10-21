@@ -284,11 +284,23 @@ Presenta este código QR al llegar 📱`;
             // Pequeño delay para asegurar que el mensaje esté en el portapapeles
             await new Promise(resolve => setTimeout(resolve, 200));
             
-            // Compartir imagen + texto (para evitar "can't send empty message")
-            await navigator.share({
-              text: mensaje,
-              files: [file]
-            });
+            // Intentar compartir SOLO imagen (ideal)
+            try {
+              await navigator.share({
+                files: [file]
+              });
+            } catch (shareError: any) {
+              // Si falla por mensaje vacío, usar texto minimal
+              if (shareError.message?.includes('empty') || shareError.name === 'TypeError') {
+                console.log('⚠️ Navegador requiere texto, enviando espacio...');
+                await navigator.share({
+                  text: ' ', // Espacio mínimo
+                  files: [file]
+                });
+              } else {
+                throw shareError;
+              }
+            }
 
             toast.success('✅ ¡Perfecto!', {
               description: esPersonalizado 
