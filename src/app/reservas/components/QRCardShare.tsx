@@ -206,17 +206,19 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
     setIsSharing(true);
     
     try {
-      // PASO 1: Verificar mensaje personalizado (solo para portapapeles)
-      let mensajePersonalizado: string | null = null;
+      // PASO 1: Generar mensaje (personalizado o por defecto)
+      let mensajeParaEnviar: string;
       
       if (customMessage?.trim() && customMessage.trim().length > 0) {
-        mensajePersonalizado = customMessage.trim();
-        console.log('📋 Mensaje personalizado encontrado (custom)');
+        mensajeParaEnviar = customMessage.trim();
+        console.log('📋 Usando mensaje personalizado (custom)');
       } else if (reserva.mensajePersonalizado?.trim() && reserva.mensajePersonalizado.trim().length > 0) {
-        mensajePersonalizado = reserva.mensajePersonalizado.trim();
-        console.log('📋 Mensaje personalizado encontrado (reserva)');
+        mensajeParaEnviar = reserva.mensajePersonalizado.trim();
+        console.log('📋 Usando mensaje personalizado (reserva)');
       } else {
-        console.log('📋 Sin mensaje personalizado - solo enviando imagen');
+        // Mensaje mínimo por defecto (solo para evitar error "empty message")
+        mensajeParaEnviar = ' ';
+        console.log('📋 Usando mensaje mínimo por defecto');
       }
 
       // PASO 2: Generar la imagen del QR
@@ -254,17 +256,20 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
       // PASO 3: Copiar SOLO mensaje personalizado al portapapeles (si existe)
       const file = new File([blob], `reserva-qr.png`, { type: 'image/png' });
       
-      // Copiar mensaje personalizado al portapapeles solo si existe
-      if (mensajePersonalizado) {
+      // Copiar SOLO mensaje personalizado al portapapeles (si existe)
+      const tienePersonalizado = (customMessage?.trim() && customMessage.trim().length > 0) || 
+                                 (reserva.mensajePersonalizado?.trim() && reserva.mensajePersonalizado.trim().length > 0);
+      
+      if (tienePersonalizado) {
         try {
-          await navigator.clipboard.writeText(mensajePersonalizado);
+          await navigator.clipboard.writeText(mensajeParaEnviar);
           console.log('✅ Mensaje personalizado copiado al portapapeles');
         } catch (err) {
           console.warn('⚠️ No se pudo copiar mensaje personalizado:', err);
         }
       }
       
-      // PASO 4: Compartir SOLO la imagen (nunca mensaje + imagen juntos)
+      // PASO 4: Compartir imagen con diferentes estrategias
       if (navigator.share) {
         const canShareFiles = navigator.canShare?.({ files: [file] }) ?? false;
         
@@ -273,28 +278,54 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
             // Pequeño delay para asegurar que el mensaje esté en el portapapeles
             await new Promise(resolve => setTimeout(resolve, 200));
             
-            // SIEMPRE compartir imagen + espacio mínimo (evita error "empty message")
-            await navigator.share({
-              text: ' ', // Espacio mínimo requerido por algunos navegadores
-              files: [file]
-            });
+            // Estrategia 1: Intentar solo con archivos
+            try {
+              await navigator.share({
+                files: [file]
+              });
 
-            toast.success('✅ QR enviado correctamente', {
-              description: mensajePersonalizado 
-                ? '📋 Mensaje personalizado copiado - Pégalo en WhatsApp' 
-                : '📷 Solo imagen enviada - Sin mensaje adicional',
-              duration: 5000,
-              className: 'bg-green-600 text-white border-0',
-            });
-            
-            setIsSharing(false);
-            return;
+              toast.success('✅ QR enviado correctamente', {
+                description: tienePersonalizado 
+                  ? '📋 Mensaje personalizado copiado - Pégalo en WhatsApp' 
+                  : '📷 Solo imagen enviada - Sin mensaje adicional',
+                duration: 5000,
+                className: 'bg-green-600 text-white border-0',
+              });
+              
+              setIsSharing(false);
+              return;
+            } catch (innerError: any) {
+              console.warn('Share con solo archivos falló:', innerError);
+              
+              // Estrategia 2: Intentar con texto mínimo + archivos
+              if (innerError.message?.includes('empty') || innerError.message?.includes('Empty')) {
+                console.log('Intentando con texto mínimo...');
+                await navigator.share({
+                  text: mensajeParaEnviar, // Usar el mensaje (personalizado o espacio mínimo)
+                  files: [file]
+                });
+
+                toast.success('✅ QR enviado correctamente', {
+                  description: tienePersonalizado 
+                    ? '📋 Mensaje personalizado copiado - Pégalo en WhatsApp' 
+                    : '📷 Imagen enviada con texto mínimo',
+                  duration: 5000,
+                  className: 'bg-green-600 text-white border-0',
+                });
+                
+                setIsSharing(false);
+                return;
+              }
+              
+              throw innerError; // Re-lanzar si no es problema de mensaje vacío
+            }
+
           } catch (error: any) {
             if (error.name === 'AbortError') {
               setIsSharing(false);
               return;
             }
-            console.warn('Share API falló:', error);
+            console.warn('Share API falló completamente:', error);
           }
         }
       }
@@ -314,9 +345,9 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
       }
 
       // Copiar SOLO mensaje personalizado al portapapeles (si existe)
-      if (mensajePersonalizado) {
+      if (tienePersonalizado) {
         try {
-          await navigator.clipboard.writeText(mensajePersonalizado);
+          await navigator.clipboard.writeText(mensajeParaEnviar);
         } catch (err) {
           console.warn('No se pudo copiar mensaje personalizado:', err);
         }
@@ -324,7 +355,7 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
 
       if (imagenCopiada) {
         toast.success('📋 Imagen copiada', {
-          description: mensajePersonalizado 
+          description: tienePersonalizado 
             ? 'Imagen + mensaje personalizado listos en portapapeles (Ctrl+V)'
             : 'Imagen lista en portapapeles (Ctrl+V)',
           duration: 6000,
@@ -339,7 +370,7 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
         URL.revokeObjectURL(imageUrl);
         
         toast.success('📥 Imagen descargada', {
-          description: mensajePersonalizado 
+          description: tienePersonalizado 
             ? 'Mensaje personalizado copiado - Adjunta la imagen manualmente'
             : 'Solo imagen descargada - Sin mensaje adicional',
           duration: 6000,
