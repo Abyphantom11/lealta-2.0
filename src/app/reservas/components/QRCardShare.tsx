@@ -165,7 +165,7 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
       return new Promise((resolve) => {
         canvas.toBlob((blob) => {
           resolve(blob);
-        }, 'image/png', 1.0); // ✅ Máxima calidad
+        }, 'image/png', 1); // ✅ Máxima calidad
       });
     } catch (error) {
       console.error('Error generando imagen:', error);
@@ -188,7 +188,7 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
       link.download = `reserva-${reserva.cliente?.nombre?.replace(/\s+/g, '-') || 'qr'}.png`;
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      link.remove();
       URL.revokeObjectURL(url);
 
       toast.success('✅ Imagen descargada exitosamente', {
@@ -200,33 +200,23 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
     }
   };
 
-  // 🔗 REFACTORIZADO: Compartir por WhatsApp - Simple y directo
+  // 🔗 SIMPLIFICADO: Compartir por WhatsApp - Solo imagen QR
   const handleShareWhatsApp = async () => {
     if (isSharing) return;
     setIsSharing(true);
     
     try {
-      // PASO 1: Crear el mensaje (con fallback garantizado)
-      const defaultMessage = `🎉 ¡Tu reserva está confirmada!
-
-📍 ${businessName}
-👤 ${reserva.cliente?.nombre || 'Sin nombre'}
-📅 ${new Date(reserva.fecha).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-🕐 ${reserva.hora}
-👥 ${reserva.numeroPersonas} ${reserva.numeroPersonas === 1 ? 'persona' : 'personas'}
-
-Presenta este código QR al llegar 📱`;
-
-      // Primero intentar customMessage, luego mensajePersonalizado, luego default
-      let mensaje = defaultMessage;
+      // PASO 1: Verificar mensaje personalizado (solo para portapapeles)
+      let mensajePersonalizado: string | null = null;
+      
       if (customMessage?.trim() && customMessage.trim().length > 0) {
-        mensaje = customMessage.trim();
-        console.log('📋 Usando mensaje personalizado (custom):', mensaje);
+        mensajePersonalizado = customMessage.trim();
+        console.log('📋 Mensaje personalizado encontrado (custom)');
       } else if (reserva.mensajePersonalizado?.trim() && reserva.mensajePersonalizado.trim().length > 0) {
-        mensaje = reserva.mensajePersonalizado.trim();
-        console.log('📋 Usando mensaje personalizado (reserva):', mensaje);
+        mensajePersonalizado = reserva.mensajePersonalizado.trim();
+        console.log('📋 Mensaje personalizado encontrado (reserva)');
       } else {
-        console.log('📋 Usando mensaje por defecto:', mensaje);
+        console.log('📋 Sin mensaje personalizado - solo enviando imagen');
       }
 
       // PASO 2: Generar la imagen del QR
@@ -261,21 +251,20 @@ Presenta este código QR al llegar 📱`;
 
       toast.dismiss('generating');
 
-      // PASO 3: Copiar mensaje al portapapeles PRIMERO (WhatsApp lo leerá automáticamente)
+      // PASO 3: Copiar SOLO mensaje personalizado al portapapeles (si existe)
       const file = new File([blob], `reserva-qr.png`, { type: 'image/png' });
       
-      // Determinar qué tipo de mensaje se está usando
-      const esPersonalizado = (customMessage?.trim() && customMessage.trim().length > 0) || 
-                             (reserva.mensajePersonalizado?.trim() && reserva.mensajePersonalizado.trim().length > 0);
-      
-      // 🔑 CLAVE: Copiar mensaje ANTES de compartir para que WhatsApp lo detecte
-      try {
-        await navigator.clipboard.writeText(mensaje);
-        console.log('✅ Mensaje copiado al portapapeles - WhatsApp lo detectará');
-      } catch (err) {
-        console.warn('⚠️ No se pudo copiar mensaje:', err);
+      // Copiar mensaje personalizado al portapapeles solo si existe
+      if (mensajePersonalizado) {
+        try {
+          await navigator.clipboard.writeText(mensajePersonalizado);
+          console.log('✅ Mensaje personalizado copiado al portapapeles');
+        } catch (err) {
+          console.warn('⚠️ No se pudo copiar mensaje personalizado:', err);
+        }
       }
       
+      // PASO 4: Compartir SOLO la imagen (nunca mensaje + imagen juntos)
       if (navigator.share) {
         const canShareFiles = navigator.canShare?.({ files: [file] }) ?? false;
         
@@ -284,28 +273,16 @@ Presenta este código QR al llegar 📱`;
             // Pequeño delay para asegurar que el mensaje esté en el portapapeles
             await new Promise(resolve => setTimeout(resolve, 200));
             
-            // Intentar compartir SOLO imagen (ideal)
-            try {
-              await navigator.share({
-                files: [file]
-              });
-            } catch (shareError: any) {
-              // Si falla por mensaje vacío, usar texto minimal
-              if (shareError.message?.includes('empty') || shareError.name === 'TypeError') {
-                console.log('⚠️ Navegador requiere texto, enviando espacio...');
-                await navigator.share({
-                  text: ' ', // Espacio mínimo
-                  files: [file]
-                });
-              } else {
-                throw shareError;
-              }
-            }
+            // SIEMPRE compartir imagen + espacio mínimo (evita error "empty message")
+            await navigator.share({
+              text: ' ', // Espacio mínimo requerido por algunos navegadores
+              files: [file]
+            });
 
-            toast.success('✅ ¡Perfecto!', {
-              description: esPersonalizado 
-                ? '🎉 Imagen enviada - El mensaje personalizado está listo en WhatsApp' 
-                : '🎉 Imagen enviada - El mensaje está listo en WhatsApp',
+            toast.success('✅ QR enviado correctamente', {
+              description: mensajePersonalizado 
+                ? '📋 Mensaje personalizado copiado - Pégalo en WhatsApp' 
+                : '📷 Solo imagen enviada - Sin mensaje adicional',
               duration: 5000,
               className: 'bg-green-600 text-white border-0',
             });
@@ -322,7 +299,7 @@ Presenta este código QR al llegar 📱`;
         }
       }
 
-      // PASO 4: FALLBACK - Copiar imagen + abrir WhatsApp Web
+      // PASO 5: FALLBACK - Copiar imagen al portapapeles o descargar
       let imagenCopiada = false;
       
       if (navigator.clipboard && 'write' in navigator.clipboard) {
@@ -336,16 +313,20 @@ Presenta este código QR al llegar 📱`;
         }
       }
 
-      // Copiar el mensaje al portapapeles
-      try {
-        await navigator.clipboard.writeText(mensaje);
-      } catch (err) {
-        console.warn('No se pudo copiar mensaje:', err);
+      // Copiar SOLO mensaje personalizado al portapapeles (si existe)
+      if (mensajePersonalizado) {
+        try {
+          await navigator.clipboard.writeText(mensajePersonalizado);
+        } catch (err) {
+          console.warn('No se pudo copiar mensaje personalizado:', err);
+        }
       }
 
       if (imagenCopiada) {
-        toast.success('� Imagen y mensaje copiados', {
-          description: 'Abriendo WhatsApp... Pega el mensaje primero, luego la imagen (Ctrl+V)',
+        toast.success('📋 Imagen copiada', {
+          description: mensajePersonalizado 
+            ? 'Imagen + mensaje personalizado listos en portapapeles (Ctrl+V)'
+            : 'Imagen lista en portapapeles (Ctrl+V)',
           duration: 6000,
         });
       } else {
@@ -357,8 +338,10 @@ Presenta este código QR al llegar 📱`;
         downloadLink.click();
         URL.revokeObjectURL(imageUrl);
         
-        toast.success('📥 Mensaje copiado + Imagen descargada', {
-          description: 'Abriendo WhatsApp... Pega el mensaje (Ctrl+V) y adjunta la imagen',
+        toast.success('📥 Imagen descargada', {
+          description: mensajePersonalizado 
+            ? 'Mensaje personalizado copiado - Adjunta la imagen manualmente'
+            : 'Solo imagen descargada - Sin mensaje adicional',
           duration: 6000,
         });
       }
@@ -374,34 +357,27 @@ Presenta este código QR al llegar 📱`;
     }
   };
 
-  // Copiar mensaje al portapapeles
+  // Copiar mensaje personalizado al portapapeles (solo si existe)
   const handleCopyMessage = async () => {
     try {
-      // Usar la MISMA lógica que handleShareWhatsApp
-      const defaultMessage = `🎉 ¡Tu reserva está confirmada!
-
-📍 ${businessName}
-👤 ${reserva.cliente?.nombre || 'Sin nombre'}
-📅 ${new Date(reserva.fecha).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-🕐 ${reserva.hora}
-👥 ${reserva.numeroPersonas} ${reserva.numeroPersonas === 1 ? 'persona' : 'personas'}
-
-Presenta este código QR al llegar 📱`;
-
-      let mensaje = defaultMessage;
+      // Solo copiar mensaje personalizado
+      let mensajePersonalizado: string | null = null;
+      
       if (customMessage?.trim() && customMessage.trim().length > 0) {
-        mensaje = customMessage.trim();
+        mensajePersonalizado = customMessage.trim();
       } else if (reserva.mensajePersonalizado?.trim() && reserva.mensajePersonalizado.trim().length > 0) {
-        mensaje = reserva.mensajePersonalizado.trim();
+        mensajePersonalizado = reserva.mensajePersonalizado.trim();
+      }
+
+      if (!mensajePersonalizado) {
+        toast.error('❌ No hay mensaje personalizado para copiar');
+        return;
       }
       
-      await navigator.clipboard.writeText(mensaje);
+      await navigator.clipboard.writeText(mensajePersonalizado);
       setIsCopied(true);
       
-      const esPersonalizado = (customMessage?.trim() && customMessage.trim().length > 0) || 
-                             (reserva.mensajePersonalizado?.trim() && reserva.mensajePersonalizado.trim().length > 0);
-      
-      toast.success(esPersonalizado ? '✅ Mensaje personalizado copiado' : '✅ Mensaje copiado', {
+      toast.success('✅ Mensaje personalizado copiado', {
         description: 'Ahora comparte el QR y pega el mensaje en WhatsApp',
         duration: 3000,
       });
@@ -550,30 +526,27 @@ Presenta este código QR al llegar 📱`;
         </div>
       </div>
 
-      {/* Instrucciones mejoradas */}
-      <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
-        <p className="font-semibold text-green-900 mb-2 flex items-center gap-2">
+      {/* Instrucciones simplificadas */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
+        <p className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
           <MessageCircle className="w-4 h-4" />
-          Cómo compartir por WhatsApp
+          Compartir por WhatsApp
         </p>
-        <ol className="text-green-800 space-y-1.5 text-xs ml-1">
-          <li className="flex items-start gap-2">
-            <span className="font-bold min-w-[20px]">1.</span>
-            <span>Toca el botón verde de WhatsApp ⬆️</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="font-bold min-w-[20px]">2.</span>
-            <span>El mensaje se copia automáticamente 📋</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="font-bold min-w-[20px]">3.</span>
-            <span>Comparte la imagen del QR por WhatsApp 📱</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="font-bold min-w-[20px]">4.</span>
-            <span>Pega el mensaje copiado en WhatsApp ✅</span>
-          </li>
-        </ol>
+        <div className="text-blue-800 space-y-1.5 text-xs ml-1">
+          {((customMessage?.trim() && customMessage.trim().length > 0) || 
+            (reserva.mensajePersonalizado?.trim() && reserva.mensajePersonalizado.trim().length > 0)) ? (
+            <div className="space-y-2">
+              <p>✅ <strong>Se enviará:</strong> Solo la imagen del QR</p>
+              <p>📋 <strong>Tu mensaje personalizado</strong> se copia automáticamente al portapapeles</p>
+              <p>💬 <strong>Pega el mensaje</strong> en WhatsApp después de enviar la imagen</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p>✅ Se enviará solo la imagen del QR</p>
+              <p>💡 <strong>Consejo:</strong> Personaliza tu mensaje usando el botón ⚙️</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Modal de Edición de Mensaje */}
