@@ -390,24 +390,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ Validar email obligatorio (excepto para EXPRESS)
+    // ✅ Email es OPCIONAL - solo validar formato si se proporciona
     const isExpressReservation = data.cliente?.id === 'EXPRESS';
     
     if (!isExpressReservation) {
-      if (!data.cliente?.email || data.cliente.email.trim() === '') {
-        return NextResponse.json(
-          { success: false, error: 'El email del cliente es obligatorio' },
-          { status: 400 }
-        );
-      }
-
-      // ✅ Validar formato de email
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(data.cliente.email)) {
-        return NextResponse.json(
-          { success: false, error: 'El email del cliente no tiene un formato válido' },
-          { status: 400 }
-        );
+      // ✅ Validar formato de email SOLO si se proporciona
+      if (data.cliente?.email && data.cliente.email.trim() !== '') {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(data.cliente.email)) {
+          return NextResponse.json(
+            { success: false, error: 'El email del cliente no tiene un formato válido' },
+            { status: 400 }
+          );
+        }
       }
 
       // ✅ Validar teléfono obligatorio
@@ -521,7 +516,7 @@ export async function POST(request: NextRequest) {
             cedula: cedulaReal, // ✅ Usar cédula real del formulario
             nombre: data.cliente.nombre,
             telefono: data.cliente.telefono || '',
-            correo: data.cliente.email || `temp-${Date.now()}@temp.com`,
+            correo: data.cliente.email || 'noemail@reserva.local',
             puntos: 0,
             registeredAt: now
           }
@@ -534,7 +529,8 @@ export async function POST(request: NextRequest) {
         
         const shouldUpdateEmail = data.cliente.email && 
                                   data.cliente.email !== clienteActual.correo && 
-                                  !clienteActual.correo.includes('temp-');
+                                  !clienteActual.correo.includes('temp-') &&
+                                  clienteActual.correo !== 'noemail@reserva.local';
         
         const shouldUpdatePhone = data.cliente.telefono && 
                                   data.cliente.telefono !== clienteActual.telefono;
@@ -695,7 +691,7 @@ export async function POST(request: NextRequest) {
         // Al primer escaneo del QR cambiará a CHECKED_IN automáticamente
         status: mapReservaStatusToPrisma(data.estado || 'En Progreso'),
         customerName: data.cliente.nombre,
-        customerEmail: data.cliente.email || `temp-${Date.now()}@temp.com`,
+        customerEmail: data.cliente.email || 'noemail@reserva.local',
         customerPhone: data.cliente.telefono,
         guestCount: data.numeroPersonas,
         specialRequests: data.razonVisita,
