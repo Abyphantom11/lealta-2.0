@@ -48,6 +48,9 @@ export function CustomCalendar({
     weeks.push(calendarDays.slice(i, i + 7));
   }
 
+  // Variable para evitar doble disparo de eventos touch + click
+  const touchHandledRef = React.useRef<{prev: number, next: number}>({prev: 0, next: 0});
+
   // Función para ir al mes anterior
   const prevMonth = () => {
     setCurrentMonth(subMonths(currentMonth, 1));
@@ -68,6 +71,7 @@ export function CustomCalendar({
       {/* Encabezado del calendario - Compacto */}
       <div className="flex items-center justify-between mb-3">
         <Button
+          type="button"
           variant="outline"
           size="icon"
           className={cn(
@@ -75,7 +79,26 @@ export function CustomCalendar({
             className?.includes('mobile-calendar-fullscreen') ? "h-9 w-9" :
             className?.includes('mobile-calendar') ? "h-8 w-8" : "h-8 w-8"
           )} 
-          onClick={prevMonth}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            touchHandledRef.current.prev = Date.now();
+            prevMonth();
+          }}
+          onClick={(e) => {
+            const timeSinceTouch = Date.now() - touchHandledRef.current.prev;
+            
+            // Si el touch fue hace menos de 500ms, ignorar el click (es el mismo gesto)
+            if (timeSinceTouch < 500) {
+              e.preventDefault();
+              e.stopPropagation();
+              return;
+            }
+            
+            e.preventDefault();
+            e.stopPropagation();
+            prevMonth();
+          }}
         >
           <ChevronLeft className="h-4 w-4 text-gray-700" />
         </Button>
@@ -87,6 +110,7 @@ export function CustomCalendar({
           {format(currentMonth, 'MMMM yyyy', { locale })}
         </div>
         <Button
+          type="button"
           variant="outline"
           size="icon"
           className={cn(
@@ -94,7 +118,26 @@ export function CustomCalendar({
             className?.includes('mobile-calendar-fullscreen') ? "h-9 w-9" :
             className?.includes('mobile-calendar') ? "h-8 w-8" : "h-8 w-8"
           )}
-          onClick={nextMonth}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            touchHandledRef.current.next = Date.now();
+            nextMonth();
+          }}
+          onClick={(e) => {
+            const timeSinceTouch = Date.now() - touchHandledRef.current.next;
+            
+            // Si el touch fue hace menos de 500ms, ignorar el click (es el mismo gesto)
+            if (timeSinceTouch < 500) {
+              e.preventDefault();
+              e.stopPropagation();
+              return;
+            }
+            
+            e.preventDefault();
+            e.stopPropagation();
+            nextMonth();
+          }}
         >
           <ChevronRight className="h-4 w-4 text-gray-700" />
         </Button>
@@ -136,6 +179,7 @@ export function CustomCalendar({
               return (
                 <Button
                   key={day.toISOString()}
+                  type="button"
                   variant={isSelected ? "default" : "ghost"}
                   size="sm"
                   className={cn(

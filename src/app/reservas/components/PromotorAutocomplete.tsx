@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Plus, Users, Check } from "lucide-react";
+import { Plus, Users, Check, X } from "lucide-react";
 
 interface Promotor {
   id: string;
@@ -18,18 +18,22 @@ interface PromotorAutocompleteProps {
   businessId: string;
   value?: string; // ID del promotor seleccionado
   onSelect: (promotorId: string, promotorNombre: string) => void;
+  onClear?: () => void; // ✨ Callback para limpiar
   label?: string;
   placeholder?: string;
   required?: boolean;
+  allowEmpty?: boolean; // ✨ Permitir vacío (sin promotor)
 }
 
 export function PromotorAutocomplete({
   businessId,
   value,
   onSelect,
+  onClear,
   label = "Promotor",
   placeholder = "Buscar promotor...",
   required = false,
+  allowEmpty = false,
 }: Readonly<PromotorAutocompleteProps>) {
   const [searchTerm, setSearchTerm] = useState("");
   const [promotores, setPromotores] = useState<Promotor[]>([]);
@@ -177,6 +181,17 @@ export function PromotorAutocomplete({
     setShowDropdown(true);
   };
 
+  // ✨ Limpiar el campo
+  const handleClear = () => {
+    setSearchTerm('');
+    setSelectedPromotor(null);
+    setShowDropdown(false);
+    if (onClear) {
+      onClear();
+    }
+    inputRef.current?.focus();
+  };
+
   return (
     <div className="space-y-2 relative" ref={dropdownRef}>
       <Label htmlFor="promotor-search" className="text-sm font-medium text-gray-800">
@@ -192,7 +207,7 @@ export function PromotorAutocomplete({
           onChange={handleInputChange}
           onFocus={handleInputFocus}
           placeholder={placeholder}
-          className="min-h-[44px] text-gray-900 placeholder:text-gray-500 pr-10"
+          className="min-h-[44px] text-gray-900 placeholder:text-gray-500 pr-20"
           required={required}
           disabled={isLoading}
           autoComplete="off"
@@ -201,11 +216,27 @@ export function PromotorAutocomplete({
           spellCheck="false"
         />
         
-        {selectedPromotor && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            <Check className="h-5 w-5 text-green-600" />
-          </div>
-        )}
+        {/* Botones de acción */}
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          {/* Botón para limpiar */}
+          {(searchTerm || selectedPromotor) && allowEmpty && (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+              title="Limpiar"
+            >
+              <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+            </button>
+          )}
+          
+          {/* Check de confirmación */}
+          {selectedPromotor && (
+            <div className="flex-shrink-0">
+              <Check className="h-5 w-5 text-green-600" />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Dropdown de sugerencias */}

@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
         lastLogin: true,
         createdAt: true,
         createdBy: true,
-        creator: {
+        User: {
           select: {
             name: true,
             email: true,
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ users });
   } catch (error) {
-    console.error('Error listing users:', error);
+    console.error('❌ [API /users GET] Error listing users:', error);
     return NextResponse.json(
       { error: 'Error obteniendo usuarios' },
       { status: 500 }
@@ -126,6 +126,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
+    
     const { email, password, name, role } = createUserSchema.parse(body);
 
     // Verificar jerarquía de roles
@@ -167,6 +168,7 @@ export async function POST(request: NextRequest) {
     // Crear usuario
     const newUser = await prisma.user.create({
       data: {
+        id: crypto.randomUUID(),
         businessId: currentUser.businessId,
         email,
         passwordHash,
@@ -174,6 +176,7 @@ export async function POST(request: NextRequest) {
         role,
         createdBy: currentUser.id,
         isActive: true,
+        updatedAt: new Date(),
       },
       select: {
         id: true,
@@ -185,6 +188,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    console.log('✅ [API /users POST] Usuario creado:', { id: newUser.id, email: newUser.email, role: newUser.role });
+
     return NextResponse.json(
       {
         success: true,
@@ -193,9 +198,10 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error('Error creating user:', error);
+    console.error('❌ [API /users POST] Error creating user:', error);
 
     if (error instanceof z.ZodError) {
+      console.log('❌ [API /users POST] Validation error:', error.issues);
       return NextResponse.json(
         { error: 'Datos inválidos', details: error.issues },
         { status: 400 }

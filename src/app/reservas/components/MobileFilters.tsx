@@ -33,6 +33,7 @@ export const MobileFilters = ({
       {/* Botón para mostrar filtros adicionales */}
       <div className="flex gap-2 mb-3">
         <Button
+          type="button"
           variant="outline"
           onClick={() => setShowFilters(!showFilters)}
           className="flex-1 min-h-[44px] text-sm font-medium justify-center"
@@ -48,6 +49,7 @@ export const MobileFilters = ({
         
         {hasActiveFilters && (
           <Button
+            type="button"
             variant="outline"
             size="sm"
             onClick={clearFilters}
@@ -64,6 +66,7 @@ export const MobileFilters = ({
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground">Fecha de reservas</label>
           <Button
+            type="button"
             variant="outline"
             className="w-full min-h-[44px] justify-start"
             onClick={() => setShowDatePicker(true)}

@@ -73,6 +73,7 @@ export const CalendarFullscreenModal = ({
           </div>
         </div>
         <Button
+          type="button"
           variant="outline"
           size="sm"
           onClick={onClose}
@@ -102,6 +103,7 @@ export const CalendarFullscreenModal = ({
       >
         <div className="flex gap-3">
           <Button
+            type="button"
             variant="outline"
             onClick={onClose}
             className="flex-1 h-12"
@@ -109,6 +111,7 @@ export const CalendarFullscreenModal = ({
             Cancelar
           </Button>
           <Button
+            type="button"
             onClick={() => handleDateSelect(selectedDate)}
             className="flex-1 h-12"
           >

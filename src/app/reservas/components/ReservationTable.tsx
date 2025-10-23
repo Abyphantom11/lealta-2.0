@@ -784,6 +784,7 @@ export function ReservationTable({
                 <ReservationCard
                   key={`${reserva.id}-${dataHash}`} // 🔑 Hash único para forzar re-render
                   reserva={reservaActualizada}
+                  businessId={businessId}
                   onView={() => onViewReserva(reserva.id)}
                   onEdit={onEditReserva ? () => onEditReserva(reservaActualizada) : undefined}
                   onDateChange={onFechaChange ? async (reservaId, newDate) => {
@@ -794,6 +795,14 @@ export function ReservationTable({
                   } : undefined}
                   onNameChange={onNameChange ? async (reservaId, clienteId, newName) => {
                     await onNameChange(reservaId, clienteId, newName);
+                  } : undefined}
+                  onHoraChange={onHoraChange ? async (reservaId, newHora) => {
+                    updateField(reservaId, 'hora', newHora);
+                    onHoraChange(reservaId, newHora);
+                  } : undefined}
+                  onPromotorChange={onPromotorChange ? async (reservaId, promotorId, promotorName) => {
+                    updateField(reservaId, 'promotor', { id: promotorId, nombre: promotorName });
+                    await onPromotorChange(reservaId, promotorId, promotorName);
                   } : undefined}
                   reservedDates={allReservas?.map(r => r.fecha) || []}
                 />

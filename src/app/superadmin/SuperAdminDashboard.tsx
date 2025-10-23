@@ -530,9 +530,13 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
     setIsLoadingUsers(true);
     try {
       const response = await fetch('/api/users');
+      
       if (response.ok) {
         const data = await response.json();
         setUsers(data.users || []);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+        console.error('Error en response:', errorData);
       }
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -555,6 +559,8 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
       });
 
       if (response.ok) {
+        const data = await response.json();
+        console.log('Usuario creado:', data);
         setCreateUserData({ name: '', email: '', password: '', role: 'STAFF' });
         setShowCreateUser(false);
         fetchUsers(); // Recargar la lista

@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "./ui/button";
 import { Download, MessageCircle, Loader2, Settings, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import QRCard from "./QRCard";
-import html2canvas from "html2canvas";
+import { useBrowserCapabilities, getStrategyUI } from "@/hooks/useBrowserCapabilities";
+import { useDetailedShareCapabilities, getCompatibilityUI } from "@/hooks/useDetailedShareCapabilities";
+import { useQRGeneration } from "@/hooks/useQRGeneration";
+import { executeShareStrategy, copyToClipboardSafe } from "@/utils/shareStrategies";
 
 // Tipo compatible con ambas interfaces de Reserva
 interface QRCardReserva {
@@ -31,6 +34,7 @@ interface QRCardShareProps {
 }
 
 export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardShareProps) {
+  // Estados básicos
   const [businessName, setBusinessName] = useState('Mi Negocio');
   const [cardDesign, setCardDesign] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -39,7 +43,14 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
   const [showMessageEditor, setShowMessageEditor] = useState(false);
   const [isSavingMessage, setIsSavingMessage] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  
+  // Refs
   const qrCardRef = useRef<HTMLDivElement>(null);
+  
+  // Hooks personalizados
+  const capabilities = useBrowserCapabilities();
+  const detailedCaps = useDetailedShareCapabilities();
+  const { generateQR, downloadQR, clearCache } = useQRGeneration();
 
   // Notificar cuando el usuario abre/cierra el modal de configuración
   useEffect(() => {
@@ -143,283 +154,170 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
     loadConfig();
   }, [businessId]);
 
-  // Generar imagen del QR Card con mejor manejo de errores
-  const generateQRCardImage = async (): Promise<Blob | null> => {
-    if (!qrCardRef.current) return null;
+  // Limpiar cache al desmontar el componente
+  useEffect(() => {
+    return () => {
+      clearCache();
+    };
+  }, [clearCache]);
 
-    try {
-      const canvas = await html2canvas(qrCardRef.current, {
-        backgroundColor: null,
-        scale: 2,
-        logging: false,
-        useCORS: true,
-        allowTaint: true,
-        foreignObjectRendering: false, // ✅ Evita document.write()
-        removeContainer: true, // ✅ Limpia el DOM después
-        width: qrCardRef.current.scrollWidth, // ✅ Asegurar ancho completo
-        height: qrCardRef.current.scrollHeight, // ✅ Asegurar alto completo
-        scrollX: 0,
-        scrollY: 0,
-      });
-
-      return new Promise((resolve) => {
-        canvas.toBlob((blob) => {
-          resolve(blob);
-        }, 'image/png', 1); // ✅ Máxima calidad
-      });
-    } catch (error) {
-      console.error('Error generando imagen:', error);
-      return null;
+  // 📥 Descargar imagen (OPTIMIZADO)
+  const handleDownload = useCallback(async () => {
+    if (!qrCardRef.current) {
+      toast.error('❌ Error: No se encontró el QR');
+      return;
     }
-  };
 
-  // Descargar imagen
-  const handleDownload = async () => {
     try {
-      const blob = await generateQRCardImage();
-      if (!blob) {
-        toast.error('❌ Error al generar la imagen');
+      const element = qrCardRef.current.querySelector('[data-qr-card]') as HTMLElement;
+      if (!element) {
+        toast.error('❌ Error: No se encontró el elemento QR');
         return;
       }
 
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `reserva-${reserva.cliente?.nombre?.replace(/\s+/g, '-') || 'qr'}.png`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+      toast.loading('📸 Generando imagen...', { id: 'download' });
+      
+      await generateQR(element);
+      const fileName = `reserva-${reserva.cliente?.nombre?.replace(/\s+/g, '-') || 'qr'}.png`;
+      const success = downloadQR(fileName);
 
-      toast.success('✅ Imagen descargada exitosamente', {
-        className: 'bg-green-600 text-white border-0',
-      });
+      toast.dismiss('download');
+
+      if (success) {
+        toast.success('✅ Imagen descargada exitosamente', {
+          className: 'bg-green-600 text-white border-0',
+        });
+      } else {
+        toast.error('❌ Error al descargar la imagen');
+      }
     } catch (error) {
       console.error('Error al descargar:', error);
+      toast.dismiss('download');
       toast.error('❌ Error al descargar la imagen');
     }
-  };
+  }, [reserva.cliente?.nombre, generateQR, downloadQR]);
 
-  // 🔗 SIMPLIFICADO: Compartir por WhatsApp - Solo imagen QR
-  const handleShareWhatsApp = async () => {
+  // 🚀 COMPARTIR POR WHATSAPP (OPTIMIZADO CON ESTRATEGIAS)
+  const handleShareWhatsApp = useCallback(async () => {
     if (isSharing) return;
     setIsSharing(true);
     
     try {
-      // PASO 1: Generar mensaje (personalizado o por defecto)
-      let mensajeParaEnviar: string;
-      
-      if (customMessage?.trim() && customMessage.trim().length > 0) {
-        mensajeParaEnviar = customMessage.trim();
-        console.log('📋 Usando mensaje personalizado (custom)');
-      } else if (reserva.mensajePersonalizado?.trim() && reserva.mensajePersonalizado.trim().length > 0) {
-        mensajeParaEnviar = reserva.mensajePersonalizado.trim();
-        console.log('📋 Usando mensaje personalizado (reserva)');
-      } else {
-        // Mensaje mínimo por defecto (solo para evitar error "empty message")
-        mensajeParaEnviar = ' ';
-        console.log('📋 Usando mensaje mínimo por defecto');
+      // PASO 1: Determinar mensaje a enviar
+      let mensajeParaEnviar = '';
+      const tienePersonalizado = !!(
+        (customMessage?.trim() && customMessage.trim().length > 0) || 
+        (reserva.mensajePersonalizado?.trim() && reserva.mensajePersonalizado.trim().length > 0)
+      );
+
+      if (tienePersonalizado) {
+        mensajeParaEnviar = (customMessage?.trim() || reserva.mensajePersonalizado?.trim() || '').trim();
+        console.log('📋 Usando mensaje personalizado');
       }
 
-      // PASO 2: Generar la imagen del QR
-      toast.loading('📸 Generando imagen del QR...', { id: 'generating' });
-
-      const qrCardElement = document.querySelector('[data-qr-card]') as HTMLElement;
+      // PASO 2: Generar QR
+      const qrCardElement = qrCardRef.current?.querySelector('[data-qr-card]') as HTMLElement;
       if (!qrCardElement) {
-        toast.dismiss('generating');
         toast.error('❌ No se encontró el QR');
         setIsSharing(false);
         return;
       }
 
-      const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(qrCardElement, {
-        backgroundColor: null,
-        scale: 2,
-        useCORS: true,
-        logging: false,
-      });
+      toast.loading('📸 Generando QR...', { id: 'share-loading' });
 
-      const blob = await new Promise<Blob | null>((resolve) => {
-        canvas.toBlob(resolve, 'image/png', 1);
-      });
-
+      const blob = await generateQR(qrCardElement);
+      
       if (!blob) {
-        toast.dismiss('generating');
+        toast.dismiss('share-loading');
         toast.error('❌ Error al generar la imagen');
         setIsSharing(false);
         return;
       }
 
-      toast.dismiss('generating');
+      toast.dismiss('share-loading');
 
-      // PASO 3: Copiar SOLO mensaje personalizado al portapapeles (si existe)
-      const file = new File([blob], `reserva-qr.png`, { type: 'image/png' });
-      
-      // Copiar SOLO mensaje personalizado al portapapeles (si existe)
-      const tienePersonalizado = (customMessage?.trim() && customMessage.trim().length > 0) || 
-                                 (reserva.mensajePersonalizado?.trim() && reserva.mensajePersonalizado.trim().length > 0);
-      
-      if (tienePersonalizado) {
-        try {
-          await navigator.clipboard.writeText(mensajeParaEnviar);
-          console.log('✅ Mensaje personalizado copiado al portapapeles');
-        } catch (err) {
-          console.warn('⚠️ No se pudo copiar mensaje personalizado:', err);
+      // PASO 3: Crear archivo
+      const file = new File(
+        [blob], 
+        `reserva-${reserva.cliente?.nombre?.replace(/\s+/g, '-') || reserva.id.slice(0, 8)}.png`,
+        { type: 'image/png' }
+      );
+
+      // PASO 4: Ejecutar estrategia recomendada
+      const strategyUI = getStrategyUI(capabilities.recommendedStrategy);
+      toast.loading(`${strategyUI.emoji} ${strategyUI.label}...`, { id: 'share-strategy' });
+
+      const result = await executeShareStrategy(
+        capabilities.recommendedStrategy,
+        {
+          file,
+          message: mensajeParaEnviar,
+          hasCustomMessage: tienePersonalizado,
         }
-      }
-      
-      // PASO 4: Compartir imagen con diferentes estrategias
-      if (navigator.share) {
-        const canShareFiles = navigator.canShare?.({ files: [file] }) ?? false;
-        
-        if (canShareFiles) {
-          try {
-            // Pequeño delay para asegurar que el mensaje esté en el portapapeles
-            await new Promise(resolve => setTimeout(resolve, 200));
-            
-            // Estrategia 1: Intentar solo con archivos
-            try {
-              await navigator.share({
-                files: [file]
-              });
+      );
 
-              toast.success('✅ QR enviado correctamente', {
-                description: tienePersonalizado 
-                  ? '📋 Mensaje personalizado copiado - Pégalo en WhatsApp' 
-                  : '📷 Solo imagen enviada - Sin mensaje adicional',
-                duration: 5000,
-                className: 'bg-green-600 text-white border-0',
-              });
-              
-              setIsSharing(false);
-              return;
-            } catch (innerError: any) {
-              console.warn('Share con solo archivos falló:', innerError);
-              
-              // Estrategia 2: Intentar con texto mínimo + archivos
-              if (innerError.message?.includes('empty') || innerError.message?.includes('Empty')) {
-                console.log('Intentando con texto mínimo...');
-                await navigator.share({
-                  text: mensajeParaEnviar, // Usar el mensaje (personalizado o espacio mínimo)
-                  files: [file]
-                });
+      toast.dismiss('share-strategy');
 
-                toast.success('✅ QR enviado correctamente', {
-                  description: tienePersonalizado 
-                    ? '📋 Mensaje personalizado copiado - Pégalo en WhatsApp' 
-                    : '📷 Imagen enviada con texto mínimo',
-                  duration: 5000,
-                  className: 'bg-green-600 text-white border-0',
-                });
-                
-                setIsSharing(false);
-                return;
-              }
-              
-              throw innerError; // Re-lanzar si no es problema de mensaje vacío
-            }
-
-          } catch (error: any) {
-            if (error.name === 'AbortError') {
-              setIsSharing(false);
-              return;
-            }
-            console.warn('Share API falló completamente:', error);
-          }
-        }
-      }
-
-      // PASO 5: FALLBACK - Copiar imagen al portapapeles o descargar
-      let imagenCopiada = false;
-      
-      if (navigator.clipboard && 'write' in navigator.clipboard) {
-        try {
-          await navigator.clipboard.write([
-            new ClipboardItem({ 'image/png': blob })
-          ]);
-          imagenCopiada = true;
-        } catch (err) {
-          console.warn('No se pudo copiar imagen:', err);
-        }
-      }
-
-      // Copiar SOLO mensaje personalizado al portapapeles (si existe)
-      if (tienePersonalizado) {
-        try {
-          await navigator.clipboard.writeText(mensajeParaEnviar);
-        } catch (err) {
-          console.warn('No se pudo copiar mensaje personalizado:', err);
-        }
-      }
-
-      if (imagenCopiada) {
-        toast.success('📋 Imagen copiada', {
-          description: tienePersonalizado 
-            ? 'Imagen + mensaje personalizado listos en portapapeles (Ctrl+V)'
-            : 'Imagen lista en portapapeles (Ctrl+V)',
-          duration: 6000,
+      if (result.success) {
+        toast.success(result.message, {
+          description: result.description,
+          duration: 5000,
+          className: 'bg-green-600 text-white border-0',
         });
-      } else {
-        // Descargar la imagen si no se pudo copiar
-        const imageUrl = URL.createObjectURL(blob);
-        const downloadLink = document.createElement('a');
-        downloadLink.href = imageUrl;
-        downloadLink.download = `reserva-qr-${reserva.id.slice(0, 8)}.png`;
-        downloadLink.click();
-        URL.revokeObjectURL(imageUrl);
-        
-        toast.success('📥 Imagen descargada', {
-          description: tienePersonalizado 
-            ? 'Mensaje personalizado copiado - Adjunta la imagen manualmente'
-            : 'Solo imagen descargada - Sin mensaje adicional',
-          duration: 6000,
+      } else if (result.message !== 'Compartir cancelado') {
+        toast.error(result.message, {
+          description: result.description,
         });
       }
-
-      // Abrir WhatsApp Web solo en fallback (comentado para no interferir)
-      // window.open('https://wa.me/', '_blank');
 
     } catch (error) {
       console.error('Error al compartir:', error);
+      toast.dismiss('share-loading');
+      toast.dismiss('share-strategy');
       toast.error('❌ Error al compartir por WhatsApp');
     } finally {
       setIsSharing(false);
     }
-  };
+  }, [
+    isSharing,
+    customMessage,
+    reserva.mensajePersonalizado,
+    reserva.cliente?.nombre,
+    reserva.id,
+    generateQR,
+    capabilities.recommendedStrategy,
+  ]);
 
-  // Copiar mensaje personalizado al portapapeles (solo si existe)
-  const handleCopyMessage = async () => {
+  // 📋 Copiar mensaje personalizado (OPTIMIZADO)
+  const handleCopyMessage = useCallback(async () => {
     try {
-      // Solo copiar mensaje personalizado
-      let mensajePersonalizado: string | null = null;
-      
-      if (customMessage?.trim() && customMessage.trim().length > 0) {
-        mensajePersonalizado = customMessage.trim();
-      } else if (reserva.mensajePersonalizado?.trim() && reserva.mensajePersonalizado.trim().length > 0) {
-        mensajePersonalizado = reserva.mensajePersonalizado.trim();
-      }
+      const mensajePersonalizado = customMessage?.trim() || reserva.mensajePersonalizado?.trim() || '';
 
       if (!mensajePersonalizado) {
         toast.error('❌ No hay mensaje personalizado para copiar');
         return;
       }
       
-      await navigator.clipboard.writeText(mensajePersonalizado);
-      setIsCopied(true);
+      const success = await copyToClipboardSafe(mensajePersonalizado);
       
-      toast.success('✅ Mensaje personalizado copiado', {
-        description: 'Ahora comparte el QR y pega el mensaje en WhatsApp',
-        duration: 3000,
-      });
-      
-      // Reset después de 3 segundos
-      setTimeout(() => setIsCopied(false), 3000);
+      if (success) {
+        setIsCopied(true);
+        
+        toast.success('✅ Mensaje copiado', {
+          description: 'Pega el mensaje en WhatsApp después de enviar el QR',
+          duration: 3000,
+        });
+        
+        // Reset después de 3 segundos
+        setTimeout(() => setIsCopied(false), 3000);
+      } else {
+        toast.error('❌ Error al copiar el mensaje');
+      }
     } catch (error) {
       console.error('Error al copiar:', error);
       toast.error('❌ Error al copiar el mensaje');
     }
-  };
+  }, [customMessage, reserva.mensajePersonalizado]);
 
   // Guardar mensaje personalizado
   const handleSaveMessage = async () => {
@@ -557,39 +455,100 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
         </div>
       </div>
 
-      {/* Instrucciones simplificadas */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
-        <p className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
-          <MessageCircle className="w-4 h-4" />
-          Compartir por WhatsApp
-        </p>
-        <div className="text-blue-800 space-y-1.5 text-xs ml-1">
-          {((customMessage?.trim() && customMessage.trim().length > 0) || 
-            (reserva.mensajePersonalizado?.trim() && reserva.mensajePersonalizado.trim().length > 0)) ? (
-            <div className="space-y-2">
-              <p>✅ <strong>Se enviará:</strong> Solo la imagen del QR</p>
-              <p>📋 <strong>Tu mensaje personalizado</strong> se copia automáticamente al portapapeles</p>
-              <p>💬 <strong>Pega el mensaje</strong> en WhatsApp después de enviar la imagen</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <p>✅ Se enviará solo la imagen del QR</p>
-              <p>💡 <strong>Consejo:</strong> Personaliza tu mensaje usando el botón ⚙️</p>
-            </div>
-          )}
+      {/* Indicador de compatibilidad mejorado */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3 text-sm">
+        {/* Badge de compatibilidad */}
+        <div className="flex items-center gap-2 mb-2">
+          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getCompatibilityUI(detailedCaps.compatibility).badgeColor}`}>
+            {getCompatibilityUI(detailedCaps.compatibility).emoji}
+            {getCompatibilityUI(detailedCaps.compatibility).label}
+            <span className="text-[10px] opacity-75">({detailedCaps.confidence}%)</span>
+          </span>
         </div>
+
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0 mt-0.5">
+            {getStrategyUI(capabilities.recommendedStrategy).emoji}
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-blue-900 mb-1">
+              {capabilities.strategyDescription}
+            </p>
+            
+            {/* Mensaje personalizado presente */}
+            {((customMessage?.trim() && customMessage.trim().length > 0) || 
+              (reserva.mensajePersonalizado?.trim() && reserva.mensajePersonalizado.trim().length > 0)) && (
+              <>
+                <div className="text-blue-700 space-y-1.5 text-xs mt-2">
+                  <p className="font-medium">📱 Tu dispositivo:</p>
+                  <p className="text-[11px] opacity-90">
+                    {detailedCaps.os === 'ios' && `iOS ${detailedCaps.osVersion || '?'}`}
+                    {detailedCaps.os === 'android' && `Android ${detailedCaps.osVersion || '?'}`}
+                    {!detailedCaps.isMobile && 'Desktop'}
+                    {' • '}
+                    {detailedCaps.browser === 'safari' && 'Safari'}
+                    {detailedCaps.browser === 'chrome' && 'Chrome'}
+                    {detailedCaps.browser === 'firefox' && 'Firefox'}
+                    {detailedCaps.browser === 'edge' && 'Edge'}
+                    {detailedCaps.browser === 'opera' && 'Opera'}
+                    {detailedCaps.browser === 'brave' && 'Brave'}
+                    {detailedCaps.browser === 'samsung' && 'Samsung Internet'}
+                    {detailedCaps.browser === 'other' && 'Otro'}
+                    {detailedCaps.browserVersion && ` ${detailedCaps.browserVersion}`}
+                    {detailedCaps.browserEngine && detailedCaps.browserEngine !== 'other' && 
+                      ` (${detailedCaps.browserEngine === 'chromium' ? 'Chromium' : 
+                           detailedCaps.browserEngine === 'webkit' ? 'WebKit' : 
+                           detailedCaps.browserEngine === 'gecko' ? 'Gecko' : ''})`}
+                  </p>
+                  
+                  <p className="font-medium mt-2">� Qué esperar:</p>
+                  <p className="text-[11px] opacity-90">{detailedCaps.compatibilityReason}</p>
+                  
+                  <p className="font-medium mt-2">✅ Acción recomendada:</p>
+                  <p className="text-[11px] opacity-90">{detailedCaps.recommendedAction}</p>
+                </div>
+              </>
+            )}
+            
+            {/* Sin mensaje personalizado */}
+            {!((customMessage?.trim() && customMessage.trim().length > 0) || 
+               (reserva.mensajePersonalizado?.trim() && reserva.mensajePersonalizado.trim().length > 0)) && (
+              <div className="text-blue-700 space-y-1 text-xs">
+                <p>✅ Se compartirá solo la imagen del QR</p>
+                <p>💡 <strong>Sugerencia:</strong> Personaliza tu mensaje con el botón ⚙️</p>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Info técnica (debug) */}
+        {process.env.NODE_ENV === 'development' && (
+          <details className="mt-2 text-xs text-gray-600">
+            <summary className="cursor-pointer hover:text-gray-800">Detalles técnicos</summary>
+            <div className="mt-1 pl-2 space-y-0.5 font-mono">
+              <p>🌐 Chrome: {capabilities.isChrome ? `v${capabilities.chromeVersion}` : 'No'}</p>
+              <p>📱 Móvil: {capabilities.isMobile ? 'Sí' : 'No'}</p>
+              <p>🔗 Share API: {capabilities.hasShareAPI ? 'Sí' : 'No'}</p>
+              <p>📤 Archivos: {capabilities.canShareFiles ? 'Sí' : 'No'}</p>
+              <p>📝 Texto: {capabilities.canShareText ? 'Sí' : 'No'}</p>
+              <p>🎯 Ambos: {capabilities.canShareBoth ? 'Sí' : 'No'}</p>
+            </div>
+          </details>
+        )}
       </div>
 
       {/* Modal de Edición de Mensaje */}
       {showMessageEditor && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowMessageEditor(false);
-            }
-          }}
+        <dialog
+          open
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4 border-0"
+          aria-modal="true"
         >
+          <button 
+            className="absolute inset-0 w-full h-full opacity-0"
+            onClick={() => setShowMessageEditor(false)}
+            aria-label="Cerrar diálogo"
+          ></button>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto mx-auto mb-0 sm:mb-auto animate-slide-up">
             {/* Header */}
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-5 rounded-t-2xl">
@@ -655,7 +614,7 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
               </Button>
             </div>
           </div>
-        </div>
+        </dialog>
       )}
     </div>
   );

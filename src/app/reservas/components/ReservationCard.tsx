@@ -9,14 +9,19 @@ import { useEffect, useState } from "react";
 import { DateChangeModal } from "./DateChangeModal";
 import { PersonasAjusteModal } from "./PersonasAjusteModal";
 import { EditNameModal } from "./EditNameModal";
+import { HoraChangeModal } from "./HoraChangeModal";
+import { PromotorChangeModal } from "./PromotorChangeModal";
 
 interface ReservationCardProps {
   reserva: Reserva;
+  businessId?: string; // ✅ Nueva prop para businessId (necesario para promotor)
   onView: () => void;
   onEdit?: () => void; // ✅ Nueva prop para editar
   onDateChange?: (reservaId: string, newDate: Date) => Promise<void>; // ✅ Nueva prop para cambiar fecha
   onPersonasChange?: (reservaId: string, newPersonas: number) => Promise<void>; // ✅ Nueva prop para cambiar personas
   onNameChange?: (reservaId: string, clienteId: string, newName: string) => Promise<void>; // ✅ Nueva prop para cambiar nombre
+  onHoraChange?: (reservaId: string, newHora: string) => Promise<void>; // ✅ Nueva prop para cambiar hora
+  onPromotorChange?: (reservaId: string, promotorId: string, promotorName: string) => Promise<void>; // ✅ Nueva prop para cambiar promotor
   reservedDates?: string[]; // Fechas que ya tienen reservas
 }
 
@@ -50,11 +55,24 @@ const getEstadoColor = (estado: Reserva['estado']) => {
   }
 };
 
-export const ReservationCard = ({ reserva, onView, onEdit, onDateChange, onPersonasChange, onNameChange, reservedDates = [] }: ReservationCardProps) => {
+export const ReservationCard = ({ 
+  reserva, 
+  businessId = 'golom',
+  onView, 
+  onEdit, 
+  onDateChange, 
+  onPersonasChange, 
+  onNameChange, 
+  onHoraChange,
+  onPromotorChange,
+  reservedDates = [] 
+}: ReservationCardProps) => {
   const [renderKey, setRenderKey] = useState(0);
   const [showDateChangeModal, setShowDateChangeModal] = useState(false);
   const [showPersonasModal, setShowPersonasModal] = useState(false);
   const [showEditNameModal, setShowEditNameModal] = useState(false);
+  const [showHoraModal, setShowHoraModal] = useState(false);
+  const [showPromotorModal, setShowPromotorModal] = useState(false);
   
   // 🔄 Monitorear cambios en las props de reserva
   useEffect(() => {
@@ -106,6 +124,20 @@ export const ReservationCard = ({ reserva, onView, onEdit, onDateChange, onPerso
     }
   };
 
+  // Manejar cambio de hora
+  const handleHoraChange = async (newHora: string) => {
+    if (onHoraChange) {
+      await onHoraChange(reserva.id, newHora);
+    }
+  };
+
+  // Manejar cambio de promotor
+  const handlePromotorChange = async (promotorId: string, promotorName: string) => {
+    if (onPromotorChange) {
+      await onPromotorChange(reserva.id, promotorId, promotorName);
+    }
+  };
+
   return (
     <>
       <DateChangeModal
@@ -130,6 +162,24 @@ export const ReservationCard = ({ reserva, onView, onEdit, onDateChange, onPerso
         onClose={() => setShowEditNameModal(false)}
         onConfirm={handleNameChange}
         currentName={reserva.cliente?.nombre || ''}
+      />
+
+      <HoraChangeModal
+        isOpen={showHoraModal}
+        onClose={() => setShowHoraModal(false)}
+        onConfirm={handleHoraChange}
+        currentHora={reserva.hora}
+        clienteName={reserva.cliente?.nombre || 'Sin nombre'}
+      />
+
+      <PromotorChangeModal
+        isOpen={showPromotorModal}
+        onClose={() => setShowPromotorModal(false)}
+        onConfirm={handlePromotorChange}
+        businessId={businessId}
+        currentPromotorId={reserva.promotor?.id}
+        currentPromotorName={reserva.promotor?.nombre || 'Sistema'}
+        clienteName={reserva.cliente?.nombre || 'Sin nombre'}
       />
     <Card className={`mb-3 border-l-4 ${getEstadoColor(reserva.estado)} hover:shadow-md transition-shadow ${
       tieneComprobante ? 'bg-fuchsia-50/30' : ''
@@ -193,10 +243,23 @@ export const ReservationCard = ({ reserva, onView, onEdit, onDateChange, onPerso
               </span>
             </div>
           )}
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span className="truncate">{reserva.hora}</span>
-          </div>
+          {onHoraChange ? (
+            <button
+              type="button"
+              className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded-md px-2 py-1 -mx-2 -my-1 transition-colors border-0 bg-transparent text-left w-full"
+              onClick={() => setShowHoraModal(true)}
+              aria-label={`Cambiar hora de reserva. Hora actual: ${reserva.hora}`}
+              title="Click para cambiar hora"
+            >
+              <Clock className="h-4 w-4 flex-shrink-0 text-green-600" />
+              <span className="truncate text-green-600 font-medium">{reserva.hora}</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <span className="truncate">{reserva.hora}</span>
+            </div>
+          )}
           {onPersonasChange ? (
             <button
               type="button"
@@ -218,12 +281,27 @@ export const ReservationCard = ({ reserva, onView, onEdit, onDateChange, onPerso
               </span>
             </div>
           )}
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span className="text-xs text-muted-foreground">
-              Promotor: {reserva.promotor?.nombre || 'Sistema'}
-            </span>
-          </div>
+          {onPromotorChange ? (
+            <button
+              type="button"
+              className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded-md px-2 py-1 -mx-2 -my-1 transition-colors border-0 bg-transparent text-left w-full col-span-2"
+              onClick={() => setShowPromotorModal(true)}
+              aria-label={`Cambiar promotor. Actual: ${reserva.promotor?.nombre || 'Sistema'}`}
+              title="Click para cambiar promotor"
+            >
+              <CheckCircle className="h-4 w-4 flex-shrink-0 text-orange-600" />
+              <span className="text-xs text-orange-600 font-medium truncate">
+                Promotor: {reserva.promotor?.nombre || 'Sistema'}
+              </span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 col-span-2">
+              <CheckCircle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-xs text-muted-foreground">
+                Promotor: {reserva.promotor?.nombre || 'Sistema'}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Botón de acción - optimizado para móvil */}
