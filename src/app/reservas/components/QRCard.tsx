@@ -76,7 +76,7 @@ export default function QRCard({
       {/* Tarjeta */}
       <div
         data-qr-card
-        className={`relative overflow-hidden ${shadowClass} ${isHalloween ? 'halloween-card' : ''}`}
+        className={`relative overflow-hidden ${shadowClass}`}
         style={{
           background: isGradient ? cardDesign.backgroundColor : undefined,
           backgroundColor: !isGradient ? cardDesign.backgroundColor : undefined,
@@ -90,57 +90,108 @@ export default function QRCard({
           boxShadow: isHalloween ? `0 0 30px ${cardDesign.borderColor}40, 0 0 60px ${cardDesign.borderColor}20` : undefined,
         }}
       >
-        {/* 🎃 Efectos especiales de Halloween */}
+        {/* 🎃 Decoraciones de Halloween - ESTÁTICAS para renderizado */}
         {isHalloween && (
           <>
-            {/* Calabazas decorativas en las esquinas */}
-            <div className="absolute top-3 left-3 text-3xl animate-pulse" style={{ animationDuration: '2s' }}>
+            {/* Calabazas en esquinas superiores */}
+            <div 
+              className="absolute top-2 left-2 select-none pointer-events-none"
+              style={{ fontSize: '32px', lineHeight: 1 }}
+            >
               🎃
             </div>
-            <div className="absolute top-3 right-3 text-3xl animate-pulse" style={{ animationDuration: '2.5s' }}>
+            <div 
+              className="absolute top-2 right-2 select-none pointer-events-none"
+              style={{ fontSize: '32px', lineHeight: 1 }}
+            >
               🎃
             </div>
             
-            {/* Murciélagos */}
-            <div className="absolute top-1/4 left-2 text-xl opacity-60 animate-bounce" style={{ animationDuration: '3s' }}>
+            {/* Murciélagos laterales */}
+            <div 
+              className="absolute select-none pointer-events-none opacity-50"
+              style={{ top: '25%', left: '8px', fontSize: '20px', lineHeight: 1 }}
+            >
               🦇
             </div>
-            <div className="absolute top-1/3 right-2 text-xl opacity-60 animate-bounce" style={{ animationDuration: '3.5s' }}>
+            <div 
+              className="absolute select-none pointer-events-none opacity-50"
+              style={{ top: '35%', right: '8px', fontSize: '20px', lineHeight: 1 }}
+            >
               🦇
             </div>
             
-            {/* Fantasma flotante */}
-            <div className="absolute bottom-4 right-4 text-2xl animate-bounce opacity-70" style={{ animationDuration: '2s' }}>
+            {/* Fantasma inferior */}
+            <div 
+              className="absolute bottom-3 right-3 select-none pointer-events-none opacity-60"
+              style={{ fontSize: '24px', lineHeight: 1 }}
+            >
               👻
             </div>
             
-            {/* Telarañas en las esquinas superiores */}
-            <svg className="absolute top-0 left-0 w-16 h-16 opacity-40" viewBox="0 0 100 100">
-              <path d="M0,0 L0,50 L50,50 L50,0 Z" fill="none" stroke="#9ca3af" strokeWidth="1"/>
-              <path d="M0,10 L40,10" stroke="#9ca3af" strokeWidth="0.5"/>
-              <path d="M0,20 L30,20" stroke="#9ca3af" strokeWidth="0.5"/>
-              <path d="M10,0 L10,40" stroke="#9ca3af" strokeWidth="0.5"/>
-              <path d="M20,0 L20,30" stroke="#9ca3af" strokeWidth="0.5"/>
-              <circle cx="45" cy="45" r="2" fill="#9ca3af"/>
+            {/* Luna en la parte superior central */}
+            <div 
+              className="absolute select-none pointer-events-none opacity-40"
+              style={{ top: '10px', left: '50%', transform: 'translateX(-50%)', fontSize: '28px', lineHeight: 1 }}
+            >
+              🌙
+            </div>
+            
+            {/* Telarañas SVG en esquinas */}
+            <svg 
+              className="absolute top-0 left-0 opacity-30 pointer-events-none" 
+              width="60" 
+              height="60" 
+              viewBox="0 0 60 60"
+            >
+              <path d="M0,0 L0,30 L30,30 L30,0 Z" fill="none" stroke="#9ca3af" strokeWidth="1.5"/>
+              <path d="M0,6 L24,6" stroke="#9ca3af" strokeWidth="0.8"/>
+              <path d="M0,12 L18,12" stroke="#9ca3af" strokeWidth="0.8"/>
+              <path d="M0,18 L12,18" stroke="#9ca3af" strokeWidth="0.8"/>
+              <path d="M6,0 L6,24" stroke="#9ca3af" strokeWidth="0.8"/>
+              <path d="M12,0 L12,18" stroke="#9ca3af" strokeWidth="0.8"/>
+              <path d="M18,0 L18,12" stroke="#9ca3af" strokeWidth="0.8"/>
+              <circle cx="27" cy="27" r="2.5" fill="#9ca3af"/>
             </svg>
             
-            <svg className="absolute top-0 right-0 w-16 h-16 opacity-40 transform scale-x-[-1]" viewBox="0 0 100 100">
-              <path d="M0,0 L0,50 L50,50 L50,0 Z" fill="none" stroke="#9ca3af" strokeWidth="1"/>
-              <path d="M0,10 L40,10" stroke="#9ca3af" strokeWidth="0.5"/>
-              <path d="M0,20 L30,20" stroke="#9ca3af" strokeWidth="0.5"/>
-              <path d="M10,0 L10,40" stroke="#9ca3af" strokeWidth="0.5"/>
-              <path d="M20,0 L20,30" stroke="#9ca3af" strokeWidth="0.5"/>
-              <circle cx="45" cy="45" r="2" fill="#9ca3af"/>
+            <svg 
+              className="absolute top-0 right-0 opacity-30 pointer-events-none" 
+              width="60" 
+              height="60" 
+              viewBox="0 0 60 60"
+              style={{ transform: 'scaleX(-1)' }}
+            >
+              <path d="M0,0 L0,30 L30,30 L30,0 Z" fill="none" stroke="#9ca3af" strokeWidth="1.5"/>
+              <path d="M0,6 L24,6" stroke="#9ca3af" strokeWidth="0.8"/>
+              <path d="M0,12 L18,12" stroke="#9ca3af" strokeWidth="0.8"/>
+              <path d="M0,18 L12,18" stroke="#9ca3af" strokeWidth="0.8"/>
+              <path d="M6,0 L6,24" stroke="#9ca3af" strokeWidth="0.8"/>
+              <path d="M12,0 L12,18" stroke="#9ca3af" strokeWidth="0.8"/>
+              <path d="M18,0 L18,12" stroke="#9ca3af" strokeWidth="0.8"/>
+              <circle cx="27" cy="27" r="2.5" fill="#9ca3af"/>
             </svg>
             
-            {/* Efecto de brillo naranja */}
+            {/* Efecto de brillo naranja sutil - será visible en captura */}
             <div 
               className="absolute inset-0 pointer-events-none"
               style={{
-                background: 'radial-gradient(circle at 50% 50%, rgba(255, 107, 26, 0.1) 0%, transparent 70%)',
-                animation: 'pulse 3s ease-in-out infinite',
+                background: 'radial-gradient(circle at 50% 50%, rgba(255, 107, 26, 0.08) 0%, transparent 70%)',
               }}
             />
+            
+            {/* Estrellas decorativas */}
+            <div 
+              className="absolute select-none pointer-events-none opacity-50"
+              style={{ top: '15%', left: '15%', fontSize: '14px', lineHeight: 1 }}
+            >
+              ⭐
+            </div>
+            <div 
+              className="absolute select-none pointer-events-none opacity-50"
+              style={{ top: '20%', right: '15%', fontSize: '12px', lineHeight: 1 }}
+            >
+              ⭐
+            </div>
           </>
         )}
 
@@ -169,10 +220,10 @@ export default function QRCard({
             className="text-2xl font-bold mb-1"
             style={{ 
               color: cardDesign.headerColor,
-              textShadow: isDarkCard ? '0 2px 10px rgba(0,0,0,0.5)' : 'none',
+              textShadow: isDarkCard || isHalloween ? '0 2px 10px rgba(0,0,0,0.5)' : 'none',
               ...(isHalloween && {
-                textShadow: `0 0 10px ${cardDesign.headerColor}, 0 0 20px ${cardDesign.headerColor}80`,
-                animation: 'glow 2s ease-in-out infinite',
+                // Sombra naranja estática que sí se renderiza en imagen
+                textShadow: `0 0 15px ${cardDesign.headerColor}99, 0 2px 10px rgba(0,0,0,0.5)`,
               })
             }}
           >
