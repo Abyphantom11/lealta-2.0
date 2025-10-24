@@ -203,7 +203,7 @@ export function useReservaEditing({ businessId }: UseReservaEditingOptions = {})
       
       // 🚨 PROTECCIÓN ADICIONAL: Verificar datos después de un tiempo
       setTimeout(() => {
-        console.log('🛡️ HOOK - Verificando que los datos no fueron revertidos...');
+        // Verificando que los datos no fueron revertidos
         const currentData = queryClient.getQueryData(reservasQueryKeys.list(businessId || 'default'));
         
         if (currentData) {
@@ -309,17 +309,7 @@ export function useReservaEditing({ businessId }: UseReservaEditingOptions = {})
   
   // 🎯 Función para actualizar un campo específico (edición inline)
   const updateField = useCallback((reservaId: string, field: keyof Reserva, value: any) => {
-    console.log('📝 updateField llamado:', { reservaId, field, value, timestamp: new Date().toISOString() });
-    
-    // Log especial para cambios de hora
-    if (field === 'hora') {
-      console.log('⏰ CAMBIO DE HORA DETECTADO:', {
-        reservaId,
-        nuevaHora: value,
-        estadoActual: editingState[reservaId]?.hora,
-        timestamp: new Date().toISOString()
-      });
-    }
+    // Log silenciado para reducir ruido en consola
     
     // 🔒 Marcar esta reserva como editada recientemente para protegerla
     setRecentEdits(prev => new Set([...prev, reservaId]));
@@ -343,7 +333,6 @@ export function useReservaEditing({ businessId }: UseReservaEditingOptions = {})
         }
       };
       
-      console.log('📝 Estado de edición actualizado:', { reservaId, newState: newState[reservaId] });
       return newState;
     });
     
@@ -362,11 +351,10 @@ export function useReservaEditing({ businessId }: UseReservaEditingOptions = {})
         return newSet;
       });
     }, 10000); // 10 segundos de protección
-  }, [updateMutation, editingState]);
+  }, [updateMutation]);
   
   // 🎯 Función para actualizar múltiples campos (edición modal)
   const updateReserva = useCallback((reservaId: string, updates: Partial<Reserva>) => {
-    console.log('📝 Actualizando reserva completa:', { reservaId, updates });
     
     return updateMutation.mutateAsync({
       id: reservaId,
@@ -376,8 +364,6 @@ export function useReservaEditing({ businessId }: UseReservaEditingOptions = {})
 
   // 🗑️ Función para eliminar una reserva
   const deleteReserva = useCallback(async (reservaId: string) => {
-    console.log('🗑️ Eliminando reserva:', { reservaId });
-    
     const url = `/api/reservas/${reservaId}?businessId=${businessId}`;
     const response = await fetch(url, {
       method: 'DELETE',

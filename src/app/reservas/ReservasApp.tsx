@@ -106,21 +106,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
   const [selectedDate, setSelectedDate] = useState<Date>(getInitialDate);
   const statusFilter = 'Todos'; // Valor fijo por ahora, se puede hacer dinámico después
 
-  // 🔍 Monitorear cambios en las reservas del hook principal
-  useEffect(() => {
-    console.log('🔔 ReservasApp: reservas cambiaron', {
-      count: reservas.length,
-      timestamp: new Date().toISOString()
-    });
-    if (reservas.length > 0) {
-      console.log('📋 Primera reserva:', {
-        id: reservas[0].id?.substring(0, 8),
-        nombre: reservas[0].nombreCliente,
-        asistencia: reservas[0].asistenciaActual,
-        max: reservas[0].numeroPersonas
-      });
-    }
-  }, [reservas]);
+  // 🔍 Monitorear cambios en las reservas del hook principal (silenciado para reducir ruido)
 
   // 🔄 FUNCIONES ADAPTADORAS (para compatibilidad con componentes existentes)
   const addReserva = createReserva;
@@ -350,7 +336,6 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
   };
 
   const handleMesaChange = async (id: string, mesa: string) => {
-    console.log('🏠 ReservasApp - Cambiando mesa desde escritorio:', { id, mesa });
     await updateReserva(id, { mesa });
     
     // 🔄 Forzar actualización del modal si está abierto
@@ -415,8 +400,6 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
 
   const handleNameChange = async (reservaId: string, clienteId: string, newName: string) => {
     try {
-      console.log('✏️ Cambiando nombre en reserva:', { reservaId, clienteId, newName, businessId });
-      
       // Actualizar el nombre directamente en la reserva (customerName)
       const response = await fetch(`/api/reservas/${reservaId}?businessId=${businessId}`, {
         method: 'PUT',
@@ -469,8 +452,6 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
       // Navegar inmediatamente a la nueva fecha
       setSelectedDate(nuevaFecha);
       
-      console.log('✅ SIMPLIFICADO - Cambio completado');
-      
       // Toast simple
       toast.success(
         `Reserva movida a ${format(nuevaFecha, "dd 'de' MMMM", { locale: es })}`,
@@ -505,12 +486,6 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
   // Datos calculados
   const reservasDelDia = getReservasByDate(selectedDate);
   const currentStats = getDashboardStats();
-  
-  console.log('📊 Datos calculados:', {
-    reservasDelDiaCount: reservasDelDia.length,
-    selectedDate: selectedDate.toISOString().split('T')[0],
-    timestamp: new Date().toISOString()
-  });
 
   // Filtrar reservas por estado (el searchTerm se maneja dentro de ReservationTable)
   const reservasFiltradas = reservasDelDia

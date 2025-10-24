@@ -267,7 +267,7 @@ export function useReservasOptimized({
           reservasQueryKeys.list(businessId || 'default', includeStats),
           context.previousReservas
         );
-        console.log('🔄 [CREATE] Rollback aplicado');
+        // Rollback aplicado
       }
       
       toast.error('❌ Error al crear la reserva');
@@ -330,7 +330,7 @@ export function useReservasOptimized({
           reservasQueryKeys.list(businessId || 'default', includeStats),
           context.previousReservas
         );
-        console.log('🔄 [UPDATE] Rollback aplicado');
+        // Rollback aplicado
       }
       
       toast.error('❌ Error al actualizar la reserva');

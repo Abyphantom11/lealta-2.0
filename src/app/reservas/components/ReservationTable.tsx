@@ -520,15 +520,25 @@ export function ReservationTable({
                     <TableCell className="py-2 text-center align-middle w-20">
                       <div className="flex justify-center items-center">
                         <Input 
-                          value={obtenerValorCampo(reserva.id, 'mesa') || ""}
+                          defaultValue={obtenerValorCampo(reserva.id, 'mesa') || ""}
                           placeholder=""
                           className="w-16 h-6 text-xs border-2 border-gray-300 bg-white hover:bg-white focus:bg-white focus:border-blue-500 text-center px-1 font-medium rounded-md shadow-sm text-gray-900"
-                          onChange={(e) => {
-                            updateField(reserva.id, 'mesa', e.target.value);
-                          }}
                           onBlur={(e) => {
-                            if (onMesaChange) {
-                              onMesaChange(reserva.id, e.target.value);
+                            const newValue = e.target.value.trim();
+                            const currentValue = obtenerValorCampo(reserva.id, 'mesa') || "";
+                            
+                            // Solo guardar si cambió el valor
+                            if (newValue !== currentValue) {
+                              updateField(reserva.id, 'mesa', newValue);
+                              if (onMesaChange) {
+                                onMesaChange(reserva.id, newValue);
+                              }
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            // Guardar al presionar Enter
+                            if (e.key === 'Enter') {
+                              e.currentTarget.blur();
                             }
                           }}
                         />
