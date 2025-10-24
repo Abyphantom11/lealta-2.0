@@ -66,13 +66,17 @@ export default function QRCard({
   const isDarkCard = cardDesign.backgroundColor.includes('#0a0a0a') || 
                      cardDesign.backgroundColor.includes('#1a1a1a') || 
                      cardDesign.backgroundColor.includes('#2d2d2d');
+  
+  // 🎃 Detectar tema Halloween
+  const isHalloween = cardDesign.borderColor === '#FF6B1A' && 
+                      cardDesign.headerColor === '#FF8C00';
 
   return (
     <div className="flex flex-col items-center gap-4">
       {/* Tarjeta */}
       <div
         data-qr-card
-        className={`relative overflow-hidden ${shadowClass}`}
+        className={`relative overflow-hidden ${shadowClass} ${isHalloween ? 'halloween-card' : ''}`}
         style={{
           background: isGradient ? cardDesign.backgroundColor : undefined,
           backgroundColor: !isGradient ? cardDesign.backgroundColor : undefined,
@@ -83,10 +87,65 @@ export default function QRCard({
           padding: `${cardDesign.padding}px`,
           maxWidth: '400px',
           width: '100%',
+          boxShadow: isHalloween ? `0 0 30px ${cardDesign.borderColor}40, 0 0 60px ${cardDesign.borderColor}20` : undefined,
         }}
       >
+        {/* 🎃 Efectos especiales de Halloween */}
+        {isHalloween && (
+          <>
+            {/* Calabazas decorativas en las esquinas */}
+            <div className="absolute top-3 left-3 text-3xl animate-pulse" style={{ animationDuration: '2s' }}>
+              🎃
+            </div>
+            <div className="absolute top-3 right-3 text-3xl animate-pulse" style={{ animationDuration: '2.5s' }}>
+              🎃
+            </div>
+            
+            {/* Murciélagos */}
+            <div className="absolute top-1/4 left-2 text-xl opacity-60 animate-bounce" style={{ animationDuration: '3s' }}>
+              🦇
+            </div>
+            <div className="absolute top-1/3 right-2 text-xl opacity-60 animate-bounce" style={{ animationDuration: '3.5s' }}>
+              🦇
+            </div>
+            
+            {/* Fantasma flotante */}
+            <div className="absolute bottom-4 right-4 text-2xl animate-bounce opacity-70" style={{ animationDuration: '2s' }}>
+              👻
+            </div>
+            
+            {/* Telarañas en las esquinas superiores */}
+            <svg className="absolute top-0 left-0 w-16 h-16 opacity-40" viewBox="0 0 100 100">
+              <path d="M0,0 L0,50 L50,50 L50,0 Z" fill="none" stroke="#9ca3af" strokeWidth="1"/>
+              <path d="M0,10 L40,10" stroke="#9ca3af" strokeWidth="0.5"/>
+              <path d="M0,20 L30,20" stroke="#9ca3af" strokeWidth="0.5"/>
+              <path d="M10,0 L10,40" stroke="#9ca3af" strokeWidth="0.5"/>
+              <path d="M20,0 L20,30" stroke="#9ca3af" strokeWidth="0.5"/>
+              <circle cx="45" cy="45" r="2" fill="#9ca3af"/>
+            </svg>
+            
+            <svg className="absolute top-0 right-0 w-16 h-16 opacity-40 transform scale-x-[-1]" viewBox="0 0 100 100">
+              <path d="M0,0 L0,50 L50,50 L50,0 Z" fill="none" stroke="#9ca3af" strokeWidth="1"/>
+              <path d="M0,10 L40,10" stroke="#9ca3af" strokeWidth="0.5"/>
+              <path d="M0,20 L30,20" stroke="#9ca3af" strokeWidth="0.5"/>
+              <path d="M10,0 L10,40" stroke="#9ca3af" strokeWidth="0.5"/>
+              <path d="M20,0 L20,30" stroke="#9ca3af" strokeWidth="0.5"/>
+              <circle cx="45" cy="45" r="2" fill="#9ca3af"/>
+            </svg>
+            
+            {/* Efecto de brillo naranja */}
+            <div 
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: 'radial-gradient(circle at 50% 50%, rgba(255, 107, 26, 0.1) 0%, transparent 70%)',
+                animation: 'pulse 3s ease-in-out infinite',
+              }}
+            />
+          </>
+        )}
+
         {/* Efecto de brillo sutil para tarjetas mate (Black Card) */}
-        {isDarkCard && (
+        {isDarkCard && !isHalloween && (
           <>
             <div 
               className="absolute inset-0 pointer-events-none"
@@ -110,16 +169,20 @@ export default function QRCard({
             className="text-2xl font-bold mb-1"
             style={{ 
               color: cardDesign.headerColor,
-              textShadow: isDarkCard ? '0 2px 10px rgba(0,0,0,0.5)' : 'none'
+              textShadow: isDarkCard ? '0 2px 10px rgba(0,0,0,0.5)' : 'none',
+              ...(isHalloween && {
+                textShadow: `0 0 10px ${cardDesign.headerColor}, 0 0 20px ${cardDesign.headerColor}80`,
+                animation: 'glow 2s ease-in-out infinite',
+              })
             }}
           >
-            {businessName}
+            {isHalloween ? '🎃 ' : ''}{businessName}{isHalloween ? ' 🎃' : ''}
           </h2>
           <div
             className="text-xs tracking-wider uppercase"
             style={{ color: cardDesign.textColor }}
           >
-            Reserva Confirmada
+            {isHalloween ? '👻 Reserva Confirmada 👻' : 'Reserva Confirmada'}
           </div>
         </div>
 

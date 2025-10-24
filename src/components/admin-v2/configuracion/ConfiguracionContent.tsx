@@ -70,6 +70,21 @@ const CARD_TEMPLATES = {
       textColor: '#525252',
     } as CardDesign,
   },
+  halloween: {
+    name: '🎃 Halloween',
+    description: 'Especial Halloween 2024',
+    style: {
+      backgroundColor: 'linear-gradient(135deg, #1a0a0f 0%, #2d1b1f 25%, #4a1f2d 50%, #2d1b1f 75%, #1a0a0f 100%)',
+      borderColor: '#FF6B1A',
+      borderWidth: 3,
+      borderRadius: 24,
+      padding: 40,
+      shadowColor: '#FF6B1A',
+      shadowSize: 'xl' as const,
+      headerColor: '#FF8C00',
+      textColor: '#a855f7',
+    } as CardDesign,
+  },
 };
 
 interface ConfiguracionContentProps {

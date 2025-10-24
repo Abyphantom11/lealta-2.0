@@ -193,3 +193,49 @@ a {
 .premium-card {
   @apply bg-gradient-to-br from-dark-800 to-dark-900 backdrop-blur-xl border border-dark-700 rounded-xl p-6 shadow-2xl;
 }
+
+/* 🎃 Halloween Card Animations */
+@keyframes glow {
+  0%, 100% {
+    text-shadow: 0 0 10px #FF8C00, 0 0 20px #FF8C0080;
+  }
+  50% {
+    text-shadow: 0 0 20px #FF8C00, 0 0 30px #FF8C00, 0 0 40px #FF6B1A;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes wiggle {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-5deg);
+  }
+  75% {
+    transform: rotate(5deg);
+  }
+}
+
+.halloween-card {
+  position: relative;
+  animation: float 4s ease-in-out infinite;
+}
+
+/* Animación de pulso para el brillo Halloween */
+@keyframes halloweenPulse {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
