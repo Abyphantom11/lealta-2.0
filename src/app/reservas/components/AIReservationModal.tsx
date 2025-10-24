@@ -192,7 +192,7 @@ export function AIReservationModal({
     const camposFaltantes = [];
     if (!editableData.clienteNombre?.trim()) camposFaltantes.push('Nombre');
     if (!editableData.clienteCedula?.trim()) camposFaltantes.push('Cédula');
-    if (!editableData.clienteCorreo?.trim()) camposFaltantes.push('Email');
+    // Email es opcional, igual que en el formulario manual
     if (!editableData.clienteTelefono?.trim()) camposFaltantes.push('Teléfono');
     if (!editableData.fecha) camposFaltantes.push('Fecha');
     if (!editableData.hora) camposFaltantes.push('Hora');
@@ -430,7 +430,7 @@ export function AIReservationModal({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-sm flex items-center justify-between">
-                      <span>Email *</span>
+                      <span>Email</span>
                       {getFieldStatus("Email")}
                     </Label>
                     <Input
