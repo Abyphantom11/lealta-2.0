@@ -51,6 +51,11 @@ export function useQRGeneration() {
     setResult(prev => ({ ...prev, isGenerating: true, error: null }));
 
     try {
+      // ✅ Calcular dimensiones REALES incluyendo elementos absolutos (decoraciones Halloween)
+      const rect = element.getBoundingClientRect();
+      const captureWidth = Math.ceil(rect.width);
+      const captureHeight = Math.ceil(rect.height);
+      
       // Configuración optimizada de html2canvas
       const canvas = await html2canvas(element, {
         backgroundColor: null,
@@ -60,13 +65,12 @@ export function useQRGeneration() {
         allowTaint: true,
         foreignObjectRendering: false,
         removeContainer: true,
-        width: element.scrollWidth,
-        height: element.scrollHeight,
+        width: captureWidth,
+        height: captureHeight,
         scrollX: 0,
         scrollY: 0,
-        // ✅ Configuración adicional para capturar elementos absolutos (decoraciones Halloween)
-        windowWidth: element.scrollWidth,
-        windowHeight: element.scrollHeight,
+        windowWidth: captureWidth,
+        windowHeight: captureHeight,
       });
 
       // Convertir a Blob con calidad específica

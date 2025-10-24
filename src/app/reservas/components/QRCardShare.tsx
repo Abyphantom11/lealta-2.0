@@ -387,11 +387,12 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
         ref={qrCardRef} 
         className="flex justify-center" 
         style={{ 
-          minWidth: '320px', 
-          minHeight: '580px',
+          minWidth: '450px', // ✅ Aumentado para capturar decoraciones laterales
+          minHeight: '650px', // ✅ Aumentado para capturar decoraciones superior/inferior
           maxWidth: '100%',
-          padding: '12px', // ✅ Padding para evitar corte de bordes
-          overflow: 'visible'
+          padding: '40px', // ✅ Padding grande para todas las decoraciones absolutas
+          overflow: 'visible',
+          boxSizing: 'border-box'
         }}
       >
         <QRCard
