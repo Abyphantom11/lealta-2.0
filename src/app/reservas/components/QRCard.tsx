@@ -76,7 +76,7 @@ export default function QRCard({
       {/* Tarjeta */}
       <div
         data-qr-card
-        className={`relative overflow-hidden ${shadowClass}`}
+        className={`relative ${shadowClass} ${isHalloween ? 'overflow-visible' : 'overflow-hidden'}`}
         style={{
           background: isGradient ? cardDesign.backgroundColor : undefined,
           backgroundColor: !isGradient ? cardDesign.backgroundColor : undefined,

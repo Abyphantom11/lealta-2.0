@@ -54,7 +54,7 @@ export function useQRGeneration() {
       // Configuración optimizada de html2canvas
       const canvas = await html2canvas(element, {
         backgroundColor: null,
-        scale: options.scale || 2,
+        scale: options.scale || 3, // ✅ Aumentado a 3 para mejor calidad
         useCORS: true,
         logging: false,
         allowTaint: true,
@@ -64,6 +64,9 @@ export function useQRGeneration() {
         height: element.scrollHeight,
         scrollX: 0,
         scrollY: 0,
+        // ✅ Configuración adicional para capturar elementos absolutos (decoraciones Halloween)
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
       });
 
       // Convertir a Blob con calidad específica
