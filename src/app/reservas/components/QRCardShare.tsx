@@ -385,12 +385,12 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
       {/* QR Card - Se renderiza para captura */}
       <div 
         ref={qrCardRef} 
-        className="flex justify-center p-2 sm:p-4" 
+        className="flex justify-center" 
         style={{ 
           minWidth: '320px', 
-          minHeight: '580px', // ✅ Aumentado para decoraciones Halloween
+          minHeight: '580px',
           maxWidth: '100%',
-          // ✅ Asegurar que capture todo el contenido
+          padding: '12px', // ✅ Padding para evitar corte de bordes
           overflow: 'visible'
         }}
       >
