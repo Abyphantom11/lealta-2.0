@@ -236,26 +236,35 @@ export function useReservasOptimized({
     onSuccess: async (newReserva, _variables, context) => {
       console.log('✅ [CREATE] Reserva creada en servidor', { id: newReserva?.id });
       
-      // Reemplazar reserva temporal con la real del servidor
-      if (context?.tempId && newReserva) {
+      // 🔥 ESTRATEGIA MEJORADA: Agregar la reserva real al cache directamente
+      if (newReserva) {
         queryClient.setQueryData(
           reservasQueryKeys.list(businessId || 'default', includeStats),
           (old: any) => {
             if (!old?.reservas) return old;
+            
+            // Remover la temporal si existe
+            const reservasSinTemporal = context?.tempId 
+              ? old.reservas.filter((r: any) => r.id !== context.tempId)
+              : old.reservas;
+            
+            // Agregar la reserva real al principio (más reciente primero)
             return {
               ...old,
-              reservas: old.reservas.map((r: any) => 
-                r.id === context.tempId ? { ...newReserva, _isOptimistic: false } : r
-              )
+              reservas: [newReserva, ...reservasSinTemporal]
             };
           }
         );
+        
+        console.log('✅ [CREATE] Reserva real agregada al cache');
       }
       
-      // 🚀 NO ESPERAR: Invalidar en background
-      invalidateReservasCache('standard').catch(err => 
-        console.error('Error al invalidar cache:', err)
-      );
+      // 🚀 Invalidar y refetch inmediatamente
+      await queryClient.invalidateQueries({ 
+        queryKey: reservasQueryKeys.list(businessId || 'default', includeStats),
+        refetchType: 'active' // Refetch inmediatamente si hay observers activos
+      });
+      
       toast.success('✓ Reserva creada exitosamente');
     },
     onError: (error, _variables, context) => {
