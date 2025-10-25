@@ -655,6 +655,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
                 onMesaChange={handleMesaChange}
                 onHoraChange={handleHoraChange}
                 onPromotorChange={handlePromotorChange}
+                updateReservaOptimized={updateReservaOptimized}
                 onFechaChange={handleFechaChange}
                 onPersonasChange={handlePersonasChange}
                 onNameChange={handleNameChange}

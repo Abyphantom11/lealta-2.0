@@ -1,21 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { Table, TableBody, TableCell, Tabl  // Función para eliminar un detalle
-  const eliminarDetalle = useCallback(async (reservaId: string, index: number) => {
-    const detalles = getDetallesReserva(reservaId);
-    const nuevosDetalles = detalles.filter((_, i) => i !== index);
-    
-    // 🎯 Actualizar usando SOLO el hook unificado
-    updateField(reservaId, 'detalles', nuevosDetalles);
-    
-    // 🚀 Guardar inmediatamente en servidor
-    try {
-      await updateReservaOptimized(reservaId, { detalles: nuevosDetalles });
-      console.log('✅ Detalle eliminado y guardado');
-    } catch (error) {
-      console.error('❌ Error eliminando detalle:', error);
-    }
-  }, [getDetallesReserva, updateField]);ableHeader, TableRow } from "./ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
@@ -47,6 +32,7 @@ interface ReservationTableProps {
   onMesaChange?: (id: string, mesa: string) => void;
   onHoraChange?: (id: string, hora: string) => void;
   onPromotorChange?: (reservationId: string, promotorId: string, promotorName: string) => Promise<void>;
+  updateReservaOptimized?: (reservaId: string, updates: Partial<Reserva>) => Promise<void>; // 🔥 Función para guardar cambios inmediatamente
   // onDetallesChange?: (id: string, detalles: string[]) => void; // No usado actualmente
   // onRazonVisitaChange?: (id: string, razon: string) => void; // No usado actualmente
   // onBeneficiosChange?: (id: string, beneficios: string) => void; // No usado actualmente
@@ -70,6 +56,7 @@ export function ReservationTable({
   onMesaChange,
   onHoraChange,
   onPromotorChange,
+  updateReservaOptimized,
   onFechaChange,
   onPersonasChange,
   onNameChange,
@@ -127,13 +114,15 @@ export function ReservationTable({
     
     // 🎯 Actualizar usando SOLO el hook unificado
     updateField(reservaId, 'detalles', nuevosDetalles);
-    
-    // 🚀 Guardar inmediatamente en servidor para evitar inconsistencias
-    try {
-      await updateReservaOptimized(reservaId, { detalles: nuevosDetalles });
-      console.log('✅ Detalle agregado y guardado:', nuevosDetalles);
-    } catch (error) {
-      console.error('❌ Error guardando detalle:', error);
+
+    // 🔥 Guardar inmediatamente en servidor para evitar inconsistencias
+    if (updateReservaOptimized) {
+      try {
+        await updateReservaOptimized(reservaId, { detalles: nuevosDetalles });
+        console.log('✅ Detalle agregado y guardado:', nuevosDetalles);
+      } catch (error) {
+        console.error('❌ Error guardando detalle:', error);
+      }
     }
   }, [getDetallesReserva, updateField, updateReservaOptimized]);
 
@@ -145,24 +134,36 @@ export function ReservationTable({
     
     // 🎯 Actualizar usando SOLO el hook unificado
     updateField(reservaId, 'detalles', nuevosDetalles);
-    
-    // 🚀 Guardar inmediatamente en servidor
-    try {
-      await updateReservaOptimized(reservaId, { detalles: nuevosDetalles });
-      console.log('✅ Detalle actualizado y guardado');
-    } catch (error) {
-      console.error('❌ Error guardando detalle actualizado:', error);
+
+    // 🔥 Guardar inmediatamente en servidor
+    if (updateReservaOptimized) {
+      try {
+        await updateReservaOptimized(reservaId, { detalles: nuevosDetalles });
+        console.log('✅ Detalle actualizado y guardado');
+      } catch (error) {
+        console.error('❌ Error guardando detalle actualizado:', error);
+      }
     }
-  }, [getDetallesReserva, updateField]);
+  }, [getDetallesReserva, updateField, updateReservaOptimized]);
 
   // Función para eliminar un detalle específico
-  const eliminarDetalle = useCallback((reservaId: string, index: number) => {
+  const eliminarDetalle = useCallback(async (reservaId: string, index: number) => {
     const detalles = getDetallesReserva(reservaId);
     const nuevosDetalles = detalles.filter((_, i) => i !== index);
     
     // 🎯 Actualizar usando SOLO el hook unificado
     updateField(reservaId, 'detalles', nuevosDetalles);
-  }, [getDetallesReserva, updateField]);
+
+    // 🔥 Guardar inmediatamente en servidor
+    if (updateReservaOptimized) {
+      try {
+        await updateReservaOptimized(reservaId, { detalles: nuevosDetalles });
+        console.log('✅ Detalle eliminado y guardado');
+      } catch (error) {
+        console.error('❌ Error eliminando detalle:', error);
+      }
+    }
+  }, [getDetallesReserva, updateField, updateReservaOptimized]);
   
   // Función para manejar el upload de comprobante
   const handleUploadComprobante = async (file: File) => {
@@ -692,7 +693,7 @@ export function ReservationTable({
                         {/* Campo principal siempre visible con botón + al lado */}
                         <div className="flex items-center justify-center gap-1">
                           <Input
-                            key={`${reserva.id}-nuevo-detalle-${getDetallesReserva(reserva.id).length}`} // ✅ Key dinámica para forzar reset
+                            key={`${reserva.id}-nuevo-detalle-${getDetallesReserva(reserva.id).length}`} // 🎯 Key dinámica para forzar reset
                             defaultValue=""
                             placeholder="Nuevo detalle"
                             className="w-28 h-6 text-xs border-2 border-gray-300 bg-white hover:bg-gray-100 focus:bg-white focus:border-blue-500 text-center px-2 rounded-md shadow-sm text-gray-900"
@@ -712,6 +713,7 @@ export function ReservationTable({
                               const input = document.querySelector(`input[placeholder="Nuevo detalle"]`) as HTMLInputElement;
                               if (input?.value.trim()) {
                                 await agregarDetalle(reserva.id, input.value);
+                                input.focus(); // Enfocar para seguir agregando
                               } else {
                                 input?.focus(); // Si está vacío, solo enfocar
                               }
