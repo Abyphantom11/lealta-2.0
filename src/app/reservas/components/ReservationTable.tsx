@@ -112,17 +112,9 @@ export function ReservationTable({
     const detallesActuales = getDetallesReserva(reservaId);
     const nuevosDetalles = [...detallesActuales, valor];
     
-    // 🔥 Guardar DIRECTAMENTE en servidor (sin updateField para evitar doble actualización)
-    if (updateReservaOptimized) {
-      try {
-        await updateReservaOptimized(reservaId, { detalles: nuevosDetalles });
-        console.log('✅ Detalle agregado y guardado:', nuevosDetalles);
-      } catch (error) {
-        console.error('❌ Error guardando detalle:', error);
-        throw error; // Re-throw para que el caller pueda manejarlo
-      }
-    }
-  }, [getDetallesReserva, updateReservaOptimized]);
+    // 🚀 OPTIMISTIC UPDATE: Usar updateField para actualización inmediata (igual que número de mesa)
+    updateField(reservaId, 'detalles', nuevosDetalles);
+  }, [getDetallesReserva, updateField]);
 
   // Función para actualizar un detalle específico
   const actualizarDetalle = useCallback((reservaId: string, index: number, valor: string) => {
