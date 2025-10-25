@@ -717,6 +717,16 @@ export async function POST(request: NextRequest) {
     // Calcular fecha de expiración: 12 horas después de la hora específica de la reserva
     const qrExpirationDate = new Date(reservedAtDate.getTime() + (12 * 60 * 60 * 1000)); // +12 horas desde la hora de llegada
     
+    console.log('🎫 CREANDO QR CODE:', {
+      reservaId: reservation.id,
+      reservedAt: reservedAtDate.toISOString(),
+      reservedAtLocal: reservedAtDate.toLocaleString('es-ES', { timeZone: 'America/Bogota' }),
+      qrExpiresAt: qrExpirationDate.toISOString(),
+      qrExpiresAtLocal: qrExpirationDate.toLocaleString('es-ES', { timeZone: 'America/Bogota' }),
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezoneOffset: reservedAtDate.getTimezoneOffset()
+    });
+    
     const nowQR = new Date();
     await prisma.reservationQRCode.create({
       data: {

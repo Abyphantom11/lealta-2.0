@@ -571,24 +571,47 @@ export async function PUT(
         metadataActualizado: updatedReservation.metadata
       });
 
-      // 🎯 Si se actualizó la fecha u hora (reservedAt cambió), actualizar también el expiresAt del QR
-      if (updateData.reservedAt && updatedReservation.ReservationQRCode.length > 0) {
+      // 🎯 REGENERAR QR AUTOMÁTICAMENTE si cambió la fecha/hora de la reserva
+      const reservedAtChanged = updateData.reservedAt && 
+        currentReservation?.reservedAt.getTime() !== new Date(updateData.reservedAt).getTime();
+      
+      if (reservedAtChanged && updatedReservation.ReservationQRCode.length > 0) {
         const newReservedAt = new Date(updatedReservation.reservedAt);
         const newQrExpiresAt = new Date(newReservedAt.getTime() + (12 * 60 * 60 * 1000)); // +12 horas
         
-        console.log('🔄 Actualizando expiresAt del QR code:', {
+        console.log('🔄 REGENERANDO QR por cambio de fecha/hora:', {
           reservaId: updatedReservation.id,
-          nuevaFechaReserva: newReservedAt.toISOString(),
-          nuevaExpiracionQR: newQrExpiresAt.toISOString()
+          fechaAnterior: currentReservation?.reservedAt.toISOString(),
+          fechaNueva: newReservedAt.toISOString(),
+          expiracionAnterior: updatedReservation.ReservationQRCode[0].expiresAt.toISOString(),
+          expiracionNueva: newQrExpiresAt.toISOString()
         });
 
-        // Actualizar todos los QR codes asociados a esta reserva
+        // Obtener el QR actual para actualizar su qrData JSON
+        const currentQR = updatedReservation.ReservationQRCode[0];
+        let updatedQrData = currentQR.qrData;
+        
+        try {
+          const qrDataJson = JSON.parse(currentQR.qrData);
+          qrDataJson.fecha = newReservedAt.toISOString().split('T')[0];
+          qrDataJson.hora = newReservedAt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+          qrDataJson.timestamp = Date.now();
+          updatedQrData = JSON.stringify(qrDataJson);
+        } catch (parseError) {
+          console.warn('⚠️ No se pudo parsear qrData JSON, se mantiene el original');
+        }
+
+        // Actualizar QR code con nueva expiración Y datos actualizados
         await prisma.reservationQRCode.updateMany({
           where: { reservationId: updatedReservation.id },
-          data: { expiresAt: newQrExpiresAt }
+          data: { 
+            expiresAt: newQrExpiresAt,
+            qrData: updatedQrData,
+            updatedAt: new Date()
+          }
         });
 
-        console.log('✅ QR codes actualizados con nueva fecha de expiración');
+        console.log('✅ QR regenerado automáticamente con nueva fecha/hora y expiración');
       }
     } catch (prismaUpdateError) {
       console.error('❌ Error en prisma.reservation.update:', prismaUpdateError);
