@@ -123,12 +123,10 @@ export function ReservationTable({
     nuevosDetalles[index] = valor;
     
     // � NO BLOQUEANTE: Guardar en background sin esperar
-    if (updateReservaOptimized) {
-      updateReservaOptimized(reservaId, { detalles: nuevosDetalles })
-        .then(() => console.log('✅ Detalle actualizado'))
-        .catch(error => console.error('❌ Error actualizando detalle:', error));
-    }
-  }, [getDetallesReserva, updateReservaOptimized]);
+    
+    // 🚀 OPTIMISTIC UPDATE: Usar updateField para actualización inmediata (igual que número de mesa)
+    updateField(reservaId, 'detalles', nuevosDetalles);
+  }, [getDetallesReserva, updateField]);
 
   // Función para eliminar un detalle específico
   const eliminarDetalle = useCallback((reservaId: string, index: number) => {
@@ -136,12 +134,10 @@ export function ReservationTable({
     const nuevosDetalles = detalles.filter((_, i) => i !== index);
     
     // � NO BLOQUEANTE: Eliminar inmediatamente en UI, guardar en background
-    if (updateReservaOptimized) {
-      updateReservaOptimized(reservaId, { detalles: nuevosDetalles })
-        .then(() => console.log('✅ Detalle eliminado'))
-        .catch(error => console.error('❌ Error eliminando detalle:', error));
-    }
-  }, [getDetallesReserva, updateReservaOptimized]);
+    
+    // 🚀 OPTIMISTIC UPDATE: Usar updateField para actualización inmediata (igual que número de mesa)
+    updateField(reservaId, 'detalles', nuevosDetalles);
+  }, [getDetallesReserva, updateField]);
   
   // Función para manejar el upload de comprobante
   const handleUploadComprobante = async (file: File) => {
