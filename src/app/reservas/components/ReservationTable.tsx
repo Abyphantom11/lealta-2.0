@@ -125,37 +125,29 @@ export function ReservationTable({
   }, [getDetallesReserva, updateReservaOptimized]);
 
   // Función para actualizar un detalle específico
-  const actualizarDetalle = useCallback(async (reservaId: string, index: number, valor: string) => {
+  const actualizarDetalle = useCallback((reservaId: string, index: number, valor: string) => {
     const detalles = getDetallesReserva(reservaId);
     const nuevosDetalles = [...detalles];
     nuevosDetalles[index] = valor;
     
-    // 🔥 Guardar DIRECTAMENTE en servidor
+    // � NO BLOQUEANTE: Guardar en background sin esperar
     if (updateReservaOptimized) {
-      try {
-        await updateReservaOptimized(reservaId, { detalles: nuevosDetalles });
-        console.log('✅ Detalle actualizado y guardado');
-      } catch (error) {
-        console.error('❌ Error guardando detalle actualizado:', error);
-        throw error;
-      }
+      updateReservaOptimized(reservaId, { detalles: nuevosDetalles })
+        .then(() => console.log('✅ Detalle actualizado'))
+        .catch(error => console.error('❌ Error actualizando detalle:', error));
     }
   }, [getDetallesReserva, updateReservaOptimized]);
 
   // Función para eliminar un detalle específico
-  const eliminarDetalle = useCallback(async (reservaId: string, index: number) => {
+  const eliminarDetalle = useCallback((reservaId: string, index: number) => {
     const detalles = getDetallesReserva(reservaId);
     const nuevosDetalles = detalles.filter((_, i) => i !== index);
     
-    // 🔥 Guardar DIRECTAMENTE en servidor
+    // � NO BLOQUEANTE: Eliminar inmediatamente en UI, guardar en background
     if (updateReservaOptimized) {
-      try {
-        await updateReservaOptimized(reservaId, { detalles: nuevosDetalles });
-        console.log('✅ Detalle eliminado y guardado');
-      } catch (error) {
-        console.error('❌ Error eliminando detalle:', error);
-        throw error;
-      }
+      updateReservaOptimized(reservaId, { detalles: nuevosDetalles })
+        .then(() => console.log('✅ Detalle eliminado'))
+        .catch(error => console.error('❌ Error eliminando detalle:', error));
     }
   }, [getDetallesReserva, updateReservaOptimized]);
   
