@@ -112,19 +112,17 @@ export function ReservationTable({
     const detallesActuales = getDetallesReserva(reservaId);
     const nuevosDetalles = [...detallesActuales, valor];
     
-    // 🎯 Actualizar usando SOLO el hook unificado
-    updateField(reservaId, 'detalles', nuevosDetalles);
-
-    // 🔥 Guardar inmediatamente en servidor para evitar inconsistencias
+    // 🔥 Guardar DIRECTAMENTE en servidor (sin updateField para evitar doble actualización)
     if (updateReservaOptimized) {
       try {
         await updateReservaOptimized(reservaId, { detalles: nuevosDetalles });
         console.log('✅ Detalle agregado y guardado:', nuevosDetalles);
       } catch (error) {
         console.error('❌ Error guardando detalle:', error);
+        throw error; // Re-throw para que el caller pueda manejarlo
       }
     }
-  }, [getDetallesReserva, updateField, updateReservaOptimized]);
+  }, [getDetallesReserva, updateReservaOptimized]);
 
   // Función para actualizar un detalle específico
   const actualizarDetalle = useCallback(async (reservaId: string, index: number, valor: string) => {
@@ -132,38 +130,34 @@ export function ReservationTable({
     const nuevosDetalles = [...detalles];
     nuevosDetalles[index] = valor;
     
-    // 🎯 Actualizar usando SOLO el hook unificado
-    updateField(reservaId, 'detalles', nuevosDetalles);
-
-    // 🔥 Guardar inmediatamente en servidor
+    // 🔥 Guardar DIRECTAMENTE en servidor
     if (updateReservaOptimized) {
       try {
         await updateReservaOptimized(reservaId, { detalles: nuevosDetalles });
         console.log('✅ Detalle actualizado y guardado');
       } catch (error) {
         console.error('❌ Error guardando detalle actualizado:', error);
+        throw error;
       }
     }
-  }, [getDetallesReserva, updateField, updateReservaOptimized]);
+  }, [getDetallesReserva, updateReservaOptimized]);
 
   // Función para eliminar un detalle específico
   const eliminarDetalle = useCallback(async (reservaId: string, index: number) => {
     const detalles = getDetallesReserva(reservaId);
     const nuevosDetalles = detalles.filter((_, i) => i !== index);
     
-    // 🎯 Actualizar usando SOLO el hook unificado
-    updateField(reservaId, 'detalles', nuevosDetalles);
-
-    // 🔥 Guardar inmediatamente en servidor
+    // 🔥 Guardar DIRECTAMENTE en servidor
     if (updateReservaOptimized) {
       try {
         await updateReservaOptimized(reservaId, { detalles: nuevosDetalles });
         console.log('✅ Detalle eliminado y guardado');
       } catch (error) {
         console.error('❌ Error eliminando detalle:', error);
+        throw error;
       }
     }
-  }, [getDetallesReserva, updateField, updateReservaOptimized]);
+  }, [getDetallesReserva, updateReservaOptimized]);
   
   // Función para manejar el upload de comprobante
   const handleUploadComprobante = async (file: File) => {
@@ -699,12 +693,22 @@ export function ReservationTable({
                             className="w-28 h-6 text-xs border-2 border-gray-300 bg-white hover:bg-gray-100 focus:bg-white focus:border-blue-500 text-center px-2 rounded-md shadow-sm text-gray-900"
                             onBlur={async (e) => {
                               if (e.target.value.trim()) {
-                                await agregarDetalle(reserva.id, e.target.value);
+                                try {
+                                  await agregarDetalle(reserva.id, e.target.value);
+                                  // No necesitamos limpiar manualmente, la key dinámica lo hace
+                                } catch (error) {
+                                  console.error('Error al agregar detalle:', error);
+                                }
                               }
                             }}
                             onKeyDown={async (e) => {
                               if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                                await agregarDetalle(reserva.id, e.currentTarget.value);
+                                try {
+                                  await agregarDetalle(reserva.id, e.currentTarget.value);
+                                  // No necesitamos limpiar manualmente, la key dinámica lo hace
+                                } catch (error) {
+                                  console.error('Error al agregar detalle:', error);
+                                }
                               }
                             }}
                           />
@@ -712,8 +716,14 @@ export function ReservationTable({
                             onClick={async () => {
                               const input = document.querySelector(`input[placeholder="Nuevo detalle"]`) as HTMLInputElement;
                               if (input?.value.trim()) {
-                                await agregarDetalle(reserva.id, input.value);
-                                input.focus(); // Enfocar para seguir agregando
+                                try {
+                                  await agregarDetalle(reserva.id, input.value);
+                                  // La key dinámica resetea automáticamente
+                                  input.focus(); // Enfocar para seguir agregando
+                                } catch (error) {
+                                  console.error('Error al agregar detalle:', error);
+                                  input.focus(); // Enfocar incluso si hubo error
+                                }
                               } else {
                                 input?.focus(); // Si está vacío, solo enfocar
                               }
