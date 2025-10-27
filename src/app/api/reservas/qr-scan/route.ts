@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { emitReservationEvent } from '../events/route';
+import { BUSINESS_TIMEZONE } from '../../../../lib/timezone-utils';
 
 interface QRData {
   reservaId: string;
@@ -63,38 +64,45 @@ async function parseQRCode(qrCode: string): Promise<ParsedQRResult | NextRespons
   }
 }
 
-// Función auxiliar: Validar ventana de tiempo del QR
+// Función auxiliar: Validar ventana de tiempo del QR (CON TIMEZONE CORRECTO)
 function validateQRTimeWindow(reservedAt: Date): TimeValidationResult {
-  const currentTime = new Date();
+  // 🌍 USAR TIMEZONE DEL NEGOCIO para validación consistente
+  const ahora = new Date();
+  const ahoraEnNegocio = new Date(ahora.toLocaleString('en-US', { timeZone: BUSINESS_TIMEZONE }));
   const reservationDateTime = new Date(reservedAt);
   
+  // 🕐 Calcular ventanas usando timezone del negocio
   const qrValidFrom = new Date(reservationDateTime.getTime() - (24 * 60 * 60 * 1000)); // 24h antes
   const qrExpiresAt = new Date(reservationDateTime.getTime() + (12 * 60 * 60 * 1000)); // 12h después
   
-  console.log('🕐 Validación de expiración:', {
-    currentTime: currentTime.toISOString(),
-    reservedAt: reservedAt,
+  console.log('🕐 Validación de expiración (TIMEZONE AWARE):', {
+    currentTimeUTC: ahora.toISOString(),
+    currentTimeNegocio: ahoraEnNegocio.toLocaleString('es-CO', { timeZone: BUSINESS_TIMEZONE }),
+    reservedAt: reservedAt.toISOString(),
     reservationDateTime: reservationDateTime.toISOString(),
     qrValidFrom: qrValidFrom.toISOString(),
     qrExpiresAt: qrExpiresAt.toISOString(),
-    isTooEarly: currentTime < qrValidFrom,
-    isExpired: currentTime > qrExpiresAt,
-    hoursUntilReservation: ((reservationDateTime.getTime() - currentTime.getTime()) / (1000 * 60 * 60)).toFixed(2),
-    hoursUntilExpiration: ((qrExpiresAt.getTime() - currentTime.getTime()) / (1000 * 60 * 60)).toFixed(2)
+    timezone: BUSINESS_TIMEZONE,
+    isTooEarly: ahora < qrValidFrom,
+    isExpired: ahora > qrExpiresAt,
+    hoursUntilReservation: ((reservationDateTime.getTime() - ahora.getTime()) / (1000 * 60 * 60)).toFixed(2),
+    hoursUntilExpiration: ((qrExpiresAt.getTime() - ahora.getTime()) / (1000 * 60 * 60)).toFixed(2),
+    metodo: 'timezone-aware (NO más desfases)'
   });
   
-  if (currentTime < qrValidFrom) {
-    const hoursUntilValid = Math.ceil((qrValidFrom.getTime() - currentTime.getTime()) / (1000 * 60 * 60));
+  if (ahora < qrValidFrom) {
+    const hoursUntilValid = Math.ceil((qrValidFrom.getTime() - ahora.getTime()) / (1000 * 60 * 60));
     return {
       isValid: false,
       message: `Código QR aún no es válido. Será válido ${hoursUntilValid} horas antes de tu reserva.`
     };
   }
   
-  if (currentTime > qrExpiresAt) {
+  if (ahora > qrExpiresAt) {
+    const hoursExpired = Math.ceil((ahora.getTime() - qrExpiresAt.getTime()) / (1000 * 60 * 60));
     return {
       isValid: false,
-      message: 'Código QR expirado (más de 12 horas desde la hora de tu reserva)'
+      message: `Código QR expirado hace ${hoursExpired} horas (más de 12 horas desde la hora de tu reserva)`
     };
   }
   

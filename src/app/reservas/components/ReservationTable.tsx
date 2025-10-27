@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Button } from "./ui/button";
@@ -42,7 +43,7 @@ interface ReservationTableProps {
 }
 
 export function ReservationTable({ 
-  businessId = 'golom',
+  businessId = 'casa-sabor-demo',  // Cambiado al negocio real
   reservas, 
   allReservas,
   selectedDate, 
@@ -56,13 +57,13 @@ export function ReservationTable({
   onMesaChange,
   onHoraChange,
   onPromotorChange,
-  updateReservaOptimized,
   onFechaChange,
   onPersonasChange,
   onNameChange,
 }: Readonly<ReservationTableProps>) {
   // 🎯 Hook unificado de edición (reemplaza toda la lógica de localStorage)
-  const { updateField, getFieldValue } = useReservaEditing({ businessId });
+  const { updateField } = useReservaEditing({ businessId });
+  const queryClient = useQueryClient();
   
   const [searchTerm, setSearchTerm] = useState("");
   
@@ -74,70 +75,388 @@ export function ReservationTable({
   const [showDateChangeModal, setShowDateChangeModal] = useState(false);
   const [selectedReservaForDateChange, setSelectedReservaForDateChange] = useState<Reserva | null>(null);
 
+  // Estados para agregar nuevos detalles (evita problemas de DOM)
+  const [newDetailValues, setNewDetailValues] = useState<Record<string, string>>({});
+
+  // Función para limpiar el campo de nuevo detalle
+  const clearNewDetailField = useCallback((reservaId: string) => {
+    setNewDetailValues(prev => ({ ...prev, [reservaId]: '' }));
+  }, []);
+
+  // Función para actualizar el valor del campo de nuevo detalle
+  const updateNewDetailValue = useCallback((reservaId: string, value: string) => {
+    setNewDetailValues(prev => ({ ...prev, [reservaId]: value }));
+  }, []);
+
   // ✏️ Estados para edición de nombre del cliente
   const [editingClienteName, setEditingClienteName] = useState<string | null>(null);
   const [tempClienteName, setTempClienteName] = useState<string>("");
 
-  // 🔄 Función para obtener el valor actual de un campo (simplificada)
-  const obtenerValorCampo = (reservaId: string, campo: keyof Reserva): any => {
-    const reservaOriginal = allReservas?.find(r => r.id === reservaId) || reservas.find(r => r.id === reservaId);
-    if (!reservaOriginal) return undefined;
+  // 🔄 Función para obtener el valor actual de un campo (BUSCAR QUERY KEY REAL)
+  const obtenerValorCampo = useCallback((reservaId: string, campo: keyof Reserva): any => {
+    // 🎯 BUSCAR la query key que realmente tiene datos
+    const allQueries = queryClient.getQueryCache().getAll();
+    let queryDataFound = null;
+    let foundQueryKey = null;
     
-    // Usar el hook unificado para obtener el valor (incluye ediciones locales optimistas)
-    return getFieldValue(reservaId, campo, reservaOriginal[campo]);
-  };
-
-  // Función para inicializar detalles de una reserva
-  const getDetallesReserva = useCallback((reservaId: string): string[] => {
-    // 🎯 SIEMPRE usar el hook para obtener los detalles más actuales
-    const reservaOriginal = reservas.find(r => r.id === reservaId);
-    const detallesActuales = getFieldValue(reservaId, 'detalles', reservaOriginal?.detalles || []);
-    
-    // ✅ Solo log cuando realmente hay cambios para evitar spam
-    const hasChanges = JSON.stringify(reservaOriginal?.detalles) !== JSON.stringify(detallesActuales);
-    if (hasChanges) {
-      console.log('🔍 getDetallesReserva - CAMBIO DETECTADO:', { 
-        reservaId, 
-        detallesOriginales: JSON.stringify(reservaOriginal?.detalles),
-        detallesActuales: JSON.stringify(detallesActuales),
-        timestamp: new Date().toISOString()
-      });
+    // Buscar cualquier query que contenga reservas con datos
+    for (const query of allQueries) {
+      const data = query.state.data;
+      if (data && 
+          (Array.isArray(data) || 
+           (typeof data === 'object' && (data as any).reservas))) {
+        queryDataFound = data;
+        foundQueryKey = query.queryKey;
+        break;
+      }
     }
     
-    return detallesActuales;
-  }, [reservas, getFieldValue]);
+    console.log('🎯 Query encontrada:', { 
+      foundQueryKey: foundQueryKey ? JSON.stringify(foundQueryKey) : 'NONE',
+      hasData: !!queryDataFound,
+      reservaId,
+      campo 
+    });
+    
+    let reservaFromCache: Reserva | undefined;
+    if (queryDataFound) {
+      // Si es data combinada (con stats)
+      if ((queryDataFound as any).reservas) {
+        reservaFromCache = (queryDataFound as any).reservas.find((r: Reserva) => r.id === reservaId);
+        console.log('🔍 Buscando en queryData.reservas:', { count: (queryDataFound as any).reservas?.length, found: !!reservaFromCache });
+      }
+      // Si es array simple
+      else if (Array.isArray(queryDataFound)) {
+        reservaFromCache = queryDataFound.find((r: Reserva) => r.id === reservaId);
+        console.log('🔍 Buscando en array:', { count: queryDataFound.length, found: !!reservaFromCache });
+      }
+    }
+    
+    // Si encontramos en cache, usar esos datos (incluye optimistic updates)
+    if (reservaFromCache) {
+      const valor = reservaFromCache[campo];
+      console.log('💾 obtenerValorCampo - Usando cache React Query:', { reservaId, campo, valor: Array.isArray(valor) ? `Array(${valor.length})` : valor });
+      
+      // Para detalles, asegurar que siempre devolvemos un array
+      if (campo === 'detalles') {
+        return Array.isArray(valor) ? valor : [];
+      }
+      return valor;
+    }
+    
+    // Fallback: usar props (solo si no hay cache)
+    const reservaOriginal = allReservas?.find(r => r.id === reservaId) || reservas.find(r => r.id === reservaId);
+    if (!reservaOriginal) return campo === 'detalles' ? [] : '';
+    
+    const valor = reservaOriginal[campo];
+    console.log('📋 obtenerValorCampo - Usando props fallback:', { reservaId, campo, valor: Array.isArray(valor) ? `Array(${valor.length})` : valor });
+    
+    // Para detalles, asegurar que siempre devolvemos un array
+    if (campo === 'detalles') {
+      return Array.isArray(valor) ? valor : [];
+    }
+    
+    return valor;
+  }, [allReservas, reservas, queryClient]);
+
+  // Función para inicializar detalles de una reserva (SIMPLIFICADO)
+  const getDetallesReserva = useCallback((reservaId: string): string[] => {
+    return obtenerValorCampo(reservaId, 'detalles');
+  }, [obtenerValorCampo]);
 
   // Función para agregar un nuevo campo de detalle
+  // Función para agregar un nuevo detalle (CON OPTIMISTIC UPDATES)
   const agregarDetalle = useCallback(async (reservaId: string, valor: string = '') => {
-    const detallesActuales = getDetallesReserva(reservaId);
-    const nuevosDetalles = [...detallesActuales, valor];
+    if (!valor.trim()) return;
     
-    // 🚀 OPTIMISTIC UPDATE: Usar updateField para actualización inmediata (igual que número de mesa)
-    updateField(reservaId, 'detalles', nuevosDetalles);
-  }, [getDetallesReserva, updateField]);
+    const detallesActuales = getDetallesReserva(reservaId);
+    const nuevosDetalles = [...detallesActuales, valor.trim()];
+    
+    console.log('🆕 Agregando detalle OPTIMISTA:', { reservaId, valor, detallesActuales, nuevosDetalles });
+    
+    // 🎯 OPTIMISTIC UPDATE - Actualizar cache inmediatamente
+    const allQueries = queryClient.getQueryCache().getAll();
+    for (const query of allQueries) {
+      const data = query.state.data;
+      if (data && 
+          (Array.isArray(data) || 
+           (typeof data === 'object' && (data as any).reservas))) {
+        
+        queryClient.setQueryData(query.queryKey, (old: any) => {
+          if (!old) return old;
+          
+          // Si es data combinada (con stats)
+          if (old.reservas) {
+            return {
+              ...old,
+              reservas: old.reservas.map((reserva: any) => 
+                reserva.id === reservaId 
+                  ? { ...reserva, detalles: nuevosDetalles }
+                  : reserva
+              )
+            };
+          }
+          
+          // Si es array simple
+          if (Array.isArray(old)) {
+            return old.map((reserva: any) => 
+              reserva.id === reservaId 
+                ? { ...reserva, detalles: nuevosDetalles }
+                : reserva
+            );
+          }
+          
+          return old;
+        });
+        
+        console.log('💾 Cache actualizado optimísticamente:', { queryKey: query.queryKey, nuevosDetalles });
+        break; // Solo actualizar la primera query con datos
+      }
+    }
+    
+    // Limpiar campo inmediatamente (ya que la UI se actualiza al instante)
+    clearNewDetailField(reservaId);
+    
+    try {
+      await updateField(reservaId, 'detalles', nuevosDetalles);
+      console.log('✅ Detalle agregado exitosamente al servidor');
+      
+    } catch (error) {
+      console.error('❌ Error agregando detalle al servidor:', error);
+      
+      // 🔄 REVERT - Si falla el servidor, revertir el cache
+      for (const query of allQueries) {
+        const data = query.state.data;
+        if (data && 
+            (Array.isArray(data) || 
+             (typeof data === 'object' && (data as any).reservas))) {
+          
+          queryClient.setQueryData(query.queryKey, (old: any) => {
+            if (!old) return old;
+            
+            // Si es data combinada (con stats)
+            if (old.reservas) {
+              return {
+                ...old,
+                reservas: old.reservas.map((reserva: any) => 
+                  reserva.id === reservaId 
+                    ? { ...reserva, detalles: detallesActuales } // Revertir a detalles originales
+                    : reserva
+                )
+              };
+            }
+            
+            // Si es array simple
+            if (Array.isArray(old)) {
+              return old.map((reserva: any) => 
+                reserva.id === reservaId 
+                  ? { ...reserva, detalles: detallesActuales } // Revertir a detalles originales
+                  : reserva
+              );
+            }
+            
+            return old;
+          });
+          
+          console.log('🔄 Cache revertido por error:', { queryKey: query.queryKey, detallesOriginales: detallesActuales });
+          break;
+        }
+      }
+    }
+  }, [getDetallesReserva, updateField, clearNewDetailField, queryClient]);
 
-  // Función para actualizar un detalle específico
-  const actualizarDetalle = useCallback((reservaId: string, index: number, valor: string) => {
+  // Función para actualizar un detalle específico (CON OPTIMISTIC UPDATES)
+  const actualizarDetalle = useCallback(async (reservaId: string, index: number, valor: string) => {
     const detalles = getDetallesReserva(reservaId);
     const nuevosDetalles = [...detalles];
-    nuevosDetalles[index] = valor;
+    const valorOriginal = nuevosDetalles[index]; // Guardar valor original para revert
+    nuevosDetalles[index] = valor.trim();
     
-    // � NO BLOQUEANTE: Guardar en background sin esperar
+    console.log('✏️ Actualizando detalle OPTIMISTA:', { reservaId, index, valorOriginal, valor, nuevosDetalles });
     
-    // 🚀 OPTIMISTIC UPDATE: Usar updateField para actualización inmediata (igual que número de mesa)
-    updateField(reservaId, 'detalles', nuevosDetalles);
-  }, [getDetallesReserva, updateField]);
+    // 🎯 OPTIMISTIC UPDATE - Actualizar cache inmediatamente
+    const allQueries = queryClient.getQueryCache().getAll();
+    for (const query of allQueries) {
+      const data = query.state.data;
+      if (data && 
+          (Array.isArray(data) || 
+           (typeof data === 'object' && (data as any).reservas))) {
+        
+        queryClient.setQueryData(query.queryKey, (old: any) => {
+          if (!old) return old;
+          
+          // Si es data combinada (con stats)
+          if (old.reservas) {
+            return {
+              ...old,
+              reservas: old.reservas.map((reserva: any) => 
+                reserva.id === reservaId 
+                  ? { ...reserva, detalles: nuevosDetalles }
+                  : reserva
+              )
+            };
+          }
+          
+          // Si es array simple
+          if (Array.isArray(old)) {
+            return old.map((reserva: any) => 
+              reserva.id === reservaId 
+                ? { ...reserva, detalles: nuevosDetalles }
+                : reserva
+            );
+          }
+          
+          return old;
+        });
+        
+        console.log('💾 Cache actualizado optimísticamente:', { queryKey: query.queryKey, nuevosDetalles });
+        break; // Solo actualizar la primera query con datos
+      }
+    }
+    
+    try {
+      await updateField(reservaId, 'detalles', nuevosDetalles);
+      console.log('✅ Detalle actualizado exitosamente en servidor');
+    } catch (error) {
+      console.error('❌ Error actualizando detalle en servidor:', error);
+      
+      // 🔄 REVERT - Si falla el servidor, revertir el cache al valor original
+      const detallesRevertidas = [...detalles];
+      detallesRevertidas[index] = valorOriginal;
+      
+      for (const query of allQueries) {
+        const data = query.state.data;
+        if (data && 
+            (Array.isArray(data) || 
+             (typeof data === 'object' && (data as any).reservas))) {
+          
+          queryClient.setQueryData(query.queryKey, (old: any) => {
+            if (!old) return old;
+            
+            // Si es data combinada (con stats)
+            if (old.reservas) {
+              return {
+                ...old,
+                reservas: old.reservas.map((reserva: any) => 
+                  reserva.id === reservaId 
+                    ? { ...reserva, detalles: detallesRevertidas } // Revertir al valor original
+                    : reserva
+                )
+              };
+            }
+            
+            // Si es array simple
+            if (Array.isArray(old)) {
+              return old.map((reserva: any) => 
+                reserva.id === reservaId 
+                  ? { ...reserva, detalles: detallesRevertidas } // Revertir al valor original
+                  : reserva
+              );
+            }
+            
+            return old;
+          });
+          
+          console.log('🔄 Cache revertido por error:', { queryKey: query.queryKey, valorOriginal, detallesRevertidas });
+          break;
+        }
+      }
+    }
+  }, [getDetallesReserva, updateField, queryClient]);
 
-  // Función para eliminar un detalle específico
-  const eliminarDetalle = useCallback((reservaId: string, index: number) => {
+  // Función para eliminar un detalle específico (SIMPLIFICADO)
+  const eliminarDetalle = useCallback(async (reservaId: string, index: number) => {
     const detalles = getDetallesReserva(reservaId);
     const nuevosDetalles = detalles.filter((_, i) => i !== index);
     
-    // � NO BLOQUEANTE: Eliminar inmediatamente en UI, guardar en background
+    console.log('🗑️ Eliminando detalle OPTIMISTA:', { reservaId, index, detallesOriginales: detalles, nuevosDetalles });
     
-    // 🚀 OPTIMISTIC UPDATE: Usar updateField para actualización inmediata (igual que número de mesa)
-    updateField(reservaId, 'detalles', nuevosDetalles);
-  }, [getDetallesReserva, updateField]);
+    // 🎯 OPTIMISTIC UPDATE - Actualizar cache inmediatamente
+    const allQueries = queryClient.getQueryCache().getAll();
+    for (const query of allQueries) {
+      const data = query.state.data;
+      if (data && 
+          (Array.isArray(data) || 
+           (typeof data === 'object' && (data as any).reservas))) {
+        
+        queryClient.setQueryData(query.queryKey, (old: any) => {
+          if (!old) return old;
+          
+          // Si es data combinada (con stats)
+          if (old.reservas) {
+            return {
+              ...old,
+              reservas: old.reservas.map((reserva: any) => 
+                reserva.id === reservaId 
+                  ? { ...reserva, detalles: nuevosDetalles }
+                  : reserva
+              )
+            };
+          }
+          
+          // Si es array simple
+          if (Array.isArray(old)) {
+            return old.map((reserva: any) => 
+              reserva.id === reservaId 
+                ? { ...reserva, detalles: nuevosDetalles }
+                : reserva
+            );
+          }
+          
+          return old;
+        });
+        
+        console.log('💾 Cache actualizado optimísticamente:', { queryKey: query.queryKey, nuevosDetalles });
+        break; // Solo actualizar la primera query con datos
+      }
+    }
+    
+    try {
+      await updateField(reservaId, 'detalles', nuevosDetalles);
+      console.log('✅ Detalle eliminado exitosamente en servidor');
+    } catch (error) {
+      console.error('❌ Error eliminando detalle en servidor:', error);
+      
+      // 🔄 REVERT - Si falla el servidor, revertir el cache
+      for (const query of allQueries) {
+        const data = query.state.data;
+        if (data && 
+            (Array.isArray(data) || 
+             (typeof data === 'object' && (data as any).reservas))) {
+          
+          queryClient.setQueryData(query.queryKey, (old: any) => {
+            if (!old) return old;
+            
+            // Si es data combinada (con stats)
+            if (old.reservas) {
+              return {
+                ...old,
+                reservas: old.reservas.map((reserva: any) => 
+                  reserva.id === reservaId 
+                    ? { ...reserva, detalles: detalles } // Revertir a detalles originales
+                    : reserva
+                )
+              };
+            }
+            
+            // Si es array simple
+            if (Array.isArray(old)) {
+              return old.map((reserva: any) => 
+                reserva.id === reservaId 
+                  ? { ...reserva, detalles: detalles } // Revertir a detalles originales
+                  : reserva
+              );
+            }
+            
+            return old;
+          });
+          
+          console.log('🔄 Cache revertido por error:', { queryKey: query.queryKey, detallesOriginales: detalles });
+          break;
+        }
+      }
+    }
+  }, [getDetallesReserva, updateField, queryClient]);
   
   // Función para manejar el upload de comprobante
   const handleUploadComprobante = async (file: File) => {
@@ -646,17 +965,33 @@ export function ReservationTable({
                     <TableCell className="py-2 text-center align-middle w-40">
                       <div className="flex flex-col items-center justify-center gap-1">
                         {getDetallesReserva(reserva.id).map((detalle, index) => (
-                          <div key={`${reserva.id}-detalle-${index}`} className="flex items-center gap-1">
+                          <div key={`${reserva.id}-detalle-${index}-${detalle.slice(0, 10)}`} className="flex items-center gap-1">
                             <Input
                               defaultValue={detalle}
                               placeholder=""
                               className="w-28 h-6 text-xs border-2 border-gray-300 bg-white hover:bg-gray-100 focus:bg-white focus:border-blue-500 text-center px-2 rounded-md shadow-sm text-gray-900"
                               onBlur={(e) => {
-                                actualizarDetalle(reserva.id, index, e.target.value);
+                                const finalValue = e.target.value.trim();
+                                if (finalValue !== detalle) {
+                                  console.log('🔄 Actualizando detalle en onBlur:', { reservaId: reserva.id, index, old: detalle, new: finalValue });
+                                  actualizarDetalle(reserva.id, index, finalValue);
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.currentTarget.blur();
+                                } else if (e.key === 'Escape') {
+                                  // Restaurar valor original al presionar Escape
+                                  e.currentTarget.value = detalle;
+                                  e.currentTarget.blur();
+                                }
                               }}
                             />
                             <button
-                              onClick={() => eliminarDetalle(reserva.id, index)}
+                              onClick={() => {
+                                console.log('🗑️ Botón eliminar clickeado:', { reservaId: reserva.id, index });
+                                eliminarDetalle(reserva.id, index);
+                              }}
                               className="w-5 h-5 flex items-center justify-center hover:bg-red-100 rounded-full cursor-pointer transition-colors border border-red-300 bg-white"
                               title="Eliminar detalle"
                             >
@@ -664,48 +999,32 @@ export function ReservationTable({
                             </button>
                           </div>
                         ))}
-                        {/* Campo principal siempre visible con botón + al lado */}
+                        {/* Campo para agregar nuevo detalle */}
                         <div className="flex items-center justify-center gap-1">
                           <Input
-                            key={`${reserva.id}-nuevo-detalle-${getDetallesReserva(reserva.id).length}`} // 🎯 Key dinámica para forzar reset
-                            defaultValue=""
+                            key={`add-detail-${reserva.id}`}
+                            value={newDetailValues[reserva.id] || ''}
+                            onChange={(e) => updateNewDetailValue(reserva.id, e.target.value)}
                             placeholder="Nuevo detalle"
                             className="w-28 h-6 text-xs border-2 border-gray-300 bg-white hover:bg-gray-100 focus:bg-white focus:border-blue-500 text-center px-2 rounded-md shadow-sm text-gray-900"
-                            onBlur={async (e) => {
-                              if (e.target.value.trim()) {
-                                try {
-                                  await agregarDetalle(reserva.id, e.target.value);
-                                  // No necesitamos limpiar manualmente, la key dinámica lo hace
-                                } catch (error) {
-                                  console.error('Error al agregar detalle:', error);
-                                }
-                              }
-                            }}
                             onKeyDown={async (e) => {
-                              if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                                try {
-                                  await agregarDetalle(reserva.id, e.currentTarget.value);
-                                  // No necesitamos limpiar manualmente, la key dinámica lo hace
-                                } catch (error) {
-                                  console.error('Error al agregar detalle:', error);
+                              if (e.key === 'Enter') {
+                                const valor = (newDetailValues[reserva.id] || '').trim();
+                                console.log('⌨️ Enter presionado:', { reservaId: reserva.id, valor });
+                                if (valor) {
+                                  await agregarDetalle(reserva.id, valor);
                                 }
                               }
                             }}
                           />
                           <button
                             onClick={async () => {
-                              const input = document.querySelector(`input[placeholder="Nuevo detalle"]`) as HTMLInputElement;
-                              if (input?.value.trim()) {
-                                try {
-                                  await agregarDetalle(reserva.id, input.value);
-                                  // La key dinámica resetea automáticamente
-                                  input.focus(); // Enfocar para seguir agregando
-                                } catch (error) {
-                                  console.error('Error al agregar detalle:', error);
-                                  input.focus(); // Enfocar incluso si hubo error
-                                }
+                              const valor = (newDetailValues[reserva.id] || '').trim();
+                              console.log('🔘 Botón + clickeado:', { reservaId: reserva.id, valor, newDetailValues: newDetailValues[reserva.id] });
+                              if (valor) {
+                                await agregarDetalle(reserva.id, valor);
                               } else {
-                                input?.focus(); // Si está vacío, solo enfocar
+                                console.log('⚠️ No hay valor para agregar');
                               }
                             }}
                             className="w-6 h-6 flex items-center justify-center hover:bg-gray-100 rounded-full cursor-pointer transition-colors border border-gray-300 bg-white"

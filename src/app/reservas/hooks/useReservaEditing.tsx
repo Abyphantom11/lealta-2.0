@@ -25,9 +25,6 @@ export function useReservaEditing({ businessId }: UseReservaEditingOptions = {})
   // 🔄 Estado local de ediciones (reemplaza localStorage)
   const [editingState, setEditingState] = useState<EditingState>({});
   
-  // 🔒 Estado para proteger ediciones recientes contra invalidaciones externas
-  const [recentEdits, setRecentEdits] = useState<Set<string>>(new Set());
-  
   // 🔄 Mutation unificada para actualizaciones (optimizada para Cloudflare Tunnel)
   const updateMutation = useMutation({
     // ⚙️ Configuración optimizada para Cloudflare Tunnel
@@ -187,21 +184,9 @@ export function useReservaEditing({ businessId }: UseReservaEditingOptions = {})
         refetchType: 'active'
       });
       
-      // Limpiar estado de edición local
-      setEditingState(prev => {
-        const newState = { ...prev };
-        delete newState[id];
-        return newState;
-      });
+      // 🧹 Ya no necesitamos limpiar estado local porque no lo usamos
       
-      // 🔒 Limpiar protección ya que la actualización fue exitosa
-      setRecentEdits(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(id);
-        return newSet;
-      });
-      
-      // 🚨 PROTECCIÓN ADICIONAL: Verificar datos después de un tiempo
+      //  PROTECCIÓN ADICIONAL: Verificar datos después de un tiempo
       setTimeout(() => {
         // Verificando que los datos no fueron revertidos
         const currentData = queryClient.getQueryData(reservasQueryKeys.list(businessId || 'default'));
@@ -307,51 +292,42 @@ export function useReservaEditing({ businessId }: UseReservaEditingOptions = {})
     },
   });
   
-  // 🎯 Función para actualizar un campo específico (edición inline)
+  // 🎯 Función para actualizar un campo específico (CON OPTIMISTIC UPDATE INMEDIATO)
   const updateField = useCallback((reservaId: string, field: keyof Reserva, value: any) => {
-    // Log silenciado para reducir ruido en consola
+    console.log('🔄 updateField con optimistic update:', { reservaId, field, value });
     
-    // 🔒 Marcar esta reserva como editada recientemente para protegerla
-    setRecentEdits(prev => new Set([...prev, reservaId]));
-    
-    // 🕐 Limpiar protección después de más tiempo debido a Cloudflare Tunnel
-    setTimeout(() => {
-      setRecentEdits(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(reservaId);
-        return newSet;
-      });
-    }, 15000); // 15 segundos para conexiones de Cloudflare Tunnel
-    
-    // Actualizar estado local inmediatamente para UI responsiva
-    setEditingState(prev => {
-      const newState = {
-        ...prev,
-        [reservaId]: {
-          ...prev[reservaId],
-          [field]: value
-        }
-      };
+    // 🚀 OPTIMISTIC UPDATE INMEDIATO: Actualizar cache local antes del servidor
+    queryClient.setQueryData(reservasQueryKeys.list(businessId || 'default'), (old: any) => {
+      if (!old) return old;
       
-      return newState;
+      console.log('🎯 Aplicando optimistic update al cache:', { reservaId, field, value });
+      
+      // Si es data combinada (con stats)
+      if (old.reservas) {
+        return {
+          ...old,
+          reservas: old.reservas.map((reserva: Reserva) =>
+            reserva.id === reservaId ? { ...reserva, [field]: value } : reserva
+          )
+        };
+      }
+      
+      // Si es array simple
+      if (Array.isArray(old)) {
+        return old.map((reserva: Reserva) =>
+          reserva.id === reservaId ? { ...reserva, [field]: value } : reserva
+        );
+      }
+      
+      return old;
     });
     
-    // 🚀 Hacer la mutación inmediatamente (sin debounce para mejor UX)
-    // La actualización optimista ya maneja la UI
-    updateMutation.mutate({
+    // Luego hacer la mutación al servidor
+    return updateMutation.mutateAsync({
       id: reservaId,
       updates: { [field]: value }
     });
-    
-    // 🔒 Remover protección después de 10 segundos
-    setTimeout(() => {
-      setRecentEdits(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(reservaId);
-        return newSet;
-      });
-    }, 10000); // 10 segundos de protección
-  }, [updateMutation]);
+  }, [updateMutation, queryClient, businessId]);
   
   // 🎯 Función para actualizar múltiples campos (edición modal)
   const updateReserva = useCallback((reservaId: string, updates: Partial<Reserva>) => {
@@ -401,64 +377,33 @@ export function useReservaEditing({ businessId }: UseReservaEditingOptions = {})
       return newState;
     });
     
-    setRecentEdits(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(reservaId);
-      return newSet;
-    });
-    
     toast.success('✅ Reserva eliminada correctamente');
     
     return response.json();
   }, [businessId, queryClient]);
   
-  // 🎯 Función para obtener el valor actual de un campo
+  // 🎯 Función para obtener el valor actual de un campo (SIMPLIFICADO)
   const getFieldValue = useCallback((reservaId: string, field: keyof Reserva, originalValue: any) => {
-    // 1. PRIORIDAD MÁXIMA: Estado local de edición (cambios en curso)
-    const editedValue = editingState[reservaId]?.[field];
-    if (editedValue !== undefined) {
-      console.log('🎯 getFieldValue - Usando valor editado local:', { 
-        reservaId, 
-        field, 
-        editedValue: typeof editedValue === 'object' ? JSON.stringify(editedValue) : editedValue 
-      });
-      return editedValue;
-    }
-    
-    // 2. Si está protegida por edición reciente, usar valor original para evitar conflictos
-    if (recentEdits.has(reservaId)) {
-      console.log('🔒 getFieldValue - Reserva protegida, usando valor original:', { 
-        reservaId, 
-        field, 
-        originalValue: typeof originalValue === 'object' ? JSON.stringify(originalValue) : originalValue 
-      });
-      return originalValue;
-    }
-    
-    // 3. Intentar obtener del cache de React Query (incluye actualizaciones optimistas confirmadas)
+    // 1. Intentar obtener del cache de React Query primero
     const queryData = queryClient.getQueryData(reservasQueryKeys.list(businessId || 'default'));
     
     let reservaFromCache: Reserva | undefined;
     if (queryData) {
-      // Si es data combinada (con stats)
       if ((queryData as any).reservas) {
         reservaFromCache = (queryData as any).reservas.find((r: Reserva) => r.id === reservaId);
-      }
-      // Si es array simple
-      else if (Array.isArray(queryData)) {
+      } else if (Array.isArray(queryData)) {
         reservaFromCache = queryData.find((r: Reserva) => r.id === reservaId);
       }
     }
     
-    // 4. Usar cache si existe
+    // 2. Si hay datos en cache, usarlos
     if (reservaFromCache?.[field] !== undefined) {
-      const cacheValue = reservaFromCache[field];
-      return cacheValue;
+      return reservaFromCache[field];
     }
     
-    // 5. Fallback al valor original
+    // 3. Fallback al valor original
     return originalValue;
-  }, [editingState, recentEdits, queryClient, businessId]);
+  }, [queryClient, businessId]);
   
   // 🎯 Función para verificar si una reserva tiene ediciones pendientes
   const hasLocalEdits = useCallback((reservaId: string) => {

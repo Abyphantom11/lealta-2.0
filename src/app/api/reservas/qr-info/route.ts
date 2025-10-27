@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { BUSINESS_TIMEZONE } from '../../../../lib/timezone-utils';
 
 const prisma = new PrismaClient();
 
@@ -98,24 +99,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verificar que el código QR no esté expirado (12 horas después de la hora de la reserva)
-    const currentTime = new Date();
+    // 🌍 Verificar que el código QR no esté expirado (TIMEZONE AWARE)
+    const ahora = new Date();
     const reservationDateTime = new Date(reserva.ReservationSlot.startTime);
     const expirationTime = new Date(reservationDateTime.getTime() + (12 * 60 * 60 * 1000)); // 12 horas después
     
-    // DEBUG: Log de fechas para debugging
-    console.log('🔍 DEBUG QR Validation:', {
+    // DEBUG: Log de fechas para debugging (CON TIMEZONE)
+    console.log('🔍 DEBUG QR Validation (TIMEZONE AWARE):', {
       reservaId: reserva.id,
       customerName: reserva.customerName,
-      currentTime: currentTime.toISOString(),
+      currentTimeUTC: ahora.toISOString(),
+      currentTimeNegocio: ahora.toLocaleString('es-CO', { timeZone: BUSINESS_TIMEZONE }),
       reservationDateTime: reservationDateTime.toISOString(),
       expirationTime: expirationTime.toISOString(),
-      isExpired: currentTime > expirationTime,
-      hoursUntilExpiration: (expirationTime.getTime() - currentTime.getTime()) / (1000 * 60 * 60)
+      timezone: BUSINESS_TIMEZONE,
+      isExpired: ahora > expirationTime,
+      hoursUntilExpiration: (expirationTime.getTime() - ahora.getTime()) / (1000 * 60 * 60),
+      metodo: 'timezone-aware (consistente con creación)'
     });
     
-    if (currentTime > expirationTime) {
-      console.log('❌ QR EXPIRED - Returning error');
+    if (ahora > expirationTime) {
+      console.log('❌ QR EXPIRED (timezone-aware) - Returning error');
       return NextResponse.json(
         { success: false, message: 'Código QR expirado (más de 12 horas desde la reserva)' },
         { status: 400 }

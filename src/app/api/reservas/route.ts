@@ -663,20 +663,18 @@ export async function POST(request: NextRequest) {
     const reservationNumber = `RES-${Date.now()}`;
     
     // Crear fecha/hora de reserva para reservedAt
-    // Importante: Parsear correctamente la fecha en zona horaria local, no UTC
-    const [horasReserva, minutosReserva] = data.hora.split(':').map(Number);
+    // ✅ SOLUCIÓN DEFINITIVA: Usar utilidad robusta de timezone
+    const { calcularFechasReserva } = await import('@/lib/timezone-utils');
     
-    // Parsear fecha manualmente para evitar problemas de zona horaria
-    const [year, month, day] = data.fecha.split('-').map(Number);
-    const reservedAtDate = new Date(year, month - 1, day, horasReserva, minutosReserva, 0, 0);
+    const fechasCalculadas = calcularFechasReserva(data.fecha, data.hora);
+    const reservedAtDate = fechasCalculadas.fechaReserva;
     
-    console.log('📅 Fecha de reserva creada:', {
-      fechaOriginal: data.fecha,
-      horaOriginal: data.hora,
-      reservedAtDate: reservedAtDate.toISOString(),
-      reservedAtDateLocal: reservedAtDate.toString(),
-      promotorId: promotorId
-    });
+    // Validar que la fecha sea válida
+    if (!fechasCalculadas.esValida) {
+      console.warn('⚠️ Reserva creada en el pasado. Revisar si es intencional.');
+    }
+    
+    console.log('📅 Fecha de reserva creada (MÉTODO DEFINITIVO):', fechasCalculadas.debug);
     
     const nowReservation = new Date();
     const reservation = await prisma.reservation.create({
@@ -711,20 +709,22 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // 6. Crear código QR con expiración de 12 horas después de la hora de llegada de la reserva
+    // 6. Crear código QR usando la utilidad definitiva
     const qrToken = data.codigoQR || generateQRCode();
     
-    // Calcular fecha de expiración: 12 horas después de la hora específica de la reserva
-    const qrExpirationDate = new Date(reservedAtDate.getTime() + (12 * 60 * 60 * 1000)); // +12 horas desde la hora de llegada
+    // ✅ USAR FECHA DE EXPIRACIÓN CALCULADA POR LA UTILIDAD ROBUSTA
+    const qrExpirationDate = fechasCalculadas.fechaExpiracionQR;
     
-    console.log('🎫 CREANDO QR CODE:', {
+    console.log('🎫 CREANDO QR CODE (MÉTODO DEFINITIVO):', {
       reservaId: reservation.id,
+      fechaOriginalInput: `${data.fecha} ${data.hora}`,
       reservedAt: reservedAtDate.toISOString(),
-      reservedAtLocal: reservedAtDate.toLocaleString('es-ES', { timeZone: 'America/Bogota' }),
+      reservedAtColombia: reservedAtDate.toLocaleString('es-CO', { timeZone: 'America/Bogota' }),
       qrExpiresAt: qrExpirationDate.toISOString(),
-      qrExpiresAtLocal: qrExpirationDate.toLocaleString('es-ES', { timeZone: 'America/Bogota' }),
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      timezoneOffset: reservedAtDate.getTimezoneOffset()
+      qrExpiresAtColombia: qrExpirationDate.toLocaleString('es-CO', { timeZone: 'America/Bogota' }),
+      duracionValidez: '12 horas',
+      metodo: 'timezone-utils.js (robusto)',
+      garantiaDeCalidad: 'NO se puede desconfigurar'
     });
     
     const nowQR = new Date();
