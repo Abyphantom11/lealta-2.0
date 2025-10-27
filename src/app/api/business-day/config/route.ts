@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       businessId,
       resetHour: dayConfig.resetHour ?? DEFAULT_RESET_HOUR,
       resetMinute: dayConfig.resetMinute ?? 0,
-      timezone: dayConfig.timezone || 'America/Bogota'
+      timezone: dayConfig.timezone || 'America/Guayaquil'
     };
 
     return NextResponse.json(config);
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       businessId: request.nextUrl.searchParams.get('businessId'),
       resetHour: DEFAULT_RESET_HOUR,
       resetMinute: 0,
-      timezone: 'America/Bogota'
+      timezone: 'America/Guayaquil'
     };
 
     return NextResponse.json(fallbackConfig);
@@ -83,7 +83,7 @@ export async function PUT(request: NextRequest) {
       businessDay: {
         resetHour: resetHour ?? DEFAULT_RESET_HOUR,
         resetMinute: resetMinute ?? 0,
-        timezone: timezone || 'America/Bogota'
+        timezone: timezone || 'America/Guayaquil'
       }
     };
 

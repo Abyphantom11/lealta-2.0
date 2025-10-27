@@ -9,7 +9,7 @@
  * Configuración de timezone para el negocio
  * Este es el timezone REAL donde opera el negocio
  */
-const BUSINESS_TIMEZONE = 'America/Bogota';
+const BUSINESS_TIMEZONE = 'America/Guayaquil';
 
 interface FechasReserva {
   fechaReserva: Date;

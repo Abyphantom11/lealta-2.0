@@ -23,6 +23,7 @@ interface ParsedData {
   clienteCedula?: string;
   clienteCorreo?: string;
   clienteTelefono?: string;
+  clienteFechaNacimiento?: string; // 🆕 Nuevo campo
   numeroPersonas?: number;
   fecha?: string;
   hora?: string;
@@ -45,30 +46,36 @@ export function AIReservationModal({
   const [clienteExistente, setClienteExistente] = useState<boolean>(false);
   const [isSearchingCliente, setIsSearchingCliente] = useState(false);
 
+  // 🌍 Función utilitaria para formatear fecha sin timezone issues
+  const formatDateLocal = (date: Date): string => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+
   // Estados editables para los campos detectados
   const [editableData, setEditableData] = useState({
     clienteNombre: "",
-    clienteCedula: "",
+    clienteCedula: "DEFAULT-PHONE", // 🆕 Cédula por defecto
     clienteCorreo: "",
     clienteTelefono: "",
+    clienteFechaNacimiento: "", // 🆕 Nuevo campo
     numeroPersonas: "1",
-    fecha: selectedDate ? selectedDate.toISOString().split('T')[0] : "",
+    fecha: selectedDate ? formatDateLocal(selectedDate) : "",
     hora: "",
     promotorId: "",
     promotorNombre: "",
   });
 
-  // ✅ NUEVO: Buscar cliente existente automáticamente cuando IA detecta cédula
+  // ✅ NUEVO: Buscar cliente existente automáticamente cuando IA detecta teléfono
   useEffect(() => {
     const searchExistingCliente = async () => {
-      if (!parsedData?.clienteCedula || parsedData.clienteCedula.length < 5) {
+      if (!parsedData?.clienteTelefono || parsedData.clienteTelefono.length < 8) {
         return;
       }
 
       setIsSearchingCliente(true);
       try {
         const response = await fetch(
-          `/api/clientes/search?q=${encodeURIComponent(parsedData.clienteCedula)}`,
+          `/api/clientes/search?q=${encodeURIComponent(parsedData.clienteTelefono)}`,
           {
             headers: {
               'x-business-id': businessId,
@@ -85,23 +92,24 @@ export function AIReservationModal({
         
         // El endpoint devuelve un array de clientes
         if (Array.isArray(data) && data.length > 0) {
-          // Buscar coincidencia exacta de cédula
-          const clienteExacto = data.find((c: any) => c.cedula === parsedData.clienteCedula);
+          // Buscar coincidencia exacta de teléfono
+          const clienteExacto = data.find((c: any) => c.telefono === parsedData.clienteTelefono || c.phone === parsedData.clienteTelefono);
           
           if (clienteExacto) {
             setClienteExistente(true);
             
             // Auto-llenar con datos del cliente existente
-            // IMPORTANTE: Mantener la cédula del parsedData original
+            // IMPORTANTE: Mantener el teléfono del parsedData original
             const emailCliente = clienteExacto.correo || clienteExacto.email;
-            const telefonoCliente = clienteExacto.telefono || clienteExacto.phone;
+            const fechaNacimientoCliente = clienteExacto.fechaNacimiento || clienteExacto.fecha_nacimiento;
             
             setEditableData(prev => ({
               ...prev,
-              clienteCedula: parsedData.clienteCedula || prev.clienteCedula, // Asegurar que la cédula esté presente
+              clienteTelefono: parsedData.clienteTelefono || prev.clienteTelefono, // Asegurar que el teléfono esté presente
               clienteNombre: clienteExacto.nombre,
               clienteCorreo: emailCliente || prev.clienteCorreo,
-              clienteTelefono: telefonoCliente || prev.clienteTelefono,
+              clienteFechaNacimiento: fechaNacimientoCliente || prev.clienteFechaNacimiento,
+              clienteCedula: clienteExacto.cedula || parsedData.clienteTelefono || 'DEFAULT-PHONE', // Usar cédula existente o teléfono
             }));
 
             toast.success("✅ Cliente registrado detectado", {
@@ -123,7 +131,7 @@ export function AIReservationModal({
     };
 
     searchExistingCliente();
-  }, [parsedData?.clienteCedula, businessId]);
+  }, [parsedData?.clienteTelefono, businessId]);
 
   const handleAnalyze = async () => {
     if (!inputText.trim() || inputText.trim().length < 10) {
@@ -164,11 +172,12 @@ export function AIReservationModal({
       // Actualizar campos editables con los datos detectados
       setEditableData({
         clienteNombre: data.clienteNombre || "",
-        clienteCedula: data.clienteCedula || "",
+        clienteCedula: data.clienteTelefono || "DEFAULT-PHONE", // 🆕 Usar teléfono como cédula por defecto
         clienteCorreo: data.clienteCorreo || "",
         clienteTelefono: data.clienteTelefono || "",
+        clienteFechaNacimiento: data.clienteFechaNacimiento || "", // 🆕 Nuevo campo
         numeroPersonas: data.numeroPersonas?.toString() || "1",
-        fecha: data.fecha || (selectedDate ? selectedDate.toISOString().split('T')[0] : ""),
+        fecha: data.fecha || (selectedDate ? formatDateLocal(selectedDate) : ""),
         hora: data.hora || "",
         promotorId: "",
         promotorNombre: "",
@@ -191,9 +200,9 @@ export function AIReservationModal({
     // Validar campos obligatorios
     const camposFaltantes = [];
     if (!editableData.clienteNombre?.trim()) camposFaltantes.push('Nombre');
-    if (!editableData.clienteCedula?.trim()) camposFaltantes.push('Cédula');
-    // Email es opcional, igual que en el formulario manual
     if (!editableData.clienteTelefono?.trim()) camposFaltantes.push('Teléfono');
+    if (!editableData.clienteFechaNacimiento?.trim()) camposFaltantes.push('Fecha de Nacimiento');
+    // Email es opcional
     if (!editableData.fecha) camposFaltantes.push('Fecha');
     if (!editableData.hora) camposFaltantes.push('Hora');
     if (!editableData.promotorId?.trim()) camposFaltantes.push('Promotor');
@@ -210,10 +219,11 @@ export function AIReservationModal({
     try {
       const reservaData = {
         cliente: {
-          id: editableData.clienteCedula,
+          id: editableData.clienteTelefono, // 🆕 Usar teléfono como ID
           nombre: editableData.clienteNombre,
           email: editableData.clienteCorreo,
           telefono: editableData.clienteTelefono,
+          fechaNacimiento: editableData.clienteFechaNacimiento, // 🆕 Incluir fecha de nacimiento
         },
         numeroPersonas: Number.parseInt(editableData.numeroPersonas, 10) || 1,
         razonVisita: "Reserva creada con IA",
@@ -250,11 +260,12 @@ export function AIReservationModal({
     setClienteExistente(false);
     setEditableData({
       clienteNombre: "",
-      clienteCedula: "",
+      clienteCedula: "DEFAULT-PHONE",
       clienteCorreo: "",
       clienteTelefono: "",
+      clienteFechaNacimiento: "", // 🆕 Incluir nuevo campo
       numeroPersonas: "1",
-      fecha: selectedDate ? selectedDate.toISOString().split('T')[0] : "",
+      fecha: selectedDate ? formatDateLocal(selectedDate) : "",
       hora: "",
       promotorId: "",
       promotorNombre: "",
@@ -394,23 +405,6 @@ export function AIReservationModal({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-sm flex items-center justify-between">
-                      <span>Nombre Completo *</span>
-                      {getFieldStatus("Nombre")}
-                    </Label>
-                    <Input
-                      value={editableData.clienteNombre}
-                      onChange={(e) => setEditableData({ ...editableData, clienteNombre: e.target.value })}
-                      placeholder="Ej: Juan Pérez"
-                      className={`text-sm ${clienteExistente ? 'bg-green-50 border-green-300' : ''}`}
-                      disabled={clienteExistente}
-                    />
-                    {clienteExistente && (
-                      <p className="text-xs text-green-600">✓ Dato del cliente registrado</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm flex items-center justify-between">
                       <span>Cédula *</span>
                       {getFieldStatus("Cédula")}
                     </Label>
@@ -425,19 +419,35 @@ export function AIReservationModal({
                       <p className="text-xs text-green-600">✓ Cliente identificado</p>
                     )}
                   </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm flex items-center justify-between">
+                      <span>Nombre Completo *</span>
+                      {getFieldStatus("Nombre")}
+                    </Label>
+                    <Input
+                      value={editableData.clienteNombre}
+                      onChange={(e) => setEditableData({ ...editableData, clienteNombre: e.target.value })}
+                      placeholder="Ej: Juan Pérez"
+                      className={`text-sm ${clienteExistente ? 'bg-green-50 border-green-300' : ''}`}
+                      disabled={clienteExistente}
+                    />
+                    {clienteExistente && (
+                      <p className="text-xs text-green-600">✓ Dato del cliente registrado</p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-sm flex items-center justify-between">
-                      <span>Email</span>
-                      {getFieldStatus("Email")}
+                      <span>🎂 Fecha de Nacimiento *</span>
+                      {getFieldStatus("Fecha de Nacimiento")}
                     </Label>
                     <Input
-                      type="email"
-                      value={editableData.clienteCorreo}
-                      onChange={(e) => setEditableData({ ...editableData, clienteCorreo: e.target.value })}
-                      placeholder="ejemplo@correo.com"
+                      type="date"
+                      value={editableData.clienteFechaNacimiento}
+                      onChange={(e) => setEditableData({ ...editableData, clienteFechaNacimiento: e.target.value })}
                       className={`text-sm ${clienteExistente ? 'bg-green-50 border-green-300' : ''}`}
                       disabled={clienteExistente}
                     />
@@ -448,14 +458,14 @@ export function AIReservationModal({
 
                   <div className="space-y-2">
                     <Label className="text-sm flex items-center justify-between">
-                      <span>Teléfono *</span>
-                      {getFieldStatus("Teléfono")}
+                      <span>Email (opcional)</span>
+                      {getFieldStatus("Email")}
                     </Label>
                     <Input
-                      type="tel"
-                      value={editableData.clienteTelefono}
-                      onChange={(e) => setEditableData({ ...editableData, clienteTelefono: e.target.value })}
-                      placeholder="+507 6000-0000"
+                      type="email"
+                      value={editableData.clienteCorreo}
+                      onChange={(e) => setEditableData({ ...editableData, clienteCorreo: e.target.value })}
+                      placeholder="ejemplo@correo.com"
                       className={`text-sm ${clienteExistente ? 'bg-green-50 border-green-300' : ''}`}
                       disabled={clienteExistente}
                     />

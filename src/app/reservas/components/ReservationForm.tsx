@@ -7,7 +7,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { PromotorSearchOnly } from "./PromotorSearchOnly";
-import { CedulaSearch } from "./CedulaSearch";
+import { TelefonoSearch } from "./TelefonoSearch";
 import { Zap } from "lucide-react";
 
 import { Reserva } from "../types/reservation";
@@ -26,6 +26,7 @@ interface FormData {
   clienteCedula: string;
   clienteCorreo: string;
   clienteTelefono: string;
+  clienteFechaNacimiento: string; // 🆕 Nuevo campo fecha de nacimiento
   invitados: string; // Este campo representa el total de personas
   fecha: string;
   hora: string;
@@ -50,9 +51,10 @@ export default function ReservationForm({
   const [isExpressMode, setIsExpressMode] = useState(false); // 🆕 Estado para modo express
   const [formData, setFormData] = useState<FormData>({
     clienteNombre: '',
-    clienteCedula: '',
+    clienteCedula: 'DEFAULT-PHONE', // 🆕 Cédula por defecto
     clienteCorreo: '',
     clienteTelefono: '',
+    clienteFechaNacimiento: '', // 🆕 Nuevo campo
     invitados: '1', // Cambiar por defecto a 1 persona
     // 🌍 FIX: Usar función utilitaria para evitar desfase de timezone
     fecha: selectedDate ? formatDateLocal(selectedDate) : '',
@@ -70,26 +72,28 @@ export default function ReservationForm({
     setIsExpressMode(!isExpressMode);
     // Limpiar campos cuando cambiamos de modo
     if (!isExpressMode) {
-      // Activando modo express - limpiar campos no necesarios
+      // Activando modo express - solo nombre necesario
       setFormData(prev => ({
         ...prev,
         clienteCedula: 'EXPRESS',
         clienteCorreo: 'express@reserva.local',
         clienteTelefono: '',
+        clienteFechaNacimiento: '',
       }));
     } else {
-      // Desactivando modo express - limpiar todo
+      // Desactivando modo express - limpiar campos para modo normal
       setFormData(prev => ({
         ...prev,
-        clienteCedula: '',
+        clienteCedula: 'DEFAULT-PHONE',
         clienteCorreo: '',
         clienteTelefono: '',
+        clienteFechaNacimiento: '',
       }));
     }
   };
 
-  // ✅ Manejar cuando se encuentra un cliente existente
-  const handleClienteFound = (cliente: { id: string; cedula: string; nombre: string; email: string; telefono: string } | null) => {
+  // ✅ Manejar cuando se encuentra un cliente existente (ahora busca por teléfono)
+  const handleClienteFound = (cliente: { id: string; cedula: string; nombre: string; email: string; telefono: string; fechaNacimiento?: string } | null) => {
     if (cliente) {
       // Cliente encontrado - Auto-llenar campos (asegurar strings)
       setClienteExistente(true);
@@ -98,6 +102,9 @@ export default function ReservationForm({
         clienteNombre: cliente.nombre || '',
         clienteCorreo: cliente.email || '',
         clienteTelefono: cliente.telefono || '',
+        clienteFechaNacimiento: cliente.fechaNacimiento || '',
+        // Mantener la cédula existente del cliente si la tiene, sino usar teléfono como default
+        clienteCedula: cliente.cedula || cliente.telefono || 'DEFAULT-PHONE',
       }));
     } else {
       // Cliente nuevo - Limpiar campos para permitir registro
@@ -107,6 +114,8 @@ export default function ReservationForm({
         clienteNombre: '',
         clienteCorreo: '',
         clienteTelefono: '',
+        clienteFechaNacimiento: '',
+        clienteCedula: 'DEFAULT-PHONE', // Usar cédula por defecto para clientes nuevos
       }));
     }
   };
@@ -127,15 +136,15 @@ export default function ReservationForm({
         return;
       }
     } else {
-      // Modo Normal - Validación SIN email obligatorio
+      // Modo Normal - Validar Nombre, Teléfono, Fecha de Nacimiento, Fecha, Hora y Promotor
       if (!formData.clienteNombre || 
-          !formData.clienteCedula || 
           !formData.clienteTelefono ||
+          !formData.clienteFechaNacimiento ||
           !formData.fecha || 
           !formData.hora || 
           !formData.promotorId) {
         toast.error('❌ Campos incompletos', {
-          description: 'Complete: Nombre, Cédula, Teléfono, Fecha, Hora y Promotor'
+          description: 'Complete: Nombre, Teléfono, Fecha de Nacimiento, Fecha, Hora y Promotor'
         });
         return;
       }
@@ -170,13 +179,17 @@ export default function ReservationForm({
         ? 'express@reserva.local' 
         : (formData.clienteCorreo?.trim() || DEFAULT_EMAIL);
       
+      // 🆕 Determinar cédula según el modo
+      const cedulaAUsar = isExpressMode ? 'EXPRESS' : (formData.clienteTelefono || 'DEFAULT-PHONE');
+      
       // 🆕 Datos según el modo
       const reservaData: Omit<Reserva, 'id' | 'codigoQR' | 'fechaCreacion' | 'registroEntradas'> = {
         cliente: {
-          id: isExpressMode ? 'EXPRESS' : formData.clienteCedula,
+          id: cedulaAUsar, // 🆕 Usar teléfono como ID en modo normal
           nombre: formData.clienteNombre,
           email: emailToUse, // ✅ Usa email por defecto si está vacío
-          telefono: isExpressMode ? 'N/A' : formData.clienteTelefono // 🆕 N/A para express
+          telefono: isExpressMode ? 'N/A' : formData.clienteTelefono, // 🆕 N/A para express
+          fechaNacimiento: isExpressMode ? undefined : formData.clienteFechaNacimiento // 🆕 Solo en modo normal
         },
         numeroPersonas: Number.parseInt(formData.invitados) || 1,
         razonVisita: isExpressMode ? "⚡ Reserva Express" : (formData.servicio || "Reserva general"), // 🆕 Identificador
@@ -197,9 +210,10 @@ export default function ReservationForm({
       // Reset form
       setFormData({
         clienteNombre: '',
-        clienteCedula: '',
+        clienteCedula: 'DEFAULT-PHONE',
         clienteCorreo: '',
         clienteTelefono: '',
+        clienteFechaNacimiento: '', // 🆕 Reset fecha de nacimiento
         invitados: '1', // Reset a 1 persona por defecto
         fecha: '',
         hora: '',
@@ -253,12 +267,12 @@ export default function ReservationForm({
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* 🔄 PRIMERO: Cédula (solo si no es modo express) */}
+          {/* 🔄 PRIMERO: Teléfono (solo si no es modo express) */}
           {!isExpressMode && (
-            <CedulaSearch
+            <TelefonoSearch
               businessId={businessId}
-              value={formData.clienteCedula}
-              onChange={(cedula) => handleInputChange('clienteCedula', cedula)}
+              value={formData.clienteTelefono}
+              onChange={(telefono) => handleInputChange('clienteTelefono', telefono)}
               onClienteFound={handleClienteFound}
             />
           )}
@@ -284,6 +298,29 @@ export default function ReservationForm({
               </p>
             )}
           </div>
+
+          {/* 🆕 TERCERO: Fecha de Nacimiento (solo si no es modo express) */}
+          {!isExpressMode && (
+            <div className="space-y-2">
+              <Label htmlFor="clienteFechaNacimiento" className="text-sm font-medium text-gray-800">
+                🎂 Fecha de Nacimiento *
+              </Label>
+              <Input
+                id="clienteFechaNacimiento"
+                type="date"
+                value={formData.clienteFechaNacimiento}
+                onChange={(e) => handleInputChange('clienteFechaNacimiento', e.target.value)}
+                className="min-h-[44px] text-gray-900"
+                disabled={clienteExistente}
+                required
+              />
+              {clienteExistente && (
+                <p className="text-xs text-green-600">
+                  ✓ Datos del cliente registrado
+                </p>
+              )}
+            </div>
+          )}
           
           {!isExpressMode && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

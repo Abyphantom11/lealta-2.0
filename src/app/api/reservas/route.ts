@@ -719,9 +719,9 @@ export async function POST(request: NextRequest) {
       reservaId: reservation.id,
       fechaOriginalInput: `${data.fecha} ${data.hora}`,
       reservedAt: reservedAtDate.toISOString(),
-      reservedAtColombia: reservedAtDate.toLocaleString('es-CO', { timeZone: 'America/Bogota' }),
+      reservedAtEcuador: reservedAtDate.toLocaleString('es-EC', { timeZone: 'America/Guayaquil' }),
       qrExpiresAt: qrExpirationDate.toISOString(),
-      qrExpiresAtColombia: qrExpirationDate.toLocaleString('es-CO', { timeZone: 'America/Bogota' }),
+      qrExpiresAtEcuador: qrExpirationDate.toLocaleString('es-EC', { timeZone: 'America/Guayaquil' }),
       duracionValidez: '12 horas',
       metodo: 'timezone-utils.js (robusto)',
       garantiaDeCalidad: 'NO se puede desconfigurar'

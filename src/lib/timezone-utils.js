@@ -9,7 +9,7 @@
  * Configuración de timezone para el negocio
  * Este es el timezone REAL donde opera el negocio
  */
-const BUSINESS_TIMEZONE = 'America/Bogota';
+const BUSINESS_TIMEZONE = 'America/Guayaquil';
 
 /**
  * Crea una fecha de reserva considerando el timezone del negocio
@@ -88,7 +88,7 @@ function crearFechaReserva(fecha, hora) {
 
 /**
  * Obtiene el offset de timezone para una zona específica
- * @param {string} timezone - Timezone (ej: 'America/Bogota')
+ * @param {string} timezone - Timezone (ej: 'America/Guayaquil')
  * @param {Date} fecha - Fecha de referencia
  * @returns {number} Offset en milisegundos
  */
