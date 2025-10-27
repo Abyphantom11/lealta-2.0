@@ -133,12 +133,16 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
     syncStatus = 'checking';
   }
 
+  // 🌍 Función utilitaria para formatear fecha sin timezone issues
+  const formatDateLocal = (date: Date): string => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+
   // Función para obtener reservas por fecha
   const getReservasByDate = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatDateLocal(date);
     return reservas.filter((reserva: Reserva) => {
-      const reservaDate = new Date(reserva.fecha).toISOString().split('T')[0];
-      return reservaDate === dateStr;
+      return reserva.fecha === dateStr; // Comparación directa sin conversiones
     });
   };
 
@@ -437,13 +441,15 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
     const reservaAnterior = reservas.find((r: Reserva) => r.id === id);
     
     try {
-      // Formatear la fecha como YYYY-MM-DD para la API
-      const fechaFormateada = nuevaFecha.toISOString().split('T')[0];
+      // 🌍 FIX: Usar función utilitaria para formatear fecha sin UTC
+      const fechaFormateada = formatDateLocal(nuevaFecha);
       
-      console.log('🔄 SIMPLIFICADO - Cambiando fecha:', {
+      console.log('🔄 SIMPLIFICADO - Cambiando fecha (TIMEZONE AWARE):', {
         reservaId: id,
         de: reservaAnterior?.fecha,
-        a: fechaFormateada
+        a: fechaFormateada,
+        fechaSeleccionadaOriginal: nuevaFecha.toString(),
+        metodo: 'fecha-local-sin-utc'
       });
       
       // Usar la función optimizada del hook

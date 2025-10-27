@@ -42,6 +42,11 @@ export default function ReservationForm({
   selectedTime,
   businessId // ✅ NUEVO
 }: Readonly<ReservationFormProps>) {
+  // 🌍 Función utilitaria para formatear fecha sin timezone issues
+  const formatDateLocal = (date: Date): string => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+
   const [isExpressMode, setIsExpressMode] = useState(false); // 🆕 Estado para modo express
   const [formData, setFormData] = useState<FormData>({
     clienteNombre: '',
@@ -49,7 +54,8 @@ export default function ReservationForm({
     clienteCorreo: '',
     clienteTelefono: '',
     invitados: '1', // Cambiar por defecto a 1 persona
-    fecha: selectedDate ? selectedDate.toISOString().split('T')[0] : '',
+    // 🌍 FIX: Usar función utilitaria para evitar desfase de timezone
+    fecha: selectedDate ? formatDateLocal(selectedDate) : '',
     hora: selectedTime || '',
     servicio: '',
     promotorId: '', // ✅ Vacío por defecto, el usuario debe seleccionar
@@ -107,9 +113,6 @@ export default function ReservationForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // 🆕 Correo por defecto si no se proporciona
-    const DEFAULT_EMAIL = 'noemail@reserva.local';
     
     // 🆕 Validación diferente según el modo
     if (isExpressMode) {
