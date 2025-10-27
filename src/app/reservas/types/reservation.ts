@@ -3,6 +3,7 @@ export interface Cliente {
   nombre: string;
   telefono?: string;
   email?: string;
+  fechaNacimiento?: string; // 🆕 Nuevo campo para fecha de nacimiento
 }
 
 export interface Promotor {

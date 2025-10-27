@@ -16,6 +16,7 @@ interface AIReservationModalProps {
   onSubmit: (reservaData: any) => Promise<void>;
   selectedDate?: Date;
   businessId: string;
+  isSubmitting?: boolean; // 🆕 Estado de carga para optimistic updates
 }
 
 interface ParsedData {
@@ -38,6 +39,7 @@ export function AIReservationModal({
   onSubmit,
   selectedDate,
   businessId,
+  isSubmitting: externalIsSubmitting = false, // 🆕 Estado de carga externo
 }: Readonly<AIReservationModalProps>) {
   const [inputText, setInputText] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -45,6 +47,9 @@ export function AIReservationModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [clienteExistente, setClienteExistente] = useState<boolean>(false);
   const [isSearchingCliente, setIsSearchingCliente] = useState(false);
+
+  // 🆕 Combinar estado de carga interno y externo
+  const isActuallySubmitting = isSubmitting || externalIsSubmitting;
 
   // 🌍 Función utilitaria para formatear fecha sin timezone issues
   const formatDateLocal = (date: Date): string => {
@@ -167,7 +172,22 @@ export function AIReservationModal({
       }
 
       const data = result.data;
-      setParsedData(data);
+      
+      // 🆕 Transformar campos faltantes: cambiar "Cédula" por "Teléfono"
+      const camposFaltantesTransformados = data.camposFaltantes.map((campo: string) => {
+        if (campo === "Cédula" || campo === "cedula") {
+          return "Teléfono";
+        }
+        return campo;
+      });
+      
+      // Crear objeto transformado
+      const dataTransformada = {
+        ...data,
+        camposFaltantes: camposFaltantesTransformados
+      };
+      
+      setParsedData(dataTransformada);
 
       // Actualizar campos editables con los datos detectados
       setEditableData({
@@ -275,8 +295,22 @@ export function AIReservationModal({
   const getFieldStatus = (fieldName: string) => {
     if (!parsedData) return null;
     
-    const value = editableData[fieldName as keyof typeof editableData];
-    if (value && value.trim() !== "") {
+    // Mapear nombres de campos a propiedades del editableData
+    const fieldMapping: { [key: string]: keyof typeof editableData } = {
+      "Teléfono": "clienteTelefono",
+      "Cédula": "clienteTelefono", // 🆕 Mapear cédula también a teléfono
+      "Nombre": "clienteNombre", 
+      "Fecha de Nacimiento": "clienteFechaNacimiento",
+      "Email": "clienteCorreo",
+      "Fecha": "fecha",
+      "Hora": "hora"
+    };
+    
+    const mappedField = fieldMapping[fieldName];
+    if (!mappedField) return null;
+    
+    const value = editableData[mappedField];
+    if (value && value.toString().trim() !== "") {
       return <CheckCircle2 className="h-4 w-4 text-green-600" />;
     }
     
@@ -405,13 +439,14 @@ export function AIReservationModal({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-sm flex items-center justify-between">
-                      <span>Cédula *</span>
-                      {getFieldStatus("Cédula")}
+                      <span>📞 Teléfono *</span>
+                      {getFieldStatus("Teléfono")}
                     </Label>
                     <Input
-                      value={editableData.clienteCedula}
-                      onChange={(e) => setEditableData({ ...editableData, clienteCedula: e.target.value })}
-                      placeholder="0-0000-0000"
+                      type="tel"
+                      value={editableData.clienteTelefono}
+                      onChange={(e) => setEditableData({ ...editableData, clienteTelefono: e.target.value })}
+                      placeholder="+507 6000-0000"
                       className={`text-sm ${clienteExistente ? 'bg-green-50 border-green-300' : ''}`}
                       disabled={clienteExistente}
                     />
@@ -422,7 +457,7 @@ export function AIReservationModal({
 
                   <div className="space-y-2">
                     <Label className="text-sm flex items-center justify-between">
-                      <span>Nombre Completo *</span>
+                      <span>👤 Nombre Completo *</span>
                       {getFieldStatus("Nombre")}
                     </Label>
                     <Input
@@ -545,9 +580,9 @@ export function AIReservationModal({
                 <Button
                   onClick={handleCreateReservation}
                   className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                  disabled={isSubmitting}
+                  disabled={isActuallySubmitting}
                 >
-                  {isSubmitting ? (
+                  {isActuallySubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Creando...

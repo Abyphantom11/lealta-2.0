@@ -43,9 +43,55 @@ function mapReservaStatusToPrisma(estado: EstadoReserva): 'PENDING' | 'CONFIRMED
   }
 }
 
+// 🌍 UTILIDAD: Obtener fecha actual del negocio (con corte 4 AM Ecuador)
+function getFechaActualNegocio(): string {
+  try {
+    const now = new Date();
+    
+    // Obtener componentes de fecha/hora en Ecuador
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Guayaquil',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      hour12: false
+    });
+    
+    const parts = formatter.formatToParts(now);
+    const year = parseInt(parts.find(p => p.type === 'year')?.value || '2025');
+    const month = parseInt(parts.find(p => p.type === 'month')?.value || '1');
+    const day = parseInt(parts.find(p => p.type === 'day')?.value || '1');
+    const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
+    
+    const currentDate = new Date(year, month - 1, day);
+    
+    // Si es antes de las 4 AM, usar el día anterior (día de negocio continúa)
+    if (hour < 4) {
+      currentDate.setDate(currentDate.getDate() - 1);
+    }
+    
+    // Formatear como YYYY-MM-DD
+    const fechaCalculada = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+    
+    console.log('🌍 [BACKEND] Fecha actual negocio calculada:', {
+      fechaEcuador: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+      horaEcuador: hour,
+      esAntesDe4AM: hour < 4,
+      fechaFinal: fechaCalculada
+    });
+    
+    return fechaCalculada;
+  } catch (error) {
+    console.error('❌ Error calculando fecha negocio:', error);
+    // Fallback a fecha UTC simple
+    return new Date().toISOString().split('T')[0];
+  }
+}
+
 // 🔥 OPTIMIZACIÓN: Función para calcular estadísticas en memoria (evita query separada)
 function calculateStats(reservas: Reserva[]) {
-  const hoy = new Date().toISOString().split('T')[0];
+  const hoy = getFechaActualNegocio(); // 🌍 Usar fecha de negocio con corte 4 AM
   const reservasHoy = reservas.filter(r => r.fecha === hoy);
   
   // Calcular totales

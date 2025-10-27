@@ -9,6 +9,52 @@ import { reservasQueryKeys } from '../../../providers/QueryProvider';
 // Type alias para reserva sin campos generados
 type NewReservaData = Omit<Reserva, 'id' | 'codigoQR' | 'estado' | 'fechaCreacion' | 'registroEntradas'>;
 
+// 🌍 UTILIDAD: Obtener fecha actual del negocio (con corte 4 AM Ecuador)
+const getFechaActualNegocio = (): string => {
+  try {
+    const now = new Date();
+    
+    // Obtener componentes de fecha/hora en Ecuador
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Guayaquil',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      hour12: false
+    });
+    
+    const parts = formatter.formatToParts(now);
+    const year = parseInt(parts.find(p => p.type === 'year')?.value || '2025');
+    const month = parseInt(parts.find(p => p.type === 'month')?.value || '1');
+    const day = parseInt(parts.find(p => p.type === 'day')?.value || '1');
+    const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
+    
+    const currentDate = new Date(year, month - 1, day);
+    
+    // Si es antes de las 4 AM, usar el día anterior (día de negocio continúa)
+    if (hour < 4) {
+      currentDate.setDate(currentDate.getDate() - 1);
+    }
+    
+    // Formatear como YYYY-MM-DD
+    const fechaCalculada = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+    
+    console.log('🌍 [FRONTEND] Fecha actual negocio calculada:', {
+      fechaEcuador: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+      horaEcuador: hour,
+      esAntesDe4AM: hour < 4,
+      fechaFinal: fechaCalculada
+    });
+    
+    return fechaCalculada;
+  } catch (error) {
+    console.error('❌ Error calculando fecha negocio:', error);
+    // Fallback a fecha UTC simple
+    return new Date().toISOString().split('T')[0];
+  }
+};
+
 // 🚀 OPTIMIZED API CLIENT
 const reservasAPI = {
   // 🔥 Query combinada: Reservas + Stats + Clients en una sola request
@@ -241,9 +287,38 @@ export function useReservasOptimized({
         reservasQueryKeys.list(businessId || 'default', includeStats),
         (old: any) => {
           if (!old?.reservas) return old;
+          
+          // 🔄 Agregar reserva temporal al principio
+          const reservasActualizadas = [tempReserva, ...old.reservas];
+          
+          // 🧮 RECALCULAR ESTADÍSTICAS después del create optimista
+          const hoy = getFechaActualNegocio(); // 🌍 Usar fecha de negocio con corte 4 AM
+          const reservasHoy = reservasActualizadas.filter((r: any) => r.fecha === hoy);
+          
+          // Calcular totales con la nueva reserva incluida
+          const totalAsistentes = reservasActualizadas.reduce((acc: number, r: any) => acc + (r.asistenciaActual || 0), 0);
+          const reservasCompletadas = reservasActualizadas.filter((r: any) => r.estado === 'Activa' || r.estado === 'En Camino');
+          const totalReservados = reservasCompletadas.reduce((acc: number, r: any) => acc + r.numeroPersonas, 0);
+          const promedioAsistencia = totalReservados > 0 ? (totalAsistentes / totalReservados) * 100 : 0;
+          
+          const statsActualizadas = {
+            totalReservas: reservasActualizadas.length,
+            totalAsistentes,
+            promedioAsistencia: Math.round(promedioAsistencia),
+            reservasHoy: reservasHoy.length // ✅ ESTO SE RECALCULA CORRECTAMENTE
+          };
+          
+          console.log('🧮 [CREATE] Stats recalculadas optimistamente:', {
+            reservasHoyAntes: old.stats?.reservasHoy || 0,
+            reservasHoyDespues: statsActualizadas.reservasHoy,
+            totalReservasAntes: old.stats?.totalReservas || 0,
+            totalReservasDespues: statsActualizadas.totalReservas
+          });
+          
           return {
             ...old,
-            reservas: [tempReserva, ...old.reservas]
+            reservas: reservasActualizadas,
+            stats: statsActualizadas // ✅ ACTUALIZAR STATS TAMBIÉN
           };
         }
       );
@@ -318,11 +393,39 @@ export function useReservasOptimized({
         reservasQueryKeys.list(businessId || 'default', includeStats),
         (old: any) => {
           if (!old?.reservas) return old;
+          
+          // 🔄 Actualizar la reserva específica
+          const reservasActualizadas = old.reservas.map((r: Reserva) => 
+            r.id === id ? { ...r, ...data, fechaModificacion: new Date().toISOString() } : r
+          );
+          
+          // 🧮 RECALCULAR ESTADÍSTICAS después del update optimista
+          const hoy = getFechaActualNegocio(); // 🌍 Usar fecha de negocio con corte 4 AM
+          const reservasHoy = reservasActualizadas.filter((r: Reserva) => r.fecha === hoy);
+          
+          // Calcular totales con la reserva actualizada
+          const totalAsistentes = reservasActualizadas.reduce((acc: number, r: Reserva) => acc + (r.asistenciaActual || 0), 0);
+          const reservasCompletadas = reservasActualizadas.filter((r: Reserva) => r.estado === 'Activa' || r.estado === 'En Camino');
+          const totalReservados = reservasCompletadas.reduce((acc: number, r: Reserva) => acc + r.numeroPersonas, 0);
+          const promedioAsistencia = totalReservados > 0 ? (totalAsistentes / totalReservados) * 100 : 0;
+          
+          const statsActualizadas = {
+            totalReservas: reservasActualizadas.length,
+            totalAsistentes,
+            promedioAsistencia: Math.round(promedioAsistencia),
+            reservasHoy: reservasHoy.length // ✅ ESTO SE RECALCULA CORRECTAMENTE
+          };
+          
+          console.log('🧮 [UPDATE] Stats recalculadas optimistamente:', {
+            camposActualizados: Object.keys(data || {}),
+            reservasHoyAntes: old.stats?.reservasHoy || 0,
+            reservasHoyDespues: statsActualizadas.reservasHoy
+          });
+          
           return {
             ...old,
-            reservas: old.reservas.map((r: Reserva) => 
-              r.id === id ? { ...r, ...data, fechaModificacion: new Date().toISOString() } : r
-            )
+            reservas: reservasActualizadas,
+            stats: statsActualizadas // ✅ ACTUALIZAR STATS TAMBIÉN
           };
         }
       );
@@ -380,9 +483,38 @@ export function useReservasOptimized({
         reservasQueryKeys.list(businessId || 'default', includeStats),
         (old: any) => {
           if (!old?.reservas) return old;
+          
+          // 🔄 Filtrar reservas eliminando la que se va a borrar
+          const reservasActualizadas = old.reservas.filter((r: Reserva) => r.id !== id);
+          
+          // 🧮 RECALCULAR ESTADÍSTICAS después del delete optimista
+          const hoy = getFechaActualNegocio(); // 🌍 Usar fecha de negocio con corte 4 AM
+          const reservasHoy = reservasActualizadas.filter((r: Reserva) => r.fecha === hoy);
+          
+          // Calcular totales con las reservas restantes
+          const totalAsistentes = reservasActualizadas.reduce((acc: number, r: Reserva) => acc + (r.asistenciaActual || 0), 0);
+          const reservasCompletadas = reservasActualizadas.filter((r: Reserva) => r.estado === 'Activa' || r.estado === 'En Camino');
+          const totalReservados = reservasCompletadas.reduce((acc: number, r: Reserva) => acc + r.numeroPersonas, 0);
+          const promedioAsistencia = totalReservados > 0 ? (totalAsistentes / totalReservados) * 100 : 0;
+          
+          const statsActualizadas = {
+            totalReservas: reservasActualizadas.length,
+            totalAsistentes,
+            promedioAsistencia: Math.round(promedioAsistencia),
+            reservasHoy: reservasHoy.length // ✅ ESTO SE RECALCULA CORRECTAMENTE
+          };
+          
+          console.log('🧮 [DELETE] Stats recalculadas optimistamente:', {
+            reservasHoyAntes: old.stats?.reservasHoy || 0,
+            reservasHoyDespues: statsActualizadas.reservasHoy,
+            totalReservasAntes: old.stats?.totalReservas || 0,
+            totalReservasDespues: statsActualizadas.totalReservas
+          });
+          
           return {
             ...old,
-            reservas: old.reservas.filter((r: Reserva) => r.id !== id)
+            reservas: reservasActualizadas,
+            stats: statsActualizadas // ✅ ACTUALIZAR STATS TAMBIÉN
           };
         }
       );

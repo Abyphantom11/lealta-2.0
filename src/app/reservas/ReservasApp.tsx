@@ -727,14 +727,30 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
           isOpen={showForm}
           onClose={() => setShowForm(false)}
           onSubmit={async (reservaData) => {
-            await addReserva(reservaData);
-            // ✅ Cambiar fecha seleccionada a la fecha de la nueva reserva para que aparezca en la tabla
-            const fechaReserva = new Date(reservaData.fecha + 'T00:00:00');
-            setSelectedDate(fechaReserva);
-            setShowForm(false);
+            try {
+              console.log('🚀 [ReservasApp] Iniciando creación de reserva:', reservaData);
+              await addReserva(reservaData);
+              // ✅ El optimistic update ya maneja la actualización inmediata
+              // Solo cambiar fecha seleccionada si es diferente para que el usuario vea su reserva
+              const fechaReserva = new Date(reservaData.fecha + 'T00:00:00');
+              if (formatDateLocal(fechaReserva) !== formatDateLocal(selectedDate)) {
+                console.log('📅 [ReservasApp] Cambiando fecha seleccionada a:', formatDateLocal(fechaReserva));
+                setSelectedDate(fechaReserva);
+              }
+              setShowForm(false);
+              toast.success('✅ Reserva creada exitosamente', {
+                description: `${reservaData.cliente.nombre} - ${reservaData.fecha} ${reservaData.hora}`
+              });
+            } catch (error) {
+              console.error('❌ Error creando reserva:', error);
+              toast.error('❌ Error al crear reserva', {
+                description: 'Por favor intenta de nuevo'
+              });
+            }
           }}
           selectedDate={selectedDate}
           businessId={businessId || 'default'} // ✅ NUEVO: pasar businessId
+          isSubmitting={isCreating} // 🆕 Pasar estado de carga
         />
       )}
 
@@ -744,14 +760,30 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
           isOpen={showAIForm}
           onClose={() => setShowAIForm(false)}
           onSubmit={async (reservaData) => {
-            await addReserva(reservaData);
-            // ✅ Cambiar fecha seleccionada a la fecha de la nueva reserva para que aparezca en la tabla
-            const fechaReserva = new Date(reservaData.fecha + 'T00:00:00');
-            setSelectedDate(fechaReserva);
-            setShowAIForm(false);
+            try {
+              console.log('🤖 [ReservasApp] Iniciando creación de reserva IA:', reservaData);
+              await addReserva(reservaData);
+              // ✅ El optimistic update ya maneja la actualización inmediata
+              // Solo cambiar fecha seleccionada si es diferente para que el usuario vea su reserva
+              const fechaReserva = new Date(reservaData.fecha + 'T00:00:00');
+              if (formatDateLocal(fechaReserva) !== formatDateLocal(selectedDate)) {
+                console.log('📅 [ReservasApp] Cambiando fecha seleccionada a:', formatDateLocal(fechaReserva));
+                setSelectedDate(fechaReserva);
+              }
+              setShowAIForm(false);
+              toast.success('✅ Reserva IA creada exitosamente', {
+                description: `${reservaData.cliente.nombre} - ${reservaData.fecha} ${reservaData.hora}`
+              });
+            } catch (error) {
+              console.error('❌ Error creando reserva IA:', error);
+              toast.error('❌ Error al crear reserva IA', {
+                description: 'Por favor intenta de nuevo'
+              });
+            }
           }}
           selectedDate={selectedDate}
           businessId={businessId || 'default'}
+          isSubmitting={isCreating} // 🆕 Pasar estado de carga
         />
       )}
 

@@ -19,6 +19,7 @@ interface ReservationFormProps {
   selectedDate?: Date;
   selectedTime?: string;
   businessId: string; // ✅ NUEVO: businessId para cargar promotores
+  isSubmitting?: boolean; // 🆕 Estado de carga para optimistic updates
 }
 
 interface FormData {
@@ -41,7 +42,8 @@ export default function ReservationForm({
   onSubmit, 
   selectedDate, 
   selectedTime,
-  businessId // ✅ NUEVO
+  businessId, // ✅ NUEVO
+  isSubmitting = false // 🆕 Estado de carga
 }: Readonly<ReservationFormProps>) {
   // 🌍 Función utilitaria para formatear fecha sin timezone issues
   const formatDateLocal = (date: Date): string => {
@@ -64,7 +66,6 @@ export default function ReservationForm({
     promotorNombre: '', // ✅ Nombre del promotor seleccionado
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [clienteExistente, setClienteExistente] = useState<boolean>(false);
 
   // 🆕 Toggle modo express
@@ -102,20 +103,20 @@ export default function ReservationForm({
         clienteNombre: cliente.nombre || '',
         clienteCorreo: cliente.email || '',
         clienteTelefono: cliente.telefono || '',
-        clienteFechaNacimiento: cliente.fechaNacimiento || '',
+        // 🆕 Solo actualizar fecha de nacimiento si el cliente la tiene Y el campo está vacío
+        clienteFechaNacimiento: cliente.fechaNacimiento || prev.clienteFechaNacimiento,
         // Mantener la cédula existente del cliente si la tiene, sino usar teléfono como default
         clienteCedula: cliente.cedula || cliente.telefono || 'DEFAULT-PHONE',
       }));
     } else {
-      // Cliente nuevo - Limpiar campos para permitir registro
+      // Cliente nuevo - Solo cambiar el estado, preservar todos los campos ya ingresados
       setClienteExistente(false);
       setFormData(prev => ({
         ...prev,
-        clienteNombre: '',
-        clienteCorreo: '',
-        clienteTelefono: '',
-        clienteFechaNacimiento: '',
-        clienteCedula: 'DEFAULT-PHONE', // Usar cédula por defecto para clientes nuevos
+        // 🆕 NO limpiar ningún campo - preservar todo lo que el usuario ya escribió
+        // clienteNombre: '', // Comentado para preservar el valor del usuario
+        // clienteCorreo: '', // Comentado para preservar el valor del usuario
+        clienteCedula: 'DEFAULT-PHONE', // Solo asegurar que tenga cédula por defecto
       }));
     }
   };
@@ -170,8 +171,6 @@ export default function ReservationForm({
       }
     }
 
-    setIsSubmitting(true);
-    
     try {
       // 🆕 Email por defecto si está vacío
       const DEFAULT_EMAIL = 'noemail@reserva.local';
@@ -226,8 +225,6 @@ export default function ReservationForm({
     } catch (error) {
       console.error('Error al crear reserva:', error);
       alert('Error al crear la reserva. Por favor intente nuevamente.');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -323,43 +320,19 @@ export default function ReservationForm({
           )}
           
           {!isExpressMode && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="clienteCorreo" className="text-sm font-medium text-gray-800">
-                  Correo Electrónico (opcional)
-                </Label>
-                <Input
-                  id="clienteCorreo"
-                  type="email"
-                  value={formData.clienteCorreo}
-                  onChange={(e) => handleInputChange('clienteCorreo', e.target.value)}
-                  placeholder="Opcional: ejemplo@correo.com"
-                  className="min-h-[44px] text-gray-900 placeholder:text-gray-500"
-                  disabled={clienteExistente}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="clienteTelefono" className="text-sm font-medium text-gray-800">
-                  Teléfono *
-                </Label>
-                <Input
-                  id="clienteTelefono"
-                  type="tel"
-                  value={formData.clienteTelefono}
-                  onChange={(e) => {
-                    // ✅ Solo permitir números, guiones, espacios y símbolo + (para código de país)
-                    const valor = e.target.value.replace(/[^\d\s\-+]/g, '');
-                    handleInputChange('clienteTelefono', valor);
-                  }}
-                  placeholder="+507 6000-0000"
-                  className="min-h-[44px] text-gray-900 placeholder:text-gray-500"
-                  disabled={clienteExistente}
-                  required
-                  pattern="[\d\s\-+]+"
-                  title="Solo se permiten números, espacios, guiones y símbolo +"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="clienteCorreo" className="text-sm font-medium text-gray-800">
+                Correo Electrónico (opcional)
+              </Label>
+              <Input
+                id="clienteCorreo"
+                type="email"
+                value={formData.clienteCorreo}
+                onChange={(e) => handleInputChange('clienteCorreo', e.target.value)}
+                placeholder="Opcional: ejemplo@correo.com"
+                className="min-h-[44px] text-gray-900 placeholder:text-gray-500"
+                disabled={clienteExistente}
+              />
             </div>
           )}
 

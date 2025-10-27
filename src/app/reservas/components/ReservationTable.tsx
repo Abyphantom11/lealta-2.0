@@ -97,7 +97,6 @@ export function ReservationTable({
     // 🎯 BUSCAR la query key que realmente tiene datos
     const allQueries = queryClient.getQueryCache().getAll();
     let queryDataFound = null;
-    let foundQueryKey = null;
     
     // Buscar cualquier query que contenga reservas con datos
     for (const query of allQueries) {
@@ -106,36 +105,25 @@ export function ReservationTable({
           (Array.isArray(data) || 
            (typeof data === 'object' && (data as any).reservas))) {
         queryDataFound = data;
-        foundQueryKey = query.queryKey;
         break;
       }
     }
-    
-    console.log('🎯 Query encontrada:', { 
-      foundQueryKey: foundQueryKey ? JSON.stringify(foundQueryKey) : 'NONE',
-      hasData: !!queryDataFound,
-      reservaId,
-      campo 
-    });
     
     let reservaFromCache: Reserva | undefined;
     if (queryDataFound) {
       // Si es data combinada (con stats)
       if ((queryDataFound as any).reservas) {
         reservaFromCache = (queryDataFound as any).reservas.find((r: Reserva) => r.id === reservaId);
-        console.log('🔍 Buscando en queryData.reservas:', { count: (queryDataFound as any).reservas?.length, found: !!reservaFromCache });
       }
       // Si es array simple
       else if (Array.isArray(queryDataFound)) {
         reservaFromCache = queryDataFound.find((r: Reserva) => r.id === reservaId);
-        console.log('🔍 Buscando en array:', { count: queryDataFound.length, found: !!reservaFromCache });
       }
     }
     
     // Si encontramos en cache, usar esos datos (incluye optimistic updates)
     if (reservaFromCache) {
       const valor = reservaFromCache[campo];
-      console.log('💾 obtenerValorCampo - Usando cache React Query:', { reservaId, campo, valor: Array.isArray(valor) ? `Array(${valor.length})` : valor });
       
       // Para detalles, asegurar que siempre devolvemos un array
       if (campo === 'detalles') {
@@ -149,7 +137,6 @@ export function ReservationTable({
     if (!reservaOriginal) return campo === 'detalles' ? [] : '';
     
     const valor = reservaOriginal[campo];
-    console.log('📋 obtenerValorCampo - Usando props fallback:', { reservaId, campo, valor: Array.isArray(valor) ? `Array(${valor.length})` : valor });
     
     // Para detalles, asegurar que siempre devolvemos un array
     if (campo === 'detalles') {

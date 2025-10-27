@@ -7,9 +7,9 @@ const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 export interface ReservationParseResult {
   clienteNombre?: string;
-  clienteCedula?: string;
-  clienteCorreo?: string;
   clienteTelefono?: string;
+  clienteFechaNacimiento?: string;
+  clienteCorreo?: string;
   numeroPersonas?: number;
   fecha?: string; // YYYY-MM-DD
   hora?: string; // HH:MM
@@ -68,17 +68,17 @@ INSTRUCCIONES DETALLADAS:
 
 CAMPOS A EXTRAER:
 - **Nombre completo**: Busca "nombre", "name", "mi nombre es", "soy", etc.
-- **Cédula/ID**: Formatos como "8-123-4567", "8 123 4567", "cedula:", "id:", etc.
-- **Email**: Detecta cualquier texto con @ y dominio válido
 - **Teléfono**: Números con 7-15 dígitos, puede incluir +, -, espacios, paréntesis
+- **Fecha de Nacimiento**: Busca "nacimiento", "nació", "nací", "fecha de nacimiento", "edad", "años", formatos DD/MM/YYYY, MM/DD/YYYY
+- **Email**: Detecta cualquier texto con @ y dominio válido
 - **Número de personas**: "somos X", "para X personas", "mesa de X", "X pax"
 - **Fecha**: Formatos absolutos (DD/MM/YYYY, "5 de octubre") o relativos ("mañana", "viernes")
 - **Hora**: "8pm", "20:00", "8 de la noche", "8:30 PM"
 
 REGLAS DE NORMALIZACIÓN:
-- Cédulas: EXTRAER TAL CUAL sin agregar guiones. Solo números (ejemplo: "8-123-4567" → "81234567", "8 123 4567" → "81234567")
-- Emails: Todo en minúsculas
 - Teléfonos: SOLO números sin código de país, sin guiones, sin espacios (ejemplo: "+507 6234-5678" → "62345678", "6234-5678" → "62345678")
+- Fechas de Nacimiento: Convertir a formato YYYY-MM-DD (ejemplo: "15/03/1990" → "1990-03-15")
+- Emails: Todo en minúsculas
 - Fechas: Convertir a formato YYYY-MM-DD
 - Horas: Convertir a formato 24h HH:MM
 - Personas: Solo el número entero
@@ -97,9 +97,9 @@ CONFIANZA:
 FORMATO DE RESPUESTA (SOLO JSON, SIN MARKDOWN):
 {
   "clienteNombre": "Nombre Completo o null",
-  "clienteCedula": "solo_numeros_sin_guiones o null",
-  "clienteCorreo": "email@domain.com o null",
   "clienteTelefono": "solo_numeros_sin_codigo_pais o null",
+  "clienteFechaNacimiento": "YYYY-MM-DD o null",
+  "clienteCorreo": "email@domain.com o null",
   "numeroPersonas": numero_entero o null,
   "fecha": "YYYY-MM-DD o null",
   "hora": "HH:MM o null",
@@ -150,9 +150,9 @@ REGLAS CRÍTICAS:
         console.log('📊 [GEMINI-RESERVA] Confianza:', parseResult.confianza);
         console.log('📋 [GEMINI-RESERVA] Campos detectados:', {
           nombre: !!parseResult.clienteNombre,
-          cedula: !!parseResult.clienteCedula,
-          email: !!parseResult.clienteCorreo,
           telefono: !!parseResult.clienteTelefono,
+          fechaNacimiento: !!parseResult.clienteFechaNacimiento,
+          email: !!parseResult.clienteCorreo,
           personas: !!parseResult.numeroPersonas,
           fecha: !!parseResult.fecha,
           hora: !!parseResult.hora,
@@ -238,34 +238,21 @@ REGLAS CRÍTICAS:
       }
     }
 
-    // Normalizar cédula (asegurar guiones)
-    if (result.clienteCedula) {
-      // Remover espacios y caracteres no numéricos excepto guiones
-      let cedula = result.clienteCedula.replace(/[^\d-]/g, '');
-      
-      // Si no tiene guiones y tiene formato panameño (7-9 dígitos), intentar formato X-XXX-XXXX
-      if (!cedula.includes('-') && cedula.length >= 7 && cedula.length <= 9) {
-        if (cedula.length === 7) {
-          // Formato X-XXX-XXX
-          cedula = `${cedula[0]}-${cedula.substring(1, 4)}-${cedula.substring(4)}`;
-        } else if (cedula.length === 8) {
-          // Formato X-XXXX-XXX
-          cedula = `${cedula[0]}-${cedula.substring(1, 5)}-${cedula.substring(5)}`;
-        } else if (cedula.length === 9) {
-          // Formato XX-XXX-XXXX
-          cedula = `${cedula.substring(0, 2)}-${cedula.substring(2, 5)}-${cedula.substring(5)}`;
-        }
+    // Validar formato de fecha de nacimiento (YYYY-MM-DD)
+    if (result.clienteFechaNacimiento) {
+      const fechaRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!fechaRegex.test(result.clienteFechaNacimiento)) {
+        console.warn('⚠️ Formato de fecha de nacimiento incorrecto:', result.clienteFechaNacimiento);
+        result.errores = result.errores || [];
+        result.errores.push('Formato de fecha de nacimiento incorrecto');
       }
-      
-      result.clienteCedula = cedula;
     }
 
     // Identificar campos faltantes obligatorios
     const camposObligatorios = [
       { key: 'clienteNombre', nombre: 'Nombre' },
-      { key: 'clienteCedula', nombre: 'Cédula' },
-      { key: 'clienteCorreo', nombre: 'Email' },
       { key: 'clienteTelefono', nombre: 'Teléfono' },
+      { key: 'clienteFechaNacimiento', nombre: 'Fecha de Nacimiento' },
       { key: 'fecha', nombre: 'Fecha' },
       { key: 'hora', nombre: 'Hora' },
     ];
