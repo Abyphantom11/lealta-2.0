@@ -119,6 +119,16 @@ const reservasAPI = {
     // ✅ Incluir businessId como query parameter
     const url = `/api/reservas/${id}?businessId=${businessId}`;
     
+    console.log('🔥🌐 HOOK - ENVIANDO FETCH AL API:', {
+      url,
+      method: 'PUT',
+      reservaId: id,
+      businessId,
+      datosAEnviar: JSON.stringify(reservaData),
+      horaEnviada: reservaData.hora,
+      fechaEnviada: reservaData.fecha
+    });
+    
     // 🚀 TIMEOUT: 5 segundos máximo
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
@@ -135,13 +145,28 @@ const reservasAPI = {
       
       clearTimeout(timeoutId);
       
+      console.log('🔥🌐 HOOK - RESPUESTA RECIBIDA DEL API:', {
+        status: response.status,
+        ok: response.ok,
+        reservaId: id
+      });
+      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('❌ Error updating reserva:', response.status, errorData);
         throw new Error(`Error updating reserva: ${errorData.error || response.statusText}`);
       }
       
-      return response.json();
+      const resultado = await response.json();
+      
+      console.log('🔥🌐 HOOK - DATOS PARSEADOS DE LA RESPUESTA:', {
+        success: resultado.success,
+        reservaDevuelta: resultado.reserva,
+        horaEnRespuesta: resultado.reserva?.hora,
+        fechaEnRespuesta: resultado.reserva?.fecha
+      });
+      
+      return resultado;
     } catch (error) {
       clearTimeout(timeoutId);
       

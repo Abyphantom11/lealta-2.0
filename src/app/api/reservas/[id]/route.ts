@@ -271,68 +271,95 @@ function prepareUpdateData(updates: any, currentMetadata: any, promotorId: strin
 
   // 🕐 MANEJAR ACTUALIZACIÓN DE HORA
   if (updates.hora !== undefined) {
-    console.log('🕐 MÓVIL - Procesando actualización de hora:', {
+    console.log('��🕐 DEBUG HORA - INICIO:', {
       horaRecibida: updates.hora,
-      tipoHora: typeof updates.hora,
-      longitudHora: updates.hora?.length,
+      reservedAtActual: currentReservation.reservedAt.toISOString(),
       reservaId: currentReservation.id
     });
     
-    // Obtener la fecha actual de la reserva
+    // Obtener la fecha actual de la reserva en UTC
     const currentReservedAt = new Date(currentReservation.reservedAt);
-    const year = currentReservedAt.getFullYear();
-    const month = currentReservedAt.getMonth();
-    const day = currentReservedAt.getDate();
+    const year = currentReservedAt.getUTCFullYear();
+    const month = currentReservedAt.getUTCMonth();
+    const day = currentReservedAt.getUTCDate();
     
-    // Parsear la nueva hora (formato HH:mm)
-    const [hours, minutes] = updates.hora.split(':').map(Number);
-    
-    console.log('🕐 MÓVIL - Componentes de hora parseados:', {
-      hours,
-      minutes,
-      horaOriginal: updates.hora
+    console.log('🔥🕐 DEBUG HORA - Componentes fecha UTC extraídos:', {
+      year,
+      month,
+      day,
+      fechaUTCCompleta: `${year}-${month+1}-${day}`
     });
     
-    // 🎯 CREAR NUEVA FECHA FORZANDO UTC-5 (independiente del servidor)
+    // Parsear la nueva hora (formato HH:mm) - HORA DE ECUADOR
+    const [hours, minutes] = updates.hora.split(':').map(Number);
+    
+    console.log('🔥🕐 DEBUG HORA - Hora Ecuador parseada:', {
+      horaEcuador: hours,
+      minutosEcuador: minutes,
+      horaInput: updates.hora
+    });
+    
+    // ✅ CREAR NUEVA FECHA: Usuario dice "09:00 Ecuador" → Guardamos "14:00 UTC" (+5 horas)
     const newReservedAt = new Date(Date.UTC(year, month, day, hours + 5, minutes, 0, 0));
     
     updateData.reservedAt = newReservedAt;
     
-    console.log('🕐 MÓVIL - Hora procesada para guardado:', {
-      horaOriginal: currentReservation.reservedAt.toISOString(),
-      nuevaHora: updates.hora,
-      horasParsed: hours,
-      minutosParsed: minutes,
-      nuevaFechaCompleta: newReservedAt.toISOString(),
-      horaFormateada: formatearHoraMilitar(newReservedAt),
-      seAsignoReservedAt: !!updateData.reservedAt
+    console.log('��🕐 DEBUG HORA - Resultado final:', {
+      fechaGuardada: newReservedAt.toISOString(),
+      fechaUTC: `${year}-${month+1}-${day}`,
+      horaEcuadorInput: `${hours}:${minutes}`,
+      horaUTCGuardada: `${hours + 5}:${minutes}`,
+      horaFormateadaParaMostrar: formatearHoraMilitar(newReservedAt)
     });
   }
 
   // 📅 MANEJAR ACTUALIZACIÓN DE FECHA
   if (updates.fecha !== undefined) {
-    // Obtener la hora actual de la reserva
+    console.log('🔥📅 DEBUG FECHA - INICIO:', {
+      fechaRecibida: updates.fecha,
+      reservedAtActual: currentReservation.reservedAt.toISOString(),
+      reservaId: currentReservation.id
+    });
+    
+    // Obtener la HORA actual en UTC (que ya tiene +5 aplicado)
     const currentReservedAt = new Date(currentReservation.reservedAt);
-    const hours = currentReservedAt.getHours();
-    const minutes = currentReservedAt.getMinutes();
+    const horasUTC = currentReservedAt.getUTCHours();
+    const minutosUTC = currentReservedAt.getUTCMinutes();
+    
+    // ⚠️ PROBLEMA: horasUTC ya tiene +5, necesitamos restar para obtener hora Ecuador
+    const horasEcuador = horasUTC - 5;
+    const minutosEcuador = minutosUTC;
+    
+    console.log('🔥📅 DEBUG FECHA - Hora actual extraída:', {
+      horasUTC,
+      minutosUTC,
+      horasEcuador,
+      minutosEcuador,
+      explicacion: 'UTC ya tiene +5, restamos 5 para obtener hora Ecuador'
+    });
     
     // Parsear la nueva fecha (formato YYYY-MM-DD)
     const [year, month, day] = updates.fecha.split('-').map(Number);
     
-    // 🎯 CREAR NUEVA FECHA FORZANDO UTC-5 (independiente del servidor)
-    const newReservedAt = new Date(Date.UTC(year, month - 1, day, hours + 5, minutes, 0, 0));
+    console.log('🔥📅 DEBUG FECHA - Nueva fecha parseada:', {
+      year,
+      month,
+      day,
+      fechaInput: updates.fecha
+    });
+    
+    // ✅ CREAR NUEVA FECHA: Usar hora Ecuador + 5 para convertir a UTC
+    const newReservedAt = new Date(Date.UTC(year, month - 1, day, horasEcuador + 5, minutosEcuador, 0, 0));
     
     updateData.reservedAt = newReservedAt;
     
-    console.log('📅 FECHA PROCESADA PARA ACTUALIZACIÓN:', {
-      fechaOriginal: currentReservation.reservedAt,
-      fechaOriginalFormateada: currentReservation.reservedAt.toISOString().split('T')[0],
-      nuevaFecha: updates.fecha,
-      horaMantenida: `${hours}:${minutes}`,
-      year, month, day,
-      nuevaFechaCompleta: newReservedAt.toISOString(),
-      fechaFormateada: newReservedAt.toISOString().split('T')[0],
-      seAsignoReservedAt: true
+    console.log('��📅 DEBUG FECHA - Resultado final:', {
+      fechaGuardada: newReservedAt.toISOString(),
+      fechaUTC: `${year}-${month}-${day}`,
+      horaEcuador: `${horasEcuador}:${String(minutosEcuador).padStart(2, '0')}`,
+      horaUTCGuardada: `${horasEcuador + 5}:${String(minutosEcuador).padStart(2, '0')}`,
+      horaFormateadaParaMostrar: formatearHoraMilitar(newReservedAt),
+      fechaFormateada: newReservedAt.toISOString().split('T')[0]
     });
   }
 
@@ -533,14 +560,20 @@ export async function PUT(
         include: { ReservationQRCode: true, Promotor: true }
       });
       
-      console.log('✅ SERVIDOR - Reserva actualizada exitosamente en BD:', {
+      console.log('🔥✅ SERVIDOR - Reserva GUARDADA EN BD:', {
         reservaId: updatedReservation.id,
-        reservedAtActualizado: updatedReservation.reservedAt,
-        horaFormateada: updatedReservation.reservedAt.toLocaleTimeString('es-ES', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
-        }),
-        metadataActualizado: updatedReservation.metadata
+        reservedAtGuardado: updatedReservation.reservedAt.toISOString(),
+        fechaUTC: updatedReservation.reservedAt.toISOString().split('T')[0],
+        horaUTC: updatedReservation.reservedAt.toISOString().split('T')[1].substring(0, 5),
+        componentes: {
+          yearUTC: updatedReservation.reservedAt.getUTCFullYear(),
+          monthUTC: updatedReservation.reservedAt.getUTCMonth() + 1,
+          dayUTC: updatedReservation.reservedAt.getUTCDate(),
+          hourUTC: updatedReservation.reservedAt.getUTCHours(),
+          minuteUTC: updatedReservation.reservedAt.getUTCMinutes(),
+          horaEcuador: formatearHoraMilitar(updatedReservation.reservedAt)
+        },
+        metadataGuardado: updatedReservation.metadata
       });
 
       // 🎯 REGENERAR QR AUTOMÁTICAMENTE si cambió la fecha/hora de la reserva

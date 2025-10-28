@@ -46,6 +46,18 @@ export function ReservationEditModal({
   // Extraer detalles serializado para dependency array
   const detallesStr = JSON.stringify(reserva.detalles);
 
+  // 🌍 LOG INFO DEL NAVEGADOR (útil para debugging en producción)
+  useEffect(() => {
+    console.log('🌍 INFO NAVEGADOR/TIMEZONE:', {
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      locale: navigator.language,
+      userAgent: navigator.userAgent.substring(0, 100),
+      fechaLocal: new Date().toLocaleString(),
+      fechaUTC: new Date().toISOString(),
+      offsetMinutos: new Date().getTimezoneOffset()
+    });
+  }, []);
+
   // 🔄 EFECTO SIMPLE Y DIRECTO: Solo sincronizar cuando cambien las props
   useEffect(() => {
     // 🔒 DESHABILITAR SINCRONIZACIÓN DURANTE GUARDADO O EDICIÓN PARA EVITAR REVERSIONES
@@ -165,10 +177,11 @@ export function ReservationEditModal({
   };
 
   const handleSave = async () => {
-    console.log('📱 MÓVIL - Iniciando guardado:', {
+    console.log('��📱 FRONTEND - GUARDADO INICIADO:', {
       reservaId: reserva.id,
-      horaAnterior: reserva.hora,
-      horaNueva: hora,
+      horaEstadoLocal: hora,
+      horaReservaOriginal: reserva.hora,
+      fechaReservaOriginal: reserva.fecha,
       cambiosDetectados: {
         hora: hora !== reserva.hora,
         estado: estado !== reserva.estado,
@@ -190,15 +203,17 @@ export function ReservationEditModal({
         detalles
       };
 
-      console.log('📱 MÓVIL - Enviando actualización:', {
+      console.log('��📱 FRONTEND - DATOS A ENVIAR AL API:', {
         reservaId: reserva.id,
-        updates
+        updates: JSON.stringify(updates),
+        horaQueSeEnvia: updates.hora,
+        estadoQueSeEnvia: updates.estado
       });
 
       // 🎯 Ejecutar actualización
       await onUpdate(reserva.id, updates);
       
-      console.log('✅ MÓVIL - Actualización exitosa, esperando antes de cerrar...');
+      console.log('🔥✅ FRONTEND - Respuesta del API recibida exitosamente');
       
       // 🎯 Esperar un momento antes de cerrar para que se reflejen los cambios
       await new Promise(resolve => setTimeout(resolve, 300));
