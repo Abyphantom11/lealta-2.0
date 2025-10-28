@@ -1,7 +1,22 @@
 /**
- * 🛡️ UTILIDAD DEFINITIVA PARA MANEJO DE TIMEZONE EN RESERVAS
- * 
- * Esta utilidad asegura que SIEMPRE se manejen las fechas correctamente,
+ * 🛡️ UTILIDAD DEFINITIVA PARA MANEJO DE TIMEZONE EN RESERVAS    // Verificación - esto debe mostrar la hora original que ingresó el usuario EN FORMATO MILITAR
+    const fechaVerificacion = fechaCorrecta.toLocaleString('es-CO', { 
+      timeZone: BUSINESS_TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false // ✅ FORMATO MILITAR (24 horas)
+    });
+    
+    console.log('✅ FECHA CREADA CORRECTAMENTE:', {
+      fechaOriginal: `${fecha} ${hora}`,
+      fechaUTC: fechaCorrecta.toISOString(),
+      fechaEnNegocio: fechaVerificacion,
+      metodo: 'UTC directo + offset Colombia (formato militar)',
+      verificacion: `Hora ingresada: ${hora}, Hora verificada: ${fechaVerificacion.split(' ')[1]}`
+    });lidad asegura que SIEMPRE se manejen las fechas correctamente,
  * sin importar dónde esté corriendo el servidor o cambios de configuración.
  */
 
@@ -10,6 +25,37 @@
  * Este es el timezone REAL donde opera el negocio
  */
 const BUSINESS_TIMEZONE = 'America/Guayaquil';
+
+/**
+ * Función para formatear fechas/horas en formato militar consistente
+ * @param date - Fecha a formatear
+ * @returns String en formato militar (24 horas)
+ */
+export function formatearHoraMilitar(date: Date): string {
+  return date.toLocaleString('es-CO', {
+    timeZone: BUSINESS_TIMEZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false // ✅ FORMATO MILITAR
+  });
+}
+
+/**
+ * Función para formatear fecha completa en formato militar consistente
+ * @param date - Fecha a formatear
+ * @returns String en formato militar completo
+ */
+export function formatearFechaCompletaMilitar(date: Date): string {
+  return date.toLocaleString('es-CO', {
+    timeZone: BUSINESS_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false // ✅ FORMATO MILITAR
+  });
+}
 
 interface FechasReserva {
   fechaReserva: Date;
@@ -106,7 +152,10 @@ function crearFechaExpiracionQR(fechaReserva: Date): Date {
     fechaReserva: fechaReserva.toISOString(),
     fechaExpiracion: expiracion.toISOString(),
     duracionHoras: DURACION_QR_HORAS,
-    expiraEnNegocio: expiracion.toLocaleString('es-CO', { timeZone: BUSINESS_TIMEZONE })
+    expiraEnNegocio: expiracion.toLocaleString('es-CO', { 
+      timeZone: BUSINESS_TIMEZONE,
+      hour12: false // ✅ FORMATO MILITAR
+    })
   });
   
   return expiracion;
@@ -158,10 +207,16 @@ export function calcularFechasReserva(fecha: string, hora: string): FechasReserv
     debug: {
       timezone: BUSINESS_TIMEZONE,
       fechaReservaUTC: fechaReserva.toISOString(),
-      fechaReservaNegocio: fechaReserva.toLocaleString('es-CO', { timeZone: BUSINESS_TIMEZONE }),
+      fechaReservaNegocio: fechaReserva.toLocaleString('es-CO', { 
+        timeZone: BUSINESS_TIMEZONE,
+        hour12: false // ✅ FORMATO MILITAR
+      }),
       fechaExpiracionUTC: fechaExpiracionQR.toISOString(),
-      fechaExpiracionNegocio: fechaExpiracionQR.toLocaleString('es-CO', { timeZone: BUSINESS_TIMEZONE }),
-      metodo: 'Offset fijo + validaciones (DEFINITIVO)'
+      fechaExpiracionNegocio: fechaExpiracionQR.toLocaleString('es-CO', { 
+        timeZone: BUSINESS_TIMEZONE,
+        hour12: false // ✅ FORMATO MILITAR
+      }),
+      metodo: 'Offset fijo + validaciones (DEFINITIVO - FORMATO MILITAR)'
     }
   };
   

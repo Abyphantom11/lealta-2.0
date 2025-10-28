@@ -12,6 +12,37 @@
 const BUSINESS_TIMEZONE = 'America/Guayaquil';
 
 /**
+ * Función para formatear fechas/horas en formato militar consistente
+ * @param {Date} date - Fecha a formatear
+ * @returns {string} String en formato militar (24 horas)
+ */
+function formatearHoraMilitar(date) {
+  return date.toLocaleString('es-CO', {
+    timeZone: BUSINESS_TIMEZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false // ✅ FORMATO MILITAR
+  });
+}
+
+/**
+ * Función para formatear fecha completa en formato militar consistente
+ * @param {Date} date - Fecha a formatear
+ * @returns {string} String en formato militar completo
+ */
+function formatearFechaCompletaMilitar(date) {
+  return date.toLocaleString('es-CO', {
+    timeZone: BUSINESS_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false // ✅ FORMATO MILITAR
+  });
+}
+
+/**
  * Crea una fecha de reserva considerando el timezone del negocio
  * @param {string} fecha - Fecha en formato YYYY-MM-DD
  * @param {string} hora - Hora en formato HH:MM
@@ -51,7 +82,7 @@ function crearFechaReserva(fecha, hora) {
     // Sumamos 5 horas para convertir de Colombia a UTC
     const fechaCorrecta = new Date(fechaUTC.getTime() + (5 * 60 * 60 * 1000));
     
-    // Verificación - esto debe mostrar la hora original que ingresó el usuario
+    // Verificación - esto debe mostrar la hora original que ingresó el usuario EN FORMATO MILITAR
     const fechaVerificacion = fechaCorrecta.toLocaleString('es-CO', { 
       timeZone: BUSINESS_TIMEZONE,
       year: 'numeric',
@@ -59,14 +90,14 @@ function crearFechaReserva(fecha, hora) {
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
-      hour12: false
+      hour12: false // ✅ FORMATO MILITAR (24 horas)
     });
     
     console.log('✅ FECHA CREADA CORRECTAMENTE:', {
       fechaOriginal: `${fecha} ${hora}`,
       fechaUTC: fechaCorrecta.toISOString(),
       fechaEnNegocio: fechaVerificacion,
-      metodo: 'UTC directo + offset Colombia',
+      metodo: 'UTC directo + offset Colombia (formato militar)',
       verificacion: `Hora ingresada: ${hora}, Hora verificada: ${fechaVerificacion.split(' ')[1]}`
     });
     
@@ -121,7 +152,10 @@ function crearFechaExpiracionQR(fechaReserva) {
     fechaReserva: fechaReserva.toISOString(),
     fechaExpiracion: expiracion.toISOString(),
     duracionHoras: DURACION_QR_HORAS,
-    expiraEnNegocio: expiracion.toLocaleString('es-CO', { timeZone: BUSINESS_TIMEZONE })
+    expiraEnNegocio: expiracion.toLocaleString('es-CO', { 
+      timeZone: BUSINESS_TIMEZONE,
+      hour12: false // ✅ FORMATO MILITAR
+    })
   });
   
   return expiracion;
@@ -173,9 +207,15 @@ function calcularFechasReserva(fecha, hora) {
     debug: {
       timezone: BUSINESS_TIMEZONE,
       fechaReservaUTC: fechaReserva.toISOString(),
-      fechaReservaNegocio: fechaReserva.toLocaleString('es-CO', { timeZone: BUSINESS_TIMEZONE }),
+      fechaReservaNegocio: fechaReserva.toLocaleString('es-CO', { 
+        timeZone: BUSINESS_TIMEZONE,
+        hour12: false // ✅ FORMATO MILITAR
+      }),
       fechaExpiracionUTC: fechaExpiracionQR.toISOString(),
-      fechaExpiracionNegocio: fechaExpiracionQR.toLocaleString('es-CO', { timeZone: BUSINESS_TIMEZONE }),
+      fechaExpiracionNegocio: fechaExpiracionQR.toLocaleString('es-CO', { 
+        timeZone: BUSINESS_TIMEZONE,
+        hour12: false // ✅ FORMATO MILITAR
+      }),
       metodo: 'Intl.DateTimeFormat + validaciones'
     }
   };
@@ -214,5 +254,7 @@ module.exports = {
   calcularFechasReserva,
   validarFechaReserva,
   convertirFechaAString,
+  formatearHoraMilitar,
+  formatearFechaCompletaMilitar,
   BUSINESS_TIMEZONE
 };
