@@ -239,16 +239,15 @@ function validarFechaReserva(fechaReserva: Date): boolean {
     
     // Como las fechas se guardan en UTC representando hora local,
     // comparamos directamente los timestamps
-    // Restamos 1 minuto de tolerancia para evitar problemas de sincronización
     const diferenciaMs = fechaReserva.getTime() - ahora.getTime();
     const minutosHastaReserva = diferenciaMs / (1000 * 60);
     
-    // Ser más permisivo: permitir reservas que estén muy en el futuro
-    // o que estén dentro de un rango razonable (último minuto)
-    const esEnElFuturo = minutosHastaReserva >= -1; // Tolerancia de 1 minuto en el pasado
+    // MUY PERMISIVO: Permitir reservas hasta 12 horas en el pasado
+    // Esto permite crear reservas del mismo día sin problemas de timezone
+    const esEnElFuturo = minutosHastaReserva >= -(12 * 60); // Tolerancia de 12 horas
     
     // Logging detallado
-    console.log('🕒 VALIDANDO FECHA DE RESERVA (COMPARACIÓN DIRECTA):', {
+    console.log('🕒 VALIDANDO FECHA DE RESERVA (MUY PERMISIVO):', {
       fechaActual: ahora.toISOString(),
       fechaReserva: fechaReserva.toISOString(),
       diferencia: {
@@ -258,11 +257,11 @@ function validarFechaReserva(fechaReserva: Date): boolean {
         dias: minutosHastaReserva / (60 * 24)
       },
       esValida: esEnElFuturo,
-      nota: 'Tolerancia de -1 minuto para evitar problemas de sincronización'
+      nota: 'Tolerancia de 12 horas para permitir reservas del mismo día'
     });
     
     if (!esEnElFuturo) {
-      console.warn('⚠️ Reserva rechazada - está en el pasado (más de 1 minuto)');
+      console.warn('⚠️ Reserva rechazada - está más de 12 horas en el pasado');
     }
     
     return esEnElFuturo;
