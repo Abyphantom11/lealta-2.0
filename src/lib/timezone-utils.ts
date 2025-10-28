@@ -23,8 +23,7 @@ export function formatearHoraMilitar(date: Date | string): string {
   const instant = typeof date === 'string' 
     ? Temporal.Instant.from(date)
     : Temporal.Instant.from(date.toISOString());
-  // 🎯 SOLUCIÓN: Usar Temporal API para manejar timezone correctamente
-  const instant = Temporal.Instant.from(date.toISOString());
+    
   const zonedDateTime = instant.toZonedDateTimeISO(BUSINESS_TIMEZONE);
   
   return zonedDateTime.toLocaleString('es-CO', {
@@ -92,9 +91,15 @@ function crearFechaReserva(fecha: string, hora: string): Date {
       timezoneNegocio: BUSINESS_TIMEZONE
     });
     
-    // ✅ MÉTODO CORRECTO usando Temporal API
+    // Parsear los componentes de fecha y hora
     const [year, month, day] = fecha.split('-').map(Number);
     const [hours, minutes] = hora.split(':').map(Number);
+    
+    // Validar rangos de fecha/hora
+    if (month < 1 || month > 12) throw new Error('Mes inválido');
+    if (day < 1 || day > 31) throw new Error('Día inválido');
+    if (hours < 0 || hours > 23) throw new Error('Hora inválida');
+    if (minutes < 0 || minutes > 59) throw new Error('Minutos inválidos');
     
     // Crear fecha en el timezone del negocio
     const zonedDateTime = Temporal.ZonedDateTime.from({
@@ -103,7 +108,9 @@ function crearFechaReserva(fecha: string, hora: string): Date {
       month,
       day,
       hour: hours,
-      minute: minutes
+      minute: minutes,
+      second: 0,
+      millisecond: 0
     });
     
     // Convertir a Date para compatibilidad
@@ -113,20 +120,15 @@ function crearFechaReserva(fecha: string, hora: string): Date {
       fechaOriginal: `${fecha} ${hora}`,
       fechaUTC: fechaCorrecta.toISOString(),
       fechaEnNegocio: zonedDateTime.toString(),
-      metodo: 'Temporal API',
-      verificacion: `Hora ingresada: ${hora}, Hora verificada: ${zonedDateTime.toLocaleString('es-CO', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      })}`
+      epochMs: zonedDateTime.epochMilliseconds,
+      verificacion: `${hours}:${minutes.toString().padStart(2, '0')}`
     });
     
     return fechaCorrecta;
     
   } catch (error) {
     console.error('❌ ERROR CREANDO FECHA:', error);
-    // Fallback seguro
-    return new Date();
+    throw error; // Re-lanzar el error para manejarlo arriba
   }
 }
 
@@ -165,21 +167,43 @@ function crearFechaExpiracionQR(fechaReserva: Date): Date {
  * @returns True si es válida
  */
 function validarFechaReserva(fechaReserva: Date): boolean {
-  const now = Temporal.Now.zonedDateTimeISO(BUSINESS_TIMEZONE);
-  const reservaZoned = Temporal.Instant.from(fechaReserva.toISOString())
-    .toZonedDateTimeISO(BUSINESS_TIMEZONE);
-  
-  const esEnElFuturo = Temporal.ZonedDateTime.compare(reservaZoned, now) > 0;
-  
-  if (!esEnElFuturo) {
-    console.warn('⚠️ ADVERTENCIA: Fecha de reserva en el pasado:', {
-      fechaReserva: fechaReserva.toISOString(),
-      fechaReservaLocal: reservaZoned.toString(),
-      fechaActual: now.toString()
+  try {
+    // 1. Obtener la fecha/hora actual en el timezone del negocio
+    const ahora = Temporal.Now.zonedDateTimeISO(BUSINESS_TIMEZONE);
+    const ahoraEpochMs = ahora.epochMilliseconds;
+    
+    // 2. Convertir la fecha de reserva a epochMilliseconds en el timezone del negocio
+    const reservaInstant = Temporal.Instant.from(fechaReserva.toISOString());
+    const reservaZoned = reservaInstant.toZonedDateTimeISO(BUSINESS_TIMEZONE);
+    const reservaEpochMs = reservaZoned.epochMilliseconds;
+    
+    // 3. Comparar timestamps
+    const diferenciaMs = reservaEpochMs - ahoraEpochMs;
+    const esEnElFuturo = diferenciaMs > 0;
+    
+    // 4. Logging detallado
+    console.log('🕒 VALIDANDO FECHA DE RESERVA:', {
+      fechaActual: {
+        isoString: ahora.toString(),
+        epochMs: ahoraEpochMs
+      },
+      fechaReserva: {
+        isoString: reservaZoned.toString(),
+        epochMs: reservaEpochMs
+      },
+      diferencia: {
+        milliseconds: diferenciaMs,
+        minutes: Math.floor(diferenciaMs / (1000 * 60)),
+        hours: Math.floor(diferenciaMs / (1000 * 60 * 60))
+      },
+      esValida: esEnElFuturo
     });
+    
+    return esEnElFuturo;
+  } catch (error) {
+    console.error('❌ Error validando fecha:', error);
+    return false;
   }
-  
-  return esEnElFuturo;
 }
 
 /**
@@ -189,42 +213,61 @@ function validarFechaReserva(fechaReserva: Date): boolean {
  * @returns Objeto con fechas calculadas
  */
 export function calcularFechasReserva(fecha: string, hora: string): FechasReserva {
-  console.log('🎯 CALCULANDO FECHAS DE RESERVA (MÉTODO DEFINITIVO)');
-  console.log('='.repeat(70));
-  
-  // 1. Crear fecha de reserva
-  const fechaReserva = crearFechaReserva(fecha, hora);
-  
-  // 2. Validar fecha
-  const esValida = validarFechaReserva(fechaReserva);
-  
-  // 3. Crear fecha de expiración del QR
-  const fechaExpiracionQR = crearFechaExpiracionQR(fechaReserva);
-  
-  // 4. Información de debug
-  const resultado: FechasReserva = {
-    fechaReserva,
-    fechaExpiracionQR,
-    esValida,
-    debug: {
-      timezone: BUSINESS_TIMEZONE,
-      fechaReservaUTC: fechaReserva.toISOString(),
-      fechaReservaNegocio: fechaReserva.toLocaleString('es-CO', { 
-        timeZone: BUSINESS_TIMEZONE,
-        hour12: false // ✅ FORMATO MILITAR
-      }),
-      fechaExpiracionUTC: fechaExpiracionQR.toISOString(),
-      fechaExpiracionNegocio: fechaExpiracionQR.toLocaleString('es-CO', { 
-        timeZone: BUSINESS_TIMEZONE,
-        hour12: false // ✅ FORMATO MILITAR
-      }),
-      metodo: 'Offset fijo + validaciones (DEFINITIVO - FORMATO MILITAR)'
+  try {
+    console.log('🎯 CALCULANDO FECHAS DE RESERVA (MÉTODO DEFINITIVO)');
+    console.log('='.repeat(70));
+    
+    // 1. Crear fecha de reserva
+    const fechaReserva = crearFechaReserva(fecha, hora);
+    
+    // 2. Validar que la fecha se haya creado correctamente
+    if (!fechaReserva || Number.isNaN(fechaReserva.getTime())) {
+      throw new Error('Error al crear la fecha de reserva');
     }
-  };
-  
-  console.log('📊 RESULTADO FINAL:', resultado.debug);
-  
-  return resultado;
+    
+    // 3. Validar que sea en el futuro
+    const esValida = validarFechaReserva(fechaReserva);
+    
+    if (!esValida) {
+      throw new Error('La fecha de reserva debe ser en el futuro');
+    }
+    
+    // 4. Crear fecha de expiración del QR
+    const fechaExpiracionQR = crearFechaExpiracionQR(fechaReserva);
+    
+    // 5. Validar fecha de expiración
+    if (!fechaExpiracionQR || Number.isNaN(fechaExpiracionQR.getTime())) {
+      throw new Error('Error al crear la fecha de expiración del QR');
+    }
+    
+    // 6. Información de debug
+    const resultado: FechasReserva = {
+      fechaReserva,
+      fechaExpiracionQR,
+      esValida: true, // Si llegamos aquí, es válida
+      debug: {
+        timezone: BUSINESS_TIMEZONE,
+        fechaReservaUTC: fechaReserva.toISOString(),
+        fechaReservaNegocio: fechaReserva.toLocaleString('es-CO', { 
+          timeZone: BUSINESS_TIMEZONE,
+          hour12: false
+        }),
+        fechaExpiracionUTC: fechaExpiracionQR.toISOString(),
+        fechaExpiracionNegocio: fechaExpiracionQR.toLocaleString('es-CO', { 
+          timeZone: BUSINESS_TIMEZONE,
+          hour12: false
+        }),
+        metodo: 'Temporal API + validaciones estrictas'
+      }
+    };
+    
+    console.log('📊 RESULTADO FINAL:', resultado.debug);
+    
+    return resultado;
+  } catch (error) {
+    console.error('❌ ERROR CREANDO FECHA:', error);
+    throw error;
+  }
 }
 
 /**
