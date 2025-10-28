@@ -84,39 +84,24 @@ function crearFechaReserva(fecha, hora) {
       timezoneNegocio: BUSINESS_TIMEZONE
     });
     
-    // ✅ MÉTODO CORRECTO Y SIMPLE
-    // Crear fecha directamente en el timezone del negocio
+    // ✅ MÉTODO CORRECTO: Crear fecha directamente en UTC considerando que el usuario está en UTC-5
     const [year, month, day] = fecha.split('-').map(Number);
     const [hours, minutes] = hora.split(':').map(Number);
     
-    // Crear fecha como UTC directamente
-    const fechaUTC = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0));
-    
-    // Colombia es UTC-5, así que para obtener el UTC real:
-    // Si el usuario dice 01:00 en Colombia = 06:00 UTC
-    // Sumamos 5 horas para convertir de Colombia a UTC
-    const fechaCorrecta = new Date(fechaUTC.getTime() + (5 * 60 * 60 * 1000));
-    
-    // Verificación - esto debe mostrar la hora original que ingresó el usuario EN FORMATO MILITAR
-    const fechaVerificacion = fechaCorrecta.toLocaleString('es-CO', { 
-      timeZone: BUSINESS_TIMEZONE,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false // ✅ FORMATO MILITAR (24 horas)
-    });
+    // El usuario ingresa hora LOCAL de Ecuador (UTC-5)
+    // Para convertir a UTC, SUMAMOS 5 horas
+    // Ejemplo: Usuario dice 09:00 Ecuador → 14:00 UTC
+    const fechaUTC = new Date(Date.UTC(year, month - 1, day, hours + 5, minutes, 0, 0));
     
     console.log('✅ FECHA CREADA CORRECTAMENTE:', {
       fechaOriginal: `${fecha} ${hora}`,
-      fechaUTC: fechaCorrecta.toISOString(),
-      fechaEnNegocio: fechaVerificacion,
-      metodo: 'UTC directo + offset Colombia (formato militar)',
-      verificacion: `Hora ingresada: ${hora}, Hora verificada: ${fechaVerificacion.split(' ')[1]}`
+      fechaUTC: fechaUTC.toISOString(),
+      horaIngresada: hora,
+      horaFormateada: formatearHoraMilitar(fechaUTC),
+      metodo: 'Date.UTC con offset +5 para Ecuador'
     });
     
-    return fechaCorrecta;
+    return fechaUTC;
     
   } catch (error) {
     console.error('❌ ERROR CREANDO FECHA:', error);
