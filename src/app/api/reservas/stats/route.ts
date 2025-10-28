@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { DashboardStats, EstadoReserva } from '@/app/reservas/types/reservation';
 
+// Configurar como ruta dinámica para evitar errores de prerendimiento
+export const dynamic = 'force-dynamic';
+
 // Función para mapear estado de Prisma a nuestro tipo
 function mapPrismaStatusToReserva(status: string): EstadoReserva {
   switch (status) {
