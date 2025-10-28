@@ -59,7 +59,6 @@ export function AIReservationModal({
   // Estados editables para los campos detectados
   const [editableData, setEditableData] = useState({
     clienteNombre: "",
-    clienteCedula: "DEFAULT-PHONE", // 🆕 Cédula por defecto
     clienteCorreo: "",
     clienteTelefono: "",
     clienteFechaNacimiento: "", // 🆕 Nuevo campo
@@ -114,7 +113,6 @@ export function AIReservationModal({
               clienteNombre: clienteExacto.nombre,
               clienteCorreo: emailCliente || prev.clienteCorreo,
               clienteFechaNacimiento: fechaNacimientoCliente || prev.clienteFechaNacimiento,
-              clienteCedula: clienteExacto.cedula || parsedData.clienteTelefono || 'DEFAULT-PHONE', // Usar cédula existente o teléfono
             }));
 
             toast.success("✅ Cliente registrado detectado", {
@@ -192,10 +190,9 @@ export function AIReservationModal({
       // Actualizar campos editables con los datos detectados
       setEditableData({
         clienteNombre: data.clienteNombre || "",
-        clienteCedula: data.clienteTelefono || "DEFAULT-PHONE", // 🆕 Usar teléfono como cédula por defecto
+        clienteTelefono: data.clienteTelefono || "", // 🆕 Usar teléfono directamente
         clienteCorreo: data.clienteCorreo || "",
-        clienteTelefono: data.clienteTelefono || "",
-        clienteFechaNacimiento: data.clienteFechaNacimiento || "", // 🆕 Nuevo campo
+        clienteFechaNacimiento: data.clienteFechaNacimiento || "",
         numeroPersonas: data.numeroPersonas?.toString() || "1",
         fecha: data.fecha || (selectedDate ? formatDateLocal(selectedDate) : ""),
         hora: data.hora || "",
@@ -221,7 +218,7 @@ export function AIReservationModal({
     const camposFaltantes = [];
     if (!editableData.clienteNombre?.trim()) camposFaltantes.push('Nombre');
     if (!editableData.clienteTelefono?.trim()) camposFaltantes.push('Teléfono');
-    if (!editableData.clienteFechaNacimiento?.trim()) camposFaltantes.push('Fecha de Nacimiento');
+    // Fecha de nacimiento ahora es opcional
     // Email es opcional
     if (!editableData.fecha) camposFaltantes.push('Fecha');
     if (!editableData.hora) camposFaltantes.push('Hora');
@@ -280,7 +277,6 @@ export function AIReservationModal({
     setClienteExistente(false);
     setEditableData({
       clienteNombre: "",
-      clienteCedula: "DEFAULT-PHONE",
       clienteCorreo: "",
       clienteTelefono: "",
       clienteFechaNacimiento: "", // 🆕 Incluir nuevo campo
@@ -298,7 +294,6 @@ export function AIReservationModal({
     // Mapear nombres de campos a propiedades del editableData
     const fieldMapping: { [key: string]: keyof typeof editableData } = {
       "Teléfono": "clienteTelefono",
-      "Cédula": "clienteTelefono", // 🆕 Mapear cédula también a teléfono
       "Nombre": "clienteNombre", 
       "Fecha de Nacimiento": "clienteFechaNacimiento",
       "Email": "clienteCorreo",
@@ -476,7 +471,7 @@ export function AIReservationModal({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-sm flex items-center justify-between">
-                      <span>🎂 Fecha de Nacimiento *</span>
+                      <span>🎂 Fecha de Nacimiento (opcional)</span>
                       {getFieldStatus("Fecha de Nacimiento")}
                     </Label>
                     <Input

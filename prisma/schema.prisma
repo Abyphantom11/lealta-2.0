@@ -4,8 +4,8 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")      // Pooled connection para Vercel
-  directUrl = env("DIRECT_URL")        // Direct connection para migraciones
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model BrandingConfig {
@@ -25,40 +25,46 @@ model BrandingConfig {
 }
 
 model Business {
-  id                   String                 @id
-  name                 String
-  slug                 String                 @unique
-  subdomain            String                 @unique
-  customDomain         String?
-  subscriptionPlan     SubscriptionPlan       @default(BASIC)
-  isActive             Boolean                @default(true)
-  settings             Json?
-  createdAt            DateTime               @default(now())
-  updatedAt            DateTime
-  clientTheme          String?                @default("moderno")
-  qrBrandingConfig     Json?                  @default("{}")
-  qrMensajeBienvenida  String?                @default("¡Te esperamos!")
-  qrMostrarLogo        Boolean                @default(true)
-  clientThemeConfig    Json?                  @default("{}")
-  BrandingConfig       BrandingConfig?
-  BusinessGoals        BusinessGoals?
-  Cliente              Cliente[]
-  Consumo              Consumo[]
-  GuestConsumo         GuestConsumo[]
-  HostTracking         HostTracking[]
-  Location             Location[]
-  MenuCategory         MenuCategory[]
-  PortalBanner         PortalBanner[]
-  PortalFavoritoDelDia PortalFavoritoDelDia[]
-  PortalPromocion      PortalPromocion[]
-  PortalRecompensa     PortalRecompensa[]
-  PortalTarjetasConfig PortalTarjetasConfig?
-  Promotor             Promotor[]
-  PuntosConfig         PuntosConfig?
-  QRLink               QRLink[]
-  ReservationService   ReservationService[]
-  User                 User[]
-  Visita               Visita[]
+  id                    String                 @id
+  name                  String
+  slug                  String                 @unique
+  subdomain             String                 @unique
+  customDomain          String?
+  subscriptionPlan      SubscriptionPlan       @default(BASIC)
+  isActive              Boolean                @default(true)
+  settings              Json?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime
+  clientTheme           String?                @default("moderno")
+  qrBrandingConfig      Json?                  @default("{}")
+  qrMensajeBienvenida   String?                @default("¡Te esperamos!")
+  qrMostrarLogo         Boolean                @default(true)
+  clientThemeConfig     Json?                  @default("{}")
+  subscriptionId        String?
+  subscriptionStatus    String?
+  planId                String?
+  customerId            String?
+  subscriptionStartDate DateTime?
+  subscriptionEndDate   DateTime?
+  trialEndsAt           DateTime?
+  BrandingConfig        BrandingConfig?
+  BusinessGoals         BusinessGoals?
+  Cliente               Cliente[]
+  Consumo               Consumo[]
+  GuestConsumo          GuestConsumo[]
+  HostTracking          HostTracking[]
+  Location              Location[]
+  MenuCategory          MenuCategory[]
+  PortalBanner          PortalBanner[]
+  PortalFavoritoDelDia  PortalFavoritoDelDia[]
+  PortalPromocion       PortalPromocion[]
+  PortalRecompensa      PortalRecompensa[]
+  PortalTarjetasConfig  PortalTarjetasConfig?
+  Promotor              Promotor[]
+  PuntosConfig          PuntosConfig?
+  ReservationService    ReservationService[]
+  User                  User[]
+  Visita                Visita[]
 }
 
 model BusinessGoals {
@@ -467,60 +473,6 @@ model PuntosConfig {
   @@index([businessId])
 }
 
-model QRClick {
-  id        String   @id
-  qrLinkId  String
-  ipAddress String
-  userAgent String?
-  referer   String?
-  country   String?
-  city      String?
-  clickedAt DateTime @default(now())
-  QRLink    QRLink   @relation(fields: [qrLinkId], references: [id], onDelete: Cascade)
-
-  @@index([clickedAt])
-  @@index([ipAddress])
-  @@index([qrLinkId])
-}
-
-model QRLink {
-  id          String    @id
-  shortId     String    @unique
-  businessId  String?
-  name        String
-  description String?
-  targetUrl   String
-  backupUrl   String?
-  isActive    Boolean   @default(true)
-  expiresAt   DateTime?
-  clickCount  Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime
-  QRClick     QRClick[]
-  Business    Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
-
-  @@index([businessId])
-  @@index([expiresAt])
-  @@index([isActive])
-  @@index([shortId])
-}
-
-model QRShareLink {
-  id            String      @id
-  shareId       String      @unique
-  reservationId String
-  message       String
-  qrImageUrl    String?     @db.Text // ✅ Almacenar imagen del QR Card (base64 o URL)
-  views         Int         @default(0)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime
-  Reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
-
-  @@index([createdAt])
-  @@index([reservationId])
-  @@index([shareId])
-}
-
 model Reservation {
   id                 String              @id
   businessId         String
@@ -553,7 +505,6 @@ model Reservation {
   promotorId         String?             @default("whatsapp-default")
   tableNumber        String?
   HostTracking       HostTracking?
-  QRShareLink        QRShareLink[]
   Cliente            Cliente?            @relation(fields: [clienteId], references: [id])
   Promotor           Promotor?           @relation(fields: [promotorId], references: [id])
   ReservationService ReservationService  @relation(fields: [serviceId], references: [id])

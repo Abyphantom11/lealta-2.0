@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getGeminiApiKey } from '../env';
+import { convertirFechaAString } from '../timezone-utils';
 
 // Inicializar Gemini con validación segura de env vars
 const apiKey = getGeminiApiKey();
@@ -43,7 +44,7 @@ export class GeminiReservationParser {
     try {
       // Obtener fecha actual para contexto de fechas relativas
       const today = new Date();
-      const todayStr = today.toISOString().split('T')[0];
+      const todayStr = convertirFechaAString(today);
       const dayOfWeek = today.toLocaleDateString('es-ES', { weekday: 'long' });
 
       const prompt = `
@@ -252,7 +253,7 @@ REGLAS CRÍTICAS:
     const camposObligatorios = [
       { key: 'clienteNombre', nombre: 'Nombre' },
       { key: 'clienteTelefono', nombre: 'Teléfono' },
-      { key: 'clienteFechaNacimiento', nombre: 'Fecha de Nacimiento' },
+      // Fecha de nacimiento ahora es opcional
       { key: 'fecha', nombre: 'Fecha' },
       { key: 'hora', nombre: 'Hora' },
     ];

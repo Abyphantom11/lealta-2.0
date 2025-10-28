@@ -192,10 +192,34 @@ function calcularFechasReserva(fecha, hora) {
   return resultado;
 }
 
+/**
+ * Convierte una fecha a string en formato YYYY-MM-DD usando el timezone del negocio
+ * @param {Date} fecha - Fecha a convertir
+ * @returns {string} String de fecha en formato YYYY-MM-DD
+ */
+function convertirFechaAString(fecha) {
+  try {
+    // Usar el timezone del negocio para obtener la fecha correcta
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: BUSINESS_TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    
+    return formatter.format(fecha);
+  } catch (error) {
+    console.error('❌ Error convirtiendo fecha a string:', error);
+    // Fallback seguro usando UTC
+    return fecha.toISOString().split('T')[0];
+  }
+}
+
 module.exports = {
   crearFechaReserva,
   crearFechaExpiracionQR,
   calcularFechasReserva,
   validarFechaReserva,
+  convertirFechaAString,
   BUSINESS_TIMEZONE
 };

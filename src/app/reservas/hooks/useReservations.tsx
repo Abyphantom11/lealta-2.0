@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Reserva, DashboardStats } from '../types/reservation';
 import { toast } from 'sonner';
+import { convertirFechaAString } from '@/lib/timezone-utils';
 
 // Datos de ejemplo compatibles con la referencia
 const mockReservas: Reserva[] = [
@@ -460,18 +461,18 @@ export function useReservations(businessId?: string) {
   };
 
   const getReservasByDate = (date: Date) => {
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = convertirFechaAString(date);
     return reservas.filter(reserva => reserva.fecha === dateString);
   };
 
   const getReservasHoy = () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = convertirFechaAString(new Date());
     return reservas.filter(reserva => reserva.fecha === today);
   };
 
   const getDashboardStats = (): DashboardStats => {
     const hoy = new Date();
-    const hoyStr = hoy.toISOString().split('T')[0];
+    const hoyStr = convertirFechaAString(hoy);
     const mesActual = hoy.getMonth(); // 0-11
     const añoActual = hoy.getFullYear();
     

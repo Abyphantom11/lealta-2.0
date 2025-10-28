@@ -7,6 +7,8 @@
  * - Las reservas de 04:00 a 23:59 pertenecen al día ACTUAL
  */
 
+import { convertirFechaAString } from '@/lib/timezone-utils';
+
 // Hora de corte: 4:00 AM (configurable por negocio en el futuro)
 const RESERVATION_DAY_CUTOFF_HOUR = 4;
 
@@ -86,7 +88,7 @@ export function filterReservasByDay<T extends { fecha: string; hora: string }>(
   // Normalizar targetDate a YYYY-MM-DD
   const targetDateStr = typeof targetDate === 'string' 
     ? (targetDate.includes('T') ? targetDate.split('T')[0] : targetDate)
-    : getReservationDayDate(targetDate, cutoffHour);
+    : convertirFechaAString(targetDate);
   
   return reservas.filter(reserva => {
     // Crear datetime de la reserva
@@ -146,6 +148,7 @@ export function getReservationDayRange(
   // Normalizar a fecha
   let baseDate: Date;
   if (typeof date === 'string') {
+    // Si es string, extraer solo la parte de fecha si tiene tiempo
     const datePart = date.includes('T') ? date.split('T')[0] : date;
     const [year, month, day] = datePart.split('-').map(Number);
     baseDate = new Date(year, month - 1, day);

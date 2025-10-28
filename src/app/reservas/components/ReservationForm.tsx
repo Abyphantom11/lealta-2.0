@@ -124,7 +124,7 @@ export default function ReservationForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // 🆕 Validación diferente según el modo
+    // 🆕 Validación unificada para ambos formularios (Manual e IA)
     if (isExpressMode) {
       // Modo Express - Solo validar nombre, fecha, hora y promotor
       if (!formData.clienteNombre || 
@@ -137,15 +137,14 @@ export default function ReservationForm({
         return;
       }
     } else {
-      // Modo Normal - Validar Nombre, Teléfono, Fecha de Nacimiento, Fecha, Hora y Promotor
+      // Modo Normal - Validar Nombre, Teléfono, Fecha, Hora y Promotor (Fecha de Nacimiento ahora es opcional)
       if (!formData.clienteNombre || 
           !formData.clienteTelefono ||
-          !formData.clienteFechaNacimiento ||
           !formData.fecha || 
           !formData.hora || 
           !formData.promotorId) {
         toast.error('❌ Campos incompletos', {
-          description: 'Complete: Nombre, Teléfono, Fecha de Nacimiento, Fecha, Hora y Promotor'
+          description: 'Complete: Nombre, Teléfono, Fecha, Hora y Promotor'
         });
         return;
       }
@@ -296,11 +295,11 @@ export default function ReservationForm({
             )}
           </div>
 
-          {/* 🆕 TERCERO: Fecha de Nacimiento (solo si no es modo express) */}
+          {/* 🆕 TERCERO: Fecha de Nacimiento (opcional) */}
           {!isExpressMode && (
             <div className="space-y-2">
               <Label htmlFor="clienteFechaNacimiento" className="text-sm font-medium text-gray-800">
-                🎂 Fecha de Nacimiento *
+                🎂 Fecha de Nacimiento (opcional)
               </Label>
               <Input
                 id="clienteFechaNacimiento"
@@ -309,7 +308,6 @@ export default function ReservationForm({
                 onChange={(e) => handleInputChange('clienteFechaNacimiento', e.target.value)}
                 className="min-h-[44px] text-gray-900"
                 disabled={clienteExistente}
-                required
               />
               {clienteExistente && (
                 <p className="text-xs text-green-600">
