@@ -1,5 +1,7 @@
 'use client';
 
+import { useSession } from 'next-auth/react';
+import { usePaddle } from '@/hooks/usePaddle';
 import { motion } from 'framer-motion';
 import { 
   Check, 
@@ -12,17 +14,54 @@ import {
   ArrowRight
 } from 'lucide-react';
 import Link from 'next/link';
+import { useState } from 'react';
+
+/**
+ * 💰 PÁGINA: Pricing
+ * 
+ * Página principal de precios con integración de Paddle
+ */
 
 export default function PricingPage() {
+  const { data: session } = useSession();
+  const { createCheckout, isLoading: paddleLoading } = usePaddle();
+  const [isProcessing, setIsProcessing] = useState(false);
+  // Función para manejar la suscripción con Paddle
+  const handleStartTrial = async () => {
+    if (!session?.user?.email) {
+      // Redirigir a login si no está autenticado
+      window.location.href = '/login?redirect=/pricing';
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      
+      await createCheckout({
+        priceId: process.env.NEXT_PUBLIC_PADDLE_PLAN_ENTERPRISE_ID || 'pri_lealta_enterprise_plan', // Plan único Enterprise
+        businessId: session.user.businessId || 'temp_business_id',
+        customerEmail: session.user.email,
+        customerName: session.user.name || '',
+        successUrl: `${window.location.origin}/billing/success?plan=ENTERPRISE`,
+        cancelUrl: `${window.location.origin}/billing/cancel`,
+      });
+    } catch (error) {
+      console.error('Error iniciando suscripción:', error);
+      alert('Error al procesar el pago. Inténtalo de nuevo.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const features = [
-    { icon: Users, text: 'Clientes ilimitados', description: 'Sin límite de clientes en tu base de datos' },
-    { icon: Calendar, text: 'Reservas ilimitadas', description: 'Gestiona todas las reservas que necesites' },
-    { icon: Users, text: 'Staff ilimitado', description: 'Agrega todos los usuarios que quieras' },
-    { icon: Sparkles, text: 'Portal personalizado', description: 'Tu marca, tu estilo, 100% personalizable' },
-    { icon: Zap, text: 'QR y tarjetas digitales', description: 'Sistema de fidelidad completo' },
-    { icon: TrendingUp, text: 'Analytics avanzado', description: 'Métricas y estadísticas en tiempo real' },
-    { icon: Shield, text: 'Soporte prioritario', description: 'Respuesta en menos de 24 horas' },
-    { icon: Sparkles, text: 'Actualizaciones incluidas', description: 'Nuevas features sin costo adicional' },
+    { icon: Users, text: 'Múltiples negocios', description: 'Gestiona todos tus establecimientos desde una plataforma' },
+    { icon: Calendar, text: 'Reservas ilimitadas', description: 'Sin límites de reservas en ningún negocio' },
+    { icon: Users, text: 'Staff ilimitado', description: 'Usuarios ilimitados para todos tus negocios' },
+    { icon: Sparkles, text: 'Personalización total', description: 'Adaptado específicamente a tus necesidades' },
+    { icon: Zap, text: 'QR y fidelización', description: 'Sistema completo de puntos y recompensas' },
+    { icon: TrendingUp, text: 'Analytics empresarial', description: 'Reportes consolidados de todos los negocios' },
+    { icon: Shield, text: 'Soporte dedicado', description: 'Soporte prioritario 24/7 personalizado' },
+    { icon: Sparkles, text: 'Desarrollo continuo', description: 'Nuevas features desarrolladas exclusivamente' },
   ];
 
   const comparisonItems = [
@@ -70,21 +109,21 @@ export default function PricingPage() {
             className="inline-block mb-4"
           >
             <span className="px-4 py-2 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 text-purple-300 text-sm font-medium">
-              ✨ Un precio, todo incluido
+              ✨ Solución personalizada exclusiva
             </span>
           </motion.div>
 
           <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">
-            Todo lo que necesitas para
+            Lealta Enterprise
             <span className="block mt-2 bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
-              fidelizar a tus clientes
+              Solución Personalizada
             </span>
           </h1>
 
           <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-            <strong className="text-white">8 sistemas empresariales en uno.</strong>
+            <strong className="text-white">Software exclusivo para su organización.</strong>
             <br />
-            Sin límites artificiales. Sin cargos ocultos. Sin sorpresas.
+            Gestione múltiples negocios con una plataforma empresarial a medida.
           </p>
         </motion.div>
 
@@ -105,27 +144,26 @@ export default function PricingPage() {
               <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                 <span className="px-6 py-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm font-bold shadow-lg flex items-center gap-2">
                   <Zap className="w-4 h-4" />
-                  TODO INCLUIDO
+                  ENTERPRISE EXCLUSIVO
                 </span>
               </div>
 
               <div className="text-center mb-8">
-                <h2 className="text-3xl font-bold text-white mb-2">Lealta Pro</h2>
-                <p className="text-gray-400">Todo en uno: Reservas + Fidelización + Registro IA + Analytics</p>
+                <h2 className="text-3xl font-bold text-white mb-2">Lealta Enterprise</h2>
+                <p className="text-gray-400">Solución personalizada para múltiples negocios</p>
               </div>
 
               {/* Price */}
               <div className="text-center mb-8">
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <span className="text-6xl md:text-7xl font-bold text-white">$99</span>
+                  <span className="text-6xl md:text-7xl font-bold text-white">$250</span>
                   <div className="text-left">
                     <div className="text-gray-400 text-sm">USD</div>
-                    <div className="text-gray-400 text-sm">/ mes</div>
+                    <div className="text-gray-400 text-sm">/ negocio</div>
                   </div>
                 </div>
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/20 border border-green-500/30">
-                  <span className="text-green-400 font-medium">$990/año</span>
-                  <span className="text-green-300 text-sm">(ahorra 2 meses 🎉)</span>
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/20 border border-purple-500/30">
+                  <span className="text-purple-400 font-medium">Software personalizado exclusivo</span>
                 </div>
               </div>
 
@@ -155,16 +193,29 @@ export default function PricingPage() {
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="w-full px-8 py-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold text-lg shadow-xl shadow-purple-500/30 flex items-center justify-center gap-2 group"
+                  onClick={handleStartTrial}
+                  disabled={isProcessing || paddleLoading}
+                  className="w-full px-8 py-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold text-lg shadow-xl shadow-purple-500/30 flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Zap className="w-5 h-5" />
-                  Empezar prueba de 14 días
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  {isProcessing ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Procesando...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-5 h-5" />
+                      {session?.user ? 'Contratar Solución Enterprise' : 'Iniciar Sesión para Continuar'}
+                      <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
                 </motion.button>
 
-                <button className="w-full px-8 py-4 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium border border-white/10 transition-colors">
-                  Ver demo en vivo
-                </button>
+                <Link href="/test/paddle" className="block">
+                  <button className="w-full px-8 py-4 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium border border-white/10 transition-colors">
+                    Contactar para Demo Personalizada
+                  </button>
+                </Link>
               </div>
 
               {/* Trust badges */}

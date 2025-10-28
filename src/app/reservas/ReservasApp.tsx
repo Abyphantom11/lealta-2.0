@@ -56,7 +56,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
     isDeleting,
   } = useReservasOptimized({ 
     businessId, 
-    enabled: true, 
+    enabled: !!businessId, // Solo habilitar si hay businessId válido
     includeStats: true 
   });
 
@@ -77,10 +77,10 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
       });
       
       const parts = formatter.formatToParts(now);
-      const year = parseInt(parts.find(p => p.type === 'year')?.value || '2025');
-      const month = parseInt(parts.find(p => p.type === 'month')?.value || '1');
-      const day = parseInt(parts.find(p => p.type === 'day')?.value || '1');
-      const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
+      const year = Number.parseInt(parts.find(p => p.type === 'year')?.value || '2025');
+      const month = Number.parseInt(parts.find(p => p.type === 'month')?.value || '1');
+      const day = Number.parseInt(parts.find(p => p.type === 'day')?.value || '1');
+      const hour = Number.parseInt(parts.find(p => p.type === 'hour')?.value || '0');
       
       console.log('📅 [ReservasApp] Parsing fecha Ecuador:', { year, month, day, hour });
       
@@ -188,14 +188,29 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
 
   // Cargar registros sin reserva
   const loadSinReservas = async () => {
-    if (!businessId) return;
+    console.log('🔍 [loadSinReservas] BusinessId:', businessId);
+    if (!businessId || businessId.trim() === '') {
+      console.warn('⚠️ [loadSinReservas] No businessId válido, saltando carga');
+      setSinReservas([]); // Limpiar datos previos
+      return;
+    }
     
     setLoadingSinReservas(true);
     try {
-      const response = await fetch(`/api/sin-reserva?businessId=${businessId}`);
-      if (!response.ok) throw new Error('Error al cargar registros');
+      const url = `/api/sin-reserva?businessId=${businessId}`;
+      console.log('🌐 [loadSinReservas] Fetching:', url);
+      
+      const response = await fetch(url);
+      console.log('📡 [loadSinReservas] Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ [loadSinReservas] Error response:', errorText);
+        throw new Error(`Error al cargar registros: ${response.status}`);
+      }
       
       const data = await response.json();
+      console.log('📊 [loadSinReservas] Data received:', data);
       setSinReservas(data.registros || []);
     } catch (error) {
       console.error('Error cargando sin reservas:', error);
@@ -496,6 +511,21 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
   // Filtrar reservas por estado (el searchTerm se maneja dentro de ReservationTable)
   const reservasFiltradas = reservasDelDia
     .filter((reserva: Reserva) => statusFilter === 'Todos' || reserva.estado === statusFilter);
+
+  // ⚠️ VALIDACIÓN: Si no hay businessId válido, mostrar mensaje de carga o redirección
+  if (!businessId) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center p-8">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-gray-700 mb-2">Detectando su negocio...</h2>
+          <p className="text-gray-500">
+            Espere mientras verificamos su sesión y redirigimos al panel de reservas correspondiente.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
