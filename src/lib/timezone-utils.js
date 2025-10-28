@@ -38,27 +38,20 @@ function crearFechaReserva(fecha, hora) {
       timezoneNegocio: BUSINESS_TIMEZONE
     });
     
-    // Crear string de fecha completa
-    const fechaCompleta = `${fecha}T${hora}:00`;
+    // ✅ MÉTODO CORRECTO Y SIMPLE
+    // Crear fecha directamente en el timezone del negocio
+    const [year, month, day] = fecha.split('-').map(Number);
+    const [hours, minutes] = hora.split(':').map(Number);
     
-    // ✅ MÉTODO DEFINITIVO: Usar Intl.DateTimeFormat para obtener la fecha exacta
-    // Este método SIEMPRE funciona correctamente sin importar el servidor
+    // Crear fecha como UTC directamente
+    const fechaUTC = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0));
     
-    // Crear fecha temporal en el timezone del negocio
-    const fechaTemporal = new Date(`${fechaCompleta}.000Z`);
+    // Colombia es UTC-5, así que para obtener el UTC real:
+    // Si el usuario dice 01:00 en Colombia = 06:00 UTC
+    // Sumamos 5 horas para convertir de Colombia a UTC
+    const fechaCorrecta = new Date(fechaUTC.getTime() + (5 * 60 * 60 * 1000));
     
-    // Obtener la diferencia real de timezone usando Intl
-    const ahora = new Date();
-    const offsetNegocio = getTimezoneOffset(BUSINESS_TIMEZONE, ahora);
-    const offsetServidor = ahora.getTimezoneOffset() * 60 * 1000; // Convertir a ms
-    
-    // Calcular la diferencia real
-    const diferenciaReal = offsetNegocio - offsetServidor;
-    
-    // Aplicar la corrección
-    const fechaCorrecta = new Date(fechaTemporal.getTime() - diferenciaReal);
-    
-    // Verificación adicional
+    // Verificación - esto debe mostrar la hora original que ingresó el usuario
     const fechaVerificacion = fechaCorrecta.toLocaleString('es-CO', { 
       timeZone: BUSINESS_TIMEZONE,
       year: 'numeric',
@@ -73,8 +66,8 @@ function crearFechaReserva(fecha, hora) {
       fechaOriginal: `${fecha} ${hora}`,
       fechaUTC: fechaCorrecta.toISOString(),
       fechaEnNegocio: fechaVerificacion,
-      offsetAplicado: `${diferenciaReal / (60 * 60 * 1000)} horas`,
-      metodo: 'Intl.DateTimeFormat (robusto)'
+      metodo: 'UTC directo + offset Colombia',
+      verificacion: `Hora ingresada: ${hora}, Hora verificada: ${fechaVerificacion.split(' ')[1]}`
     });
     
     return fechaCorrecta;

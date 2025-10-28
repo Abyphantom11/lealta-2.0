@@ -52,37 +52,21 @@ function crearFechaReserva(fecha: string, hora: string): Date {
       timezoneNegocio: BUSINESS_TIMEZONE
     });
     
-    // ✅ MÉTODO CORREGIDO: Crear fecha correcta para Colombia/Ecuador
-    // Cuando el usuario dice "14:30" en Colombia, eso debe ser 14:30 hora local
-    // Colombia/Ecuador es UTC-5, pero usamos Intl.DateTimeFormat para precisión
+    // ✅ MÉTODO CORRECTO Y SIMPLE
+    // Crear fecha directamente en el timezone del negocio
     const [year, month, day] = fecha.split('-').map(Number);
     const [hours, minutes] = hora.split(':').map(Number);
     
-    // ✅ CORRECCIÓN: Crear fecha local primero, luego obtener UTC equivalente
-    // Esto evita problemas de timezone y horario de verano
-    const fechaLocal = new Date(year, month - 1, day, hours, minutes, 0, 0);
+    // Crear fecha como UTC directamente
+    const fechaUTC = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0));
     
-    // Convertir a string en timezone del negocio y luego parsear como UTC
-    const fechaEnTimezoneNegocio = new Intl.DateTimeFormat('en-CA', {
-      timeZone: BUSINESS_TIMEZONE,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    }).formatToParts(fechaLocal);
+    // Colombia es UTC-5, así que para obtener el UTC real:
+    // Si el usuario dice 01:00 en Colombia = 06:00 UTC
+    // Sumamos 5 horas para convertir de Colombia a UTC
+    const fechaCorrecta = new Date(fechaUTC.getTime() + (5 * 60 * 60 * 1000));
     
-    // Reconstruir la fecha como UTC usando los valores del timezone del negocio
-    const partsMap = fechaEnTimezoneNegocio.reduce((acc, part) => {
-      acc[part.type] = part.value;
-      return acc;
-    }, {} as Record<string, string>);
-    
-    const fechaUTCCorrecta = new Date(`${partsMap.year}-${partsMap.month}-${partsMap.day}T${partsMap.hour}:${partsMap.minute}:00.000Z`);
-    
-    // Verificación adicional - debe mostrar la hora original cuando se convierte a Colombia
-    const fechaVerificacion = fechaUTCCorrecta.toLocaleString('es-CO', { 
+    // Verificación
+    const fechaVerificacion = fechaCorrecta.toLocaleString('es-CO', { 
       timeZone: BUSINESS_TIMEZONE,
       year: 'numeric',
       month: '2-digit',
@@ -94,13 +78,13 @@ function crearFechaReserva(fecha: string, hora: string): Date {
     
     console.log('✅ FECHA CREADA CORRECTAMENTE:', {
       fechaOriginal: `${fecha} ${hora}`,
-      fechaUTC: fechaUTCCorrecta.toISOString(),
+      fechaUTC: fechaCorrecta.toISOString(),
       fechaEnNegocio: fechaVerificacion,
-      metodo: 'Intl.DateTimeFormat (más preciso y sin problemas de DST)',
+      metodo: 'UTC directo + offset Colombia',
       verificacion: `Hora ingresada: ${hora}, Hora verificada: ${fechaVerificacion.split(' ')[1]}`
     });
     
-    return fechaUTCCorrecta;
+    return fechaCorrecta;
     
   } catch (error) {
     console.error('❌ ERROR CREANDO FECHA:', error);
