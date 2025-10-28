@@ -1,10 +1,17 @@
 'use client';
 
+import { Temporal } from '@js-temporal/polyfill';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { toast } from 'sonner';
 import { Reserva, EstadoReserva } from '../types/reservation';
 import { reservasQueryKeys } from '../../../providers/QueryProvider';
+import { 
+  calcularFechasReserva, 
+  formatearHoraMilitar, 
+  formatearFechaCompletaMilitar,
+  generarDatosQR
+} from '../../../lib/timezone-utils';
 
 // Type alias para reserva sin campos generados
 type NewReservaData = Omit<Reserva, 'id' | 'codigoQR' | 'estado' | 'fechaCreacion' | 'registroEntradas'>;
@@ -12,38 +19,21 @@ type NewReservaData = Omit<Reserva, 'id' | 'codigoQR' | 'estado' | 'fechaCreacio
 // 🌍 UTILIDAD: Obtener fecha actual del negocio (con corte 4 AM Ecuador)
 const getFechaActualNegocio = (): string => {
   try {
-    const now = new Date();
+    // Obtener fecha/hora actual en Ecuador usando Temporal API
+    const now = Temporal.Now.zonedDateTimeISO('America/Guayaquil');
     
-    // Obtener componentes de fecha/hora en Ecuador
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/Guayaquil',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      hour12: false
-    });
+    // Si es antes de las 4 AM, usar el día anterior
+    const businessDate = now.hour < 4 
+      ? now.subtract({ days: 1 }) 
+      : now;
     
-    const parts = formatter.formatToParts(now);
-    const year = parseInt(parts.find(p => p.type === 'year')?.value || '2025');
-    const month = parseInt(parts.find(p => p.type === 'month')?.value || '1');
-    const day = parseInt(parts.find(p => p.type === 'day')?.value || '1');
-    const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
-    
-    const currentDate = new Date(year, month - 1, day);
-    
-    // Si es antes de las 4 AM, usar el día anterior (día de negocio continúa)
-    if (hour < 4) {
-      currentDate.setDate(currentDate.getDate() - 1);
-    }
-    
-    // Formatear como YYYY-MM-DD
-    const fechaCalculada = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+    // Convertir a string YYYY-MM-DD
+    const fechaCalculada = businessDate.toPlainDate().toString();
     
     console.log('🌍 [FRONTEND] Fecha actual negocio calculada:', {
-      fechaEcuador: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
-      horaEcuador: hour,
-      esAntesDe4AM: hour < 4,
+      fechaEcuador: now.toString(),
+      horaEcuador: now.hour,
+      esAntesDe4AM: now.hour < 4,
       fechaFinal: fechaCalculada
     });
     
@@ -51,7 +41,7 @@ const getFechaActualNegocio = (): string => {
   } catch (error) {
     console.error('❌ Error calculando fecha negocio:', error);
     // Fallback a fecha UTC simple
-    return new Date().toISOString().split('T')[0];
+    return Temporal.Now.plainDateISO().toString();
   }
 };
 
@@ -86,6 +76,26 @@ const reservasAPI = {
       console.error('🚨 CRITICAL: createReserva llamado sin businessId!');
       throw new Error('BusinessId es requerido para crear reservas. Verifica tu sesión.');
     }
+
+    // Validar y ajustar fecha/hora con timezone
+    const { fechaReserva, esValida, debug } = calcularFechasReserva(reservaData.fecha, reservaData.hora);
+    
+    if (!esValida) {
+      throw new Error('La fecha de reserva debe ser en el futuro');
+    }
+
+    // Usar fechas ajustadas
+    const reservaAjustada = {
+      ...reservaData,
+      fecha: formatearFechaCompletaMilitar(fechaReserva.toISOString()).split(' ')[0],
+      hora: formatearHoraMilitar(fechaReserva.toISOString())
+    };
+
+    console.log('🎯 Creando reserva con fechas ajustadas:', {
+      original: { fecha: reservaData.fecha, hora: reservaData.hora },
+      ajustada: { fecha: reservaAjustada.fecha, hora: reservaAjustada.hora },
+      debug
+    });
     
     // Construir la URL con el businessId como query parameter
     const url = `/api/reservas?businessId=${businessId}`;
@@ -301,8 +311,8 @@ export function useReservasOptimized({
         estado: 'En Progreso' as EstadoReserva,
         codigoQR: '',
         asistenciaActual: 0,
-        fechaCreacion: new Date().toISOString(),
-        fechaModificacion: new Date().toISOString(),
+        fechaCreacion: Temporal.Now.instant().toString(),
+        fechaModificacion: Temporal.Now.instant().toString(),
         registroEntradas: [],
         _isOptimistic: true // Flag para identificar temporales
       };
@@ -317,7 +327,8 @@ export function useReservasOptimized({
           const reservasActualizadas = [tempReserva, ...old.reservas];
           
           // 🧮 RECALCULAR ESTADÍSTICAS después del create optimista
-          const hoy = getFechaActualNegocio(); // 🌍 Usar fecha de negocio con corte 4 AM
+          const hoy = getFechaActualNegocio();
+          const now = Temporal.Now.zonedDateTimeISO('America/Guayaquil');
           const reservasHoy = reservasActualizadas.filter((r: any) => r.fecha === hoy);
           
           // Calcular totales con la nueva reserva incluida
@@ -330,7 +341,7 @@ export function useReservasOptimized({
             totalReservas: reservasActualizadas.length,
             totalAsistentes,
             promedioAsistencia: Math.round(promedioAsistencia),
-            reservasHoy: reservasHoy.length // ✅ ESTO SE RECALCULA CORRECTAMENTE
+            reservasHoy: reservasHoy.length
           };
           
           console.log('🧮 [CREATE] Stats recalculadas optimistamente:', {
@@ -421,7 +432,7 @@ export function useReservasOptimized({
           
           // 🔄 Actualizar la reserva específica
           const reservasActualizadas = old.reservas.map((r: Reserva) => 
-            r.id === id ? { ...r, ...data, fechaModificacion: new Date().toISOString() } : r
+            r.id === id ? { ...r, ...data, fechaModificacion: Temporal.Now.instant().toString() } : r
           );
           
           // 🧮 RECALCULAR ESTADÍSTICAS después del update optimista
@@ -675,11 +686,58 @@ export function useReservasOptimized({
   const clients = includeStats ? mainQuery.data?.clients : undefined;
 
   // 🔄 MÉTODOS DE ACCIÓN
-  const createReserva = (reservaData: NewReservaData) => {
+  const createReserva = async (reservaData: NewReservaData) => {
+    if (reservaData.fecha && reservaData.hora) {
+      // Validar y ajustar fecha/hora con timezone
+      const { fechaReserva, esValida, debug } = calcularFechasReserva(reservaData.fecha, reservaData.hora);
+      
+      if (!esValida) {
+        throw new Error('La fecha de reserva debe ser en el futuro');
+      }
+
+      // Usar fechas ajustadas
+      const reservaAjustada = {
+        ...reservaData,
+        fecha: formatearFechaCompletaMilitar(fechaReserva).split(' ')[0],
+        hora: formatearHoraMilitar(fechaReserva)
+      };
+
+      console.log('🎯 Creando reserva con fechas ajustadas:', {
+        original: { fecha: reservaData.fecha, hora: reservaData.hora },
+        ajustada: { fecha: reservaAjustada.fecha, hora: reservaAjustada.hora },
+        debug
+      });
+
+      return createMutation.mutateAsync(reservaAjustada);
+    }
+
     return createMutation.mutateAsync(reservaData);
   };
 
   const updateReserva = (id: string, data: Partial<Reserva>) => {
+    // Si se está actualizando fecha u hora, ajustar con timezone
+    if (data.fecha && data.hora) {
+      const { fechaReserva, esValida, debug } = calcularFechasReserva(data.fecha, data.hora);
+      
+      if (!esValida) {
+        throw new Error('La fecha de reserva debe ser en el futuro');
+      }
+
+      const dataAjustada = {
+        ...data,
+        fecha: formatearFechaCompletaMilitar(fechaReserva).split(' ')[0],
+        hora: formatearHoraMilitar(fechaReserva)
+      };
+
+      console.log('🎯 Actualizando reserva con fechas ajustadas:', {
+        original: { fecha: data.fecha, hora: data.hora },
+        ajustada: { fecha: dataAjustada.fecha, hora: dataAjustada.hora },
+        debug
+      });
+
+      return updateMutation.mutateAsync({ id, data: dataAjustada, businessId });
+    }
+
     return updateMutation.mutateAsync({ id, data, businessId });
   };
 
@@ -868,8 +926,8 @@ export function useReservasUpdates(businessId: string, enabled = true) {
   
   // Query para verificar actualizaciones (con interval)
   const updatesQuery = useQuery({
-    queryKey: reservasQueryKeys.updates(businessId, new Date(lastUpdate).toISOString()),
-    queryFn: () => reservasAPI.checkUpdates(businessId, new Date(lastUpdate).toISOString()),
+    queryKey: reservasQueryKeys.updates(businessId, Temporal.Instant.fromEpochMilliseconds(lastUpdate).toString()),
+    queryFn: () => reservasAPI.checkUpdates(businessId, Temporal.Instant.fromEpochMilliseconds(lastUpdate).toString()),
     enabled: enabled && !!businessId,
     refetchInterval: 30000, // Cada 30 segundos (reducido de 5-10 segundos)
     refetchIntervalInBackground: false, // No polling en background

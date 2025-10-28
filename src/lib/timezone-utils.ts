@@ -1,22 +1,8 @@
+import { Temporal } from '@js-temporal/polyfill';
+
 /**
- * 🛡️ UTILIDAD DEFINITIVA PARA MANEJO DE TIMEZONE EN RESERVAS    // Verificación - esto debe mostrar la hora original que ingresó el usuario EN FORMATO MILITAR
-    const fechaVerificacion = fechaCorrecta.toLocaleString('es-CO', { 
-      timeZone: BUSINESS_TIMEZONE,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false // ✅ FORMATO MILITAR (24 horas)
-    });
-    
-    console.log('✅ FECHA CREADA CORRECTAMENTE:', {
-      fechaOriginal: `${fecha} ${hora}`,
-      fechaUTC: fechaCorrecta.toISOString(),
-      fechaEnNegocio: fechaVerificacion,
-      metodo: 'UTC directo + offset Colombia (formato militar)',
-      verificacion: `Hora ingresada: ${hora}, Hora verificada: ${fechaVerificacion.split(' ')[1]}`
-    });lidad asegura que SIEMPRE se manejen las fechas correctamente,
+ * 🛡️ UTILIDAD DEFINITIVA PARA MANEJO DE TIMEZONE EN RESERVAS
+ * Esta utilidad usa Temporal API para asegurar un manejo consistente de fechas/horas,
  * sin importar dónde esté corriendo el servidor o cambios de configuración.
  */
 
@@ -29,30 +15,23 @@ const BUSINESS_TIMEZONE = 'America/Guayaquil';
 /**
  * Función para formatear fechas/horas en formato militar consistente
  * VERSIÓN FIJA: No depende del timezone del navegador del usuario
- * @param date - Fecha a formatear
+ * @param date - Fecha a formatear (Date o string ISO)
  * @returns String en formato militar (24 horas) HH:mm
  */
-export function formatearHoraMilitar(date: Date): string {
-  // 🎯 SOLUCIÓN: Extraer hora UTC y restar 5 horas manualmente
-  // Esto garantiza que TODOS los usuarios vean la misma hora sin importar su timezone local
+export function formatearHoraMilitar(date: Date | string): string {
+  // Si es string, usar directamente con Temporal
+  const instant = typeof date === 'string' 
+    ? Temporal.Instant.from(date)
+    : Temporal.Instant.from(date.toISOString());
+  // 🎯 SOLUCIÓN: Usar Temporal API para manejar timezone correctamente
+  const instant = Temporal.Instant.from(date.toISOString());
+  const zonedDateTime = instant.toZonedDateTimeISO(BUSINESS_TIMEZONE);
   
-  // Obtener componentes UTC directamente
-  const utcHours = date.getUTCHours();
-  const utcMinutes = date.getUTCMinutes();
-  
-  // Calcular hora en Ecuador (UTC-5)
-  let ecuadorHours = utcHours - 5;
-  
-  // Manejar el caso de horas negativas (día anterior)
-  if (ecuadorHours < 0) {
-    ecuadorHours += 24;
-  }
-  
-  // Formatear con padding de ceros
-  const hoursStr = String(ecuadorHours).padStart(2, '0');
-  const minutesStr = String(utcMinutes).padStart(2, '0');
-  
-  return `${hoursStr}:${minutesStr}`;
+  return zonedDateTime.toLocaleString('es-CO', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
 }
 
 /**
@@ -113,36 +92,33 @@ function crearFechaReserva(fecha: string, hora: string): Date {
       timezoneNegocio: BUSINESS_TIMEZONE
     });
     
-    // ✅ MÉTODO CORRECTO Y SIMPLE
-    // Crear fecha directamente en el timezone del negocio
+    // ✅ MÉTODO CORRECTO usando Temporal API
     const [year, month, day] = fecha.split('-').map(Number);
     const [hours, minutes] = hora.split(':').map(Number);
     
-    // Crear fecha como UTC directamente
-    const fechaUTC = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0));
-    
-    // Colombia es UTC-5, así que para obtener el UTC real:
-    // Si el usuario dice 01:00 en Colombia = 06:00 UTC
-    // Sumamos 5 horas para convertir de Colombia a UTC
-    const fechaCorrecta = new Date(fechaUTC.getTime() + (5 * 60 * 60 * 1000));
-    
-    // Verificación
-    const fechaVerificacion = fechaCorrecta.toLocaleString('es-CO', { 
+    // Crear fecha en el timezone del negocio
+    const zonedDateTime = Temporal.ZonedDateTime.from({
       timeZone: BUSINESS_TIMEZONE,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
+      year,
+      month,
+      day,
+      hour: hours,
+      minute: minutes
     });
+    
+    // Convertir a Date para compatibilidad
+    const fechaCorrecta = new Date(zonedDateTime.epochMilliseconds);
     
     console.log('✅ FECHA CREADA CORRECTAMENTE:', {
       fechaOriginal: `${fecha} ${hora}`,
       fechaUTC: fechaCorrecta.toISOString(),
-      fechaEnNegocio: fechaVerificacion,
-      metodo: 'UTC directo + offset Colombia',
-      verificacion: `Hora ingresada: ${hora}, Hora verificada: ${fechaVerificacion.split(' ')[1]}`
+      fechaEnNegocio: zonedDateTime.toString(),
+      metodo: 'Temporal API',
+      verificacion: `Hora ingresada: ${hora}, Hora verificada: ${zonedDateTime.toLocaleString('es-CO', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      })}`
     });
     
     return fechaCorrecta;
@@ -161,13 +137,20 @@ function crearFechaReserva(fecha: string, hora: string): Date {
  */
 function crearFechaExpiracionQR(fechaReserva: Date): Date {
   const DURACION_QR_HORAS = 12;
-  const expiracion = new Date(fechaReserva.getTime() + (DURACION_QR_HORAS * 60 * 60 * 1000));
+  
+  // Convertir Date a ZonedDateTime
+  const instant = Temporal.Instant.from(fechaReserva.toISOString());
+  const zonedDateTime = instant.toZonedDateTimeISO(BUSINESS_TIMEZONE);
+  
+  // Agregar horas usando Temporal
+  const expiracionZoned = zonedDateTime.add({ hours: DURACION_QR_HORAS });
+  const expiracion = new Date(expiracionZoned.epochMilliseconds);
   
   console.log('⏰ QR EXPIRACION CALCULADA:', {
     fechaReserva: fechaReserva.toISOString(),
     fechaExpiracion: expiracion.toISOString(),
     duracionHoras: DURACION_QR_HORAS,
-    expiraEnNegocio: expiracion.toLocaleString('es-CO', { 
+    expiraEnNegocio: expiracionZoned.toLocaleString('es-CO', { 
       timeZone: BUSINESS_TIMEZONE,
       hour12: false // ✅ FORMATO MILITAR
     })
@@ -182,13 +165,17 @@ function crearFechaExpiracionQR(fechaReserva: Date): Date {
  * @returns True si es válida
  */
 function validarFechaReserva(fechaReserva: Date): boolean {
-  const ahora = new Date();
-  const esEnElFuturo = fechaReserva.getTime() > ahora.getTime();
+  const now = Temporal.Now.zonedDateTimeISO(BUSINESS_TIMEZONE);
+  const reservaZoned = Temporal.Instant.from(fechaReserva.toISOString())
+    .toZonedDateTimeISO(BUSINESS_TIMEZONE);
+  
+  const esEnElFuturo = Temporal.ZonedDateTime.compare(reservaZoned, now) > 0;
   
   if (!esEnElFuturo) {
     console.warn('⚠️ ADVERTENCIA: Fecha de reserva en el pasado:', {
       fechaReserva: fechaReserva.toISOString(),
-      fechaActual: ahora.toISOString()
+      fechaReservaLocal: reservaZoned.toString(),
+      fechaActual: now.toString()
     });
   }
   
@@ -247,15 +234,10 @@ export function calcularFechasReserva(fecha: string, hora: string): FechasReserv
  */
 export function convertirFechaAString(fecha: Date): string {
   try {
-    // Usar el timezone del negocio para obtener la fecha correcta
-    const formatter = new Intl.DateTimeFormat('en-CA', {
-      timeZone: BUSINESS_TIMEZONE,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    });
+    const instant = Temporal.Instant.from(fecha.toISOString());
+    const zonedDateTime = instant.toZonedDateTimeISO(BUSINESS_TIMEZONE);
     
-    return formatter.format(fecha);
+    return zonedDateTime.toPlainDate().toString(); // Retorna YYYY-MM-DD
   } catch (error) {
     console.error('❌ Error convirtiendo fecha a string:', error);
     // Fallback seguro usando UTC
