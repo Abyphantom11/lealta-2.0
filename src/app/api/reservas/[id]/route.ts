@@ -278,6 +278,18 @@ function prepareUpdateData(updates: any, currentMetadata: any, promotorId: strin
       horaActualEnBD: currentReservation.reservedAt
     });
 
+    // 🌍 DIAGNÓSTICO TIMEZONE DEL SERVIDOR
+    const now = new Date();
+    const serverInfo = {
+      serverTime: now.toISOString(),
+      serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      serverOffset: now.getTimezoneOffset(),
+      nodeEnvTZ: process.env.TZ || 'NO_SET',
+      serverLocalTime: now.toLocaleString(),
+      serverUTCTime: now.toUTCString()
+    };
+    console.log('🌍 SERVIDOR TIMEZONE INFO:', serverInfo);
+
     // Obtener la fecha actual de la reserva
     const currentReservedAt = new Date(currentReservation.reservedAt);
     const year = currentReservedAt.getFullYear();
@@ -287,8 +299,37 @@ function prepareUpdateData(updates: any, currentMetadata: any, promotorId: strin
     // Parsear la nueva hora (formato HH:mm)
     const [hours, minutes] = updates.hora.split(':').map(Number);
     
-    // 🎯 CREAR NUEVA FECHA MANTENIENDO LA ZONA HORARIA LOCAL
-    const newReservedAt = new Date(year, month, day, hours, minutes, 0, 0);
+    console.log('📊 DATOS PARA CONVERSIÓN:', {
+      fechaBase: { year, month, day },
+      horaParseada: { hours, minutes },
+      horaInput: updates.hora
+    });
+    
+    // 🎯 CREAR NUEVA FECHA FORZANDO UTC-5 (independiente del servidor)
+    // Esto soluciona el problema de 8 horas en producción
+    const newReservedAt = new Date(Date.UTC(year, month, day, hours + 5, minutes, 0, 0));
+    
+    // 🔍 VERIFICACIÓN DETALLADA DE LA CONVERSIÓN
+    console.log('🔍 CONVERSIÓN TIMEZONE DETALLADA:', {
+      paso1_input: updates.hora,
+      paso2_parsed: `${hours}:${minutes}`,
+      paso3_utc_calculation: `UTC(${year}, ${month}, ${day}, ${hours + 5}, ${minutes})`,
+      paso4_result_iso: newReservedAt.toISOString(),
+      paso5_back_to_local: formatearHoraMilitar(newReservedAt),
+      paso6_verification: formatearHoraMilitar(newReservedAt) === updates.hora ? '✅ CORRECTO' : '❌ ERROR'
+    });
+
+    // 🚨 ALERTA SI HAY DISCREPANCIA
+    const horaResultante = formatearHoraMilitar(newReservedAt);
+    if (horaResultante !== updates.hora) {
+      console.error('🚨 TIMEZONE ERROR DETECTADO:', {
+        expected: updates.hora,
+        actual: horaResultante,
+        serverTimezone: serverInfo.serverTimezone,
+        serverOffset: serverInfo.serverOffset,
+        utcResult: newReservedAt.toISOString()
+      });
+    }
     
     updateData.reservedAt = newReservedAt;
     
@@ -298,7 +339,6 @@ function prepareUpdateData(updates: any, currentMetadata: any, promotorId: strin
       horasParsed: hours,
       minutosParsed: minutes,
       nuevaFechaCompleta: newReservedAt.toISOString(),
-      nuevaFechaLocal: newReservedAt.toLocaleString('es-ES'),
       horaFormateada: formatearHoraMilitar(newReservedAt),
       seAsignoReservedAt: !!updateData.reservedAt
     });
@@ -321,8 +361,25 @@ function prepareUpdateData(updates: any, currentMetadata: any, promotorId: strin
     // Parsear la nueva fecha (formato YYYY-MM-DD)
     const [year, month, day] = updates.fecha.split('-').map(Number);
     
-    // 🎯 CREAR NUEVA FECHA MANTENIENDO LA ZONA HORARIA LOCAL (sin UTC)
-    const newReservedAt = new Date(year, month - 1, day, hours, minutes, 0, 0);
+    console.log('📊 DATOS PARA CONVERSIÓN DE FECHA:', {
+      fechaParseada: { year, month: month - 1, day },
+      horaMantenida: { hours, minutes },
+      fechaInput: updates.fecha
+    });
+    
+    // 🎯 CREAR NUEVA FECHA FORZANDO UTC-5 (independiente del servidor)
+    const newReservedAt = new Date(Date.UTC(year, month - 1, day, hours + 5, minutes, 0, 0));
+    
+    // 🔍 VERIFICACIÓN DE CONVERSIÓN DE FECHA
+    console.log('🔍 CONVERSIÓN FECHA DETALLADA:', {
+      paso1_input: updates.fecha,
+      paso2_parsed_date: `${year}-${month}-${day}`,
+      paso3_maintained_time: `${hours}:${minutes}`,
+      paso4_utc_calculation: `UTC(${year}, ${month - 1}, ${day}, ${hours + 5}, ${minutes})`,
+      paso5_result_iso: newReservedAt.toISOString(),
+      paso6_result_date: newReservedAt.toISOString().split('T')[0],
+      paso7_result_time: formatearHoraMilitar(newReservedAt)
+    });
     
     updateData.reservedAt = newReservedAt;
     
@@ -333,7 +390,6 @@ function prepareUpdateData(updates: any, currentMetadata: any, promotorId: strin
       horaMantenida: `${hours}:${minutes}`,
       year, month, day,
       nuevaFechaCompleta: newReservedAt.toISOString(),
-      nuevaFechaLocal: newReservedAt.toLocaleString('es-ES'),
       fechaFormateada: newReservedAt.toISOString().split('T')[0],
       seAsignoReservedAt: true
     });
@@ -345,14 +401,23 @@ function prepareUpdateData(updates: any, currentMetadata: any, promotorId: strin
 function formatReservaResponse(updatedReservation: any) {
   const metadata = updatedReservation.metadata || {};
   
-  console.log('📋 FORMATEANDO RESPUESTA:', {
+  // 🔍 LOGS DETALLADOS DE LA RESPUESTA
+  console.log('📋 FORMATEANDO RESPUESTA CON TIMEZONE ANALYSIS:', {
     updatedReservationId: updatedReservation.id,
     metadataCompleto: JSON.stringify(metadata),
     detallesEnMetadata: metadata.detalles,
     tipoDetalles: typeof metadata.detalles,
     longitudDetalles: metadata.detalles?.length,
+    
+    // 🌍 ANÁLISIS TIMEZONE EN RESPUESTA
+    reservedAtFromDB: updatedReservation.reservedAt,
+    reservedAtISO: updatedReservation.reservedAt.toISOString(),
     horaFormateada: formatearHoraMilitar(updatedReservation.reservedAt),
-    horaEnBD: updatedReservation.reservedAt,
+    fechaFormateada: updatedReservation.reservedAt.toISOString().split('T')[0],
+    
+    // 🚨 VERIFICACIÓN FINAL
+    serverTimezoneOnResponse: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    serverOffsetOnResponse: new Date().getTimezoneOffset()
   });
 
   const fechaFormateada = updatedReservation.reservedAt.toISOString().split('T')[0];
