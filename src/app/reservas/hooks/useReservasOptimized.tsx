@@ -9,8 +9,7 @@ import { reservasQueryKeys } from '../../../providers/QueryProvider';
 import { 
   calcularFechasReserva, 
   formatearHoraMilitar, 
-  formatearFechaCompletaMilitar,
-  generarDatosQR
+  formatearFechaCompletaMilitar
 } from '../../../lib/timezone-utils';
 
 // Type alias para reserva sin campos generados
@@ -77,6 +76,14 @@ const reservasAPI = {
       throw new Error('BusinessId es requerido para crear reservas. Verifica tu sesión.');
     }
 
+    // Log para debug
+    console.log('📥 Datos recibidos para crear reserva:', {
+      fecha: reservaData.fecha,
+      hora: reservaData.hora,
+      tipoFecha: typeof reservaData.fecha,
+      tipoHora: typeof reservaData.hora
+    });
+
     // Validar y ajustar fecha/hora con timezone
     const { fechaReserva, esValida, debug } = calcularFechasReserva(reservaData.fecha, reservaData.hora);
     
@@ -87,8 +94,8 @@ const reservasAPI = {
     // Usar fechas ajustadas
     const reservaAjustada = {
       ...reservaData,
-      fecha: formatearFechaCompletaMilitar(fechaReserva.toISOString()).split(' ')[0],
-      hora: formatearHoraMilitar(fechaReserva.toISOString())
+      fecha: formatearFechaCompletaMilitar(fechaReserva).split(' ')[0],
+      hora: formatearHoraMilitar(fechaReserva)
     };
 
     console.log('🎯 Creando reserva con fechas ajustadas:', {
@@ -328,7 +335,6 @@ export function useReservasOptimized({
           
           // 🧮 RECALCULAR ESTADÍSTICAS después del create optimista
           const hoy = getFechaActualNegocio();
-          const now = Temporal.Now.zonedDateTimeISO('America/Guayaquil');
           const reservasHoy = reservasActualizadas.filter((r: any) => r.fecha === hoy);
           
           // Calcular totales con la nueva reserva incluida

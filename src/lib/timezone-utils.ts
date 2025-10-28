@@ -14,40 +14,50 @@ const BUSINESS_TIMEZONE = 'America/Guayaquil';
 
 /**
  * Función para formatear fechas/horas en formato militar consistente
- * VERSIÓN FIJA: No depende del timezone del navegador del usuario
+ * VERSIÓN SIMPLIFICADA: Lee directamente los componentes UTC sin conversión
+ * Como las fechas se guardan en UTC representando la hora local exacta,
+ * no necesitamos conversiones de timezone
  * @param date - Fecha a formatear (Date o string ISO)
  * @returns String en formato militar (24 horas) HH:mm
  */
 export function formatearHoraMilitar(date: Date | string): string {
-  // Si es string, usar directamente con Temporal
-  const instant = typeof date === 'string' 
-    ? Temporal.Instant.from(date)
-    : Temporal.Instant.from(date.toISOString());
+  try {
+    let dateObj: Date;
     
-  const zonedDateTime = instant.toZonedDateTimeISO(BUSINESS_TIMEZONE);
-  
-  return zonedDateTime.toLocaleString('es-CO', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  });
+    if (typeof date === 'string') {
+      dateObj = new Date(date);
+      if (Number.isNaN(dateObj.getTime())) {
+        throw new Error(`Fecha inválida: ${date}`);
+      }
+    } else {
+      dateObj = date;
+    }
+    
+    // Leer directamente los componentes UTC (que representan la hora local)
+    const hours = dateObj.getUTCHours().toString().padStart(2, '0');
+    const minutes = dateObj.getUTCMinutes().toString().padStart(2, '0');
+    
+    return `${hours}:${minutes}`;
+  } catch (error) {
+    console.error('⚠️ Error parseando hora:', error);
+    return '00:00';
+  }
 }
 
 /**
  * Función para formatear fecha completa en formato militar consistente
+ * Lee directamente los componentes UTC sin conversión de timezone
  * @param date - Fecha a formatear
  * @returns String en formato militar completo
  */
 export function formatearFechaCompletaMilitar(date: Date): string {
-  return date.toLocaleString('es-CO', {
-    timeZone: BUSINESS_TIMEZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false // ✅ FORMATO MILITAR
-  });
+  const year = date.getUTCFullYear();
+  const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+  const day = date.getUTCDate().toString().padStart(2, '0');
+  const hours = date.getUTCHours().toString().padStart(2, '0');
+  const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+  
+  return `${day}/${month}/${year}, ${hours}:${minutes}`;
 }
 
 interface FechasReserva {
@@ -72,63 +82,120 @@ interface FechasReserva {
  */
 function crearFechaReserva(fecha: string, hora: string): Date {
   try {
-    // Validar entrada
+    // 1. Validaciones básicas y limpieza
     if (!fecha || !hora) {
       throw new Error('Fecha y hora son requeridas');
     }
     
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+    // Limpiar espacios y caracteres extraños
+    const fechaLimpia = fecha.trim().replace(/[,\s]+$/, '');
+    const horaLimpia = hora.trim().replace(/[,\s]+$/, '');
+    
+    console.log('🧹 Limpiando entrada:', {
+      fechaOriginal: fecha,
+      fechaLimpia,
+      horaOriginal: hora,
+      horaLimpia
+    });
+    
+    // 2. Normalizar el formato de fecha
+    let fechaNormalizada = fechaLimpia;
+    
+    // Si la fecha viene en formato DD/MM/YYYY, convertirla a YYYY-MM-DD
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaLimpia)) {
+      const [day, month, year] = fechaLimpia.split('/');
+      fechaNormalizada = `${year}-${month}-${day}`;
+      console.log('🔄 Fecha convertida de DD/MM/YYYY a YYYY-MM-DD:', fechaNormalizada);
+    }
+    // Si la fecha viene en formato MM/DD/YYYY, convertirla a YYYY-MM-DD
+    else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(fechaLimpia)) {
+      const parts = fechaLimpia.split('/');
+      const month = parts[0].padStart(2, '0');
+      const day = parts[1].padStart(2, '0');
+      const year = parts[2];
+      fechaNormalizada = `${year}-${month}-${day}`;
+      console.log('🔄 Fecha convertida de M/D/YYYY a YYYY-MM-DD:', fechaNormalizada);
+    }
+    // Si la fecha viene en formato ISO completo, extraer solo la parte de fecha
+    else if (/^\d{4}-\d{2}-\d{2}T/.test(fechaLimpia)) {
+      fechaNormalizada = fechaLimpia.split('T')[0];
+      console.log('🔄 Fecha extraída de ISO:', fechaNormalizada);
+    }
+    
+    // Validar formato final
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaNormalizada)) {
+      console.error('❌ Formato de fecha inválido:', {
+        original: fecha,
+        limpia: fechaLimpia,
+        normalizada: fechaNormalizada,
+        esperado: 'YYYY-MM-DD'
+      });
       throw new Error('Formato de fecha inválido. Use YYYY-MM-DD');
     }
     
-    if (!/^\d{2}:\d{2}$/.test(hora)) {
-      throw new Error('Formato de hora inválido. Use HH:MM');
+    // Normalizar formato de hora
+    let horaNormalizada = horaLimpia;
+    
+    // Si la hora no tiene formato HH:MM, intentar normalizarla
+    if (!/^\d{2}:\d{2}$/.test(horaLimpia)) {
+      if (/^\d:\d{2}$/.test(horaLimpia)) {
+        horaNormalizada = '0' + horaLimpia;
+        console.log('🔄 Hora normalizada:', horaNormalizada);
+      } else if (/^\d{2}:\d{2}:\d{2}$/.test(horaLimpia)) {
+        horaNormalizada = horaLimpia.substring(0, 5);
+        console.log('🔄 Hora simplificada:', horaNormalizada);
+      } else {
+        throw new Error('Formato de hora inválido. Use HH:MM');
+      }
     }
     
-    console.log('🕐 CREANDO FECHA DE RESERVA:', {
-      fechaInput: fecha,
-      horaInput: hora,
-      timezoneNegocio: BUSINESS_TIMEZONE
-    });
+    // 3. Parsear componentes
+    const [year, month, day] = fechaNormalizada.split('-').map(Number);
+    const [hours, minutes] = horaNormalizada.split(':').map(Number);
     
-    // Parsear los componentes de fecha y hora
-    const [year, month, day] = fecha.split('-').map(Number);
-    const [hours, minutes] = hora.split(':').map(Number);
-    
-    // Validar rangos de fecha/hora
+    // 4. Validar rangos
     if (month < 1 || month > 12) throw new Error('Mes inválido');
     if (day < 1 || day > 31) throw new Error('Día inválido');
     if (hours < 0 || hours > 23) throw new Error('Hora inválida');
     if (minutes < 0 || minutes > 59) throw new Error('Minutos inválidos');
     
-    // Crear fecha en el timezone del negocio
-    const zonedDateTime = Temporal.ZonedDateTime.from({
-      timeZone: BUSINESS_TIMEZONE,
-      year,
-      month,
-      day,
-      hour: hours,
-      minute: minutes,
-      second: 0,
-      millisecond: 0
-    });
+    // 5. Crear objeto Date SIN ninguna conversión de timezone
+    // SOLUCIÓN DEFINITIVA: Crear string ISO y parsearlo directamente
+    // Esto evita TODAS las conversiones automáticas de timezone
     
-    // Convertir a Date para compatibilidad
-    const fechaCorrecta = new Date(zonedDateTime.epochMilliseconds);
+    // Crear string ISO en formato: YYYY-MM-DDTHH:mm:ss.000Z
+    // Pero usando los valores locales (sin aplicar offset)
+    const isoString = `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}T${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00.000Z`;
     
-    console.log('✅ FECHA CREADA CORRECTAMENTE:', {
-      fechaOriginal: `${fecha} ${hora}`,
-      fechaUTC: fechaCorrecta.toISOString(),
-      fechaEnNegocio: zonedDateTime.toString(),
-      epochMs: zonedDateTime.epochMilliseconds,
-      verificacion: `${hours}:${minutes.toString().padStart(2, '0')}`
+    const fechaCorrecta = new Date(isoString);
+    
+    // 6. Logging detallado
+    console.log('✅ FECHA CREADA (SIN CONVERSIÓN - VALORES EXACTOS):', {
+      entrada: {
+        fecha,
+        hora,
+        fechaNormalizada,
+        horaNormalizada
+      },
+      componentes: {
+        year,
+        month,
+        day,
+        hours,
+        minutes
+      },
+      isoString,
+      resultado: {
+        date: fechaCorrecta,
+        iso: fechaCorrecta.toISOString(),
+        verificacion: `Día ${fechaCorrecta.getUTCDate()}, Mes ${fechaCorrecta.getUTCMonth() + 1}, Hora ${fechaCorrecta.getUTCHours()}:${fechaCorrecta.getUTCMinutes()}`
+      }
     });
     
     return fechaCorrecta;
-    
   } catch (error) {
     console.error('❌ ERROR CREANDO FECHA:', error);
-    throw error; // Re-lanzar el error para manejarlo arriba
+    throw new Error(`Error al crear fecha de reserva: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -153,8 +220,7 @@ function crearFechaExpiracionQR(fechaReserva: Date): Date {
     fechaExpiracion: expiracion.toISOString(),
     duracionHoras: DURACION_QR_HORAS,
     expiraEnNegocio: expiracionZoned.toLocaleString('es-CO', { 
-      timeZone: BUSINESS_TIMEZONE,
-      hour12: false // ✅ FORMATO MILITAR
+      hour12: false
     })
   });
   
@@ -163,46 +229,46 @@ function crearFechaExpiracionQR(fechaReserva: Date): Date {
 
 /**
  * Valida que una fecha de reserva esté en el futuro
- * @param fechaReserva - Fecha a validar
+ * @param fechaReserva - Fecha a validar (en formato UTC pero representando hora local)
  * @returns True si es válida
  */
 function validarFechaReserva(fechaReserva: Date): boolean {
   try {
-    // 1. Obtener la fecha/hora actual en el timezone del negocio
-    const ahora = Temporal.Now.zonedDateTimeISO(BUSINESS_TIMEZONE);
-    const ahoraEpochMs = ahora.epochMilliseconds;
+    // Obtener la fecha/hora actual
+    const ahora = new Date();
     
-    // 2. Convertir la fecha de reserva a epochMilliseconds en el timezone del negocio
-    const reservaInstant = Temporal.Instant.from(fechaReserva.toISOString());
-    const reservaZoned = reservaInstant.toZonedDateTimeISO(BUSINESS_TIMEZONE);
-    const reservaEpochMs = reservaZoned.epochMilliseconds;
+    // Como las fechas se guardan en UTC representando hora local,
+    // comparamos directamente los timestamps
+    // Restamos 1 minuto de tolerancia para evitar problemas de sincronización
+    const diferenciaMs = fechaReserva.getTime() - ahora.getTime();
+    const minutosHastaReserva = diferenciaMs / (1000 * 60);
     
-    // 3. Comparar timestamps
-    const diferenciaMs = reservaEpochMs - ahoraEpochMs;
-    const esEnElFuturo = diferenciaMs > 0;
+    // Ser más permisivo: permitir reservas que estén muy en el futuro
+    // o que estén dentro de un rango razonable (último minuto)
+    const esEnElFuturo = minutosHastaReserva >= -1; // Tolerancia de 1 minuto en el pasado
     
-    // 4. Logging detallado
-    console.log('🕒 VALIDANDO FECHA DE RESERVA:', {
-      fechaActual: {
-        isoString: ahora.toString(),
-        epochMs: ahoraEpochMs
-      },
-      fechaReserva: {
-        isoString: reservaZoned.toString(),
-        epochMs: reservaEpochMs
-      },
+    // Logging detallado
+    console.log('🕒 VALIDANDO FECHA DE RESERVA (COMPARACIÓN DIRECTA):', {
+      fechaActual: ahora.toISOString(),
+      fechaReserva: fechaReserva.toISOString(),
       diferencia: {
-        milliseconds: diferenciaMs,
-        minutes: Math.floor(diferenciaMs / (1000 * 60)),
-        hours: Math.floor(diferenciaMs / (1000 * 60 * 60))
+        milisegundos: diferenciaMs,
+        minutos: minutosHastaReserva,
+        horas: minutosHastaReserva / 60,
+        dias: minutosHastaReserva / (60 * 24)
       },
-      esValida: esEnElFuturo
+      esValida: esEnElFuturo,
+      nota: 'Tolerancia de -1 minuto para evitar problemas de sincronización'
     });
+    
+    if (!esEnElFuturo) {
+      console.warn('⚠️ Reserva rechazada - está en el pasado (más de 1 minuto)');
+    }
     
     return esEnElFuturo;
   } catch (error) {
     console.error('❌ Error validando fecha:', error);
-    return false;
+    throw new Error('Error al validar la fecha de reserva');
   }
 }
 

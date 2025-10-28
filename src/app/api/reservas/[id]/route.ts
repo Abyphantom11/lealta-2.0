@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { EstadoReserva } from '@/app/reservas/types/reservation';
 import { emitReservationEvent } from '../events/route';
 import { formatearHoraMilitar } from '@/lib/timezone-utils';
+import { Temporal } from '@js-temporal/polyfill';
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
@@ -271,45 +272,39 @@ function prepareUpdateData(updates: any, currentMetadata: any, promotorId: strin
 
   // 🕐 MANEJAR ACTUALIZACIÓN DE HORA
   if (updates.hora !== undefined) {
-    console.log('��🕐 DEBUG HORA - INICIO:', {
+    console.log('🔥🕐 DEBUG HORA - INICIO:', {
       horaRecibida: updates.hora,
       reservedAtActual: currentReservation.reservedAt.toISOString(),
       reservaId: currentReservation.id
     });
     
-    // Obtener la fecha actual de la reserva en UTC
-    const currentReservedAt = new Date(currentReservation.reservedAt);
-    const year = currentReservedAt.getUTCFullYear();
-    const month = currentReservedAt.getUTCMonth();
-    const day = currentReservedAt.getUTCDate();
+    // Leer componentes UTC directos (que representan la hora local)
+    const fechaActual = new Date(currentReservation.reservedAt);
+    const year = fechaActual.getUTCFullYear();
+    const month = fechaActual.getUTCMonth() + 1;
+    const day = fechaActual.getUTCDate();
     
-    console.log('🔥🕐 DEBUG HORA - Componentes fecha UTC extraídos:', {
-      year,
-      month,
-      day,
-      fechaUTCCompleta: `${year}-${month+1}-${day}`
-    });
+    console.log('🔥🕐 Componentes de fecha actual:', { year, month, day });
     
-    // Parsear la nueva hora (formato HH:mm) - HORA DE ECUADOR
+    // Parsear nueva hora
     const [hours, minutes] = updates.hora.split(':').map(Number);
     
-    console.log('🔥🕐 DEBUG HORA - Hora Ecuador parseada:', {
-      horaEcuador: hours,
-      minutosEcuador: minutes,
-      horaInput: updates.hora
-    });
-    
-    // ✅ CREAR NUEVA FECHA: Usuario dice "09:00 Ecuador" → Guardamos "14:00 UTC" (+5 horas)
-    const newReservedAt = new Date(Date.UTC(year, month, day, hours + 5, minutes, 0, 0));
+    // Crear nueva fecha en formato UTC directo (sin conversión de timezone)
+    const isoString = `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}T${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00.000Z`;
+    const newReservedAt = new Date(isoString);
     
     updateData.reservedAt = newReservedAt;
     
-    console.log('��🕐 DEBUG HORA - Resultado final:', {
+    console.log('🔥🕐 Resultado final (SIN CONVERSIÓN):', {
       fechaGuardada: newReservedAt.toISOString(),
-      fechaUTC: `${year}-${month+1}-${day}`,
-      horaEcuadorInput: `${hours}:${minutes}`,
-      horaUTCGuardada: `${hours + 5}:${minutes}`,
-      horaFormateadaParaMostrar: formatearHoraMilitar(newReservedAt)
+      horaInput: updates.hora,
+      componentes: {
+        día: newReservedAt.getUTCDate(),
+        mes: newReservedAt.getUTCMonth() + 1,
+        hora: newReservedAt.getUTCHours(),
+        minuto: newReservedAt.getUTCMinutes()
+      },
+      horaFormateada: formatearHoraMilitar(newReservedAt)
     });
   }
 
@@ -321,45 +316,39 @@ function prepareUpdateData(updates: any, currentMetadata: any, promotorId: strin
       reservaId: currentReservation.id
     });
     
-    // Obtener la HORA actual en UTC (que ya tiene +5 aplicado)
-    const currentReservedAt = new Date(currentReservation.reservedAt);
-    const horasUTC = currentReservedAt.getUTCHours();
-    const minutosUTC = currentReservedAt.getUTCMinutes();
+    // Leer hora actual de los componentes UTC directos
+    const fechaActual = new Date(currentReservation.reservedAt);
+    const hours = fechaActual.getUTCHours();
+    const minutes = fechaActual.getUTCMinutes();
     
-    // ⚠️ PROBLEMA: horasUTC ya tiene +5, necesitamos restar para obtener hora Ecuador
-    const horasEcuador = horasUTC - 5;
-    const minutosEcuador = minutosUTC;
+    // Parsear la nueva fecha (formato YYYY-MM-DD o DD/MM/YYYY)
+    let year, month, day;
+    if (updates.fecha.includes('/')) {
+      // Formato DD/MM/YYYY
+      [day, month, year] = updates.fecha.split('/').map(Number);
+    } else {
+      // Formato YYYY-MM-DD
+      [year, month, day] = updates.fecha.split('-').map(Number);
+    }
     
-    console.log('🔥📅 DEBUG FECHA - Hora actual extraída:', {
-      horasUTC,
-      minutosUTC,
-      horasEcuador,
-      minutosEcuador,
-      explicacion: 'UTC ya tiene +5, restamos 5 para obtener hora Ecuador'
-    });
-    
-    // Parsear la nueva fecha (formato YYYY-MM-DD)
-    const [year, month, day] = updates.fecha.split('-').map(Number);
-    
-    console.log('🔥📅 DEBUG FECHA - Nueva fecha parseada:', {
-      year,
-      month,
-      day,
-      fechaInput: updates.fecha
-    });
-    
-    // ✅ CREAR NUEVA FECHA: Usar hora Ecuador + 5 para convertir a UTC
-    const newReservedAt = new Date(Date.UTC(year, month - 1, day, horasEcuador + 5, minutosEcuador, 0, 0));
+    // Crear nueva fecha manteniendo la hora actual pero con la nueva fecha
+    // SIN conversión de timezone - valores directos en UTC
+    const isoString = `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}T${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00.000Z`;
+    const newReservedAt = new Date(isoString);
     
     updateData.reservedAt = newReservedAt;
     
-    console.log('��📅 DEBUG FECHA - Resultado final:', {
+    console.log('🔥📅 Resultado final (SIN CONVERSIÓN):', {
       fechaGuardada: newReservedAt.toISOString(),
-      fechaUTC: `${year}-${month}-${day}`,
-      horaEcuador: `${horasEcuador}:${String(minutosEcuador).padStart(2, '0')}`,
-      horaUTCGuardada: `${horasEcuador + 5}:${String(minutosEcuador).padStart(2, '0')}`,
-      horaFormateadaParaMostrar: formatearHoraMilitar(newReservedAt),
-      fechaFormateada: newReservedAt.toISOString().split('T')[0]
+      fechaInput: updates.fecha,
+      horaMantenida: `${hours}:${minutes}`,
+      componentes: {
+        día: newReservedAt.getUTCDate(),
+        mes: newReservedAt.getUTCMonth() + 1,
+        hora: newReservedAt.getUTCHours(),
+        minuto: newReservedAt.getUTCMinutes()
+      },
+      horaFormateada: formatearHoraMilitar(newReservedAt)
     });
   }
 

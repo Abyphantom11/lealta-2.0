@@ -3,6 +3,7 @@ import { prisma } from '../../../lib/prisma';
 import { Reserva, EstadoReserva } from '../../reservas/types/reservation';
 import crypto from 'node:crypto';
 import { emitReservationEvent } from './events/route';
+import { Temporal } from '@js-temporal/polyfill';
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
@@ -46,46 +47,35 @@ function mapReservaStatusToPrisma(estado: EstadoReserva): 'PENDING' | 'CONFIRMED
 // 🌍 UTILIDAD: Obtener fecha actual del negocio (con corte 4 AM Ecuador)
 function getFechaActualNegocio(): string {
   try {
-    const now = new Date();
-    
-    // Obtener componentes de fecha/hora en Ecuador
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/Guayaquil',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      hour12: false
-    });
-    
-    const parts = formatter.formatToParts(now);
-    const year = parseInt(parts.find(p => p.type === 'year')?.value || '2025');
-    const month = parseInt(parts.find(p => p.type === 'month')?.value || '1');
-    const day = parseInt(parts.find(p => p.type === 'day')?.value || '1');
-    const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
-    
-    const currentDate = new Date(year, month - 1, day);
+    // Obtener fecha/hora actual en timezone de Ecuador usando Temporal
+    const now = Temporal.Now.zonedDateTimeISO('America/Guayaquil');
     
     // Si es antes de las 4 AM, usar el día anterior (día de negocio continúa)
-    if (hour < 4) {
-      currentDate.setDate(currentDate.getDate() - 1);
+    let fechaNegocio;
+    if (now.hour < 4) {
+      fechaNegocio = now.subtract({ days: 1 });
+    } else {
+      fechaNegocio = now;
     }
     
     // Formatear como YYYY-MM-DD
-    const fechaCalculada = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+    const fechaCalculada = fechaNegocio.toPlainDate().toString();
     
     console.log('🌍 [BACKEND] Fecha actual negocio calculada:', {
-      fechaEcuador: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
-      horaEcuador: hour,
-      esAntesDe4AM: hour < 4,
-      fechaFinal: fechaCalculada
+      fechaEcuador: now.toPlainDate().toString(),
+      horaEcuador: now.hour,
+      esAntesDe4AM: now.hour < 4,
+      fechaFinal: fechaCalculada,
+      explicacionTemporal: 'Usando Temporal API para manejo consistente de timezone'
     });
     
     return fechaCalculada;
   } catch (error) {
     console.error('❌ Error calculando fecha negocio:', error);
-    // Fallback a fecha UTC simple
-    return new Date().toISOString().split('T')[0];
+    // Fallback usando Temporal Instant (UTC)
+    const fallback = Temporal.Now.instant().toString().split('T')[0];
+    console.warn('⚠️ Usando fallback UTC:', fallback);
+    return fallback;
   }
 }
 
@@ -643,28 +633,49 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 3. Crear slot de tiempo
-    const fechaSlot = new Date(data.fecha);
-    const [horasSlot, minutosSlot] = data.hora.split(':').map(Number);
-    const startTime = new Date(fechaSlot);
-    startTime.setHours(horasSlot, minutosSlot, 0, 0);
-    const endTime = new Date(startTime);
-    endTime.setHours(endTime.getHours() + 4); // 4 horas de duración por defecto
+    // 3. Crear slot de tiempo usando timezone-utils para consistencia
+    const { calcularFechasReserva } = await import('@/lib/timezone-utils');
+    
+    let slot;
+    try {
+      const { fechaReserva } = calcularFechasReserva(data.fecha, data.hora);
+      
+      // Calcular startTime y endTime
+      const startTime = fechaReserva;
+      const endTime = new Date(fechaReserva);
+      endTime.setHours(endTime.getHours() + 4); // 4 horas de duración por defecto
+      
+      // Para el campo date, extraer solo la fecha
+      const fechaSlot = new Date(fechaReserva);
+      fechaSlot.setHours(0, 0, 0, 0);
+      
+      console.log('📅 Fechas calculadas para slot:', {
+        fechaOriginal: data.fecha,
+        horaOriginal: data.hora,
+        fechaReserva: fechaReserva.toISOString(),
+        fechaSlot: fechaSlot.toISOString(),
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString()
+      });
 
-    const now = new Date();
-    const slot = await prisma.reservationSlot.create({
-      data: {
-        id: generateId(),
-        businessId: businessId,
-        serviceId: service.id,
-        date: fechaSlot,
-        startTime: startTime,
-        endTime: endTime,
-        capacity: data.numeroPersonas,
-        reservedCount: data.numeroPersonas,
-        updatedAt: now
-      }
-    });
+      const slotNow = new Date();
+      slot = await prisma.reservationSlot.create({
+        data: {
+          id: generateId(),
+          businessId: businessId,
+          serviceId: service.id,
+          date: fechaSlot,
+          startTime: startTime,
+          endTime: endTime,
+          capacity: data.numeroPersonas,
+          reservedCount: data.numeroPersonas,
+          updatedAt: slotNow
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error creando slot:', error);
+      throw new Error(`Error al procesar fechas: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    }
 
     // 4. Verificar/validar promotor si se proporciona
     let promotorId: string | null = null;
@@ -711,28 +722,22 @@ export async function POST(request: NextRequest) {
     // 5. Crear la reserva
     const reservationNumber = `RES-${Date.now()}`;
     
-    // Crear fecha/hora de reserva para reservedAt
-    // ✅ SOLUCIÓN DEFINITIVA: Usar utilidad robusta de timezone
-    const { calcularFechasReserva, formatearHoraMilitar } = await import('@/lib/timezone-utils');
+    // Reutilizar la misma lógica de calcularFechasReserva que usamos para el slot
+    const { fechaReserva: reservedAtDate } = calcularFechasReserva(data.fecha, data.hora);
+    const { formatearHoraMilitar } = await import('@/lib/timezone-utils');
     
-    const fechasCalculadas = calcularFechasReserva(data.fecha, data.hora);
-    const reservedAtDate = fechasCalculadas.fechaReserva;
-    
-    // ✅ CORREGIR: Extraer hora correcta para mostrar en frontend
+    // Extraer hora correcta para mostrar en frontend
     const horaCorrecta = formatearHoraMilitar(reservedAtDate);
-    
-    // Validar que la fecha sea válida
-    if (!fechasCalculadas.esValida) {
-      console.warn('⚠️ Reserva creada en el pasado. Revisar si es intencional.');
-    }
 
-    console.log('📅 Fecha de reserva creada (MÉTODO DEFINITIVO):', {
-      ...fechasCalculadas.debug,
+    console.log('📅 Fecha de reserva creada:', {
+      fechaOriginal: data.fecha,
       horaOriginal: data.hora,
-      horaCorrecta: horaCorrecta
+      reservedAtDate: reservedAtDate.toISOString(),
+      horaCorrecta,
+      timezone: 'America/Guayaquil'
     });
     
-    const nowReservation = new Date();
+    const reservationNow = new Date();
     const reservation = await prisma.reservation.create({
       data: {
         id: generateId(),
@@ -752,7 +757,7 @@ export async function POST(request: NextRequest) {
         notes: data.beneficiosReserva,
         reservedAt: reservedAtDate,
         promotorId: promotorId,
-        updatedAt: nowReservation
+        updatedAt: reservationNow
       },
       include: {
         Promotor: {
@@ -765,25 +770,23 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // 6. Crear código QR usando la utilidad definitiva
+    // 6. Crear código QR con Temporal API
     const qrToken = data.codigoQR || generateQRCode();
     
-    // ✅ USAR FECHA DE EXPIRACIÓN CALCULADA POR LA UTILIDAD ROBUSTA
-    const qrExpirationDate = fechasCalculadas.fechaExpiracionQR;
+    // Calcular fecha de expiración del QR (+12 horas desde la hora de reserva)
+    const qrExpirationDate = new Date(reservedAtDate);
+    qrExpirationDate.setHours(qrExpirationDate.getHours() + 12);
     
-    console.log('🎫 CREANDO QR CODE (MÉTODO DEFINITIVO):', {
+    console.log('🎫 CREANDO QR CODE:', {
       reservaId: reservation.id,
       fechaOriginalInput: `${data.fecha} ${data.hora}`,
       reservedAt: reservedAtDate.toISOString(),
-      reservedAtEcuador: reservedAtDate.toLocaleString('es-EC', { timeZone: 'America/Guayaquil' }),
       qrExpiresAt: qrExpirationDate.toISOString(),
-      qrExpiresAtEcuador: qrExpirationDate.toLocaleString('es-EC', { timeZone: 'America/Guayaquil' }),
       duracionValidez: '12 horas',
-      metodo: 'timezone-utils.js (robusto)',
-      garantiaDeCalidad: 'NO se puede desconfigurar'
+      timezone: 'America/Guayaquil'
     });
     
-    const nowQR = new Date();
+    const qrNow = new Date();
     await prisma.reservationQRCode.create({
       data: {
         id: generateId(),
@@ -800,7 +803,7 @@ export async function POST(request: NextRequest) {
         }),
         expiresAt: qrExpirationDate,
         status: 'ACTIVE',
-        updatedAt: nowQR
+        updatedAt: qrNow
       }
     });
 
