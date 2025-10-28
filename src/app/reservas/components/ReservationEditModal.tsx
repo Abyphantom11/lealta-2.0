@@ -48,8 +48,14 @@ export function ReservationEditModal({
 
   // 🔄 EFECTO SIMPLE Y DIRECTO: Solo sincronizar cuando cambien las props
   useEffect(() => {
-    // 🔒 DESHABILITAR SINCRONIZACIÓN DURANTE GUARDADO PARA EVITAR REVERSIONES
+    // 🔒 DESHABILITAR SINCRONIZACIÓN DURANTE GUARDADO O EDICIÓN PARA EVITAR REVERSIONES
     if (!userIsEditing && !isUpdating) {
+      console.log('📱 MÓVIL - Sincronizando estado con props:', {
+        horaProp: reserva.hora,
+        horaLocal: hora,
+        actualizando: isUpdating,
+        editando: userIsEditing
+      });
       setHora(reserva.hora);
       setEstado(reserva.estado);
       setMesa(reserva.mesa || '');
@@ -159,6 +165,18 @@ export function ReservationEditModal({
   };
 
   const handleSave = async () => {
+    console.log('📱 MÓVIL - Iniciando guardado:', {
+      reservaId: reserva.id,
+      horaAnterior: reserva.hora,
+      horaNueva: hora,
+      cambiosDetectados: {
+        hora: hora !== reserva.hora,
+        estado: estado !== reserva.estado,
+        mesa: mesa !== reserva.mesa,
+        detalles: JSON.stringify(detalles) !== JSON.stringify(reserva.detalles)
+      }
+    });
+    
     setIsUpdating(true);
     
     // 🔒 Deshabilitar sincronización durante guardado
@@ -172,17 +190,26 @@ export function ReservationEditModal({
         detalles
       };
 
+      console.log('📱 MÓVIL - Enviando actualización:', {
+        reservaId: reserva.id,
+        updates
+      });
+
       // 🎯 Ejecutar actualización
       await onUpdate(reserva.id, updates);
       
-      // 🎯 Esperar un momento antes de cerrar
-      await new Promise(resolve => setTimeout(resolve, 200));
+      console.log('✅ MÓVIL - Actualización exitosa, esperando antes de cerrar...');
       
+      // 🎯 Esperar un momento antes de cerrar para que se reflejen los cambios
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      console.log('📱 MÓVIL - Cerrando modal');
       onClose();
       
     } catch (error) {
-      console.error('❌ Error guardando desde modal:', error);
+      console.error('❌ MÓVIL - Error guardando desde modal:', error);
       setUserIsEditing(false); // Re-habilitar sincronización en caso de error
+      toast.error('❌ Error al guardar los cambios');
     } finally {
       setIsUpdating(false);
     }
@@ -245,20 +272,32 @@ export function ReservationEditModal({
               Hora
             </Label>
             <Input
-              key={`hora-${reserva.id}-${reserva.hora}`} // 🔑 Key basada en prop hora para forzar re-render
               id="hora"
               type="time"
-              value={userIsEditing ? hora : reserva.hora} // 🎯 Usar prop directamente cuando no se edita
+              value={hora} // 🎯 Usar siempre el estado local directamente
               onChange={(e) => {
+                console.log('📱 MÓVIL - Cambio de hora:', {
+                  horaAnterior: hora,
+                  horaNueva: e.target.value,
+                  reservaId: reserva.id
+                });
                 setHora(e.target.value);
+                setUserIsEditing(true); // Marcar que el usuario está editando
               }}
               onFocus={() => {
+                console.log('📱 MÓVIL - Focus en campo hora:', {
+                  horaActual: hora,
+                  horaProp: reserva.hora,
+                  reservaId: reserva.id
+                });
                 setUserIsEditing(true);
-                setHora(reserva.hora);
               }}
               onBlur={() => {
-                // NO desactivar userIsEditing inmediatamente para evitar interferencia
-                // setTimeout(() => setUserIsEditing(false), 100);
+                console.log('📱 MÓVIL - Blur en campo hora:', {
+                  horaFinal: hora,
+                  reservaId: reserva.id
+                });
+                // Mantener userIsEditing=true hasta que se guarde
               }}
               className="w-full"
               disabled={isUpdating}

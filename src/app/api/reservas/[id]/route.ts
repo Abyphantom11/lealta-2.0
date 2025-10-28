@@ -271,6 +271,13 @@ function prepareUpdateData(updates: any, currentMetadata: any, promotorId: strin
 
   // 🕐 MANEJAR ACTUALIZACIÓN DE HORA
   if (updates.hora !== undefined) {
+    console.log('🕐 MÓVIL - Procesando actualización de hora:', {
+      horaRecibida: updates.hora,
+      tipoHora: typeof updates.hora,
+      longitudHora: updates.hora?.length,
+      reservaId: currentReservation.id
+    });
+    
     // Obtener la fecha actual de la reserva
     const currentReservedAt = new Date(currentReservation.reservedAt);
     const year = currentReservedAt.getFullYear();
@@ -280,12 +287,18 @@ function prepareUpdateData(updates: any, currentMetadata: any, promotorId: strin
     // Parsear la nueva hora (formato HH:mm)
     const [hours, minutes] = updates.hora.split(':').map(Number);
     
+    console.log('🕐 MÓVIL - Componentes de hora parseados:', {
+      hours,
+      minutes,
+      horaOriginal: updates.hora
+    });
+    
     // 🎯 CREAR NUEVA FECHA FORZANDO UTC-5 (independiente del servidor)
     const newReservedAt = new Date(Date.UTC(year, month, day, hours + 5, minutes, 0, 0));
     
     updateData.reservedAt = newReservedAt;
     
-    console.log('🕐 SERVIDOR - Hora procesada:', {
+    console.log('🕐 MÓVIL - Hora procesada para guardado:', {
       horaOriginal: currentReservation.reservedAt.toISOString(),
       nuevaHora: updates.hora,
       horasParsed: hours,

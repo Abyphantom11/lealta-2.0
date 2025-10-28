@@ -13,16 +13,31 @@ const BUSINESS_TIMEZONE = 'America/Guayaquil';
 
 /**
  * Función para formatear fechas/horas en formato militar consistente
+ * VERSIÓN FIJA: No depende del timezone del navegador del usuario
  * @param {Date} date - Fecha a formatear
- * @returns {string} String en formato militar (24 horas)
+ * @returns {string} String en formato militar (24 horas) HH:mm
  */
 function formatearHoraMilitar(date) {
-  return date.toLocaleString('es-CO', {
-    timeZone: BUSINESS_TIMEZONE,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false // ✅ FORMATO MILITAR
-  });
+  // 🎯 SOLUCIÓN: Extraer hora UTC y restar 5 horas manualmente
+  // Esto garantiza que TODOS los usuarios vean la misma hora sin importar su timezone local
+  
+  // Obtener componentes UTC directamente
+  const utcHours = date.getUTCHours();
+  const utcMinutes = date.getUTCMinutes();
+  
+  // Calcular hora en Ecuador (UTC-5)
+  let ecuadorHours = utcHours - 5;
+  
+  // Manejar el caso de horas negativas (día anterior)
+  if (ecuadorHours < 0) {
+    ecuadorHours += 24;
+  }
+  
+  // Formatear con padding de ceros
+  const hoursStr = String(ecuadorHours).padStart(2, '0');
+  const minutesStr = String(utcMinutes).padStart(2, '0');
+  
+  return `${hoursStr}:${minutesStr}`;
 }
 
 /**
