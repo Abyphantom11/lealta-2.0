@@ -130,6 +130,9 @@ function extractUniqueClients(reservas: Reserva[]) {
 
 // GET - Obtener todas las reservas + datos adicionales opcionales
 export async function GET(request: NextRequest) {
+  // ✅ IMPORTAR UTILIDADES DE TIMEZONE AL INICIO
+  const { formatearHoraMilitar } = await import('@/lib/timezone-utils');
+  
   try {
     const searchParams = request.nextUrl.searchParams;
     const businessIdOrSlug = searchParams.get('businessId') || 'default-business-id';
@@ -268,18 +271,18 @@ export async function GET(request: NextRequest) {
           }
         }
         
-        // Procesar hora de forma segura - USAR reservedAt en lugar de slot.startTime
+        // Procesar hora de forma segura - USAR reservedAt con timezone correcto
         let hora = '19:00';
         if (reservation.reservedAt) {
           try {
-            // Usar reservation.reservedAt que es la hora actualizada, no slot.startTime
-            hora = reservation.reservedAt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+            // ✅ USAR NUESTRA FUNCIÓN DE FORMATO MILITAR para consistencia
+            hora = formatearHoraMilitar(reservation.reservedAt);
           } catch (e) {
             console.warn('⚠️ Error parseando hora de reservedAt:', e);
             // Fallback a ReservationSlot.startTime solo si reservedAt falla
             if (reservation.ReservationSlot?.startTime) {
               try {
-                hora = new Date(reservation.ReservationSlot.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                hora = formatearHoraMilitar(new Date(reservation.ReservationSlot.startTime));
               } catch (error_) {
                 console.warn('⚠️ Error parseando hora del slot también:', error_);
               }
@@ -710,17 +713,24 @@ export async function POST(request: NextRequest) {
     
     // Crear fecha/hora de reserva para reservedAt
     // ✅ SOLUCIÓN DEFINITIVA: Usar utilidad robusta de timezone
-    const { calcularFechasReserva } = await import('@/lib/timezone-utils');
+    const { calcularFechasReserva, formatearHoraMilitar } = await import('@/lib/timezone-utils');
     
     const fechasCalculadas = calcularFechasReserva(data.fecha, data.hora);
     const reservedAtDate = fechasCalculadas.fechaReserva;
+    
+    // ✅ CORREGIR: Extraer hora correcta para mostrar en frontend
+    const horaCorrecta = formatearHoraMilitar(reservedAtDate);
     
     // Validar que la fecha sea válida
     if (!fechasCalculadas.esValida) {
       console.warn('⚠️ Reserva creada en el pasado. Revisar si es intencional.');
     }
-    
-    console.log('📅 Fecha de reserva creada (MÉTODO DEFINITIVO):', fechasCalculadas.debug);
+
+    console.log('📅 Fecha de reserva creada (MÉTODO DEFINITIVO):', {
+      ...fechasCalculadas.debug,
+      horaOriginal: data.hora,
+      horaCorrecta: horaCorrecta
+    });
     
     const nowReservation = new Date();
     const reservation = await prisma.reservation.create({
@@ -853,7 +863,7 @@ export async function POST(request: NextRequest) {
         : { id: '', nombre: 'Sistema' },
       promotorId: reservation.promotorId || undefined, // ✅ Incluir el promotorId que se guardó en la DB
       fecha: data.fecha,
-      hora: data.hora,
+      hora: horaCorrecta, // ✅ USAR HORA CORREGIDA EN FORMATO MILITAR
       // ✅ CORREGIDO: Retornar formato correcto res-{id} en lugar del qrToken
       // El qrToken se guarda en la DB pero NO se usa para el QR visual
       codigoQR: `res-${reservation.id}`,
