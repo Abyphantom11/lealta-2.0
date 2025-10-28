@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { EstadoReserva } from '@/app/reservas/types/reservation';
 import { emitReservationEvent } from '../events/route';
+import { formatearHoraMilitar } from '@/lib/timezone-utils';
 
 // Indicar a Next.js que esta ruta es dinámica
 export const dynamic = 'force-dynamic';
@@ -114,10 +115,7 @@ export async function GET(
       },
       promotorId: reservation.promotorId || undefined, // ✅ Incluir promotorId
       fecha: reservation.reservedAt.toISOString().split('T')[0],
-      hora: reservation.reservedAt.toLocaleTimeString('es-ES', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      }),
+      hora: formatearHoraMilitar(reservation.reservedAt),
       codigoQR: `res-${reservation.id}`,
       asistenciaActual: reservation.ReservationQRCode[0]?.scanCount || 0,
       estado: mapPrismaStatusToReserva(reservation.status),
@@ -301,7 +299,7 @@ function prepareUpdateData(updates: any, currentMetadata: any, promotorId: strin
       minutosParsed: minutes,
       nuevaFechaCompleta: newReservedAt.toISOString(),
       nuevaFechaLocal: newReservedAt.toLocaleString('es-ES'),
-      horaFormateada: newReservedAt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+      horaFormateada: formatearHoraMilitar(newReservedAt),
       seAsignoReservedAt: !!updateData.reservedAt
     });
   }
@@ -353,11 +351,8 @@ function formatReservaResponse(updatedReservation: any) {
     detallesEnMetadata: metadata.detalles,
     tipoDetalles: typeof metadata.detalles,
     longitudDetalles: metadata.detalles?.length,
+    horaFormateada: formatearHoraMilitar(updatedReservation.reservedAt),
     horaEnBD: updatedReservation.reservedAt,
-    horaFormateada: updatedReservation.reservedAt.toLocaleTimeString('es-ES', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    })
   });
 
   const fechaFormateada = updatedReservation.reservedAt.toISOString().split('T')[0];
@@ -386,10 +381,7 @@ function formatReservaResponse(updatedReservation: any) {
       nombre: updatedReservation.promotor?.nombre || 'Sistema'
     },
     fecha: fechaFormateada,
-    hora: updatedReservation.reservedAt.toLocaleTimeString('es-ES', { 
-      hour: '2-digit', 
-      minute: '2-digit'
-    }),
+    hora: formatearHoraMilitar(updatedReservation.reservedAt),
     codigoQR: updatedReservation.ReservationQRCode?.[0]?.qrToken || `res-${updatedReservation.id}`,
     asistenciaActual: updatedReservation.ReservationQRCode?.[0]?.scanCount || 0,
     estado: mapPrismaStatusToReserva(updatedReservation.status),
@@ -594,11 +586,11 @@ export async function PUT(
         try {
           const qrDataJson = JSON.parse(currentQR.qrData);
           qrDataJson.fecha = newReservedAt.toISOString().split('T')[0];
-          qrDataJson.hora = newReservedAt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+          qrDataJson.hora = formatearHoraMilitar(newReservedAt);
           qrDataJson.timestamp = Date.now();
           updatedQrData = JSON.stringify(qrDataJson);
         } catch (parseError) {
-          console.warn('⚠️ No se pudo parsear qrData JSON, se mantiene el original');
+          console.warn('⚠️ No se pudo parsear qrData JSON, se mantiene el original:', parseError);
         }
 
         // Actualizar QR code con nueva expiración Y datos actualizados
