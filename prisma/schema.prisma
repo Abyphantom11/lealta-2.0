@@ -65,6 +65,7 @@ model Business {
   ReservationService    ReservationService[]
   User                  User[]
   Visita                Visita[]
+  QRLink                QRLink[]
 }
 
 model BusinessGoals {
@@ -677,6 +678,47 @@ model Visita {
   @@index([path])
   @@index([sessionId])
   @@index([timestamp])
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🔗 QR MANAGER - Sistema de QR Codes Dinámicos
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model QRLink {
+  id          String     @id @default(cuid())
+  shortId     String     @unique
+  name        String
+  description String?
+  targetUrl   String
+  backupUrl   String?
+  businessId  String?
+  isActive    Boolean    @default(true)
+  clickCount  Int        @default(0)
+  expiresAt   DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  
+  Business    Business?  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  clicks      QRClick[]
+
+  @@index([shortId])
+  @@index([businessId])
+  @@index([isActive])
+  @@index([createdAt])
+}
+
+model QRClick {
+  id        String   @id @default(cuid())
+  qrLinkId  String
+  ipAddress String?
+  userAgent String?  @db.VarChar(500)
+  referer   String?
+  createdAt DateTime @default(now())
+  
+  qrLink    QRLink   @relation(fields: [qrLinkId], references: [id], onDelete: Cascade)
+
+  @@index([qrLinkId])
+  @@index([createdAt])
 }
 
 enum QRCodeStatus {
