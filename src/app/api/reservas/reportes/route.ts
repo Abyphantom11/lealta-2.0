@@ -147,15 +147,26 @@ export async function GET(request: NextRequest) {
     const totalReservas = reservations.length;
     const totalPersonasEsperadas = reservations.reduce((sum, r) => sum + r.guestCount, 0);
     
+    // ✅ Obtener fecha actual para filtrar solo asistentes hasta hoy
+    const hoy = new Date();
+    hoy.setHours(23, 59, 59, 999); // Final del día de hoy
+    
+    // Filtrar solo reservas hasta hoy (por fecha de reserva)
+    const reservasHastaHoy = reservations.filter(r => {
+      if (!r.reservedAt) return false;
+      return new Date(r.reservedAt) <= hoy;
+    });
+    
     // ✅ CORREGIDO: Calcular asistentes reales desde HostTracking.guestCount
     // HostTracking.guestCount = número REAL de personas que asistieron
     // NO confundir con scanCount (número de escaneos del QR)
-    const totalAsistentesReales = reservations.reduce((sum, r) => {
+    // SOLO contar asistentes de reservas hasta hoy
+    const totalAsistentesReales = reservasHastaHoy.reduce((sum, r) => {
       const asistentes = r.HostTracking?.guestCount || 0;
       return sum + asistentes;
     }, 0);
 
-    console.log(`📊 Asistentes calculados: ${totalAsistentesReales} (de ${reservations.length} reservas, ${reservations.filter(r => r.HostTracking?.guestCount > 0).length} con asistencia)`);
+    console.log(`📊 Asistentes calculados: ${totalAsistentesReales} (de ${reservations.length} reservas totales, ${reservasHastaHoy.length} hasta hoy, ${reservasHastaHoy.filter(r => r.HostTracking?.guestCount > 0).length} con asistencia)`);
 
     // ✅ NUEVAS MÉTRICAS: Totales combinados (Reservas + Sin Reserva)
     const totalPersonasAtendidas = totalAsistentesReales + totalPersonasSinReserva;
@@ -214,7 +225,8 @@ export async function GET(request: NextRequest) {
     // ==========================================
     // 5. ANÁLISIS POR PROMOTOR
     // ==========================================
-    const reservasPorPromotor = reservations.reduce((acc, r) => {
+    // ✅ Usar solo reservasHastaHoy para calcular asistencia
+    const reservasPorPromotor = reservasHastaHoy.reduce((acc, r) => {
       const promotorId = r.promotorId || 'sin-promotor';
       const promotorNombre = r.Promotor?.nombre || 'Sin asignar';
       
