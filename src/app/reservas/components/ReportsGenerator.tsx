@@ -186,11 +186,11 @@ export default function ReportsGenerator({ businessId, businessName }: Readonly<
               </p>
             </div>
 
-            {/* Cumplimiento */}
-            <div className="bg-yellow-50 p-4 rounded-lg text-center">
-              <p className="text-sm text-gray-600 mb-1">Cumplimiento</p>
-              <p className="text-2xl font-bold text-yellow-600">
-                {preview.metricas.generales.porcentajeCumplimiento.toFixed(1)}%
+            {/* Total Sin Reserva */}
+            <div className="bg-purple-50 p-4 rounded-lg text-center">
+              <p className="text-sm text-gray-600 mb-1">Total Sin Reserva</p>
+              <p className="text-2xl font-bold text-purple-600">
+                {preview.metricas.generales.totalSinReserva}
               </p>
             </div>
           </div>
@@ -239,19 +239,12 @@ export default function ReportsGenerator({ businessId, businessName }: Readonly<
               {/* 📊 MÉTRICAS COMBINADAS */}
               <div className="bg-white p-4 rounded-lg shadow-sm">
                 <h5 className="font-semibold text-gray-800 mb-3">📊 Resumen Total del Mes</h5>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Total Personas Atendidas:</span>
                     <span className="font-bold text-indigo-600 text-lg">
                       {preview.metricas.generales.totalPersonasAtendidas || 
                        (preview.metricas.generales.totalAsistentesReales + preview.metricas.sinReserva.totalPersonas)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Total Eventos:</span>
-                    <span className="font-bold text-purple-600 text-lg">
-                      {preview.metricas.generales.totalEventosAtendidos || 
-                       (preview.metricas.generales.totalReservas + preview.metricas.sinReserva.totalRegistros)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">

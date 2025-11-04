@@ -476,10 +476,11 @@ export function useReservations(businessId?: string) {
     const mesActual = hoy.getMonth(); // 0-11
     const añoActual = hoy.getFullYear();
     
-    // Filtrar solo reservas del mes actual
+    // Filtrar solo reservas del mes actual usando comparación de strings
     const reservasDelMes = reservas.filter(r => {
-      const fechaReserva = new Date(r.fecha + 'T00:00:00');
-      return fechaReserva.getMonth() === mesActual && fechaReserva.getFullYear() === añoActual;
+      // r.fecha viene en formato 'YYYY-MM-DD'
+      const [año, mes] = r.fecha.split('-').map(Number);
+      return mes === (mesActual + 1) && año === añoActual;
     });
     
     const reservasHoy = reservasDelMes.filter(r => r.fecha === hoyStr);

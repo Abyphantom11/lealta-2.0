@@ -33,11 +33,11 @@ export function DashboardStats({ stats }: DashboardStatsProps) {
           <div className="text-xs text-gray-500 mt-1">Este mes</div>
         </div>
 
-        {/* % Asistencia */}
+        {/* Total Sin Reserva */}
         <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
-          <div className="text-xs sm:text-sm font-medium text-gray-600 mb-1">% Asistencia</div>
-          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.promedioAsistencia}%</div>
-          <div className="text-xs text-gray-500 mt-1">Promedio mensual</div>
+          <div className="text-xs sm:text-sm font-medium text-gray-600 mb-1">Total Sin Reserva</div>
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.totalSinReserva}</div>
+          <div className="text-xs text-gray-500 mt-1">Este mes</div>
         </div>
 
         {/* Reservas Hoy */}

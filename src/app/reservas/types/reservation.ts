@@ -43,7 +43,7 @@ export interface Reserva {
 export interface DashboardStats {
   totalReservas: number;
   totalAsistentes: number;
-  promedioAsistencia: number;
+  totalSinReserva: number; // ✅ NUEVO: Reemplaza promedioAsistencia
   reservasHoy: number;
 }
 

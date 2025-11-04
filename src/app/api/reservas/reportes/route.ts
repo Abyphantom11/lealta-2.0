@@ -70,6 +70,12 @@ export async function GET(request: NextRequest) {
             lastScannedAt: true,
           },
         },
+        HostTracking: {
+          select: {
+            guestCount: true,
+            reservationDate: true,
+          },
+        },
         Promotor: {
           select: {
             id: true,
@@ -141,20 +147,18 @@ export async function GET(request: NextRequest) {
     const totalReservas = reservations.length;
     const totalPersonasEsperadas = reservations.reduce((sum, r) => sum + r.guestCount, 0);
     
-    // Calcular asistentes reales desde los QR codes escaneados
+    // ✅ CORREGIDO: Calcular asistentes reales desde HostTracking.guestCount
+    // HostTracking.guestCount = número REAL de personas que asistieron
+    // NO confundir con scanCount (número de escaneos del QR)
     const totalAsistentesReales = reservations.reduce((sum, r) => {
-      const scanCount = r.ReservationQRCode[0]?.scanCount || 0;
-      return sum + scanCount;
+      const asistentes = r.HostTracking?.guestCount || 0;
+      return sum + asistentes;
     }, 0);
+
+    console.log(`📊 Asistentes calculados: ${totalAsistentesReales} (de ${reservations.length} reservas, ${reservations.filter(r => r.HostTracking?.guestCount > 0).length} con asistencia)`);
 
     // ✅ NUEVAS MÉTRICAS: Totales combinados (Reservas + Sin Reserva)
     const totalPersonasAtendidas = totalAsistentesReales + totalPersonasSinReserva;
-    const totalEventosAtendidos = totalReservas + totalRegistrosSinReserva;
-    
-    const porcentajeCumplimiento =
-      totalPersonasEsperadas > 0
-        ? ((totalAsistentesReales / totalPersonasEsperadas) * 100).toFixed(1)
-        : '0';
 
     // ==========================================
     // 2. ANÁLISIS POR ASISTENCIA
@@ -213,7 +217,10 @@ export async function GET(request: NextRequest) {
     const reservasPorPromotor = reservations.reduce((acc, r) => {
       const promotorId = r.promotorId || 'sin-promotor';
       const promotorNombre = r.Promotor?.nombre || 'Sin asignar';
-      const scanCount = r.ReservationQRCode[0]?.scanCount || 0;
+      
+      // ✅ CORREGIDO: Usar HostTracking.guestCount (personas reales)
+      // NO confundir con scanCount (número de escaneos)
+      const asistentesReales = r.HostTracking?.guestCount || 0;
       
       if (!acc[promotorId]) {
         acc[promotorId] = {
@@ -242,14 +249,14 @@ export async function GET(request: NextRequest) {
       
       // Solo contar esperadas/asistieron si no fue cancelada
       acc[promotorId].personasEsperadas += r.guestCount;
-      acc[promotorId].personasAsistieron += scanCount;
+      acc[promotorId].personasAsistieron += asistentesReales;
       
       // Clasificar según asistencia
-      if (scanCount === 0) {
+      if (asistentesReales === 0) {
         acc[promotorId].reservasCaidas++;
-      } else if (scanCount === r.guestCount) {
+      } else if (asistentesReales === r.guestCount) {
         acc[promotorId].reservasCompletadas++;
-      } else if (scanCount > r.guestCount) {
+      } else if (asistentesReales > r.guestCount) {
         acc[promotorId].reservasSobreaforo++;
       } else {
         acc[promotorId].reservasParciales++;
@@ -388,7 +395,7 @@ export async function GET(request: NextRequest) {
           totalReservas,
           totalPersonasEsperadas,
           totalAsistentesReales,
-          porcentajeCumplimiento: parseFloat(porcentajeCumplimiento),
+          totalSinReserva: totalPersonasSinReserva, // ✅ NUEVO: Total de personas sin reserva (reemplaza % cumplimiento)
           // ✅ NUEVAS MÉTRICAS SIN RESERVA
           totalRegistrosSinReserva,
           totalPersonasSinReserva,
@@ -396,7 +403,6 @@ export async function GET(request: NextRequest) {
           diasConSinReserva,
           // ✅ MÉTRICAS COMBINADAS
           totalPersonasAtendidas, // Asistentes reales + Sin reserva
-          totalEventosAtendidos, // Total reservas + Total registros sin reserva
         },
         porAsistencia: {
           completadas,

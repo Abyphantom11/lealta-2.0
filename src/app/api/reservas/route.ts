@@ -79,22 +79,81 @@ function getFechaActualNegocio(): string {
   }
 }
 
-// 🔥 OPTIMIZACIÓN: Función para calcular estadísticas en memoria (evita query separada)
-function calculateStats(reservas: Reserva[]) {
-  const hoy = getFechaActualNegocio(); // 🌍 Usar fecha de negocio con corte 4 AM
-  const reservasHoy = reservas.filter(r => r.fecha === hoy);
+// 🔥 OPTIMIZACIÓN: Función para calcular estadísticas del mes actual en memoria
+// Usa la FECHA DE RESERVA (reservedAt) igual que la tabla de reservas
+async function calculateStats(reservationsRaw: any[], businessId: string) {
+  const hoy = getFechaActualNegocio();
   
-  // Calcular totales
-  const totalAsistentes = reservas.reduce((acc, r) => acc + (r.asistenciaActual || 0), 0);
-  const reservasCompletadas = reservas.filter(r => r.estado === 'Activa' || r.estado === 'En Camino');
-  const totalReservados = reservasCompletadas.reduce((acc, r) => acc + r.numeroPersonas, 0);
-  const promedioAsistencia = totalReservados > 0 ? (totalAsistentes / totalReservados) * 100 : 0;
+  // Obtener mes y año actual (Ecuador timezone)
+  const now = Temporal.Now.zonedDateTimeISO('America/Guayaquil');
+  const mesActual = now.month; // 1-12
+  const añoActual = now.year;
+  
+  // Rango del mes actual
+  const fechaInicio = new Date(Date.UTC(añoActual, mesActual - 1, 1, 0, 0, 0, 0));
+  const fechaFin = new Date(Date.UTC(añoActual, mesActual, 1, 0, 0, 0, 0));
+  // Crear fecha límite: final del día de hoy en UTC
+  const [añoHoy, mesHoy, diaHoy] = hoy.split('-').map(Number);
+  const hoyDate = new Date(Date.UTC(añoHoy, mesHoy - 1, diaHoy, 23, 59, 59, 999));
+  
+  // Filtrar TODAS las reservas del mes (incluye futuras)
+  const todasReservasDelMes = reservationsRaw.filter(r => {
+    if (!r.reservedAt) return false;
+    const fechaReserva = new Date(r.reservedAt);
+    return fechaReserva >= fechaInicio && fechaReserva < fechaFin;
+  });
+  
+  // Filtrar solo reservas hasta hoy para contar asistentes
+  const reservasHastaHoy = todasReservasDelMes.filter(r => {
+    const fechaReserva = new Date(r.reservedAt);
+    return fechaReserva <= hoyDate;
+  });
+  
+  // Contar reservas de hoy (por fecha de reserva)
+  const reservasHoy = todasReservasDelMes.filter(r => {
+    if (!r.reservedAt) return false;
+    const fechaReserva = new Date(r.reservedAt).toISOString().split('T')[0];
+    return fechaReserva === hoy;
+  }).length;
+  
+  // Consultar sin reserva del mes
+  const sinReservas = await prisma.sinReserva.findMany({
+    where: {
+      businessId,
+      fecha: { gte: fechaInicio, lt: fechaFin },
+    },
+  });
+  
+  // Calcular totales usando HostTracking.guestCount (personas reales que asistieron)
+  const totalAsistentesConReserva = reservasHastaHoy.reduce((acc, r) => {
+    // HostTracking.guestCount = número REAL de personas que asistieron
+    // NO confundir con scanCount (número de escaneos del QR)
+    const asistentesReales = r.HostTracking?.guestCount || 0;
+    return acc + asistentesReales;
+  }, 0);
+  const totalPersonasSinReserva = sinReservas.reduce((sum, sr) => sum + sr.numeroPersonas, 0);
+  
+  console.log('📊 [CALCULATE STATS]', {
+    mes: mesActual,
+    hoy,
+    totalReservasMes: todasReservasDelMes.length,
+    reservasHastaHoy: reservasHastaHoy.length,
+    totalAsistentes: totalAsistentesConReserva,
+    totalSinReserva: totalPersonasSinReserva,
+    reservasHoy,
+    primerasReservas: reservasHastaHoy.slice(0, 10).map(r => ({
+      fecha: new Date(r.reservedAt).toISOString().split('T')[0],
+      cliente: r.customerName,
+      asistieron: r.HostTracking?.guestCount || 0,
+      escaneos: r.ReservationQRCode?.[0]?.scanCount || 0
+    }))
+  });
   
   return {
-    totalReservas: reservas.length,
-    totalAsistentes,
-    promedioAsistencia: Math.round(promedioAsistencia),
-    reservasHoy: reservasHoy.length
+    totalReservas: todasReservasDelMes.length, // TODAS las reservas del mes
+    totalAsistentes: totalAsistentesConReserva, // Solo asistentes hasta hoy (HostTracking.guestCount)
+    totalSinReserva: totalPersonasSinReserva,
+    reservasHoy
   };
 }
 
@@ -201,6 +260,12 @@ export async function GET(request: NextRequest) {
               nombre: true,
               telefono: true
             }
+          },
+          HostTracking: {
+            select: {
+              guestCount: true,
+              reservationDate: true
+            }
           }
         },
         orderBy: {
@@ -216,7 +281,13 @@ export async function GET(request: NextRequest) {
           Cliente: true,
           ReservationService: true,
           ReservationSlot: true,
-          ReservationQRCode: true
+          ReservationQRCode: true,
+          HostTracking: {
+            select: {
+              guestCount: true,
+              reservationDate: true
+            }
+          }
         },
         orderBy: {
           createdAt: 'asc'
@@ -356,7 +427,7 @@ export async function GET(request: NextRequest) {
       reservas,
       // 🔥 OPTIMIZACIÓN: Incluir stats en la misma respuesta si se solicita
       ...(includeStats && {
-        stats: calculateStats(reservas)
+        stats: await calculateStats(reservations, business?.id || businessIdOrSlug)
       }),
       // 🔥 OPTIMIZACIÓN: Incluir datos de clientes únicos si se solicita
       ...(includeClients && {
