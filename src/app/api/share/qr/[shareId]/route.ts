@@ -110,8 +110,7 @@ export async function GET(
       cardDesign = config.cardDesign || null;
     }
 
-    // Extraer fecha y hora del campo reservedAt
-    const reservedAt = new Date(shareLink.Reservation.reservedAt);
+    // Extraer fecha y hora (reutilizando reservedAt ya definido arriba)
     const fecha = reservedAt.toISOString().split('T')[0]; // YYYY-MM-DD
     const hora = reservedAt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); // HH:MM
 
