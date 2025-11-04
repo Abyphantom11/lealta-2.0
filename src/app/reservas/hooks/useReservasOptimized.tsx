@@ -10,7 +10,7 @@ import {
   calcularFechasReserva, 
   formatearHoraMilitar, 
   formatearFechaCompletaMilitar
-} from '../../../lib/timezone-utils';
+} from '@/lib/timezone-utils';
 
 // Type alias para reserva sin campos generados
 type NewReservaData = Omit<Reserva, 'id' | 'codigoQR' | 'estado' | 'fechaCreacion' | 'registroEntradas'>;
@@ -29,12 +29,13 @@ const getFechaActualNegocio = (): string => {
     // Convertir a string YYYY-MM-DD
     const fechaCalculada = businessDate.toPlainDate().toString();
     
-    console.log('🌍 [FRONTEND] Fecha actual negocio calculada:', {
-      fechaEcuador: now.toString(),
-      horaEcuador: now.hour,
-      esAntesDe4AM: now.hour < 4,
-      fechaFinal: fechaCalculada
-    });
+    // Debug verbose removido
+    // console.log('🌍 [FRONTEND] Fecha actual negocio calculada:', {
+    //   fechaEcuador: now.toString(),
+    //   horaEcuador: now.hour,
+    //   esAntesDe4AM: now.hour < 4,
+    //   fechaFinal: fechaCalculada
+    // });
     
     return fechaCalculada;
   } catch (error) {
@@ -76,16 +77,8 @@ const reservasAPI = {
       throw new Error('BusinessId es requerido para crear reservas. Verifica tu sesión.');
     }
 
-    // Log para debug
-    console.log('📥 Datos recibidos para crear reserva:', {
-      fecha: reservaData.fecha,
-      hora: reservaData.hora,
-      tipoFecha: typeof reservaData.fecha,
-      tipoHora: typeof reservaData.hora
-    });
-
     // Validar y ajustar fecha/hora con timezone
-    const { fechaReserva, esValida, debug } = calcularFechasReserva(reservaData.fecha, reservaData.hora);
+    const { fechaReserva, esValida } = calcularFechasReserva(reservaData.fecha, reservaData.hora);
     
     if (!esValida) {
       throw new Error('La fecha de reserva debe ser en el futuro');
@@ -98,21 +91,17 @@ const reservasAPI = {
       hora: formatearHoraMilitar(fechaReserva)
     };
 
-    console.log('🎯 Creando reserva con fechas ajustadas:', {
-      original: { fecha: reservaData.fecha, hora: reservaData.hora },
-      ajustada: { fecha: reservaAjustada.fecha, hora: reservaAjustada.hora },
-      debug
-    });
-    
-    // Construir la URL con el businessId como query parameter
-    const url = `/api/reservas?businessId=${businessId}`;
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(reservaData),
+    // Enviar la reserva ajustada al servidor
+     
+     // Construir la URL con el businessId como query parameter
+     const url = `/api/reservas?businessId=${businessId}`;
+     
+     const response = await fetch(url, {
+       method: 'POST',
+       headers: {
+         'Content-Type': 'application/json',
+       },
+      body: JSON.stringify(reservaAjustada),
     });
     
     if (!response.ok) {
@@ -300,8 +289,6 @@ export function useReservasOptimized({
     mutationFn: (reservaData: NewReservaData) =>
       reservasAPI.createReserva(reservaData, businessId),
     onMutate: async (reservaData) => {
-      console.log('🎯 [CREATE] Iniciando actualización optimista');
-      
       // Cancelar refetches en progreso
       await queryClient.cancelQueries({ queryKey: reservasQueryKeys.lists() });
       
@@ -350,13 +337,6 @@ export function useReservasOptimized({
             reservasHoy: reservasHoy.length
           };
           
-          console.log('🧮 [CREATE] Stats recalculadas optimistamente:', {
-            reservasHoyAntes: old.stats?.reservasHoy || 0,
-            reservasHoyDespues: statsActualizadas.reservasHoy,
-            totalReservasAntes: old.stats?.totalReservas || 0,
-            totalReservasDespues: statsActualizadas.totalReservas
-          });
-          
           return {
             ...old,
             reservas: reservasActualizadas,
@@ -365,13 +345,9 @@ export function useReservasOptimized({
         }
       );
       
-      console.log('✅ [CREATE] Reserva temporal agregada al cache');
-      
       return { previousReservas, tempId };
     },
     onSuccess: async (newReserva, _variables, context) => {
-      console.log('✅ [CREATE] Reserva creada en servidor', { id: newReserva?.id });
-      
       // 🔥 ESTRATEGIA MEJORADA: Agregar la reserva real al cache directamente
       if (newReserva) {
         queryClient.setQueryData(
@@ -391,8 +367,6 @@ export function useReservasOptimized({
             };
           }
         );
-        
-        console.log('✅ [CREATE] Reserva real agregada al cache');
       }
       
       // 🚀 Invalidar y refetch inmediatamente
@@ -423,8 +397,6 @@ export function useReservasOptimized({
     mutationFn: ({ id, data, businessId: mutationBusinessId }: { id: string; data: Partial<Reserva>; businessId?: string }) =>
       reservasAPI.updateReserva(id, data, mutationBusinessId || businessId),
     onMutate: async ({ id, data }) => {
-      console.log('🎯 [UPDATE] Iniciando actualización optimista', { id, fields: Object.keys(data) });
-      
       await queryClient.cancelQueries({ queryKey: reservasQueryKeys.lists() });
       
       const previousReservas = queryClient.getQueryData(
@@ -436,16 +408,13 @@ export function useReservasOptimized({
         (old: any) => {
           if (!old?.reservas) return old;
           
-          // 🔄 Actualizar la reserva específica
           const reservasActualizadas = old.reservas.map((r: Reserva) => 
             r.id === id ? { ...r, ...data, fechaModificacion: Temporal.Now.instant().toString() } : r
           );
           
-          // 🧮 RECALCULAR ESTADÍSTICAS después del update optimista
-          const hoy = getFechaActualNegocio(); // 🌍 Usar fecha de negocio con corte 4 AM
+          const hoy = getFechaActualNegocio();
           const reservasHoy = reservasActualizadas.filter((r: Reserva) => r.fecha === hoy);
           
-          // Calcular totales con la reserva actualizada
           const totalAsistentes = reservasActualizadas.reduce((acc: number, r: Reserva) => acc + (r.asistenciaActual || 0), 0);
           const reservasCompletadas = reservasActualizadas.filter((r: Reserva) => r.estado === 'Activa' || r.estado === 'En Camino');
           const totalReservados = reservasCompletadas.reduce((acc: number, r: Reserva) => acc + r.numeroPersonas, 0);
@@ -458,12 +427,6 @@ export function useReservasOptimized({
             reservasHoy: reservasHoy.length // ✅ ESTO SE RECALCULA CORRECTAMENTE
           };
           
-          console.log('🧮 [UPDATE] Stats recalculadas optimistamente:', {
-            camposActualizados: Object.keys(data || {}),
-            reservasHoyAntes: old.stats?.reservasHoy || 0,
-            reservasHoyDespues: statsActualizadas.reservasHoy
-          });
-          
           return {
             ...old,
             reservas: reservasActualizadas,
@@ -472,28 +435,28 @@ export function useReservasOptimized({
         }
       );
       
-      console.log('✅ [UPDATE] Caché actualizada optimistamente');
       return { previousReservas, id };
     },
-    onSuccess: async (_result, { data }) => {
+    onSuccess: async (payload) => {
+      const data = payload?.data;
       const structuralFields = new Set(['fecha', 'hora', 'estado', 'businessId']);
       const requiresFullInvalidation = data && Object.keys(data).some(key => structuralFields.has(key));
-      
-      if (requiresFullInvalidation) {
-        console.log('📅 [UPDATE] Cambio estructural detectado:', Object.keys(data || {}));
-        // 🚀 NO ESPERAR: Invalidar en background
-        invalidateReservasCache('all').catch(err => 
-          console.error('Error al invalidar cache:', err)
-        );
-      } else {
-        console.log('🔄 [UPDATE] Cambio simple:', Object.keys(data || {}));
-        // 🚀 NO ESPERAR: Invalidar en background
-        invalidateReservasCache('standard').catch(err => 
-          console.error('Error al invalidar cache:', err)
-        );
-      }
-      
-      toast.success('✓ Reserva actualizada exitosamente');
+       
+       if (requiresFullInvalidation) {
+         console.log('📅 [UPDATE] Cambio estructural detectado:', Object.keys(data || {}));
+         // 🚀 NO ESPERAR: Invalidar en background
+         invalidateReservasCache('all').catch(err => 
+           console.error('Error al invalidar cache:', err)
+         );
+       } else {
+         console.log('🔄 [UPDATE] Cambio simple:', Object.keys(data || {}));
+         // 🚀 NO ESPERAR: Invalidar en background
+         invalidateReservasCache('standard').catch(err => 
+           console.error('Error al invalidar cache:', err)
+         );
+       }
+       
+       toast.success('✓ Reserva actualizada exitosamente');
     },
     onError: (error, _variables, context) => {
       console.error('❌ [UPDATE] Error al actualizar', error);
@@ -546,13 +509,6 @@ export function useReservasOptimized({
             reservasHoy: reservasHoy.length // ✅ ESTO SE RECALCULA CORRECTAMENTE
           };
           
-          console.log('🧮 [DELETE] Stats recalculadas optimistamente:', {
-            reservasHoyAntes: old.stats?.reservasHoy || 0,
-            reservasHoyDespues: statsActualizadas.reservasHoy,
-            totalReservasAntes: old.stats?.totalReservas || 0,
-            totalReservasDespues: statsActualizadas.totalReservas
-          });
-          
           return {
             ...old,
             reservas: reservasActualizadas,
@@ -561,11 +517,9 @@ export function useReservasOptimized({
         }
       );
       
-      console.log('✅ [DELETE] Reserva removida del caché optimistamente');
       return { previousReservas, id };
     },
     onSuccess: async () => {
-      console.log('✅ [DELETE] Reserva eliminada en servidor');
       // 🚀 NO ESPERAR: Invalidar en background
       invalidateReservasCache('all').catch(err => 
         console.error('Error al invalidar cache:', err)
@@ -643,8 +597,7 @@ export function useReservasOptimized({
       
       return { previousReservas, reservaId };
     },
-    onSuccess: async (_result, _variables, context) => {
-      console.log('✅ [ASISTENCIA] Registro exitoso', { reservaId: context?.reservaId });
+    onSuccess: async () => {
       // 🚀 NO ESPERAR: Invalidar en background para no bloquear UI
       invalidateReservasCache('standard').catch(err => 
         console.error('Error al invalidar cache:', err)
@@ -671,21 +624,21 @@ export function useReservasOptimized({
   // 🔥 CRÍTICO: Usar useMemo para crear nueva referencia del array cuando cambien los datos
   // Esto fuerza a React a detectar el cambio y re-renderizar los componentes
   const reservas = useMemo(() => {
-    const data = includeStats 
-      ? (mainQuery.data?.reservas || [])
-      : (mainQuery.data || []);
+     const data = includeStats 
+       ? (mainQuery.data?.reservas || [])
+       : (mainQuery.data || []);
     
-    console.log('🔄 Hook: Creando nueva referencia de reservas array', {
-      count: data.length,
-      dataUpdatedAt: mainQuery.dataUpdatedAt
-    });
+    // Console debug ruidoso removido
+    // console.log('🔄 Hook: Creando nueva referencia de reservas array', {
+    //   count: data.length,
+    //   dataUpdatedAt: mainQuery.dataUpdatedAt
+    // });
     
     // Crear nuevo array para garantizar nueva referencia en memoria
     return [...data];
   }, [
     includeStats,
-    mainQuery.data,
-    mainQuery.dataUpdatedAt
+    mainQuery.data
   ]);
   
   const stats = includeStats ? mainQuery.data?.stats : undefined;
@@ -695,7 +648,7 @@ export function useReservasOptimized({
   const createReserva = async (reservaData: NewReservaData) => {
     if (reservaData.fecha && reservaData.hora) {
       // Validar y ajustar fecha/hora con timezone
-      const { fechaReserva, esValida, debug } = calcularFechasReserva(reservaData.fecha, reservaData.hora);
+      const { fechaReserva, esValida } = calcularFechasReserva(reservaData.fecha, reservaData.hora);
       
       if (!esValida) {
         throw new Error('La fecha de reserva debe ser en el futuro');
@@ -710,8 +663,7 @@ export function useReservasOptimized({
 
       console.log('🎯 Creando reserva con fechas ajustadas:', {
         original: { fecha: reservaData.fecha, hora: reservaData.hora },
-        ajustada: { fecha: reservaAjustada.fecha, hora: reservaAjustada.hora },
-        debug
+        ajustada: { fecha: reservaAjustada.fecha, hora: reservaAjustada.hora }
       });
 
       return createMutation.mutateAsync(reservaAjustada);
@@ -723,7 +675,7 @@ export function useReservasOptimized({
   const updateReserva = (id: string, data: Partial<Reserva>) => {
     // Si se está actualizando fecha u hora, ajustar con timezone
     if (data.fecha && data.hora) {
-      const { fechaReserva, esValida, debug } = calcularFechasReserva(data.fecha, data.hora);
+      const { fechaReserva, esValida } = calcularFechasReserva(data.fecha, data.hora);
       
       if (!esValida) {
         throw new Error('La fecha de reserva debe ser en el futuro');
@@ -737,8 +689,7 @@ export function useReservasOptimized({
 
       console.log('🎯 Actualizando reserva con fechas ajustadas:', {
         original: { fecha: data.fecha, hora: data.hora },
-        ajustada: { fecha: dataAjustada.fecha, hora: dataAjustada.hora },
-        debug
+        ajustada: { fecha: dataAjustada.fecha, hora: dataAjustada.hora }
       });
 
       return updateMutation.mutateAsync({ id, data: dataAjustada, businessId });

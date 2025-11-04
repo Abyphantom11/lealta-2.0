@@ -27,8 +27,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const mes = parseInt(mesParam, 10);
-    const año = parseInt(añoParam, 10);
+    const mes = Number.parseInt(mesParam, 10);
+    const año = Number.parseInt(añoParam, 10);
 
     if (mes < 1 || mes > 12) {
       return NextResponse.json({ error: 'mes debe estar entre 1 y 12' }, { status: 400 });
@@ -166,7 +166,7 @@ export async function GET(request: NextRequest) {
       return sum + asistentes;
     }, 0);
 
-    console.log(`📊 Asistentes calculados: ${totalAsistentesReales} (de ${reservations.length} reservas totales, ${reservasHastaHoy.length} hasta hoy, ${reservasHastaHoy.filter(r => r.HostTracking?.guestCount > 0).length} con asistencia)`);
+    console.log(`📊 Asistentes calculados: ${totalAsistentesReales} (de ${reservations.length} reservas totales, ${reservasHastaHoy.length} hasta hoy, ${reservasHastaHoy.filter(r => r.HostTracking?.guestCount && r.HostTracking.guestCount > 0).length} con asistencia)`);
 
     // ✅ NUEVAS MÉTRICAS: Totales combinados (Reservas + Sin Reserva)
     const totalPersonasAtendidas = totalAsistentesReales + totalPersonasSinReserva;
@@ -180,13 +180,13 @@ export async function GET(request: NextRequest) {
     let parciales = 0; // 0 < asistentes < esperadas
     let canceladas = 0; // ✅ NUEVO: Cliente canceló con aviso
 
-    reservations.forEach((r) => {
+    for (const r of reservations) {
       const scanCount = r.ReservationQRCode[0]?.scanCount || 0;
       
       // Primero verificar si fue cancelada explícitamente
       if (r.status === 'CANCELLED') {
         canceladas++;
-        return; // No contar en otras categorías
+        continue; // No contar en otras categorías
       }
       
       // Luego analizar asistencia
@@ -199,7 +199,7 @@ export async function GET(request: NextRequest) {
       } else {
         parciales++;
       }
-    });
+    }
 
     // ==========================================
     // 3. ANÁLISIS DE PAGOS
@@ -290,12 +290,12 @@ export async function GET(request: NextRequest) {
     }>);
 
     // Calcular porcentaje de cumplimiento para cada promotor
-    Object.values(reservasPorPromotor).forEach((stats) => {
+    for (const stats of Object.values(reservasPorPromotor)) {
       stats.porcentajeCumplimiento =
         stats.personasEsperadas > 0
-          ? parseFloat(((stats.personasAsistieron / stats.personasEsperadas) * 100).toFixed(1))
+          ? Number.parseFloat(((stats.personasAsistieron / stats.personasEsperadas) * 100).toFixed(1))
           : 0;
-    });
+    }
 
     const statsPromotores = Object.values(reservasPorPromotor);
 
@@ -426,7 +426,7 @@ export async function GET(request: NextRequest) {
         porPago: {
           conComprobante,
           sinComprobante,
-          porcentajeConComprobante: parseFloat(porcentajeConComprobante),
+          porcentajeConComprobante: Number.parseFloat(porcentajeConComprobante),
         },
         porEstado,
         porPromotor: statsPromotores, // ✅ Estadísticas detalladas por promotor
