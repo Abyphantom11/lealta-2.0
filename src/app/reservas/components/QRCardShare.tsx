@@ -44,6 +44,30 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
   const [isSavingMessage, setIsSavingMessage] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   
+  // ✅ VALIDAR ANTIGÜEDAD DE LA RESERVA
+  const isReservaAntigua = () => {
+    try {
+      const now = new Date();
+      const inicioMesActual = new Date(now.getFullYear(), now.getMonth(), 1);
+      
+      // Parsear fecha de reserva
+      let fechaReserva: Date;
+      if (typeof reserva.fecha === 'string') {
+        fechaReserva = reserva.fecha.includes('T') 
+          ? new Date(reserva.fecha)
+          : new Date(reserva.fecha + 'T00:00:00');
+      } else {
+        fechaReserva = new Date(reserva.fecha);
+      }
+      
+      return fechaReserva < inicioMesActual;
+    } catch {
+      return false;
+    }
+  };
+  
+  const reservaEsAntigua = isReservaAntigua();
+  
   // Refs
   const qrCardRef = useRef<HTMLDivElement>(null);
   
@@ -376,6 +400,42 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
     return (
       <div className="text-center py-8 text-gray-500">
         No se pudo cargar la configuración del QR
+      </div>
+    );
+  }
+
+  // ✅ VALIDAR SI LA RESERVA ES ANTIGUA (mes anterior)
+  if (reservaEsAntigua) {
+    return (
+      <div className="space-y-4 p-6 bg-gradient-to-br from-orange-50 to-red-50 border-2 border-orange-300 rounded-xl">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0 text-3xl">
+            ⚠️
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-bold text-orange-900 mb-2">
+              QR No Disponible
+            </h3>
+            <p className="text-orange-800 text-sm mb-3">
+              El código QR de esta reserva ha expirado por antigüedad. Los códigos QR solo están disponibles para reservas del mes actual.
+            </p>
+            <div className="bg-white/60 border border-orange-200 rounded-lg p-3 text-sm">
+              <p className="font-semibold text-orange-900 mb-1">📅 Información de la reserva:</p>
+              <p className="text-gray-700">
+                <strong>Cliente:</strong> {reserva.cliente?.nombre || 'Sin nombre'}
+              </p>
+              <p className="text-gray-700">
+                <strong>Fecha:</strong> {typeof reserva.fecha === 'string' ? reserva.fecha : reserva.fecha.toLocaleDateString('es-ES')}
+              </p>
+              <p className="text-gray-700">
+                <strong>Hora:</strong> {reserva.hora}
+              </p>
+            </div>
+            <p className="text-xs text-orange-700 mt-3">
+              💡 Los QRs de meses anteriores se eliminan automáticamente para optimizar el sistema.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
