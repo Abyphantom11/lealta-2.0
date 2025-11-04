@@ -35,6 +35,8 @@ const getEstadoVariant = (estado: Reserva['estado']) => {
       return 'default';
     case 'Reserva Caída':
       return 'destructive';
+    case 'Cancelado':
+      return 'destructive';
     default:
       return 'outline';
   }
@@ -50,6 +52,8 @@ const getEstadoColor = (estado: Reserva['estado']) => {
       return 'border-l-blue-500';
     case 'Reserva Caída':
       return 'border-l-red-500';
+    case 'Cancelado':
+      return 'border-l-orange-500';
     default:
       return 'border-l-gray-300';
   }
@@ -199,6 +203,12 @@ export const ReservationCard = ({
               {tieneComprobante && (
                 <span className="text-xs font-semibold text-fuchsia-600 bg-fuchsia-100 px-2 py-0.5 rounded-full">
                   Pago en reserva
+                </span>
+              )}
+              {/* Indicador de reserva cancelada */}
+              {reserva.estado === 'Cancelado' && (
+                <span className="text-xs font-semibold text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">
+                  Reserva cancelada
                 </span>
               )}
             </div>

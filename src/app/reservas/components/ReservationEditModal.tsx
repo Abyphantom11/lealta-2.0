@@ -136,7 +136,7 @@ export function ReservationEditModal({
       case 'En Progreso': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
       case 'En Camino': return 'text-blue-600 bg-blue-50 border-blue-200';
       case 'Reserva Caída': return 'text-red-600 bg-red-50 border-red-200';
-      case 'Cancelado': return 'text-gray-600 bg-gray-50 border-gray-200';
+      case 'Cancelado': return 'text-red-700 bg-red-100 border-red-300';
       default: return 'text-gray-600 bg-gray-50 border-gray-200';
     }
   };

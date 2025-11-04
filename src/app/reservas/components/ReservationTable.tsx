@@ -867,6 +867,11 @@ export function ReservationTable({
                             Pago en reserva
                           </span>
                         )}
+                        {reserva.estado === 'Cancelado' && (
+                          <span className="text-xs font-semibold text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">
+                            Reserva cancelada
+                          </span>
+                        )}
                         <div className="flex items-center justify-center gap-1 group">
                           <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                           <p className="font-medium text-xs truncate max-w-36 text-gray-900">{reserva.cliente?.nombre || 'Sin nombre'}</p>
