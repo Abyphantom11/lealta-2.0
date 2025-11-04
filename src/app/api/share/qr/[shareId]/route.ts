@@ -58,7 +58,11 @@ export async function GET(
 
     if (!shareLink) {
       return NextResponse.json(
-        { error: 'Link no encontrado o expirado' },
+        { 
+          error: 'Este código QR ya no está disponible',
+          message: 'El código QR de esta reserva ha expirado o fue eliminado por antigüedad. Si necesitas un nuevo QR, contacta con el establecimiento.',
+          code: 'QR_NOT_FOUND'
+        },
         { status: 404 }
       );
     }

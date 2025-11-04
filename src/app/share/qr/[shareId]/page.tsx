@@ -30,6 +30,12 @@ export default function ShareQRPage() {
         
         if (!response.ok) {
           const errorData = await response.json();
+          
+          // Mensajes específicos según el tipo de error
+          if (errorData.code === 'QR_NOT_FOUND') {
+            throw new Error(errorData.message || 'Este código QR ya no está disponible');
+          }
+          
           throw new Error(errorData.error || 'Error al cargar');
         }
 
@@ -173,16 +179,28 @@ export default function ShareQRPage() {
   }
 
   if (error) {
+    const isQRNotFound = error.includes('ya no está disponible') || error.includes('expirado') || error.includes('eliminado');
+    
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
-          <div className="text-6xl mb-4">⚠️</div>
+          <div className="text-6xl mb-4">
+            {isQRNotFound ? '🔒' : '⚠️'}
+          </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Oops...
+            {isQRNotFound ? 'QR no disponible' : 'Oops...'}
           </h1>
           <p className="text-gray-600 mb-6">
             {error}
           </p>
+          {isQRNotFound && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
+              <p className="text-sm text-blue-800">
+                <strong>💡 ¿Qué significa esto?</strong><br />
+                Los códigos QR de reservas antiguas se eliminan automáticamente para mantener el sistema optimizado. Si necesitas acceder a tu reserva, contacta directamente con el establecimiento.
+              </p>
+            </div>
+          )}
           <Button
             onClick={() => window.location.href = '/'}
             className="w-full"
