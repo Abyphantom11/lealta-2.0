@@ -15,8 +15,8 @@ function mapPrismaStatusToReserva(status: string): EstadoReserva {
     case 'CONFIRMED': return 'Activa';
     case 'CHECKED_IN': return 'Activa';
     case 'COMPLETED': return 'En Camino';
-    case 'CANCELLED': return 'Reserva Caída';
-    case 'NO_SHOW': return 'Reserva Caída';
+    case 'CANCELLED': return 'Cancelado';        // ✅ Cliente canceló con aviso
+    case 'NO_SHOW': return 'Reserva Caída';      // ❌ Cliente no se presentó
     default: return 'En Progreso';
   }
 }
@@ -27,8 +27,8 @@ function mapReservaStatusToPrisma(estado: EstadoReserva): 'PENDING' | 'CONFIRMED
     case 'En Progreso': return 'PENDING';
     case 'Activa': return 'CONFIRMED';
     case 'En Camino': return 'COMPLETED';
-    case 'Reserva Caída': return 'CANCELLED';
-    case 'Cancelado': return 'CANCELLED';
+    case 'Reserva Caída': return 'NO_SHOW';      // ❌ Cliente no se presentó / excedió tiempo
+    case 'Cancelado': return 'CANCELLED';        // ✅ Cliente canceló con aviso
     default: return 'PENDING';
   }
 }

@@ -38,8 +38,8 @@ function mapReservaStatusToPrisma(estado: EstadoReserva): 'PENDING' | 'CONFIRMED
     case 'En Progreso': return 'PENDING';      // Estado inicial al crear reserva
     case 'Activa': return 'CONFIRMED';         // Reserva manual confirmada
     case 'En Camino': return 'COMPLETED';      // Finalizada
-    case 'Reserva Caída': return 'CANCELLED';  // Cancelada
-    case 'Cancelado': return 'CANCELLED';      // Cancelada manualmente
+    case 'Reserva Caída': return 'NO_SHOW';    // ❌ Cliente no se presentó / excedió tiempo
+    case 'Cancelado': return 'CANCELLED';      // ✅ Cliente canceló con aviso
     default: return 'PENDING';
   }
 }
