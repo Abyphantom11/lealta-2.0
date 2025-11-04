@@ -6,10 +6,13 @@ const path = require('path');
 /**
  * 🧹 LIMPIEZA SEGURA DE QRs ANTIGUOS
  * 
- * Este script borra QRs de reservas de meses anteriores para aliviar la base de datos.
- * Los QRs se pueden regenerar cuando se abren, por lo que no es necesario mantenerlos indefinidamente.
+ * Este script borra:
+ * 1. ReservationQRCode de reservas de meses anteriores
+ * 2. QRShareLink de reservas de meses anteriores
  * 
- * IMPORTANTE: Se borra por FECHA DE RESERVA, no por fecha de creación del QR
+ * Esto previene que links antiguos sigan mostrando QRs expirados.
+ * 
+ * IMPORTANTE: Se borra por FECHA DE RESERVA, no por fecha de creación
  * - Un QR creado en octubre para una reserva de noviembre SE MANTIENE
  * - Un QR creado en noviembre para una reserva de octubre SE BORRA
  * 
@@ -39,7 +42,7 @@ async function limpiarQRsAntiguos() {
     console.log('📅 Fechas de referencia:');
     console.log(`   Hoy: ${ahora.toISOString().split('T')[0]}`);
     console.log(`   Inicio mes actual: ${inicioMesActual.toISOString().split('T')[0]}`);
-    console.log(`   Se borrarán QRs de RESERVAS ANTES de: ${inicioMesActual.toISOString()}\n`);
+    console.log(`   Se borrarán registros de RESERVAS ANTES de: ${inicioMesActual.toISOString()}\n`);
     
     // 3. Contar QRs a borrar (por fecha de RESERVA, no de creación)
     const qrsABorrar = await prisma.reservationQRCode.findMany({
@@ -62,10 +65,31 @@ async function limpiarQRsAntiguos() {
       }
     });
     
-    console.log(`📊 QRs encontrados para borrar: ${qrsABorrar.length}\n`);
+    // 4. Contar QRShareLinks a borrar
+    const shareLinksABorrar = await prisma.qRShareLink.findMany({
+      where: {
+        Reservation: {
+          reservedAt: {
+            lt: inicioMesActual
+          }
+        }
+      },
+      include: {
+        Reservation: {
+          select: {
+            customerName: true,
+            reservedAt: true
+          }
+        }
+      }
+    });
     
-    if (qrsABorrar.length === 0) {
-      console.log('✅ No hay QRs antiguos para borrar. Base de datos limpia.');
+    console.log(`📊 Registros encontrados para borrar:`);
+    console.log(`   ReservationQRCode: ${qrsABorrar.length}`);
+    console.log(`   QRShareLink: ${shareLinksABorrar.length}\n`);
+    
+    if (qrsABorrar.length === 0 && shareLinksABorrar.length === 0) {
+      console.log('✅ No hay registros antiguos para borrar. Base de datos limpia.');
       return;
     }
     
@@ -117,7 +141,9 @@ async function limpiarQRsAntiguos() {
     fs.writeFileSync(backupFile, JSON.stringify({
       fecha: new Date().toISOString(),
       totalQRs: qrsABorrar.length,
-      qrs: qrsABorrar
+      totalShareLinks: shareLinksABorrar.length,
+      qrs: qrsABorrar,
+      shareLinks: shareLinksABorrar
     }, null, 2));
     
     console.log(`✅ Backup creado: ${backupFile}\n`);
@@ -125,8 +151,10 @@ async function limpiarQRsAntiguos() {
     // 7. CONFIRMACIÓN DE SEGURIDAD
     console.log('⚠️  CONFIRMACIÓN REQUERIDA');
     console.log('='.repeat(70));
-    console.log(`   Se borrarán ${qrsABorrar.length} QRs de meses anteriores`);
-    console.log(`   Los QRs del mes actual (${mesActual + 1}/${añoActual}) NO se tocarán`);
+    console.log(`   Se borrarán ${qrsABorrar.length} ReservationQRCode`);
+    console.log(`   Se borrarán ${shareLinksABorrar.length} QRShareLink`);
+    console.log(`   Total registros: ${qrsABorrar.length + shareLinksABorrar.length}`);
+    console.log(`   Los registros del mes actual (${mesActual + 1}/${añoActual}) NO se tocarán`);
     console.log(`   Backup guardado en: ${backupFile}`);
     console.log('');
     console.log('   Para ejecutar el borrado, ejecuta:');
@@ -142,10 +170,22 @@ async function limpiarQRsAntiguos() {
       return;
     }
     
-    // 9. BORRAR QRs (solo si se confirmó)
-    console.log('🗑️  BORRANDO QRs...');
+    // 9. BORRAR REGISTROS (solo si se confirmó)
+    console.log('🗑️  BORRANDO REGISTROS...');
     
-    const resultado = await prisma.reservationQRCode.deleteMany({
+    // Borrar ReservationQRCode
+    const resultadoQRs = await prisma.reservationQRCode.deleteMany({
+      where: {
+        Reservation: {
+          reservedAt: {
+            lt: inicioMesActual
+          }
+        }
+      }
+    });
+    
+    // Borrar QRShareLink
+    const resultadoShareLinks = await prisma.qRShareLink.deleteMany({
       where: {
         Reservation: {
           reservedAt: {
@@ -157,9 +197,11 @@ async function limpiarQRsAntiguos() {
     
     console.log(`✅ LIMPIEZA COMPLETADA`);
     console.log('='.repeat(70));
-    console.log(`   QRs borrados: ${resultado.count}`);
+    console.log(`   ReservationQRCode borrados: ${resultadoQRs.count}`);
+    console.log(`   QRShareLink borrados: ${resultadoShareLinks.count}`);
+    console.log(`   Total registros borrados: ${resultadoQRs.count + resultadoShareLinks.count}`);
     console.log(`   Backup: ${backupFile}`);
-    console.log(`   Espacio liberado: ~${(resultado.count * 0.5).toFixed(2)} KB (estimado)`);
+    console.log(`   Espacio liberado: ~${((resultadoQRs.count + resultadoShareLinks.count) * 0.5).toFixed(2)} KB (estimado)`);
     console.log('');
     
     // 10. Verificar QRs restantes

@@ -67,8 +67,24 @@ export async function GET(
       );
     }
 
-    // Verificar si el link ha expirado (24 horas)
+    // ✅ VALIDAR ANTIGÜEDAD DE LA RESERVA (no mostrar QRs de meses anteriores)
     const now = new Date();
+    const reservedAt = new Date(shareLink.Reservation.reservedAt);
+    const inicioMesActual = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    // Si la reserva es de un mes anterior, no mostrarla
+    if (reservedAt < inicioMesActual) {
+      return NextResponse.json(
+        { 
+          error: 'Este código QR ya no está disponible',
+          message: 'El código QR de esta reserva ha expirado por antigüedad. Los QRs solo están disponibles para reservas del mes actual. Si necesitas un nuevo QR, contacta con el establecimiento.',
+          code: 'QR_NOT_FOUND'
+        },
+        { status: 410 }
+      );
+    }
+
+    // Verificar si el link ha expirado (24 horas)
     const expiresAt = new Date(shareLink.createdAt);
     expiresAt.setHours(expiresAt.getHours() + 24);
 
