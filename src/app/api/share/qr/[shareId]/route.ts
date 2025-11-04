@@ -1,157 +1,28 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import type { Prisma } from '@prisma/client';
+import { NextResponse } from 'next/server';
 
-// Type helper para el query con include
-type ShareLinkWithReservation = Prisma.QRShareLinkGetPayload<{
-  include: {
-    Reservation: {
-      include: {
-        Cliente: true;
-        ReservationService: {
-          include: {
-            Business: {
-              select: {
-                id: true;
-                name: true;
-                slug: true;
-                qrBrandingConfig: true;
-              };
-            };
-          };
-        };
-      };
-    };
-  };
-}>;
+/**
+ * ⚠️ ENDPOINT OBSOLETO
+ * 
+ * Este endpoint ya no se utiliza porque los QRs se comparten como imágenes
+ * directamente (PNG + texto), no como links en base de datos.
+ * 
+ * El flujo actual es:
+ * 1. Usuario crea reserva
+ * 2. En detalles, se genera QR localmente con react-qr-code
+ * 3. Al compartir, se crea imagen PNG y se envía por WhatsApp
+ * 
+ * No existe tabla QRShareLink en la base de datos.
+ * Los QRs se visualizan directamente en el panel de reservas.
+ */
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { shareId: string } }
-) {
-  try {
-    const { shareId } = params;
-
-    // Buscar el share link en la base de datos
-    const shareLink: ShareLinkWithReservation | null = await prisma.qRShareLink.findUnique({
-      where: { shareId },
-      include: {
-        Reservation: {
-          include: {
-            Cliente: true,
-            ReservationService: {
-              include: {
-                Business: {
-                  select: {
-                    id: true,
-                    name: true,
-                    slug: true,
-                    qrBrandingConfig: true, // ✅ Incluir configuración del diseño
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!shareLink) {
-      return NextResponse.json(
-        { 
-          error: 'Este código QR ya no está disponible',
-          message: 'El código QR de esta reserva ha expirado o fue eliminado por antigüedad. Si necesitas un nuevo QR, contacta con el establecimiento.',
-          code: 'QR_NOT_FOUND'
-        },
-        { status: 404 }
-      );
-    }
-
-    // ✅ VALIDAR ANTIGÜEDAD DE LA RESERVA (no mostrar QRs de meses anteriores)
-    const now = new Date();
-    const reservedAt = new Date(shareLink.Reservation.reservedAt);
-    const inicioMesActual = new Date(now.getFullYear(), now.getMonth(), 1);
-    
-    // Si la reserva es de un mes anterior, no mostrarla
-    if (reservedAt < inicioMesActual) {
-      return NextResponse.json(
-        { 
-          error: 'Este código QR ya no está disponible',
-          message: 'El código QR de esta reserva ha expirado por antigüedad. Los QRs solo están disponibles para reservas del mes actual. Si necesitas un nuevo QR, contacta con el establecimiento.',
-          code: 'QR_NOT_FOUND'
-        },
-        { status: 410 }
-      );
-    }
-
-    // Verificar si el link ha expirado (24 horas)
-    const expiresAt = new Date(shareLink.createdAt);
-    expiresAt.setHours(expiresAt.getHours() + 24);
-
-    if (now > expiresAt) {
-      return NextResponse.json(
-        { error: 'Link expirado' },
-        { status: 410 }
-      );
-    }
-
-    // Incrementar contador de vistas
-    await prisma.qRShareLink.update({
-      where: { id: shareLink.id },
-      data: { views: { increment: 1 } },
-    });
-
-    // Extraer cardDesign de qrBrandingConfig si existe
-    const business = shareLink.Reservation.ReservationService.Business;
-    let cardDesign = null;
-    
-    if (business.qrBrandingConfig && typeof business.qrBrandingConfig === 'object') {
-      const config = business.qrBrandingConfig as any;
-      cardDesign = config.cardDesign || null;
-    }
-
-    // Extraer fecha y hora (reutilizando reservedAt ya definido arriba)
-    const fecha = reservedAt.toISOString().split('T')[0]; // YYYY-MM-DD
-    const hora = reservedAt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); // HH:MM
-
-    // Construir objeto cliente - usar Cliente si existe, sino usar customerName
-    const cliente = shareLink.Reservation.Cliente 
-      ? {
-          id: shareLink.Reservation.Cliente.id,
-          nombre: shareLink.Reservation.Cliente.nombre,
-          telefono: shareLink.Reservation.Cliente.telefono,
-          email: shareLink.Reservation.Cliente.correo,
-        }
-      : {
-          id: shareLink.Reservation.clienteId || 'temp',
-          nombre: shareLink.Reservation.customerName,
-          telefono: shareLink.Reservation.customerPhone,
-          email: shareLink.Reservation.customerEmail,
-        };
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        reserva: {
-          ...shareLink.Reservation,
-          cliente, // ✅ Cliente con fallback a customerName
-          service: shareLink.Reservation.ReservationService,
-          qrToken: shareLink.Reservation.reservationNumber, // ✅ Agregar qrToken dentro de reserva
-          fecha, // ✅ Agregar fecha formateada
-          hora, // ✅ Agregar hora formateada
-          numeroPersonas: shareLink.Reservation.guestCount, // ✅ Mapear guestCount a numeroPersonas
-        },
-        message: shareLink.message,
-        businessName: business.name,
-        qrToken: shareLink.Reservation.reservationNumber,
-        cardDesign, // ✅ Incluir diseño personalizado del business
-      },
-    });
-  } catch (error) {
-    console.error('Error al obtener share link:', error);
-    return NextResponse.json(
-      { error: 'Error al cargar la información' },
-      { status: 500 }
-    );
-  }
+export async function GET() {
+  return NextResponse.json(
+    { 
+      error: 'Este código QR ya no está disponible',
+      message: 'Los códigos QR se comparten ahora como imágenes directamente. Este link ha expirado.',
+      code: 'QR_NOT_FOUND',
+      deprecated: true
+    },
+    { status: 404 }
+  );
 }

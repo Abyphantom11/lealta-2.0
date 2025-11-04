@@ -76,6 +76,20 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
   const detailedCaps = useDetailedShareCapabilities();
   const { generateQR, downloadQR, clearCache } = useQRGeneration();
 
+  // Helper para obtener el nombre del motor del navegador
+  const getBrowserEngineName = (engine: string | undefined) => {
+    if (!engine || engine === 'other') return '';
+    if (engine === 'chromium') return 'Chromium';
+    if (engine === 'webkit') return 'WebKit';
+    if (engine === 'gecko') return 'Gecko';
+    return '';
+  };
+
+  // Helper para sanitizar nombres de archivo
+  const sanitizeFileName = (name: string) => {
+    return name.split(/\s+/).join('-');
+  };
+
   // Notificar cuando el usuario abre/cierra el modal de configuración
   useEffect(() => {
     if (onUserInteraction) {
@@ -202,7 +216,7 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
       toast.loading('📸 Generando imagen...', { id: 'download' });
       
       await generateQR(element);
-      const fileName = `reserva-${reserva.cliente?.nombre?.replace(/\s+/g, '-') || 'qr'}.png`;
+      const fileName = `reserva-${reserva.cliente?.nombre ? sanitizeFileName(reserva.cliente.nombre) : 'qr'}.png`;
       const success = downloadQR(fileName);
 
       toast.dismiss('download');
@@ -263,7 +277,7 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
       // PASO 3: Crear archivo
       const file = new File(
         [blob], 
-        `reserva-${reserva.cliente?.nombre?.replace(/\s+/g, '-') || reserva.id.slice(0, 8)}.png`,
+        `reserva-${reserva.cliente?.nombre ? sanitizeFileName(reserva.cliente.nombre) : reserva.id.slice(0, 8)}.png`,
         { type: 'image/png' }
       );
 
@@ -425,7 +439,7 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
                 <strong>Cliente:</strong> {reserva.cliente?.nombre || 'Sin nombre'}
               </p>
               <p className="text-gray-700">
-                <strong>Fecha:</strong> {typeof reserva.fecha === 'string' ? reserva.fecha : reserva.fecha.toLocaleDateString('es-ES')}
+                <strong>Fecha:</strong> {reserva.fecha}
               </p>
               <p className="text-gray-700">
                 <strong>Hora:</strong> {reserva.hora}
@@ -549,36 +563,34 @@ export function QRCardShare({ reserva, businessId, onUserInteraction }: QRCardSh
             {/* Mensaje personalizado presente */}
             {((customMessage?.trim() && customMessage.trim().length > 0) || 
               (reserva.mensajePersonalizado?.trim() && reserva.mensajePersonalizado.trim().length > 0)) && (
-              <>
-                <div className="text-blue-700 space-y-1.5 text-xs mt-2">
-                  <p className="font-medium">📱 Tu dispositivo:</p>
-                  <p className="text-[11px] opacity-90">
-                    {detailedCaps.os === 'ios' && `iOS ${detailedCaps.osVersion || '?'}`}
-                    {detailedCaps.os === 'android' && `Android ${detailedCaps.osVersion || '?'}`}
-                    {!detailedCaps.isMobile && 'Desktop'}
-                    {' • '}
-                    {detailedCaps.browser === 'safari' && 'Safari'}
-                    {detailedCaps.browser === 'chrome' && 'Chrome'}
-                    {detailedCaps.browser === 'firefox' && 'Firefox'}
-                    {detailedCaps.browser === 'edge' && 'Edge'}
-                    {detailedCaps.browser === 'opera' && 'Opera'}
-                    {detailedCaps.browser === 'brave' && 'Brave'}
-                    {detailedCaps.browser === 'samsung' && 'Samsung Internet'}
-                    {detailedCaps.browser === 'other' && 'Otro'}
-                    {detailedCaps.browserVersion && ` ${detailedCaps.browserVersion}`}
-                    {detailedCaps.browserEngine && detailedCaps.browserEngine !== 'other' && 
-                      ` (${detailedCaps.browserEngine === 'chromium' ? 'Chromium' : 
-                           detailedCaps.browserEngine === 'webkit' ? 'WebKit' : 
-                           detailedCaps.browserEngine === 'gecko' ? 'Gecko' : ''})`}
-                  </p>
-                  
-                  <p className="font-medium mt-2">� Qué esperar:</p>
-                  <p className="text-[11px] opacity-90">{detailedCaps.compatibilityReason}</p>
-                  
-                  <p className="font-medium mt-2">✅ Acción recomendada:</p>
-                  <p className="text-[11px] opacity-90">{detailedCaps.recommendedAction}</p>
-                </div>
-              </>
+              <div className="text-blue-700 space-y-1.5 text-xs mt-2">
+                <p className="font-medium">📱 Tu dispositivo:</p>
+                <p className="text-[11px] opacity-90">
+                  {detailedCaps.os === 'ios' && `iOS ${detailedCaps.osVersion || '?'}`}
+                  {detailedCaps.os === 'android' && `Android ${detailedCaps.osVersion || '?'}`}
+                  {!detailedCaps.isMobile && 'Desktop'}
+                  {' • '}
+                  {detailedCaps.browser === 'safari' && 'Safari'}
+                  {detailedCaps.browser === 'chrome' && 'Chrome'}
+                  {detailedCaps.browser === 'firefox' && 'Firefox'}
+                  {detailedCaps.browser === 'edge' && 'Edge'}
+                  {detailedCaps.browser === 'opera' && 'Opera'}
+                  {detailedCaps.browser === 'brave' && 'Brave'}
+                  {detailedCaps.browser === 'samsung' && 'Samsung Internet'}
+                  {detailedCaps.browser === 'other' && 'Otro'}
+                  {detailedCaps.browserVersion && ` ${detailedCaps.browserVersion}`}
+                  {(() => {
+                    const engineName = getBrowserEngineName(detailedCaps.browserEngine);
+                    return engineName ? ` (${engineName})` : '';
+                  })()}
+                </p>
+                
+                <p className="font-medium mt-2">💬 Qué esperar:</p>
+                <p className="text-[11px] opacity-90">{detailedCaps.compatibilityReason}</p>
+                
+                <p className="font-medium mt-2">✅ Acción recomendada:</p>
+                <p className="text-[11px] opacity-90">{detailedCaps.recommendedAction}</p>
+              </div>
             )}
             
             {/* Sin mensaje personalizado */}
