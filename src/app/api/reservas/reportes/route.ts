@@ -178,10 +178,12 @@ export async function GET(request: NextRequest) {
     let sobreaforo = 0; // asistentes > esperadas
     let caidas = 0; // NO_SHOW o no asistieron (sin cancelar)
     let parciales = 0; // 0 < asistentes < esperadas
-    let canceladas = 0; // ✅ NUEVO: Cliente canceló con aviso
+    let canceladas = 0; // ✅ Cliente canceló con aviso
 
-    for (const r of reservations) {
-      const scanCount = r.ReservationQRCode[0]?.scanCount || 0;
+    // ✅ CORREGIDO: Iterar solo sobre reservasHastaHoy y usar HostTracking.guestCount
+    for (const r of reservasHastaHoy) {
+      const asistentesReales = r.HostTracking?.guestCount || 0;
+      const esperados = r.guestCount;
       
       // Primero verificar si fue cancelada explícitamente
       if (r.status === 'CANCELLED') {
@@ -189,12 +191,23 @@ export async function GET(request: NextRequest) {
         continue; // No contar en otras categorías
       }
       
-      // Luego analizar asistencia
-      if (scanCount === 0) {
-        caidas++; // Caída real: no vino sin avisar
-      } else if (scanCount === r.guestCount) {
+      // ✅ MEJORA: Si no tiene HostTracking pero está CHECKED_IN o COMPLETED,
+      // asumir que asistió completo (para compatibilidad con registros antiguos)
+      if (!r.HostTracking) {
+        if (r.status === 'CHECKED_IN' || r.status === 'COMPLETED') {
+          completadas++; // Asumir asistencia completa
+        } else {
+          caidas++; // PENDING o CONFIRMED sin registro = no llegó
+        }
+        continue;
+      }
+      
+      // Analizar asistencia real con HostTracking
+      if (asistentesReales === 0) {
+        caidas++; // Registró explícitamente que no vino
+      } else if (asistentesReales === esperados) {
         completadas++;
-      } else if (scanCount > r.guestCount) {
+      } else if (asistentesReales > esperados) {
         sobreaforo++;
       } else {
         parciales++;
@@ -261,6 +274,20 @@ export async function GET(request: NextRequest) {
       
       // Solo contar esperadas/asistieron si no fue cancelada
       acc[promotorId].personasEsperadas += r.guestCount;
+      
+      // ✅ MEJORA: Manejar caso sin HostTracking igual que arriba
+      if (!r.HostTracking) {
+        if (r.status === 'CHECKED_IN' || r.status === 'COMPLETED') {
+          acc[promotorId].personasAsistieron += r.guestCount; // Asumir asistencia completa
+          acc[promotorId].reservasCompletadas++;
+        } else {
+          // PENDING o CONFIRMED sin registro = caída
+          acc[promotorId].reservasCaidas++;
+        }
+        return acc;
+      }
+      
+      // Con HostTracking, usar datos reales
       acc[promotorId].personasAsistieron += asistentesReales;
       
       // Clasificar según asistencia
