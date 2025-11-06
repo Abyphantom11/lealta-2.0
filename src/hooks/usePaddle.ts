@@ -40,6 +40,15 @@ export function usePaddle(): UsePaddleReturn {
         
         console.log('🚀 Inicializando Paddle...');
         
+        // Verificar si tenemos el token
+        if (!paddleConfig.token || paddleConfig.token === '') {
+          console.warn('⚠️ PADDLE_CLIENT_TOKEN no configurado - Paddle no se inicializará');
+          console.warn('📝 Para probar Paddle, sigue la guía: PADDLE_TESTING_GUIDE.md');
+          setError('Paddle no configurado. Necesitas crear una cuenta en Paddle Sandbox primero.');
+          setIsLoading(false);
+          return;
+        }
+        
         const paddleInstance = await initializePaddle({
           environment: paddleConfig.environment as any,
           token: paddleConfig.token,

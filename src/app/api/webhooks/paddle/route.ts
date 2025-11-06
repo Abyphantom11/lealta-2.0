@@ -20,13 +20,21 @@ export async function POST(request: NextRequest) {
 
     console.log('🔗 Webhook recibido de Paddle');
 
-    // Verificar la firma del webhook (seguridad)
-    if (!verifyPaddleWebhook(signature, body)) {
-      console.error('❌ Firma de webhook inválida');
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    // En desarrollo, permitir webhooks sin verificación si la firma es "test_signature"
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const isTestSignature = signature.includes('test_signature');
+    
+    if (!isDevelopment || !isTestSignature) {
+      // Verificar la firma del webhook (seguridad)
+      if (!verifyPaddleWebhook(signature, body)) {
+        console.error('❌ Firma de webhook inválida');
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
+    } else {
+      console.log('⚠️ Modo desarrollo: Webhook de prueba aceptado sin verificación');
     }
 
     const event = JSON.parse(body);
@@ -53,9 +61,22 @@ export async function POST(request: NextRequest) {
       case 'transaction.completed':
         await handleTransactionCompleted(event.data);
         break;
+
+      case 'transaction.payment_failed':
+        await handlePaymentFailed(event.data);
+        break;
+        
+      case 'subscription.past_due':
+        await handleSubscriptionPastDue(event.data);
+        break;
+        
+      case 'subscription.paused':
+        await handleSubscriptionPaused(event.data);
+        break;
         
       default:
         console.log('⚠️ Tipo de evento no manejado:', event.event_type);
+        console.log('Event data:', JSON.stringify(event, null, 2));
     }
 
     return NextResponse.json({ success: true });
@@ -110,12 +131,16 @@ function verifyPaddleWebhook(signature: string, body: string): boolean {
 async function handleSubscriptionCreated(subscription: any) {
   try {
     console.log('✅ Nueva suscripción creada:', subscription.id);
+    console.log('📦 custom_data recibido:', JSON.stringify(subscription.custom_data));
 
-    const businessId = subscription.custom_data?.businessId;
+    const businessId = subscription.custom_data?.business_id || subscription.custom_data?.businessId;
     if (!businessId) {
       console.error('❌ No se encontró businessId en custom_data');
+      console.error('🔍 custom_data completo:', subscription.custom_data);
       return;
     }
+
+    console.log('🏢 Actualizando business:', businessId);
 
     // Actualizar el business en la base de datos
     await prisma.business.update({
@@ -124,8 +149,12 @@ async function handleSubscriptionCreated(subscription: any) {
         subscriptionId: subscription.id,
         subscriptionStatus: subscription.status,
         planId: subscription.items[0]?.price?.id,
+        customerId: subscription.customer_id,
         subscriptionStartDate: new Date(subscription.started_at),
         subscriptionEndDate: subscription.next_billed_at ? new Date(subscription.next_billed_at) : null,
+        trialEndsAt: subscription.trial_dates?.ends_at 
+          ? new Date(subscription.trial_dates.ends_at) 
+          : null,
       }
     });
 
@@ -160,6 +189,9 @@ async function handleSubscriptionUpdated(subscription: any) {
         subscriptionStatus: subscription.status,
         planId: subscription.items[0]?.price?.id,
         subscriptionEndDate: subscription.next_billed_at ? new Date(subscription.next_billed_at) : null,
+        trialEndsAt: subscription.trial_dates?.ends_at 
+          ? new Date(subscription.trial_dates.ends_at) 
+          : null,
       }
     });
 
@@ -209,18 +241,130 @@ async function handleSubscriptionCanceled(subscription: any) {
 async function handleTransactionCompleted(transaction: any) {
   try {
     console.log('💰 Transacción completada:', transaction.id);
+    console.log('📦 custom_data recibido:', JSON.stringify(transaction.custom_data));
 
-    // Guardar registro de la transacción para auditoría
-    const businessId = transaction.custom_data?.businessId;
+    const businessId = transaction.custom_data?.business_id || transaction.custom_data?.businessId;
     
-    if (businessId) {
-      // Aquí podrías crear un modelo PaymentHistory en Prisma
-      // para llevar registro de todos los pagos
-      console.log('💳 Pago registrado para business:', businessId);
+    if (!businessId) {
+      console.warn('⚠️ Transacción sin businessId:', transaction.id);
+      console.warn('🔍 custom_data completo:', transaction.custom_data);
+      return;
     }
+
+    console.log('🏢 Guardando transacción para business:', businessId);
+
+    // Guardar en historial de pagos
+    await prisma.paymentHistory.create({
+      data: {
+        businessId: businessId,
+        transactionId: transaction.id,
+        subscriptionId: transaction.subscription_id || null,
+        amount: transaction.details?.totals?.total ? transaction.details.totals.total / 100 : 0,
+        currency: transaction.currency_code || 'USD',
+        status: 'completed',
+        paymentMethod: transaction.payments?.[0]?.method_details?.type || 'unknown',
+        customerId: transaction.customer_id || null,
+        paddleData: transaction,
+      },
+    });
+
+    console.log('✅ Transacción guardada en historial:', transaction.id);
 
   } catch (error) {
     console.error('❌ Error manejando transacción completada:', error);
+    // NO lanzar error - retornar 200 a Paddle para que no reintente
+  }
+}
+
+/**
+ * Manejar pago fallido
+ */
+async function handlePaymentFailed(transaction: any) {
+  try {
+    console.log('❌ Pago fallido:', transaction.id);
+
+    const businessId = transaction.custom_data?.businessId;
+    if (!businessId) return;
+
+    // Guardar en historial con status failed
+    await prisma.paymentHistory.create({
+      data: {
+        businessId: businessId,
+        transactionId: transaction.id,
+        subscriptionId: transaction.subscription_id || null,
+        amount: transaction.details?.totals?.total ? transaction.details.totals.total / 100 : 0,
+        currency: transaction.currency_code || 'USD',
+        status: 'failed',
+        paymentMethod: transaction.payments?.[0]?.method_details?.type || 'unknown',
+        customerId: transaction.customer_id || null,
+        paddleData: transaction,
+      },
+    });
+
+    console.log('⚠️ ACCIÓN REQUERIDA: Notificar a business sobre pago fallido');
+
+  } catch (error) {
+    console.error('❌ Error manejando pago fallido:', error);
+  }
+}
+
+/**
+ * Manejar suscripción vencida (past_due)
+ */
+async function handleSubscriptionPastDue(subscription: any) {
+  try {
+    console.log('⚠️ Suscripción vencida:', subscription.id);
+
+    const business = await prisma.business.findFirst({
+      where: { subscriptionId: subscription.id }
+    });
+
+    if (!business) {
+      console.error('❌ No se encontró business para la suscripción:', subscription.id);
+      return;
+    }
+
+    await prisma.business.update({
+      where: { id: business.id },
+      data: {
+        subscriptionStatus: 'past_due',
+      }
+    });
+
+    console.log('⚠️ ACCIÓN REQUERIDA: Notificar vencimiento a business:', business.id);
+
+  } catch (error) {
+    console.error('❌ Error manejando suscripción past_due:', error);
+  }
+}
+
+/**
+ * Manejar suscripción pausada
+ */
+async function handleSubscriptionPaused(subscription: any) {
+  try {
+    console.log('⏸️ Suscripción pausada:', subscription.id);
+
+    const business = await prisma.business.findFirst({
+      where: { subscriptionId: subscription.id }
+    });
+
+    if (!business) {
+      console.error('❌ No se encontró business para la suscripción:', subscription.id);
+      return;
+    }
+
+    await prisma.business.update({
+      where: { id: business.id },
+      data: {
+        subscriptionStatus: 'paused',
+      }
+    });
+
+    console.log('✅ Suscripción marcada como pausada');
+
+  } catch (error) {
+    console.error('❌ Error manejando suscripción pausada:', error);
   }
 }
 

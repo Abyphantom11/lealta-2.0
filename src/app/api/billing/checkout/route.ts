@@ -19,18 +19,22 @@ const createCheckoutSchema = z.object({
 });
 
 async function POST(request: NextRequest) {
+  let priceId = '';
+  
   try {
     const body = await request.json();
     const validatedData = createCheckoutSchema.parse(body);
 
     const {
-      priceId,
+      priceId: validatedPriceId,
       businessId,
       customerEmail,
       customerName,
       successUrl,
       cancelUrl
     } = validatedData;
+    
+    priceId = validatedPriceId;
 
     console.log('🛒 Creando checkout de Paddle:', {
       priceId,
@@ -72,6 +76,7 @@ async function POST(request: NextRequest) {
   } catch (error) {
     console.error('❌ Error creando checkout:', error);
 
+    // Manejo de errores de validación Zod
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { 
@@ -83,10 +88,62 @@ async function POST(request: NextRequest) {
       );
     }
 
+    // Manejo específico de errores de Paddle
+    if (error && typeof error === 'object' && 'code' in error) {
+      const paddleError = error as any;
+      
+      // Credenciales inválidas
+      if (paddleError.code === 'invalid_credentials' || paddleError.code === 'unauthorized') {
+        console.error('🚨 PADDLE CREDENTIALS INVÁLIDAS - REVISAR .ENV');
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Servicio de pagos temporalmente no disponible',
+            code: 'PAYMENT_CONFIG_ERROR'
+          },
+          { status: 503 }
+        );
+      }
+      
+      // Rate limit
+      if (paddleError.code === 'rate_limit_exceeded') {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Demasiadas solicitudes, por favor intenta de nuevo en unos minutos',
+            code: 'RATE_LIMIT'
+          },
+          { status: 429 }
+        );
+      }
+
+      // Price ID inválido
+      if (paddleError.code === 'invalid_field' && paddleError.field === 'priceId') {
+        console.error('🚨 PRICE ID INVÁLIDO:', priceId);
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Plan no disponible',
+            code: 'INVALID_PLAN'
+          },
+          { status: 400 }
+        );
+      }
+
+      // Log error desconocido de Paddle para debugging
+      console.error('❌ Error desconocido de Paddle:', {
+        code: paddleError.code,
+        message: paddleError.message,
+        details: paddleError
+      });
+    }
+
+    // Error genérico
     return NextResponse.json(
       { 
         success: false, 
-        error: 'Error interno del servidor' 
+        error: 'Error procesando el pago. Por favor intenta de nuevo.',
+        code: 'CHECKOUT_ERROR'
       },
       { status: 500 }
     );

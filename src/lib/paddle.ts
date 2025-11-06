@@ -9,14 +9,41 @@
 
 import { Environment, Paddle } from '@paddle/paddle-node-sdk';
 
+// ===== VALIDACIÓN DE VARIABLES DE ENTORNO =====
+const requiredEnvVars = {
+  PADDLE_API_KEY: process.env.PADDLE_API_KEY,
+  PADDLE_CLIENT_TOKEN: process.env.PADDLE_CLIENT_TOKEN,
+  PADDLE_WEBHOOK_SECRET: process.env.PADDLE_WEBHOOK_SECRET,
+  NEXT_PUBLIC_PADDLE_ENVIRONMENT: process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT,
+};
+
+// Validar en producción
+if (process.env.NODE_ENV === 'production') {
+  Object.entries(requiredEnvVars).forEach(([key, value]) => {
+    if (!value) {
+      console.error(`❌ Variable de entorno requerida faltante: ${key}`);
+      throw new Error(`Missing required environment variable: ${key}`);
+    }
+  });
+}
+
+// Validar en desarrollo (warnings)
+if (process.env.NODE_ENV === 'development') {
+  Object.entries(requiredEnvVars).forEach(([key, value]) => {
+    if (!value) {
+      console.warn(`⚠️ Variable de entorno faltante: ${key} - usando valor por defecto`);
+    }
+  });
+}
+
 // Configuración del entorno
 const paddleEnvironment = process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT === 'production' 
   ? Environment.production 
   : Environment.sandbox;
 
-// Cliente de Paddle (Backend)
+// Cliente de Paddle (Backend) - ahora con validación
 export const paddleClient = new Paddle(
-  process.env.PADDLE_API_KEY || '',
+  process.env.PADDLE_API_KEY || 'sandbox_default_key',
   {
     environment: paddleEnvironment,
   }
@@ -25,7 +52,7 @@ export const paddleClient = new Paddle(
 // Configuración del cliente (Frontend)
 export const paddleConfig = {
   environment: process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT || 'sandbox',
-  token: process.env.PADDLE_CLIENT_TOKEN || '',
+  token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || '',
   eventCallback: (data: any) => {
     console.log('🎯 Paddle Event:', data);
   },
@@ -113,16 +140,13 @@ export const paddleUtils = {
   },
 
   /**
-   * Valida si un webhook viene de Paddle
+   * @deprecated Esta función está deprecada. La verificación real de webhooks 
+   * se hace en src/app/api/webhooks/paddle/route.ts usando verifyPaddleWebhook()
+   * con HMAC-SHA256 correctamente implementado.
    */
-  verifyWebhook: (signature: string, body: string): boolean => {
-    // En producción, usar la biblioteca de Paddle para verificar la firma
-    if (process.env.NODE_ENV === 'production' && process.env.PADDLE_WEBHOOK_SECRET) {
-      // Implementar verificación real con la clave secreta de webhook
-      // return paddle.webhooks.verifySignature(signature, body, process.env.PADDLE_WEBHOOK_SECRET);
-    }
-    console.log('Verificando webhook:', { signature: signature.slice(0, 20), bodyLength: body.length });
-    return true; // En desarrollo, aceptar todos los webhooks
+  verifyWebhook: (_signature: string, _body: string): boolean => {
+    console.warn('⚠️ paddleUtils.verifyWebhook está deprecado. Usa verifyPaddleWebhook en route.ts');
+    return false;
   }
 };
 

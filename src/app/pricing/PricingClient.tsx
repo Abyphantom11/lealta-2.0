@@ -22,7 +22,7 @@ interface PricingClientProps {
 
 export default function PricingClient({ initialSession }: PricingClientProps) {
   const { data: session } = useSession();
-  const { createCheckout, isLoading: paddleLoading } = usePaddle();
+  const { createCheckout, isLoading: paddleLoading, error: paddleError } = usePaddle();
   const [isProcessing, setIsProcessing] = useState(false);
   
   // Usar la sesión del cliente si está disponible, sino la inicial del servidor
@@ -33,6 +33,12 @@ export default function PricingClient({ initialSession }: PricingClientProps) {
     if (!currentSession?.user?.email) {
       // Redirigir a login si no está autenticado
       window.location.href = '/login?redirect=/pricing';
+      return;
+    }
+
+    // Si Paddle no está configurado, mostrar mensaje
+    if (paddleError) {
+      alert('⚠️ Paddle aún no está configurado.\n\nPara activar los pagos, sigue la guía: PADDLE_TESTING_GUIDE.md');
       return;
     }
 

@@ -10,7 +10,7 @@ export async function GET() {
       },
       include: {
         _count: {
-          select: { QRClick: true }
+          select: { clicks: true }
         }
       }
     });
@@ -23,7 +23,7 @@ export async function GET() {
       targetUrl: link.targetUrl,
       backupUrl: link.backupUrl,
       isActive: link.isActive,
-      clickCount: link._count.QRClick,
+      clickCount: link._count.clicks,
       createdAt: link.createdAt.toISOString(),
       expiresAt: link.expiresAt?.toISOString()
     }));
