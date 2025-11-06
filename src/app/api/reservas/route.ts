@@ -377,7 +377,7 @@ export async function GET(request: NextRequest) {
           fecha,
           hora,
           codigoQR: `res-${reservation.id}`,
-          asistenciaActual: reservation.ReservationQRCode?.[0]?.scanCount || 0,
+          asistenciaActual: reservation.HostTracking?.guestCount || 0,
           estado: mapPrismaStatusToReserva(reservation.status),
           fechaCreacion: reservation.createdAt?.toISOString() || new Date().toISOString(),
           fechaModificacion: reservation.updatedAt?.toISOString() || new Date().toISOString(),

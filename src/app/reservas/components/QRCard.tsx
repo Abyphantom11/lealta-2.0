@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
 import QRCodeSVG from 'react-qr-code';
@@ -67,7 +67,7 @@ export default function QRCard({
                      cardDesign.backgroundColor.includes('#1a1a1a') || 
                      cardDesign.backgroundColor.includes('#2d2d2d');
   
-  // 🎃 Detectar tema Halloween
+  // ­ƒÄâ Detectar tema Halloween
   const isHalloween = cardDesign.borderColor === '#FF6B1A' && 
                       cardDesign.headerColor === '#FF8C00';
 
@@ -90,7 +90,7 @@ export default function QRCard({
           boxShadow: isHalloween ? `0 0 30px ${cardDesign.borderColor}40, 0 0 60px ${cardDesign.borderColor}20` : undefined,
         }}
       >
-        {/* 🎃 Decoraciones de Halloween - ESTÁTICAS para renderizado */}
+        {/* ­ƒÄâ Decoraciones de Halloween - EST├üTICAS para renderizado */}
         {isHalloween && (
           <>
             {/* Calabazas en esquinas superiores */}
@@ -98,27 +98,27 @@ export default function QRCard({
               className="absolute top-2 left-2 select-none pointer-events-none"
               style={{ fontSize: '32px', lineHeight: 1 }}
             >
-              🎃
+              ­ƒÄâ
             </div>
             <div 
               className="absolute top-2 right-2 select-none pointer-events-none"
               style={{ fontSize: '32px', lineHeight: 1 }}
             >
-              🎃
+              ­ƒÄâ
             </div>
             
-            {/* Murciélagos laterales */}
+            {/* Murci├®lagos laterales */}
             <div 
               className="absolute select-none pointer-events-none opacity-50"
               style={{ top: '25%', left: '8px', fontSize: '20px', lineHeight: 1 }}
             >
-              🦇
+              ­ƒªç
             </div>
             <div 
               className="absolute select-none pointer-events-none opacity-50"
               style={{ top: '35%', right: '8px', fontSize: '20px', lineHeight: 1 }}
             >
-              🦇
+              ­ƒªç
             </div>
             
             {/* Fantasma inferior */}
@@ -126,7 +126,7 @@ export default function QRCard({
               className="absolute bottom-3 right-3 select-none pointer-events-none opacity-60"
               style={{ fontSize: '24px', lineHeight: 1 }}
             >
-              👻
+              ­ƒæ╗
             </div>
             
             {/* Luna en la parte superior central */}
@@ -134,10 +134,10 @@ export default function QRCard({
               className="absolute select-none pointer-events-none opacity-40"
               style={{ top: '10px', left: '50%', transform: 'translateX(-50%)', fontSize: '28px', lineHeight: 1 }}
             >
-              🌙
+              ­ƒîÖ
             </div>
             
-            {/* Telarañas SVG en esquinas */}
+            {/* Telara├▒as SVG en esquinas */}
             <svg 
               className="absolute top-0 left-0 opacity-30 pointer-events-none" 
               width="60" 
@@ -171,7 +171,7 @@ export default function QRCard({
               <circle cx="27" cy="27" r="2.5" fill="#9ca3af"/>
             </svg>
             
-            {/* Efecto de brillo naranja sutil - será visible en captura */}
+            {/* Efecto de brillo naranja sutil - ser├í visible en captura */}
             <div 
               className="absolute inset-0 pointer-events-none"
               style={{
@@ -184,13 +184,13 @@ export default function QRCard({
               className="absolute select-none pointer-events-none opacity-50"
               style={{ top: '15%', left: '15%', fontSize: '14px', lineHeight: 1 }}
             >
-              ⭐
+              Ô¡É
             </div>
             <div 
               className="absolute select-none pointer-events-none opacity-50"
               style={{ top: '20%', right: '15%', fontSize: '12px', lineHeight: 1 }}
             >
-              ⭐
+              Ô¡É
             </div>
           </>
         )}
@@ -222,18 +222,18 @@ export default function QRCard({
               color: cardDesign.headerColor,
               textShadow: isDarkCard || isHalloween ? '0 2px 10px rgba(0,0,0,0.5)' : 'none',
               ...(isHalloween && {
-                // Sombra naranja estática que sí se renderiza en imagen
+                // Sombra naranja est├ítica que s├¡ se renderiza en imagen
                 textShadow: `0 0 15px ${cardDesign.headerColor}99, 0 2px 10px rgba(0,0,0,0.5)`,
               })
             }}
           >
-            {isHalloween ? '🎃 ' : ''}{businessName}{isHalloween ? ' 🎃' : ''}
+            {isHalloween ? '­ƒÄâ ' : ''}{businessName}{isHalloween ? ' ­ƒÄâ' : ''}
           </h2>
           <div
             className="text-xs tracking-wider uppercase"
             style={{ color: cardDesign.textColor }}
           >
-            {isHalloween ? '👻 Reserva Confirmada 👻' : 'Reserva Confirmada'}
+            {isHalloween ? '­ƒæ╗ Reserva Confirmada ­ƒæ╗' : 'Reserva Confirmada'}
           </div>
         </div>
 
@@ -250,7 +250,7 @@ export default function QRCard({
           </div>
         </div>
 
-        {/* QR Code - Centrado con más espacio */}
+        {/* QR Code - Centrado con m├ís espacio */}
         <div className="flex justify-center mb-6 bg-white p-6 rounded-lg relative z-10 mx-2" style={{
           boxShadow: isDarkCard ? '0 4px 20px rgba(0,0,0,0.4)' : 'none'
         }}>
@@ -316,7 +316,7 @@ export default function QRCard({
               className="text-xs uppercase tracking-wide mb-1"
               style={{ color: cardDesign.textColor }}
             >
-              Código
+              C├│digo
             </div>
             <div
               className="text-[10px] font-mono font-medium break-all leading-tight"
@@ -335,7 +335,7 @@ export default function QRCard({
             borderColor: isDarkCard ? 'rgba(255,255,255,0.1)' : cardDesign.textColor + '30',
           }}
         >
-          Presenta este código al llegar
+          Presenta este c├│digo al llegar
         </div>
       </div>
     </div>

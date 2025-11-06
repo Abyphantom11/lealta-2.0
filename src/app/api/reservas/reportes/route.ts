@@ -217,8 +217,16 @@ export async function GET(request: NextRequest) {
     // ==========================================
     // 3. ANÁLISIS DE PAGOS
     // ==========================================
-    // El schema usa isPaid y paymentReference en lugar de hasPaymentProof
-    const conComprobante = reservations.filter((r) => r.isPaid || r.paymentReference).length;
+    // ✅ CORREGIDO: Revisar isPaid, paymentReference Y metadata.comprobanteUrl
+    const conComprobante = reservations.filter((r) => {
+      if (r.isPaid || r.paymentReference) return true;
+      // Verificar si tiene comprobante en metadata
+      if (r.metadata && typeof r.metadata === 'object') {
+        const meta = r.metadata as any;
+        return Boolean(meta.comprobanteUrl || meta.comprobanteSubido);
+      }
+      return false;
+    }).length;
     const sinComprobante = totalReservas - conComprobante;
     const porcentajeConComprobante =
       totalReservas > 0 ? ((conComprobante / totalReservas) * 100).toFixed(1) : '0';
@@ -397,7 +405,16 @@ export async function GET(request: NextRequest) {
     // ==========================================
     const detalleReservas = reservations.map((r) => {
       const metadata = (r.metadata as any) || {};
-      const scanCount = r.ReservationQRCode[0]?.scanCount || 0;
+      
+      // ✅ CORREGIDO: Usar HostTracking.guestCount en lugar de scanCount
+      const asistentesReales = r.HostTracking?.guestCount || 0;
+      
+      // ✅ CORREGIDO: Verificar metadata.comprobanteUrl además de isPaid/paymentReference
+      const tieneComprobante = !!(
+        r.isPaid || 
+        r.paymentReference || 
+        metadata.comprobanteUrl
+      );
       
       return {
         id: r.id,
@@ -410,9 +427,9 @@ export async function GET(request: NextRequest) {
         email: r.Cliente?.correo || r.customerEmail || '',
         mesa: metadata.mesa || '',
         esperadas: r.guestCount,
-        asistentes: scanCount,
+        asistentes: asistentesReales,
         estado: r.status,
-        comprobante: (r.isPaid || r.paymentReference) ? 'Sí' : 'No',
+        comprobante: tieneComprobante ? 'Sí' : 'No',
         promotor: r.Promotor?.nombre || 'Sin asignar',
         promotorId: r.promotorId || null,
       };

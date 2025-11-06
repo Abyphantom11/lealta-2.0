@@ -15,7 +15,7 @@ interface ReportData {
       totalReservas: number;
       totalPersonasEsperadas: number;
       totalAsistentesReales: number;
-      porcentajeCumplimiento: number;
+      porcentajeCumplimiento?: number; // Opcional, se calcula si no viene
       // ✅ NUEVAS MÉTRICAS SIN RESERVA
       totalRegistrosSinReserva?: number;
       totalPersonasSinReserva?: number;
@@ -163,11 +163,17 @@ export function generateReservationReport(
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
 
+  // Calcular porcentaje de cumplimiento si no viene en los datos
+  const porcentajeCumplimiento = data.metricas.generales.porcentajeCumplimiento ?? 
+    (data.metricas.generales.totalPersonasEsperadas > 0 
+      ? (data.metricas.generales.totalAsistentesReales / data.metricas.generales.totalPersonasEsperadas) * 100
+      : 0);
+
   const metricasGenerales = [
     ['Total de Reservas', data.metricas.generales.totalReservas.toString()],
     ['Personas Esperadas', data.metricas.generales.totalPersonasEsperadas.toString()],
     ['Asistentes Reales', data.metricas.generales.totalAsistentesReales.toString()],
-    ['Cumplimiento', `${data.metricas.generales.porcentajeCumplimiento.toFixed(1)}%`],
+    ['Cumplimiento', `${porcentajeCumplimiento.toFixed(1)}%`],
   ];
 
   // ✅ Agregar métricas de sin reserva si están disponibles
@@ -181,8 +187,6 @@ export function generateReservationReport(
       ['--- Totales Combinados ---', '---'],
       ['Total Personas Atendidas', (data.metricas.generales.totalPersonasAtendidas || 
         (data.metricas.generales.totalAsistentesReales + data.metricas.sinReserva.totalPersonas)).toString()],
-      ['Total Eventos Atendidos', (data.metricas.generales.totalEventosAtendidos || 
-        (data.metricas.generales.totalReservas + data.metricas.sinReserva.totalRegistros)).toString()],
     );
   }
 
@@ -563,8 +567,15 @@ export function generateReservationReport(
   let columnStyles: any;
 
   if (tienePromotores) {
+    // Ordenar alfabéticamente por promotor
+    const reservasOrdenadas = [...data.detalleReservas].sort((a, b) => {
+      const promotorA = (a.promotor || 'Sin asignar').toLowerCase();
+      const promotorB = (b.promotor || 'Sin asignar').toLowerCase();
+      return promotorA.localeCompare(promotorB);
+    });
+
     // Versión con promotor
-    detalleData = data.detalleReservas.map((r) => [
+    detalleData = reservasOrdenadas.map((r) => [
       r.fecha,
       r.hora,
       r.cliente,
