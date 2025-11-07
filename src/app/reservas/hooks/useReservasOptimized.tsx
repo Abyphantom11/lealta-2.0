@@ -81,7 +81,7 @@ const reservasAPI = {
     const { fechaReserva, esValida } = calcularFechasReserva(reservaData.fecha, reservaData.hora);
     
     if (!esValida) {
-      throw new Error('La fecha de reserva debe ser en el futuro');
+      throw new Error('La fecha de reserva es muy antigua (más de 48 horas en el pasado)');
     }
 
     // Usar fechas ajustadas
@@ -651,7 +651,7 @@ export function useReservasOptimized({
       const { fechaReserva, esValida } = calcularFechasReserva(reservaData.fecha, reservaData.hora);
       
       if (!esValida) {
-        throw new Error('La fecha de reserva debe ser en el futuro');
+        throw new Error('La fecha de reserva es muy antigua (más de 48 horas en el pasado)');
       }
 
       // Usar fechas ajustadas
@@ -678,7 +678,7 @@ export function useReservasOptimized({
       const { fechaReserva, esValida } = calcularFechasReserva(data.fecha, data.hora);
       
       if (!esValida) {
-        throw new Error('La fecha de reserva debe ser en el futuro');
+        throw new Error('La fecha de reserva es muy antigua (más de 48 horas en el pasado)');
       }
 
       const dataAjustada = {

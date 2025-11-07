@@ -423,8 +423,10 @@ export async function GET(request: NextRequest) {
           hour: '2-digit',
           minute: '2-digit',
         }),
-        cliente: r.Cliente?.nombre || r.customerName || 'Sin nombre',
-        email: r.Cliente?.correo || r.customerEmail || '',
+        // ✅ FIX: Priorizar customerName (nombre específico de la reserva) sobre Cliente.nombre (puede ser "Cliente Express")
+        cliente: r.customerName || r.Cliente?.nombre || 'Sin nombre',
+        // ✅ FIX: Priorizar customerEmail sobre Cliente.correo por la misma razón
+        email: r.customerEmail || r.Cliente?.correo || '',
         mesa: metadata.mesa || '',
         esperadas: r.guestCount,
         asistentes: asistentesReales,

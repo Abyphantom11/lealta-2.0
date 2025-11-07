@@ -9,50 +9,62 @@
 
 import { Environment, Paddle } from '@paddle/paddle-node-sdk';
 
-// ===== VALIDACIÓN DE VARIABLES DE ENTORNO =====
-const requiredEnvVars = {
-  PADDLE_API_KEY: process.env.PADDLE_API_KEY,
-  PADDLE_CLIENT_TOKEN: process.env.PADDLE_CLIENT_TOKEN,
-  PADDLE_WEBHOOK_SECRET: process.env.PADDLE_WEBHOOK_SECRET,
-  NEXT_PUBLIC_PADDLE_ENVIRONMENT: process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT,
-};
-
-// Validar en producción
-if (process.env.NODE_ENV === 'production') {
-  Object.entries(requiredEnvVars).forEach(([key, value]) => {
-    if (!value) {
-      console.error(`❌ Variable de entorno requerida faltante: ${key}`);
-      throw new Error(`Missing required environment variable: ${key}`);
-    }
-  });
-}
-
-// Validar en desarrollo (warnings)
-if (process.env.NODE_ENV === 'development') {
-  Object.entries(requiredEnvVars).forEach(([key, value]) => {
-    if (!value) {
-      console.warn(`⚠️ Variable de entorno faltante: ${key} - usando valor por defecto`);
-    }
-  });
-}
+// ===== VALIDACIÓN SOLO EN SERVIDOR =====
+// ⚠️ IMPORTANTE: Las validaciones de variables del servidor (PADDLE_API_KEY, PADDLE_WEBHOOK_SECRET)
+// se hacen en los endpoints de API, NO aquí. Este archivo puede ser importado por el cliente.
 
 // Configuración del entorno
 const paddleEnvironment = process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT === 'production' 
   ? Environment.production 
   : Environment.sandbox;
 
-// Cliente de Paddle (Backend) - ahora con validación
-export const paddleClient = new Paddle(
-  process.env.PADDLE_API_KEY || 'sandbox_default_key',
-  {
-    environment: paddleEnvironment,
-  }
-);
+// ===== CLIENTE DE PADDLE (SOLO BACKEND) =====
+// Este cliente solo debe usarse en rutas API del servidor
+// La validación de PADDLE_API_KEY se hace en cada endpoint que lo usa
+let paddleClientInstance: Paddle | null = null;
 
-// Configuración del cliente (Frontend)
+function getPaddleClient(): Paddle {
+  if (!paddleClientInstance) {
+    // Solo validar en servidor cuando se intenta usar
+    if (typeof window === 'undefined') {
+      const apiKey = process.env.PADDLE_API_KEY;
+      if (!apiKey) {
+        throw new Error('PADDLE_API_KEY no está configurada. Configúrala en las variables de entorno.');
+      }
+      paddleClientInstance = new Paddle(apiKey, {
+        environment: paddleEnvironment,
+      });
+    } else {
+      throw new Error('paddleClient solo puede usarse en el servidor, no en el cliente');
+    }
+  }
+  return paddleClientInstance;
+}
+
+// Export como getter para validación lazy
+export const paddleClient = new Proxy({} as Paddle, {
+  get: (target, prop) => {
+    const client = getPaddleClient();
+    return (client as any)[prop];
+  }
+});
+
+// ===== CONFIGURACIÓN DEL CLIENTE (FRONTEND) =====
+// Solo usa variables NEXT_PUBLIC_* que son seguras para el cliente
+const clientToken = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
+const clientEnvironment = process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT || 'sandbox';
+
+// Validar solo en el cliente
+if (typeof window !== 'undefined') {
+  if (!clientToken) {
+    console.warn('⚠️ NEXT_PUBLIC_PADDLE_CLIENT_TOKEN no está configurada. El checkout de Paddle no funcionará.');
+  }
+  console.log('🏗️ Paddle configurado en modo:', clientEnvironment);
+}
+
 export const paddleConfig = {
-  environment: process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT || 'sandbox',
-  token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || '',
+  environment: clientEnvironment,
+  token: clientToken || '',
   eventCallback: (data: any) => {
     console.log('🎯 Paddle Event:', data);
   },
@@ -138,16 +150,6 @@ export const paddleUtils = {
   toPaddleAmount: (amount: number): number => {
     return Math.round(amount * 100);
   },
-
-  /**
-   * @deprecated Esta función está deprecada. La verificación real de webhooks 
-   * se hace en src/app/api/webhooks/paddle/route.ts usando verifyPaddleWebhook()
-   * con HMAC-SHA256 correctamente implementado.
-   */
-  verifyWebhook: (_signature: string, _body: string): boolean => {
-    console.warn('⚠️ paddleUtils.verifyWebhook está deprecado. Usa verifyPaddleWebhook en route.ts');
-    return false;
-  }
 };
 
 /**

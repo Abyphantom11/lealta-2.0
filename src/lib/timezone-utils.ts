@@ -234,44 +234,48 @@ function crearFechaExpiracionQR(fechaReserva: Date): Date {
  */
 function validarFechaReserva(fechaReserva: Date): boolean {
   try {
-    // Obtener la fecha/hora actual
+    // Obtener la fecha/hora actual en el timezone del negocio
     const ahora = new Date();
     
-    // Extraer solo las fechas (sin hora) para comparar
-    const fechaSoloReserva = new Date(fechaReserva.getFullYear(), fechaReserva.getMonth(), fechaReserva.getDate());
-    const fechaSoloHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+    // Extraer solo las fechas (sin hora) en UTC para evitar problemas de timezone
+    const fechaSoloReservaStr = fechaReserva.toISOString().split('T')[0]; // YYYY-MM-DD
+    const fechaSoloHoyStr = ahora.toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    // Convertir a timestamps para comparación
+    const fechaSoloReserva = new Date(fechaSoloReservaStr + 'T00:00:00.000Z').getTime();
+    const fechaSoloHoy = new Date(fechaSoloHoyStr + 'T00:00:00.000Z').getTime();
     
     // Si es del mismo día o futuro, es válida
     const esMismoDiaOFuturo = fechaSoloReserva >= fechaSoloHoy;
     
-    // Como las fechas se guardan en UTC representando hora local,
-    // comparamos directamente los timestamps
+    // Calcular diferencia en horas
     const diferenciaMs = fechaReserva.getTime() - ahora.getTime();
-    const minutosHastaReserva = diferenciaMs / (1000 * 60);
+    const horasHastaReserva = diferenciaMs / (1000 * 60 * 60);
     
-    // MUY PERMISIVO: Permitir reservas del mismo día sin importar la hora
-    // O hasta 24 horas en el pasado para otras fechas
-    const esValida = esMismoDiaOFuturo || minutosHastaReserva >= -(24 * 60);
+    // SÚPER PERMISIVO: 
+    // - Permite cualquier reserva del mismo día (sin importar la hora)
+    // - Permite reservas hasta 48 horas en el pasado (para casos especiales)
+    const esValida = esMismoDiaOFuturo || horasHastaReserva >= -48;
     
     // Logging detallado
-    console.log('🕒 VALIDANDO FECHA DE RESERVA (MUY PERMISIVO):', {
+    console.log('🕒 VALIDANDO FECHA DE RESERVA (SÚPER PERMISIVO):', {
       fechaActual: ahora.toISOString(),
       fechaReserva: fechaReserva.toISOString(),
-      fechaSoloHoy: fechaSoloHoy.toISOString().split('T')[0],
-      fechaSoloReserva: fechaSoloReserva.toISOString().split('T')[0],
-      esMismoDia: fechaSoloReserva.getTime() === fechaSoloHoy.getTime(),
+      fechaSoloHoy: fechaSoloHoyStr,
+      fechaSoloReserva: fechaSoloReservaStr,
+      esMismoDia: fechaSoloReservaStr === fechaSoloHoyStr,
       diferencia: {
         milisegundos: diferenciaMs,
-        minutos: minutosHastaReserva,
-        horas: minutosHastaReserva / 60,
-        dias: minutosHastaReserva / (60 * 24)
+        horas: horasHastaReserva.toFixed(2),
+        dias: (horasHastaReserva / 24).toFixed(2)
       },
       esValida,
-      nota: 'Permite reservas del mismo día sin restricción de hora'
+      razon: esMismoDiaOFuturo ? 'Es del mismo día o futuro' : horasHastaReserva >= -48 ? 'Dentro de 48 horas' : 'Muy antigua',
+      nota: 'Permite reservas del mismo día SIN restricción de hora + 48h retroactivas'
     });
     
     if (!esValida) {
-      console.warn('⚠️ Reserva rechazada - está más de 24 horas en el pasado y no es del día actual');
+      console.warn('⚠️ Reserva rechazada - está más de 48 horas en el pasado');
     }
     
     return esValida;
