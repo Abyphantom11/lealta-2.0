@@ -77,14 +77,26 @@ class EnvValidator {
    * Obtiene API key de Gemini con validación
    */
   getGeminiApiKey(): string | null {
-    const env = this.validate();
-    const apiKey = env.GOOGLE_GEMINI_API_KEY || env.GOOGLE_AI_API_KEY;
+    // Leer directamente de process.env en runtime
+    const apiKey = process.env.GOOGLE_GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
     
-    if (!apiKey && env.NODE_ENV === 'production') {
-      console.warn('⚠️ Google Gemini API key no configurada en producción');
+    // Log detallado para debugging
+    if (typeof window === 'undefined') { // Solo en server-side
+      console.log('🔍 [GEMINI] Verificando API key...');
+      console.log('🔍 [GEMINI] NODE_ENV:', process.env.NODE_ENV);
+      console.log('🔍 [GEMINI] API key presente:', !!apiKey);
+      if (apiKey) {
+        console.log('🔍 [GEMINI] API key length:', apiKey.length);
+        console.log('🔍 [GEMINI] API key prefix:', apiKey.substring(0, 10) + '...');
+      }
     }
     
-    return apiKey || null;
+    if (!apiKey && process.env.NODE_ENV === 'production') {
+      console.error('❌ [GEMINI] Google Gemini API key no configurada en producción');
+      console.error('❌ [GEMINI] Variables disponibles:', Object.keys(process.env).filter(k => k.includes('GEMINI') || k.includes('GOOGLE')));
+    }
+    
+    return apiKey?.trim() || null;
   }
   
   /**
