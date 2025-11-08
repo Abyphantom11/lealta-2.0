@@ -174,7 +174,6 @@ export default function AdminV2Page() {
             <div className="flex items-center space-x-4">
               <div className="text-right mr-4">
                 <p className="text-white font-medium">{user?.name}</p>
-                <p className="text-dark-400 text-sm">{user?.email}</p>
               </div>
               <RoleSwitch
                 currentRole={user?.role || 'ADMIN'}

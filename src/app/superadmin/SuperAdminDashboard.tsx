@@ -905,7 +905,6 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
             <div className="flex items-center space-x-3">
               <div className="text-right mr-4">
                 <p className="text-white font-medium">{user?.name}</p>
-                <p className="text-gray-400 text-sm">{user?.email}</p>
               </div>
               <RoleSwitch
                 currentRole={user?.role || 'SUPERADMIN'}

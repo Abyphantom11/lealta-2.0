@@ -40,6 +40,14 @@ export function useServerSentEvents({
 
   // Función para conectar SSE
   const connect = useCallback(() => {
+    // ✅ SEGURIDAD: Solo conectar si estamos en la ruta de reservas
+    if (typeof window !== 'undefined' && !window.location.pathname.includes('/reservas')) {
+      if (REALTIME_CONFIG.debug) {
+        console.log('[SSE] Conexión bloqueada: No estamos en ruta de reservas');
+      }
+      return;
+    }
+
     // No conectar si SSE está deshabilitado o no hay businessId
     if (!REALTIME_CONFIG.sse.enabled || !enabled || !businessId) {
       if (REALTIME_CONFIG.debug) {

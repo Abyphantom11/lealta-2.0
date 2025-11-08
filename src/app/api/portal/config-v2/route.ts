@@ -63,10 +63,35 @@ export async function GET(request: NextRequest) {
       favoritosDias: favoritos.map(f => ({ name: f.productName, dia: f.dia, active: f.active }))
     });
     
-    // Función auxiliar para verificar si un elemento debe mostrarse en el día actual
+    // Función auxiliar mejorada para verificar si un elemento debe mostrarse en el día actual
     const shouldShowInDay = (item: { dia: string | null }, day: string): boolean => {
-      const result = !item.dia || item.dia === day;
-      console.log(`   shouldShowInDay: dia="${item.dia}" vs day="${day}" => ${result}`);
+      // Si no tiene día definido o es null, siempre mostrar
+      if (!item.dia) {
+        console.log(`   shouldShowInDay: dia=null => true (sin restricción)`);
+        return true;
+      }
+      
+      // Normalizar a minúsculas para comparación
+      const diaItem = item.dia.toLowerCase().trim();
+      const dayNormalizado = day.toLowerCase().trim();
+      
+      // Caso 1: "Todos los días" o contiene "todos"
+      if (diaItem.includes('todos')) {
+        console.log(`   shouldShowInDay: dia="${item.dia}" => true (todos los días)`);
+        return true;
+      }
+      
+      // Caso 2: Múltiples días separados por comas
+      if (diaItem.includes(',')) {
+        const dias = diaItem.split(',').map(d => d.trim());
+        const result = dias.includes(dayNormalizado);
+        console.log(`   shouldShowInDay: dia="${item.dia}" vs day="${day}" => ${result} (lista: ${dias.join(', ')})`);
+        return result;
+      }
+      
+      // Caso 3: Día específico exacto
+      const result = diaItem === dayNormalizado;
+      console.log(`   shouldShowInDay: dia="${item.dia}" vs day="${day}" => ${result} (exacto)`);
       return result;
     };
     

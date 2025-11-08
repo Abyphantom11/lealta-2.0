@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     // Construir filtro dinámico
     const whereFilter: any = {
-      category: {
+      MenuCategory: {  // ✅ CORRECCIÓN: Usar nombre correcto de la relación
         businessId: businessId,
       },
       disponible: true, // Solo productos disponibles para clientes
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     const productos = await prisma.menuProduct.findMany({
       where: whereFilter,
       include: {
-        category: {
+        MenuCategory: {  // ✅ CORRECCIÓN: Usar nombre correcto de la relación
           select: {
             id: true,
             nombre: true,

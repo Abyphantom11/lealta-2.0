@@ -941,11 +941,28 @@ const PortalContentManager: React.FC<PortalContentManagerProps> = ({
                   diaParaMostrar,
                 });
                 const promocionesDia = promocionesReales.filter(
-                  (p: Promocion) =>
-                    p.activo &&
-                    p.titulo &&
-                    p.descripcion &&
-                    (p.dia === diaParaMostrar || !p.dia) // Sin restricción de día o día específico
+                  (p: Promocion) => {
+                    if (!p.activo || !p.titulo) return false;
+                    
+                    // Si no tiene día definido o es vacío, siempre mostrar
+                    if (!p.dia || p.dia.trim() === '') return true;
+                    
+                    // Normalizar el día a minúsculas para comparación
+                    const diaPromocion = p.dia.toLowerCase();
+                    const diaActualNormalizado = diaParaMostrar.toLowerCase();
+                    
+                    // Caso 1: "Todos los días" o "todos"
+                    if (diaPromocion.includes('todos')) return true;
+                    
+                    // Caso 2: Múltiples días separados por comas (ej: "lunes, martes, miércoles")
+                    if (diaPromocion.includes(',')) {
+                      const dias = diaPromocion.split(',').map(d => d.trim());
+                      return dias.some(d => d === diaActualNormalizado);
+                    }
+                    
+                    // Caso 3: Día específico exacto
+                    return diaPromocion === diaActualNormalizado;
+                  }
                 );
 
                 return (

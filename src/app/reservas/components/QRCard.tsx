@@ -107,7 +107,7 @@ export default function QRCard({
               ­ƒÄâ
             </div>
             
-            {/* Murci├®lagos laterales */}
+            {/* Murciélagos laterales */}
             <div 
               className="absolute select-none pointer-events-none opacity-50"
               style={{ top: '25%', left: '8px', fontSize: '20px', lineHeight: 1 }}
@@ -222,7 +222,7 @@ export default function QRCard({
               color: cardDesign.headerColor,
               textShadow: isDarkCard || isHalloween ? '0 2px 10px rgba(0,0,0,0.5)' : 'none',
               ...(isHalloween && {
-                // Sombra naranja est├ítica que s├¡ se renderiza en imagen
+                // Sombra naranja estática que sí se renderiza en imagen
                 textShadow: `0 0 15px ${cardDesign.headerColor}99, 0 2px 10px rgba(0,0,0,0.5)`,
               })
             }}
@@ -316,7 +316,7 @@ export default function QRCard({
               className="text-xs uppercase tracking-wide mb-1"
               style={{ color: cardDesign.textColor }}
             >
-              C├│digo
+              Código
             </div>
             <div
               className="text-[10px] font-mono font-medium break-all leading-tight"
@@ -335,7 +335,7 @@ export default function QRCard({
             borderColor: isDarkCard ? 'rgba(255,255,255,0.1)' : cardDesign.textColor + '30',
           }}
         >
-          Presenta este c├│digo al llegar
+          Presenta este código al llegar
         </div>
       </div>
     </div>

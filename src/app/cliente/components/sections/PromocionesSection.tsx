@@ -28,7 +28,7 @@ export default function PromocionesSection({ businessId }: Readonly<PromocionesP
   const [sectionTitle, setSectionTitle] = useState('Promociones Especiales');
   
   // 🔄 Auto-refresh hook para sincronización admin → cliente
-  const { getPromociones, isLoading } = useAutoRefreshPortalConfig({
+  const { getPromocionesForBusinessDay, isLoading } = useAutoRefreshPortalConfig({
     businessId,
     refreshInterval: 15000, // 15 segundos para promociones (más frecuente)
     enabled: true
@@ -59,16 +59,17 @@ export default function PromocionesSection({ businessId }: Readonly<PromocionesP
   // Estados para promociones
   const [promociones, setPromociones] = useState<Promocion[]>([]);
 
-  // Cargar promociones usando la función simple (como banners/recompensas)
+  // ✅ CORRECCIÓN: Usar getPromocionesForBusinessDay para filtrar correctamente por día comercial
   useEffect(() => {
     const loadPromociones = async () => {
       try {
-        const todasPromociones = getPromociones();
+        const promocionesDia = await getPromocionesForBusinessDay();
         // ✅ CORRECCIÓN: Promociones NO requieren imagen (pueden ser solo texto)
-        const promocionesActivas = todasPromociones.filter(
+        const promocionesActivas = promocionesDia.filter(
           (promo: Promocion) => promo.activo
         );
         setPromociones(promocionesActivas);
+        console.log('🎯 [PromocionesSection] Promociones cargadas para día comercial:', promocionesActivas.length);
       } catch (error) {
         console.error('Error cargando promociones:', error);
         setPromociones([]);
@@ -80,7 +81,7 @@ export default function PromocionesSection({ businessId }: Readonly<PromocionesP
     // Actualizar cada minuto para detectar cambios
     const interval = setInterval(loadPromociones, 60000);
     return () => clearInterval(interval);
-  }, [getPromociones, businessId]);
+  }, [getPromocionesForBusinessDay, businessId]);
 
   if (isLoading || promociones.length === 0) return null;
 
