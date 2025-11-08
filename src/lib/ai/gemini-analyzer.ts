@@ -2,20 +2,39 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GeminiAnalysisResult } from '@/types/analytics';
 import { getGeminiApiKey } from '../env';
 
-// Inicializar Gemini con validación segura de env vars
-const apiKey = getGeminiApiKey();
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+// Lazy initialization - se inicializa solo cuando se necesita
+let genAI: GoogleGenerativeAI | null = null;
+
+function getGenAI(): GoogleGenerativeAI | null {
+  if (genAI) return genAI;
+  
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
+    console.error('❌ GOOGLE_GEMINI_API_KEY no configurada');
+    return null;
+  }
+  
+  genAI = new GoogleGenerativeAI(apiKey);
+  return genAI;
+}
 
 export class GeminiPOSAnalyzer {
-  private readonly model = genAI?.getGenerativeModel({
-    model: 'gemini-2.0-flash', // Modelo más moderno con mejor visión
-  });
+  private getModel() {
+    const ai = getGenAI();
+    if (!ai) return null;
+    
+    return ai.getGenerativeModel({
+      model: 'gemini-2.0-flash',
+    });
+  }
 
   async analyzeImage(
     imageBuffer: Buffer,
     mimeType: string
   ): Promise<GeminiAnalysisResult> {
-    if (!this.model) {
+    const model = this.getModel();
+    
+    if (!model) {
       console.error('❌ Google Gemini no está configurado');
       throw new Error('Google Gemini no está configurado. Verifica tu API key.');
     }
@@ -76,7 +95,7 @@ export class GeminiPOSAnalyzer {
       };
 
       console.log('🤖 [GEMINI] Enviando prompt a Gemini AI...');
-      const result = await this.model.generateContent([prompt, imagePart]);
+      const result = await model.generateContent([prompt, imagePart]);
       const response = result.response;
       const text = response.text();
 

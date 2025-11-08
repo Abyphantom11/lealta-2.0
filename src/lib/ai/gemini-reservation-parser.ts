@@ -2,9 +2,21 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getGeminiApiKey } from '../env';
 import { convertirFechaAString } from '../timezone-utils';
 
-// Inicializar Gemini con validación segura de env vars
-const apiKey = getGeminiApiKey();
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+// Lazy initialization
+let genAI: GoogleGenerativeAI | null = null;
+
+function getGenAI(): GoogleGenerativeAI | null {
+  if (genAI) return genAI;
+  
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
+    console.error('❌ GOOGLE_GEMINI_API_KEY no configurada');
+    return null;
+  }
+  
+  genAI = new GoogleGenerativeAI(apiKey);
+  return genAI;
+}
 
 export interface ReservationParseResult {
   clienteNombre?: string;
@@ -24,12 +36,19 @@ export interface ReservationParseResult {
 }
 
 export class GeminiReservationParser {
-  private readonly model = genAI?.getGenerativeModel({
-    model: 'gemini-2.0-flash',
-  });
+  private getModel() {
+    const ai = getGenAI();
+    if (!ai) return null;
+    
+    return ai.getGenerativeModel({
+      model: 'gemini-2.0-flash',
+    });
+  }
 
   async parseReservationText(text: string): Promise<ReservationParseResult> {
-    if (!this.model) {
+    const model = this.getModel();
+    
+    if (!model) {
       console.error('❌ Google Gemini no está configurado');
       throw new Error('Google Gemini no está configurado. Verifica tu API key.');
     }
@@ -123,7 +142,7 @@ REGLAS CRÍTICAS:
 `;
 
       console.log('🤖 [GEMINI-RESERVA] Enviando prompt a Gemini AI...');
-      const result = await this.model.generateContent(prompt);
+      const result = await model.generateContent(prompt);
       const response = result.response;
       const responseText = response.text();
 
