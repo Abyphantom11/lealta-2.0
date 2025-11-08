@@ -9,7 +9,7 @@ datasource db {
 }
 
 model BrandingConfig {
-  id             String   @id
+  id             String   @id @default(cuid())
   businessId     String   @unique
   businessName   String?
   primaryColor   String?
@@ -18,14 +18,14 @@ model BrandingConfig {
   logoUrl        String?
   carouselImages String[]
   createdAt      DateTime @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime @updatedAt
   Business       Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([businessId])
 }
 
 model Business {
-  id                    String                 @id
+  id                    String                 @id @default(cuid())
   name                  String
   slug                  String                 @unique
   subdomain             String                 @unique
@@ -34,7 +34,7 @@ model Business {
   isActive              Boolean                @default(true)
   settings              Json?
   createdAt             DateTime               @default(now())
-  updatedAt             DateTime
+  updatedAt             DateTime               @updatedAt
   clientTheme           String?                @default("moderno")
   qrBrandingConfig      Json?                  @default("{}")
   qrMensajeBienvenida   String?                @default("¡Te esperamos!")
@@ -70,7 +70,7 @@ model Business {
 }
 
 model BusinessGoals {
-  id                   String   @id
+  id                   String   @id @default(cuid())
   businessId           String   @unique
   dailyRevenue         Float    @default(100)
   weeklyRevenue        Float    @default(700)
@@ -87,7 +87,7 @@ model BusinessGoals {
   targetTopClient      Float    @default(150)
   targetActiveClients  Int      @default(50)
   createdAt            DateTime @default(now())
-  updatedAt            DateTime
+  updatedAt            DateTime @updatedAt
   Business             Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 }
 
@@ -115,7 +115,7 @@ model PaymentHistory {
 }
 
 model Cliente {
-  id               String           @id
+  id               String           @id @default(cuid())
   businessId       String
   cedula           String
   nombre           String
@@ -143,7 +143,7 @@ model Cliente {
 }
 
 model ConfiguracionTarjeta {
-  id                  String   @id
+  id                  String   @id @default(cuid())
   businessId          String   @unique
   nivel               String
   nombrePersonalizado String
@@ -156,13 +156,13 @@ model ConfiguracionTarjeta {
   colores             Json
   activa              Boolean  @default(true)
   createdAt           DateTime @default(now())
-  updatedAt           DateTime
+  updatedAt           DateTime @updatedAt
 
   @@unique([businessId, nivel])
 }
 
 model Consumo {
-  id             String        @id
+  id             String        @id @default(cuid())
   businessId     String
   clienteId      String
   locationId     String
@@ -184,7 +184,7 @@ model Consumo {
 }
 
 model EmailLog {
-  id           String    @id
+  id           String    @id @default(cuid())
   to           String
   from         String
   subject      String
@@ -204,7 +204,7 @@ model EmailLog {
 }
 
 model EmailVerification {
-  id           String    @id
+  id           String    @id @default(cuid())
   email        String
   code         String
   type         String    @default("email-verification")
@@ -216,7 +216,7 @@ model EmailVerification {
   expiresAt    DateTime
   verifiedAt   DateTime?
   createdAt    DateTime  @default(now())
-  updatedAt    DateTime
+  updatedAt    DateTime @updatedAt
   metadata     Json?
 
   @@unique([email, code, type])
@@ -226,7 +226,7 @@ model EmailVerification {
 }
 
 model EstadisticaVisita {
-  id                 String   @id
+  id                 String   @id @default(cuid())
   fecha              DateTime
   periodo            String
   totalVisitas       Int      @default(0)
@@ -234,13 +234,13 @@ model EstadisticaVisita {
   visitasAnonimas    Int      @default(0)
   sesionesUnicas     Int      @default(0)
   createdAt          DateTime @default(now())
-  updatedAt          DateTime
+  updatedAt          DateTime @updatedAt
 
   @@unique([fecha, periodo])
 }
 
 model GuestConsumo {
-  id             String       @id
+  id             String       @id @default(cuid())
   businessId     String
   hostTrackingId String
   consumoId      String       @unique
@@ -257,7 +257,7 @@ model GuestConsumo {
 }
 
 model HistorialCanje {
-  id                String   @id
+  id                String   @id @default(cuid())
   businessId        String?
   clienteId         String
   clienteNombre     String
@@ -277,7 +277,7 @@ model HistorialCanje {
 }
 
 model HostTracking {
-  id              String         @id
+  id              String         @id @default(cuid())
   businessId      String
   reservationId   String         @unique
   clienteId       String
@@ -287,7 +287,7 @@ model HostTracking {
   guestCount      Int
   isActive        Boolean        @default(true)
   createdAt       DateTime       @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime @updatedAt
   GuestConsumo    GuestConsumo[]
   Business        Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
   Cliente         Cliente        @relation(fields: [clienteId], references: [id], onDelete: Cascade)
@@ -302,7 +302,7 @@ model HostTracking {
 }
 
 model Location {
-  id         String    @id
+  id         String    @id @default(cuid())
   businessId String
   name       String
   createdAt  DateTime  @default(now())
@@ -311,7 +311,7 @@ model Location {
 }
 
 model MenuCategory {
-  id                 String         @id
+  id                 String         @id @default(cuid())
   businessId         String
   nombre             String
   descripcion        String?
@@ -328,7 +328,7 @@ model MenuCategory {
 }
 
 model MenuProduct {
-  id            String       @id
+  id            String       @id @default(cuid())
   categoryId    String
   nombre        String
   descripcion   String?
@@ -342,14 +342,14 @@ model MenuProduct {
   imagenUrl     String?
   opciones      Json?
   createdAt     DateTime     @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime @updatedAt
   MenuCategory  MenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@unique([categoryId, nombre])
 }
 
 model PortalBanner {
-  id          String   @id
+  id          String   @id @default(cuid())
   businessId  String
   title       String
   description String?
@@ -359,7 +359,7 @@ model PortalBanner {
   active      Boolean  @default(true)
   orden       Int      @default(0)
   createdAt   DateTime @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime @updatedAt
   Business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([active])
@@ -368,7 +368,7 @@ model PortalBanner {
 }
 
 model PortalConfig {
-  id               String   @id
+  id               String   @id @default(cuid())
   businessId       String   @unique
   banners          Json
   promociones      Json
@@ -378,14 +378,14 @@ model PortalConfig {
   colores          Json?
   logo             String?
   isActive         Boolean  @default(true)
-  updatedAt        DateTime
+  updatedAt        DateTime @updatedAt
   updatedBy        String
   promocionesTitle String?  @default("Promociones Especiales")
   recompensasTitle String?  @default("Recompensas")
 }
 
 model PortalFavoritoDelDia {
-  id            String   @id
+  id            String   @id @default(cuid())
   businessId    String
   productName   String
   description   String?
@@ -397,7 +397,7 @@ model PortalFavoritoDelDia {
   active        Boolean  @default(true)
   date          DateTime @default(now())
   createdAt     DateTime @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime @updatedAt
   Business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([active])
@@ -406,7 +406,7 @@ model PortalFavoritoDelDia {
 }
 
 model PortalPromocion {
-  id          String    @id
+  id          String    @id @default(cuid())
   businessId  String
   title       String
   description String?
@@ -417,7 +417,7 @@ model PortalPromocion {
   active      Boolean   @default(true)
   orden       Int       @default(0)
   createdAt   DateTime  @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime @updatedAt
   Business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([active])
@@ -427,7 +427,7 @@ model PortalPromocion {
 }
 
 model PortalRecompensa {
-  id          String   @id
+  id          String   @id @default(cuid())
   businessId  String
   title       String
   description String?
@@ -439,7 +439,7 @@ model PortalRecompensa {
   stock       Int?
   unlimited   Boolean  @default(false)
   createdAt   DateTime @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime @updatedAt
   Business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([active])
@@ -450,7 +450,7 @@ model PortalRecompensa {
 }
 
 model PortalTarjetasConfig {
-  id             String   @id
+  id             String   @id @default(cuid())
   businessId     String   @unique
   showLevels     Boolean  @default(true)
   showProgress   Boolean  @default(true)
@@ -460,21 +460,21 @@ model PortalTarjetasConfig {
   pointsConfig   Json?
   visualConfig   Json?
   createdAt      DateTime @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime @updatedAt
   Business       Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([businessId])
 }
 
 model Promotor {
-  id          String        @id
+  id          String        @id @default(cuid())
   businessId  String
   nombre      String
   telefono    String?
   email       String?
   activo      Boolean       @default(true)
   createdAt   DateTime      @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime @updatedAt
   createdBy   String?
   Business    Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
   Reservation Reservation[]
@@ -485,21 +485,21 @@ model Promotor {
 }
 
 model PuntosConfig {
-  id                String   @id
+  id                String   @id @default(cuid())
   businessId        String   @unique
   puntosPorDolar    Int      @default(2)
   bonusPorRegistro  Int      @default(100)
   maxPuntosPorDolar Int      @default(10)
   maxBonusRegistro  Int      @default(1000)
   createdAt         DateTime @default(now())
-  updatedAt         DateTime
+  updatedAt         DateTime @updatedAt
   Business          Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([businessId])
 }
 
 model Reservation {
-  id                 String              @id
+  id                 String              @id @default(cuid())
   businessId         String
   clienteId          String?
   serviceId          String
@@ -526,7 +526,7 @@ model Reservation {
   source             String              @default("manual")
   metadata           Json?
   createdAt          DateTime            @default(now())
-  updatedAt          DateTime
+  updatedAt          DateTime @updatedAt
   promotorId         String?             @default("whatsapp-default")
   tableNumber        String?
   HostTracking       HostTracking?
@@ -546,7 +546,7 @@ model Reservation {
 }
 
 model ReservationQRCode {
-  id            String       @id
+  id            String       @id @default(cuid())
   businessId    String
   qrToken       String       @unique
   qrData        String
@@ -558,7 +558,7 @@ model ReservationQRCode {
   lastScannedAt DateTime?
   metadata      Json?
   createdAt     DateTime     @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime @updatedAt
   reservationId String
   Reservation   Reservation  @relation(fields: [reservationId], references: [id], onDelete: Cascade)
 
@@ -570,7 +570,7 @@ model ReservationQRCode {
 }
 
 model ReservationService {
-  id              String            @id
+  id              String            @id @default(cuid())
   businessId      String
   name            String
   description     String?
@@ -581,7 +581,7 @@ model ReservationService {
   metadata        Json?
   sortOrder       Int               @default(0)
   createdAt       DateTime          @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime @updatedAt
   Reservation     Reservation[]
   Business        Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
   ReservationSlot ReservationSlot[]
@@ -591,7 +591,7 @@ model ReservationService {
 }
 
 model ReservationSlot {
-  id                 String             @id
+  id                 String             @id @default(cuid())
   businessId         String
   serviceId          String
   date               DateTime           @db.Date
@@ -605,7 +605,7 @@ model ReservationSlot {
   isRecurring        Boolean            @default(false)
   recurringId        String?
   createdAt          DateTime           @default(now())
-  updatedAt          DateTime
+  updatedAt          DateTime @updatedAt
   Reservation        Reservation[]
   ReservationService ReservationService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
@@ -616,7 +616,7 @@ model ReservationSlot {
 }
 
 model SinReserva {
-  id             String   @id
+  id             String   @id @default(cuid())
   businessId     String
   numeroPersonas Int
   fecha          DateTime
@@ -624,7 +624,7 @@ model SinReserva {
   registradoPor  String?
   notas          String?
   createdAt      DateTime @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime @updatedAt
 
   @@index([businessId])
   @@index([createdAt])
@@ -632,7 +632,7 @@ model SinReserva {
 }
 
 model TarjetaLealtad {
-  id               String   @id
+  id               String   @id @default(cuid())
   clienteId        String   @unique
   businessId       String
   nivel            String
@@ -642,12 +642,12 @@ model TarjetaLealtad {
   puntosProgreso   Int      @default(0)
   historicoNiveles Json?
   createdAt        DateTime @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime @updatedAt
   Cliente          Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
 }
 
 model User {
-  id             String           @id
+  id             String           @id @default(cuid())
   businessId     String
   email          String
   passwordHash   String
@@ -662,7 +662,7 @@ model User {
   sessionToken   String?
   sessionExpires DateTime?
   createdAt      DateTime         @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime @updatedAt
   Consumo        Consumo[]
   HistorialCanje HistorialCanje[]
   business       Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
@@ -673,7 +673,7 @@ model User {
 }
 
 model VisitLog {
-  id        String   @id
+  id        String   @id @default(cuid())
   clienteId String
   action    String
   metadata  Json?
@@ -682,7 +682,7 @@ model VisitLog {
 }
 
 model Visita {
-  id           String   @id
+  id           String   @id @default(cuid())
   clienteId    String?
   sessionId    String
   businessId   String
@@ -693,7 +693,7 @@ model Visita {
   path         String   @default("/cliente")
   isRegistered Boolean  @default(false)
   createdAt    DateTime @default(now())
-  updatedAt    DateTime
+  updatedAt    DateTime @updatedAt
   Business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   Cliente      Cliente? @relation(fields: [clienteId], references: [id])
 

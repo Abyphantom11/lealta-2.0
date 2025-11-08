@@ -907,12 +907,12 @@ export async function POST(request: NextRequest) {
             reservationName: data.cliente.nombre,
             tableNumber: data.mesa || null, // Si se proporciona mesa en el futuro
             reservationDate: reservedAtDate,
-            guestCount: data.numeroPersonas,
+            guestCount: 0, // ✅ CORREGIDO: Iniciar en 0, se incrementa al escanear QR
             isActive: true,
             updatedAt: nowHost
           },
         });
-        console.log(`🏠 [HOST TRACKING] Auto-activado para ${data.cliente.nombre} (${data.numeroPersonas} invitados)`);
+        console.log(`🏠 [HOST TRACKING] Auto-activado para ${data.cliente.nombre} (${data.numeroPersonas} invitados esperados, asistencia inicial: 0)`);
       } catch (hostTrackingError) {
         // No bloquear la reserva si falla el tracking
         console.error('⚠️ [HOST TRACKING] Error al auto-activar:', hostTrackingError);

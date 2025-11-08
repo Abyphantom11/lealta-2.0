@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useServerSentEvents } from './useServerSentEvents';
 import { REALTIME_CONFIG } from '../utils/realtime-config';
+import { reservasQueryKeys } from '../../../providers/QueryProvider';
 import type { SSEEvent, ConnectionStatus } from '../types/realtime';
 import type { Reserva } from '../types/reservation';
 
@@ -39,29 +40,16 @@ export function useRealtimeSync({
       console.log('[Realtime] QR escaneado:', { reservationId, scanCount, isFirstScan });
     }
 
-    // Actualizar caché de React Query
+    // 🔄 IMPORTANTE: Invalidar usando la query key correcta
     if (autoUpdateCache) {
-      queryClient.setQueryData(
-        ['reservas', businessId],
-        (oldData: any) => {
-          if (!oldData?.reservas) return oldData;
-
-          return {
-            ...oldData,
-            reservas: oldData.reservas.map((reserva: Reserva) => {
-              if (reserva.id === reservationId) {
-                return {
-                  ...reserva,
-                  asistenciaActual: scanCount,
-                  estado: isFirstScan ? 'Confirmada' : reserva.estado,
-                  fechaModificacion: new Date().toISOString()
-                };
-              }
-              return reserva;
-            })
-          };
-        }
-      );
+      // Invalidar todas las listas de reservas para este business
+      queryClient.invalidateQueries({
+        queryKey: reservasQueryKeys.lists()
+      });
+      // También invalidar los stats
+      queryClient.invalidateQueries({
+        queryKey: reservasQueryKeys.stats(String(businessId))
+      });
     }
 
     // Emitir evento custom para forzar re-render de tarjetas
@@ -80,6 +68,42 @@ export function useRealtimeSync({
       toast.success(message, {
         duration: 3000,
         icon: '📱'
+      });
+    }
+  }, [businessId, autoUpdateCache, showToasts, queryClient]);
+
+  // 📊 Handler: Asistencia Actualizada
+  const handleAsistenciaUpdated = useCallback((event: SSEEvent<any>) => {
+    const { reservaId, asistenciaActual, increment } = event.data || event;
+
+    if (REALTIME_CONFIG.debug) {
+      console.log('[Realtime] Asistencia actualizada:', { reservaId, asistenciaActual, increment });
+    }
+
+    // 🔄 IMPORTANTE: Invalidar usando la query key correcta
+    if (autoUpdateCache) {
+      // Invalidar todas las listas de reservas para este business
+      queryClient.invalidateQueries({
+        queryKey: reservasQueryKeys.lists()
+      });
+      // También invalidar los stats
+      queryClient.invalidateQueries({
+        queryKey: reservasQueryKeys.stats(String(businessId))
+      });
+    }
+
+    // Emitir evento custom para forzar re-render de tarjetas
+    if (globalThis.window !== undefined) {
+      globalThis.window.dispatchEvent(new CustomEvent('force-card-refresh', {
+        detail: { reservationId: reservaId, asistenciaActual }
+      }));
+    }
+
+    // Mostrar toast
+    if (showToasts && increment) {
+      toast.success(`+${increment} ${increment === 1 ? 'persona' : 'personas'} registrada${increment === 1 ? '' : 's'}`, {
+        duration: 2500,
+        icon: '✅'
       });
     }
   }, [businessId, autoUpdateCache, showToasts, queryClient]);
@@ -222,6 +246,9 @@ export function useRealtimeSync({
       case REALTIME_CONFIG.events.QR_SCANNED:
         handleQRScanned(event);
         break;
+      case REALTIME_CONFIG.events.ASISTENCIA_UPDATED:
+        handleAsistenciaUpdated(event);
+        break;
       case REALTIME_CONFIG.events.RESERVATION_CREATED:
         handleReservationCreated(event);
         break;
@@ -256,7 +283,7 @@ export function useRealtimeSync({
           console.log('[Realtime] Evento desconocido:', type);
         }
     }
-  }, [showToasts, handleQRScanned, handleReservationCreated, handleReservationUpdated, handleReservationDeleted, handleStatusChanged]);
+  }, [showToasts, handleQRScanned, handleAsistenciaUpdated, handleReservationCreated, handleReservationUpdated, handleReservationDeleted, handleStatusChanged]);
 
   // Error handler
   const handleError = useCallback((error: Event) => {

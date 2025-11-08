@@ -8,6 +8,7 @@ import { es } from 'date-fns/locale';
 
 // Importar todos los componentes originales
 import { useReservasOptimized } from './hooks/useReservasOptimized';
+import { useRealtimeSync } from './hooks/useRealtimeSync';
 import { Reserva } from './types/reservation';
 import { ReservationTable } from './components/ReservationTable';
 import ReservationForm from './components/ReservationForm';
@@ -58,6 +59,14 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
     businessId, 
     enabled: !!businessId, // Solo habilitar si hay businessId válido
     includeStats: true 
+  });
+
+  // 🔄 Hook de sincronización en tiempo real (SSE)
+  const { isConnected, status: sseStatus } = useRealtimeSync({
+    businessId: businessId || '',
+    enabled: !!businessId,
+    showToasts: true,
+    autoUpdateCache: true
   });
 
   // ✅ CÁLCULO INICIAL DEL DÍA COMERCIAL (antes del primer render)

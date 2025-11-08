@@ -14,9 +14,7 @@ const BUSINESS_TIMEZONE = 'America/Guayaquil';
 
 /**
  * Función para formatear fechas/horas en formato militar consistente
- * VERSIÓN SIMPLIFICADA: Lee directamente los componentes UTC sin conversión
- * Como las fechas se guardan en UTC representando la hora local exacta,
- * no necesitamos conversiones de timezone
+ * Convierte de UTC al timezone del negocio para mostrar la hora correcta
  * @param date - Fecha a formatear (Date o string ISO)
  * @returns String en formato militar (24 horas) HH:mm
  */
@@ -27,13 +25,13 @@ export function formatearHoraMilitar(date: Date | string): string {
     if (typeof date === 'string') {
       dateObj = new Date(date);
       if (Number.isNaN(dateObj.getTime())) {
-        throw new Error(`Fecha inválida: ${date}`);
+        throw new TypeError(`Fecha inválida: ${date}`);
       }
     } else {
       dateObj = date;
     }
     
-    // Leer directamente los componentes UTC (que representan la hora local)
+    // Leer directamente las horas UTC (que son las que el usuario ingresó)
     const hours = dateObj.getUTCHours().toString().padStart(2, '0');
     const minutes = dateObj.getUTCMinutes().toString().padStart(2, '0');
     
@@ -46,7 +44,7 @@ export function formatearHoraMilitar(date: Date | string): string {
 
 /**
  * Función para formatear fecha completa en formato militar consistente
- * Lee directamente los componentes UTC sin conversión de timezone
+ * Lee directamente los componentes UTC sin conversión
  * @param date - Fecha a formatear
  * @returns String en formato militar completo
  */
@@ -159,18 +157,15 @@ function crearFechaReserva(fecha: string, hora: string): Date {
     if (hours < 0 || hours > 23) throw new Error('Hora inválida');
     if (minutes < 0 || minutes > 59) throw new Error('Minutos inválidos');
     
-    // 5. Crear objeto Date SIN ninguna conversión de timezone
-    // SOLUCIÓN DEFINITIVA: Crear string ISO y parsearlo directamente
-    // Esto evita TODAS las conversiones automáticas de timezone
+    // 5. CREAR FECHA DIRECTAMENTE SIN CONVERSIÓN DE TIMEZONE
+    // El usuario ingresa "23:30" y espera que se guarde y muestre "23:30"
+    // NO convertimos timezone porque queremos guardar la hora exacta que el usuario ingresó
     
-    // Crear string ISO en formato: YYYY-MM-DDTHH:mm:ss.000Z
-    // Pero usando los valores locales (sin aplicar offset)
-    const isoString = `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}T${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00.000Z`;
-    
-    const fechaCorrecta = new Date(isoString);
+    // Crear la fecha UTC directamente con los valores ingresados
+    const fechaCorrecta = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0));
     
     // 6. Logging detallado
-    console.log('✅ FECHA CREADA (SIN CONVERSIÓN - VALORES EXACTOS):', {
+    console.log('✅ FECHA CREADA DIRECTAMENTE (SIN CONVERSIÓN TIMEZONE):', {
       entrada: {
         fecha,
         hora,
@@ -184,11 +179,16 @@ function crearFechaReserva(fecha: string, hora: string): Date {
         hours,
         minutes
       },
-      isoString,
       resultado: {
         date: fechaCorrecta,
         iso: fechaCorrecta.toISOString(),
-        verificacion: `Día ${fechaCorrecta.getUTCDate()}, Mes ${fechaCorrecta.getUTCMonth() + 1}, Hora ${fechaCorrecta.getUTCHours()}:${fechaCorrecta.getUTCMinutes()}`
+        utcComponents: {
+          year: fechaCorrecta.getUTCFullYear(),
+          month: fechaCorrecta.getUTCMonth() + 1,
+          day: fechaCorrecta.getUTCDate(),
+          hours: fechaCorrecta.getUTCHours(),
+          minutes: fechaCorrecta.getUTCMinutes()
+        }
       }
     });
     

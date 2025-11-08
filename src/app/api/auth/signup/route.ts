@@ -142,7 +142,13 @@ export async function POST(request: NextRequest) {
       await createDefaultPortalConfig(result.business.id, result.business.name);
       logger.debug(`🎨 Portal config created for new business: ${result.business.name} (${result.business.id})`);
     } catch (portalConfigError) {
-      logger.warn('⚠️ Could not create initial portal config:', portalConfigError);
+      logger.error('⚠️ Could not create initial portal config:', {
+        error: portalConfigError,
+        message: portalConfigError instanceof Error ? portalConfigError.message : 'Unknown error',
+        stack: portalConfigError instanceof Error ? portalConfigError.stack : undefined,
+        businessId: result.business.id,
+        businessName: result.business.name
+      });
       // No fallar el signup por esto - se creará lazy cuando se acceda por primera vez
     }
 

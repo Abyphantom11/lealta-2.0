@@ -88,12 +88,20 @@ export const ReservationCard = ({
     setRenderKey(prev => prev + 1);
   }, [reserva.cliente?.nombre]);
   
+  // 🔄 Monitorear cambios en asistenciaActual para reflejar escaneos QR
+  useEffect(() => {
+    setRenderKey(prev => prev + 1);
+  }, [reserva.asistenciaActual]);
+  
   // 🔄 Listener para re-renders forzados desde actualizaciones móviles
   useEffect(() => {
     const handleForceRefresh = (event: CustomEvent) => {
-      if (event.detail.reservaId === reserva.id) {
+      // Soportar tanto reservaId como reservationId
+      const eventReservaId = event.detail.reservaId || event.detail.reservationId;
+      
+      if (eventReservaId === reserva.id) {
         setRenderKey(prev => prev + 1);
-        // Logs removidos para producción
+        console.log('[ReservationCard] 🔄 Forzando refresh por evento:', event.detail);
       }
     };
     

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { emitReservationEvent } from '../events/route';
 import { BUSINESS_TIMEZONE } from '../../../../lib/timezone-utils';
+import crypto from 'node:crypto';
 
 interface QRData {
   reservaId: string;
@@ -182,6 +183,111 @@ async function handleIncrementAction(
       lastScannedAt: new Date(),
     }
   });
+
+  // 🔥 CRÍTICO: Actualizar HostTracking.guestCount para sincronizar con scanCount
+  // El API /api/reservas usa HostTracking.guestCount para mostrar asistenciaActual
+  const hostTracking = await prisma.hostTracking.findFirst({
+    where: { reservationId: reservaId }
+  });
+
+  if (hostTracking) {
+    // Si existe HostTracking, actualizarlo con el nuevo valor
+    await prisma.hostTracking.update({
+      where: { id: hostTracking.id },
+      data: {
+        guestCount: newAsistencia,
+        updatedAt: new Date()
+      }
+    });
+    console.log(`✅ HostTracking actualizado: guestCount = ${newAsistencia}`);
+  } else {
+    // Si no existe HostTracking, crearlo SIEMPRE (para cualquier cantidad de personas)
+    // Esto es necesario porque el API usa HostTracking.guestCount para mostrar asistencia
+    
+    // 🔍 Verificar que clienteId existe, si no, buscar o crear uno
+    let clienteIdFinal = reserva.clienteId;
+    
+    if (!clienteIdFinal) {
+      console.warn('⚠️ Reserva sin clienteId, buscando o creando cliente...');
+      
+      // Buscar cliente existente por teléfono
+      let clienteExistente = null;
+      if (reserva.customerPhone) {
+        clienteExistente = await prisma.cliente.findFirst({
+          where: { 
+            telefono: reserva.customerPhone,
+            businessId: reserva.businessId
+          }
+        });
+      }
+      
+      if (clienteExistente) {
+        clienteIdFinal = clienteExistente.id;
+        console.log(`✅ Cliente encontrado: ${clienteExistente.nombre}`);
+        
+        // Actualizar la reserva con el clienteId
+        await prisma.reservation.update({
+          where: { id: reservaId },
+          data: { clienteId: clienteIdFinal }
+        });
+      } else {
+        // Crear cliente nuevo con todos los campos requeridos
+        const cedulaTemporal = reserva.customerPhone || `TEMP-${Date.now()}`;
+        const nuevoCliente = await prisma.cliente.create({
+          // @ts-ignore - Prisma types issue with nested create, works at runtime
+          data: {
+            businessId: reserva.businessId,
+            cedula: cedulaTemporal,
+            nombre: reserva.customerName || 'Cliente',
+            telefono: reserva.customerPhone || cedulaTemporal,
+            correo: reserva.customerEmail || `temp-${Date.now()}@lealta.app`
+          }
+        });
+        clienteIdFinal = nuevoCliente.id;
+        console.log(`✅ Cliente creado: ${nuevoCliente.nombre} (${cedulaTemporal})`);
+        
+        // Actualizar la reserva con el clienteId
+        await prisma.reservation.update({
+          where: { id: reservaId },
+          data: { clienteId: clienteIdFinal }
+        });
+      }
+    }
+    
+    if (!clienteIdFinal) {
+      throw new Error('No se pudo obtener o crear clienteId para HostTracking');
+    }
+    
+    try {
+      const newHostTracking = await prisma.hostTracking.create({
+        data: {
+          id: crypto.randomBytes(16).toString('hex'),
+          businessId: reserva.businessId,
+          reservationId: reservaId,
+          clienteId: clienteIdFinal,
+          reservationName: reserva.customerName || 'Cliente',
+          tableNumber: null,
+          reservationDate: reserva.reservedAt,
+          guestCount: newAsistencia,
+          isActive: true
+        }
+      });
+      console.log(`✅ HostTracking creado: ID=${newHostTracking.id}, guestCount=${newAsistencia}`);
+    } catch (createError) {
+      console.error('❌ ERROR CRÍTICO creando HostTracking:');
+      console.error('  Reserva ID:', reservaId);
+      console.error('  Cliente ID:', clienteIdFinal);
+      console.error('  Error:', createError);
+      
+      if (createError instanceof Error) {
+        console.error('  Message:', createError.message);
+        console.error('  Stack:', createError.stack);
+      }
+      
+      // NO capturar el error, dejarlo propagarse
+      throw createError;
+    }
+  }
 
   // Si es el primer escaneo, cambiar el estado a CHECKED_IN
   if (esPrimerEscaneo) {

@@ -30,6 +30,7 @@ export const REALTIME_CONFIG = {
   events: {
     // Eventos críticos (< 1s)
     QR_SCANNED: 'qr-scanned',
+    ASISTENCIA_UPDATED: 'asistencia_updated',
     
     // Eventos importantes (< 5s)
     RESERVATION_CREATED: 'reservation-created',
@@ -54,7 +55,7 @@ export const REALTIME_CONFIG = {
   
   // 🐛 Debug Settings
   debug: {
-    enabled: process.env.NODE_ENV === 'development',
+    enabled: true, // ✅ Temporalmente habilitado para debugging
     logEvents: true,
     logReconnections: true,
     logCacheUpdates: false, // Muy verbose, desactivar en prod

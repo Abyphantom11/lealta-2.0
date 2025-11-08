@@ -597,11 +597,34 @@ export function useReservasOptimized({
       
       return { previousReservas, reservaId };
     },
-    onSuccess: async () => {
-      // 🚀 NO ESPERAR: Invalidar en background para no bloquear UI
-      invalidateReservasCache('standard').catch(err => 
-        console.error('Error al invalidar cache:', err)
-      );
+    onSuccess: async (data, variables, context) => {
+      console.log('✅ [ASISTENCIA] Respuesta del servidor:', data);
+      
+      // � ACTUALIZAR CON VALOR REAL DEL SERVIDOR (no solo optimista)
+      const reservaId = context?.reservaId;
+      if (reservaId && data.incrementCount !== undefined) {
+        queryClient.setQueryData(
+          reservasQueryKeys.list(businessId || 'default', includeStats),
+          (old: any) => {
+            if (!old?.reservas) return old;
+            
+            return {
+              ...old,
+              reservas: old.reservas.map((r: Reserva) => 
+                r.id === reservaId 
+                  ? { ...r, asistenciaActual: data.incrementCount } // ✅ Usar valor real del servidor
+                  : r
+              )
+            };
+          }
+        );
+        console.log('🎯 [ASISTENCIA] Actualizado con valor real del servidor:', data.incrementCount);
+      }
+      
+      // 🚀 Invalidar cache para refrescar TODAS las vistas
+      await invalidateReservasCache('all');
+      console.log('✅ [ASISTENCIA] Cache invalidado completamente');
+      
       toast.success('✓ Asistencia registrada correctamente');
     },
     onError: (error, _variables, context) => {
