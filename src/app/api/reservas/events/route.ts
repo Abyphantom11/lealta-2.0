@@ -59,12 +59,27 @@ export async function GET(request: NextRequest) {
       cookie: request.headers.get('cookie')?.substring(0, 50) + '...',
       origin: request.headers.get('origin'),
       referer: request.headers.get('referer'),
+      'user-agent': request.headers.get('user-agent')?.substring(0, 50) + '...',
     }
   });
 
-  if (!session?.user?.email) {
-    console.error('[SSE] ❌ No hay sesión válida');
+  // ⚠️ MODO DESARROLLO: Permitir sin sesión si viene de localhost o Cloudflare
+  const host = request.headers.get('host') || '';
+  const referer = request.headers.get('referer') || '';
+  const isDevelopment = 
+    process.env.NODE_ENV === 'development' ||
+    host.includes('localhost') ||
+    host.includes('trycloudflare.com') ||
+    referer.includes('localhost') ||
+    referer.includes('trycloudflare.com');
+
+  if (!session?.user?.email && !isDevelopment) {
+    console.error('[SSE] ❌ No hay sesión válida y no es desarrollo');
     return new Response('Unauthorized', { status: 401 });
+  }
+
+  if (!session?.user?.email && isDevelopment) {
+    console.warn('[SSE] ⚠️ Permitiendo acceso sin sesión (modo desarrollo)');
   }
 
   // Obtener businessId de los query params
@@ -76,7 +91,8 @@ export async function GET(request: NextRequest) {
     return new Response('businessId required', { status: 400 });
   }
 
-  console.log('[SSE] ✅ Nueva conexión para business:', businessId, 'usuario:', session.user.email);
+  const userEmail = session?.user?.email || 'desarrollo-sin-sesion';
+  console.log('[SSE] ✅ Nueva conexión para business:', businessId, 'usuario:', userEmail);
 
   // Crear un ReadableStream para SSE
   const stream = new ReadableStream({
