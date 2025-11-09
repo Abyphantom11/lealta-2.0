@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { 
   ArrowRight, 
   BarChart3, 
@@ -106,12 +106,15 @@ function ModuleCard({
   );
 }
 
-export default function HomePage() {
+// Componente separado para manejar searchParams
+function PaddleTransactionHandler() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
   // Detectar si viene de un pago exitoso de Paddle
   useEffect(() => {
+    if (!searchParams) return;
+    
     const paddleTransaction = searchParams.get('_ptxn');
     
     if (paddleTransaction) {
@@ -131,6 +134,10 @@ export default function HomePage() {
     }
   }, [searchParams, router]);
 
+  return null;
+}
+
+export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black">
       {/* Desktop Title Bar - Only shown in Electron */}
@@ -138,6 +145,11 @@ export default function HomePage() {
 
       {/* Header con navegación */}
       <Header />
+
+      {/* Manejar transacciones de Paddle con Suspense */}
+      <Suspense fallback={null}>
+        <PaddleTransactionHandler />
+      </Suspense>
 
       {/* Hero Section Premium */}
       <div className="relative overflow-hidden">
