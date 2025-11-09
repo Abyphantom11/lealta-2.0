@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
@@ -42,7 +42,8 @@ interface ReservationTableProps {
   onNameChange?: (reservaId: string, clienteId: string, newName: string) => Promise<void>;
 }
 
-export function ReservationTable({ 
+// ⚡ OPTIMIZACIÓN: Componente envuelto
+const ReservationTableComponent = ({ 
   businessId = 'casa-sabor-demo',  // Cambiado al negocio real
   reservas, 
   allReservas,
@@ -60,7 +61,7 @@ export function ReservationTable({
   onFechaChange,
   onPersonasChange,
   onNameChange,
-}: Readonly<ReservationTableProps>) {
+}: Readonly<ReservationTableProps>) => {
   // 🎯 Hook unificado de edición (reemplaza toda la lógica de localStorage)
   const { updateField } = useReservaEditing({ businessId });
   const queryClient = useQueryClient();
@@ -579,39 +580,46 @@ export function ReservationTable({
   // y reservas para el filtro por fecha cuando no hay búsqueda
   const baseReservas = allReservas || reservas;
 
-  const filteredReservas = (Array.isArray(baseReservas) ? baseReservas : []).filter(reserva => {
-    // Si hay término de búsqueda, buscar en nombre de cliente o promotor
-    if (searchTerm.trim()) {
-      const searchLower = searchTerm.toLowerCase().trim();
-      const matchesCliente = (reserva.cliente?.nombre || '').toLowerCase().includes(searchLower);
-      const matchesPromotor = (reserva.promotor?.nombre || '').toLowerCase().includes(searchLower);
-      
-      // Cuando hay búsqueda, mostrar TODAS las fechas que coincidan
-      return matchesCliente || matchesPromotor;
-    }
+  // ⚡ OPTIMIZACIÓN: Usar useMemo para evitar recalcular filtros en cada render
+  const filteredReservas = useMemo(() => {
+    const safeBaseReservas = Array.isArray(baseReservas) ? baseReservas : [];
     
-    // Sin búsqueda, filtrar solo por fecha seleccionada
-    const matchesDate = reserva.fecha === format(selectedDate, 'yyyy-MM-dd');
-    return matchesDate;
-  });
+    return safeBaseReservas.filter(reserva => {
+      // Si hay término de búsqueda, buscar en nombre de cliente o promotor
+      if (searchTerm.trim()) {
+        const searchLower = searchTerm.toLowerCase().trim();
+        const matchesCliente = (reserva.cliente?.nombre || '').toLowerCase().includes(searchLower);
+        const matchesPromotor = (reserva.promotor?.nombre || '').toLowerCase().includes(searchLower);
+        
+        // Cuando hay búsqueda, mostrar TODAS las fechas que coincidan
+        return matchesCliente || matchesPromotor;
+      }
+      
+      // Sin búsqueda, filtrar solo por fecha seleccionada
+      const matchesDate = reserva.fecha === format(selectedDate, 'yyyy-MM-dd');
+      return matchesDate;
+    });
+  }, [baseReservas, searchTerm, selectedDate]);
 
   // 📊 Calcular métricas para el día seleccionado
   const reservasDelDia = (Array.isArray(baseReservas) ? baseReservas : []).filter(
     reserva => reserva.fecha === format(selectedDate, 'yyyy-MM-dd')
   );
   
-  const metricas = {
+  const metricas = useMemo(() => ({
     totalReservas: reservasDelDia.length,
     totalInvitados: reservasDelDia.reduce((sum, reserva) => sum + (reserva.numeroPersonas || 0), 0),
     totalAsistentes: reservasDelDia.reduce((sum, reserva) => sum + (reserva.asistenciaActual || 0), 0),
     reservasActivas: reservasDelDia.filter(r => r.estado === 'Activa').length,
     reservasEnProgreso: reservasDelDia.filter(r => r.estado === 'En Progreso').length,
-  };
+  }), [reservasDelDia]);
 
-  // Obtener todas las fechas únicas que tienen reservas
-  // Usar allReservas si está disponible, sino usar reservas (fallback para compatibilidad)
-  const reservasParaFechas = allReservas || reservas;
-  const reservedDates = [...new Set((Array.isArray(reservasParaFechas) ? reservasParaFechas : []).map(reserva => reserva.fecha))];
+  // ⚡ OPTIMIZACIÓN: Memoizar fechas con reservas
+  const reservedDates = useMemo(() => {
+    // Obtener todas las fechas únicas que tienen reservas
+    const reservasParaFechas = allReservas || reservas;
+    return [...new Set((Array.isArray(reservasParaFechas) ? reservasParaFechas : []).map(reserva => reserva.fecha))];
+  }, [allReservas, reservas]);
 
   const getEstadoSelect = (reserva: Reserva) => {
     const getSelectClassName = (estado: Reserva['estado']) => {
@@ -1291,6 +1299,25 @@ export function ReservationTable({
     </Dialog>
     </>
   );
-}
+};
 
-export default ReservationTable;
+// ⚡ OPTIMIZACIÓN: Exportar con React.memo para evitar re-renders innecesarios
+// Solo re-renderiza si cambian: reservas[], allReservas[], selectedDate
+export const ReservationTable = React.memo(
+  ReservationTableComponent,
+  (prevProps, nextProps) => {
+    // Comparación rápida: si las longitudes son diferentes, hay cambios
+    if (prevProps.reservas.length !== nextProps.reservas.length) return false;
+    if (prevProps.allReservas?.length !== nextProps.allReservas?.length) return false;
+    
+    // Si la fecha cambió, re-render
+    if (prevProps.selectedDate.getTime() !== nextProps.selectedDate.getTime()) return false;
+    
+    // Comparación por referencia de arrays (React Query mantendrá la misma referencia si no hay cambios)
+    if (prevProps.reservas !== nextProps.reservas) return false;
+    if (prevProps.allReservas !== nextProps.allReservas) return false;
+    
+    // Si llegamos aquí, no hay cambios relevantes → skip re-render
+    return true;
+  }
+);
