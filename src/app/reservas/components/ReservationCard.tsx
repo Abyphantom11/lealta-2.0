@@ -5,7 +5,7 @@ import { Calendar, Clock, Users, CheckCircle, Eye, Edit, Pencil } from "lucide-r
 import { Reserva } from "../types/reservation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { DateChangeModal } from "./DateChangeModal";
 import { PersonasAjusteModal } from "./PersonasAjusteModal";
 import { EditNameModal } from "./EditNameModal";
@@ -59,7 +59,9 @@ const getEstadoColor = (estado: Reserva['estado']) => {
   }
 };
 
-export const ReservationCard = ({ 
+// ⚡ OPTIMIZACIÓN: React.memo evita re-renders cuando props no cambian
+// Comparación personalizada para detectar cambios relevantes
+const ReservationCardComponent = ({ 
   reserva, 
   businessId = 'golom',
   onView, 
@@ -352,3 +354,30 @@ export const ReservationCard = ({
     </>
   );
 };
+
+// ⚡ OPTIMIZACIÓN: Exportar con React.memo para evitar re-renders innecesarios
+// Solo re-renderiza si cambian: id, asistenciaActual, estado, nombre del cliente, fecha, hora, personas, promotor
+export const ReservationCard = React.memo(
+  ReservationCardComponent,
+  (prevProps, nextProps) => {
+    // Comparación profunda de campos relevantes
+    const prevReserva = prevProps.reserva;
+    const nextReserva = nextProps.reserva;
+    
+    // Si el ID cambió, es una reserva diferente → re-render
+    if (prevReserva.id !== nextReserva.id) return false;
+    
+    // Comparar campos que afectan la UI
+    if (prevReserva.asistenciaActual !== nextReserva.asistenciaActual) return false;
+    if (prevReserva.estado !== nextReserva.estado) return false;
+    if (prevReserva.cliente?.nombre !== nextReserva.cliente?.nombre) return false;
+    if (prevReserva.fecha !== nextReserva.fecha) return false;
+    if (prevReserva.hora !== nextReserva.hora) return false;
+    if (prevReserva.numeroPersonas !== nextReserva.numeroPersonas) return false;
+    if (prevReserva.promotor?.nombre !== nextReserva.promotor?.nombre) return false;
+    if (prevReserva.comprobanteUrl !== nextReserva.comprobanteUrl) return false;
+    
+    // Si llegamos aquí, nada relevante cambió → skip re-render
+    return true;
+  }
+);

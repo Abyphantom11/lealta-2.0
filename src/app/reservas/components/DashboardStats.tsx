@@ -1,10 +1,12 @@
+import React from 'react';
 import { DashboardStats as StatsType } from "../types/reservation";
 
 interface DashboardStatsProps {
   readonly stats: StatsType;
 }
 
-export function DashboardStats({ stats }: DashboardStatsProps) {
+// ⚡ OPTIMIZACIÓN: React.memo evita recalcular estadísticas si no cambiaron
+const DashboardStatsComponent = ({ stats }: DashboardStatsProps) => {
   // Obtener mes actual para mostrar en el título
   const mesActual = new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
   
@@ -51,4 +53,19 @@ export function DashboardStats({ stats }: DashboardStatsProps) {
       </div>
     </div>
   );
-}
+};
+
+// ⚡ OPTIMIZACIÓN: Exportar con React.memo
+// Solo re-renderiza si alguna estadística cambia
+export const DashboardStats = React.memo(
+  DashboardStatsComponent,
+  (prevProps, nextProps) => {
+    // Comparación superficial de todas las estadísticas
+    return (
+      prevProps.stats.totalReservas === nextProps.stats.totalReservas &&
+      prevProps.stats.totalAsistentes === nextProps.stats.totalAsistentes &&
+      prevProps.stats.totalSinReserva === nextProps.stats.totalSinReserva &&
+      prevProps.stats.reservasHoy === nextProps.stats.reservasHoy
+    );
+  }
+);

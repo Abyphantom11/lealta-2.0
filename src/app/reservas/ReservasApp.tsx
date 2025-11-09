@@ -143,27 +143,27 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
   }
 
   // 🌍 Función utilitaria para formatear fecha sin timezone issues
-  const formatDateLocal = (date: Date): string => {
+  const formatDateLocal = useCallback((date: Date): string => {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-  };
+  }, []);
 
-  // Función para obtener reservas por fecha
-  const getReservasByDate = (date: Date) => {
+  // ⚡ OPTIMIZACIÓN: useMemo para evitar recalcular filtros en cada render
+  const getReservasByDate = useCallback((date: Date) => {
     const dateStr = formatDateLocal(date);
     return reservas.filter((reserva: Reserva) => {
       return reserva.fecha === dateStr; // Comparación directa sin conversiones
     });
-  };
+  }, [reservas, formatDateLocal]);
 
-  // Función para obtener estadísticas del dashboard
-  const getDashboardStats = () => {
+  // ⚡ OPTIMIZACIÓN: Memoizar cálculo de estadísticas
+  const getDashboardStats = useCallback(() => {
     return dashboardStats || {
       total: reservas.length,
       confirmadas: reservas.filter((r: any) => r.estado === 'Confirmada').length,
       pendientes: reservas.filter((r: any) => r.estado === 'Pendiente').length,
       canceladas: reservas.filter((r: any) => r.estado === 'Cancelada').length,
     };
-  };
+  }, [dashboardStats, reservas]);
 
   // Estados para modales y vistas
   const [showForm, setShowForm] = useState(false);
