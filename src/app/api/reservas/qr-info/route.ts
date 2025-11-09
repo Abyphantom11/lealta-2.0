@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     // 🌍 Verificar que el código QR no esté expirado (TIMEZONE AWARE)
     const ahora = new Date();
     const reservationDateTime = new Date(reserva.ReservationSlot.startTime);
-    const expirationTime = new Date(reservationDateTime.getTime() + (12 * 60 * 60 * 1000)); // 12 horas después
+    const expirationTime = new Date(reservationDateTime.getTime() + (24 * 60 * 60 * 1000)); // 24 horas después
     
     // DEBUG: Log de fechas para debugging (CON TIMEZONE)
     console.log('🔍 DEBUG QR Validation (TIMEZONE AWARE):', {
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
     if (ahora > expirationTime) {
       console.log('❌ QR EXPIRED (timezone-aware) - Returning error');
       return NextResponse.json(
-        { success: false, message: 'Código QR expirado (más de 12 horas desde la reserva)' },
+        { success: false, message: 'Código QR expirado (más de 24 horas desde la reserva)' },
         { status: 400 }
       );
     }

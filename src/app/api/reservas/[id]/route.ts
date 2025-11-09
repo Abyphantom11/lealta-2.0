@@ -571,7 +571,7 @@ export async function PUT(
       
       if (reservedAtChanged && updatedReservation.ReservationQRCode.length > 0) {
         const newReservedAt = new Date(updatedReservation.reservedAt);
-        const newQrExpiresAt = new Date(newReservedAt.getTime() + (12 * 60 * 60 * 1000)); // +12 horas
+        const newQrExpiresAt = new Date(newReservedAt.getTime() + (24 * 60 * 60 * 1000)); // +24 horas
         
         console.log('🔄 REGENERANDO QR por cambio de fecha/hora:', {
           reservaId: updatedReservation.id,

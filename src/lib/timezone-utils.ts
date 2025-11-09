@@ -200,12 +200,12 @@ function crearFechaReserva(fecha: string, hora: string): Date {
 }
 
 /**
- * Crea fecha de expiración del QR (12 horas después de la reserva)
+ * Crea fecha de expiración del QR (24 horas después de la reserva)
  * @param fechaReserva - Fecha de la reserva
  * @returns Fecha de expiración
  */
 function crearFechaExpiracionQR(fechaReserva: Date): Date {
-  const DURACION_QR_HORAS = 12;
+  const DURACION_QR_HORAS = 24; // Cambiado de 12 a 24 horas
   
   // Convertir Date a ZonedDateTime
   const instant = Temporal.Instant.from(fechaReserva.toISOString());

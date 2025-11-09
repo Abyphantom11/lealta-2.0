@@ -91,13 +91,18 @@ export async function POST(request: NextRequest) {
 
     // Crear empresa y SuperAdmin en una transacción
     const result = await prisma.$transaction(async (tx) => {
-      // Crear Business
+      // Crear Business con trial de 14 días
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + 14); // 14 días desde ahora
+      
       const business = await tx.business.create({
         data: {
           name: validatedData.businessName,
           slug: validatedData.subdomain,
           subdomain: validatedData.subdomain,
           subscriptionPlan: 'BASIC', // Plan inicial
+          subscriptionStatus: 'trialing', // Estado: en periodo de prueba
+          trialEndsAt: trialEndsAt, // Fecha de expiración del trial
           isActive: true,
         },
       });

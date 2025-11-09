@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import { 
   ArrowRight, 
   BarChart3, 
@@ -105,6 +107,29 @@ function ModuleCard({
 }
 
 export default function HomePage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Detectar si viene de un pago exitoso de Paddle
+  useEffect(() => {
+    const paddleTransaction = searchParams.get('_ptxn');
+    
+    if (paddleTransaction) {
+      console.log('✅ Transacción de Paddle detectada:', paddleTransaction);
+      
+      // Mostrar mensaje de éxito
+      const showSuccessMessage = () => {
+        // Intentar redirigir al admin si el usuario está logueado
+        // Si no, mostrar mensaje genérico
+        alert('🎉 ¡Pago procesado exitosamente!\n\nTu suscripción se activará en unos momentos.\n\nPuedes cerrar esta ventana y verificar tu estado en el panel de administración.');
+        
+        // Limpiar la URL
+        router.replace('/');
+      };
+      
+      showSuccessMessage();
+    }
+  }, [searchParams, router]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black">

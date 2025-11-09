@@ -74,7 +74,7 @@ function validateQRTimeWindow(reservedAt: Date): TimeValidationResult {
   
   // 🕐 Calcular ventanas usando timezone del negocio
   const qrValidFrom = new Date(reservationDateTime.getTime() - (24 * 60 * 60 * 1000)); // 24h antes
-  const qrExpiresAt = new Date(reservationDateTime.getTime() + (12 * 60 * 60 * 1000)); // 12h después
+  const qrExpiresAt = new Date(reservationDateTime.getTime() + (24 * 60 * 60 * 1000)); // 24h después
   
   console.log('🕐 Validación de expiración (TIMEZONE AWARE):', {
     currentTimeUTC: ahora.toISOString(),
@@ -103,7 +103,7 @@ function validateQRTimeWindow(reservedAt: Date): TimeValidationResult {
     const hoursExpired = Math.ceil((ahora.getTime() - qrExpiresAt.getTime()) / (1000 * 60 * 60));
     return {
       isValid: false,
-      message: `Código QR expirado hace ${hoursExpired} horas (más de 12 horas desde la hora de tu reserva)`
+      message: `Código QR expirado hace ${hoursExpired} horas (más de 24 horas desde la hora de tu reserva)`
     };
   }
   

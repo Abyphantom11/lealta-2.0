@@ -11,6 +11,7 @@ import {
   Smartphone,
   Settings,
   LogOut,
+  CreditCard,
 } from 'lucide-react';
 
 // Importación de componentes modulares
@@ -19,6 +20,7 @@ import ClientesContent from './clientes/ClientesContent';
 import MenuContent from './menu/MenuContent';
 import PortalContent from './portal/PortalContent';
 import ConfiguracionContent from './configuracion/ConfiguracionContent';
+import SubscriptionBanner from '../SubscriptionBanner';
 
 // Helper functions para business context
 const getCurrentBusinessFromUrl = (): string | null => {
@@ -194,6 +196,9 @@ export default function AdminV2Page({ businessId }: AdminV2PageProps = {}) {
 
   return (
     <div className="min-h-screen bg-dark-950 flex">
+      {/* Banner de suscripción */}
+      {actualBusinessId && <SubscriptionBanner businessId={actualBusinessId} />}
+      
       {/* Sidebar - Fijo */}
       <div className="w-64 bg-dark-900 border-r border-dark-700 fixed inset-y-0 left-0 z-10 flex flex-col">
         <div className="flex-1 p-4 overflow-y-auto">
@@ -270,6 +275,19 @@ export default function AdminV2Page({ businessId }: AdminV2PageProps = {}) {
               <div className="text-right mr-4">
                 <p className="text-white font-medium">{user?.name}</p>
               </div>
+              
+              {/* Botón de Suscripción */}
+              {actualBusinessId && (
+                <a
+                  href={`/${actualBusinessId}/admin/configuracion/suscripcion`}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white text-sm font-medium transition-colors flex items-center gap-2"
+                  title="Gestionar Suscripción"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  <span className="hidden md:inline">Suscripción</span>
+                </a>
+              )}
+              
               <RoleSwitch
                 currentRole={user?.role || 'ADMIN'}
                 currentPath={businessId ? `/${businessId}/admin` : '/admin'}

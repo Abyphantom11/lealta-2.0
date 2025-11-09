@@ -844,9 +844,9 @@ export async function POST(request: NextRequest) {
     // 6. Crear código QR con Temporal API
     const qrToken = data.codigoQR || generateQRCode();
     
-    // Calcular fecha de expiración del QR (+12 horas desde la hora de reserva)
+    // Calcular fecha de expiración del QR (+24 horas desde la hora de reserva)
     const qrExpirationDate = new Date(reservedAtDate);
-    qrExpirationDate.setHours(qrExpirationDate.getHours() + 12);
+    qrExpirationDate.setHours(qrExpirationDate.getHours() + 24);
     
     console.log('🎫 CREANDO QR CODE:', {
       reservaId: reservation.id,

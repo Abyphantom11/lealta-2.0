@@ -202,7 +202,7 @@ export function QRGenerator({
         {/* Instrucciones */}
         <div className="text-center text-xs text-gray-500 space-y-1 border-t border-gray-100 pt-3">
           <p>• Presenta este código al llegar al establecimiento</p>
-          <p>• Válido por 12 horas desde la fecha de tu reserva</p>
+          <p>• Válido por 24 horas desde la fecha de tu reserva</p>
           <p>• Un escaneo por persona en tu grupo</p>
         </div>
         

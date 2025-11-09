@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Settings, Palette, QrCode, Bell } from 'lucide-react';
+import { Settings, Palette, QrCode, Bell, CreditCard } from 'lucide-react';
 
 interface ConfigLayoutProps {
   children: React.ReactNode;
@@ -19,6 +19,12 @@ export default function ConfiguracionLayout({ children, params }: ConfigLayoutPr
       href: `/${businessId}/admin/configuracion`,
       icon: Settings,
       description: 'Configuración general del negocio',
+    },
+    {
+      title: 'Suscripción',
+      href: `/${businessId}/admin/configuracion/suscripcion`,
+      icon: CreditCard,
+      description: 'Plan y facturación',
     },
     {
       title: 'Branding',
