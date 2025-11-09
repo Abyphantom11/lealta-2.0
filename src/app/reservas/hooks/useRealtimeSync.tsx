@@ -265,9 +265,10 @@ export function useRealtimeSync({
         if (REALTIME_CONFIG.debug) {
           console.log('[Realtime] ✅ Conectado al servidor SSE');
         }
-        if (showToasts) {
-          toast.success('Tiempo real activado', { duration: 2000 });
-        }
+        // Toast de conexión deshabilitado - no es necesario notificar al usuario
+        // if (showToasts) {
+        //   toast.success('Tiempo real activado', { duration: 2000 });
+        // }
         break;
       case REALTIME_CONFIG.events.HEARTBEAT:
         // Silencioso

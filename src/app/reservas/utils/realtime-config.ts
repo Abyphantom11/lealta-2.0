@@ -55,10 +55,10 @@ export const REALTIME_CONFIG = {
   
   // 🐛 Debug Settings
   debug: {
-    enabled: true, // ✅ Temporalmente habilitado para debugging
-    logEvents: true,
-    logReconnections: true,
-    logCacheUpdates: false, // Muy verbose, desactivar en prod
+    enabled: process.env.NODE_ENV === 'development', // ✅ Solo en desarrollo
+    logEvents: process.env.NODE_ENV === 'development',
+    logReconnections: process.env.NODE_ENV === 'development',
+    logCacheUpdates: false, // Muy verbose, desactivar siempre
   },
 } as const;
 
