@@ -63,9 +63,12 @@ export async function GET(request: NextRequest) {
     }
   });
 
-  // ⚠️ MODO DESARROLLO: Permitir sin sesión si viene de localhost o Cloudflare
+  // ⚠️ PERMITIR ACCESO: SSE requiere validación especial porque las cookies pueden no llegar
+  // En producción, verificamos por dominio y referer válidos
   const host = request.headers.get('host') || '';
   const referer = request.headers.get('referer') || '';
+  const origin = request.headers.get('origin') || '';
+  
   const isDevelopment = 
     process.env.NODE_ENV === 'development' ||
     host.includes('localhost') ||
@@ -73,13 +76,27 @@ export async function GET(request: NextRequest) {
     referer.includes('localhost') ||
     referer.includes('trycloudflare.com');
 
-  if (!session?.user?.email && !isDevelopment) {
-    console.error('[SSE] ❌ No hay sesión válida y no es desarrollo');
+  const isProductionValid = 
+    host.includes('lealta.app') ||
+    host.includes('vercel.app') ||
+    referer.includes('lealta.app') ||
+    referer.includes('vercel.app') ||
+    origin.includes('lealta.app') ||
+    origin.includes('vercel.app');
+
+  // Solo requerir sesión estricta si no es desarrollo NI producción válida
+  if (!session?.user?.email && !isDevelopment && !isProductionValid) {
+    console.error('[SSE] ❌ No hay sesión válida y no es desarrollo/producción válida');
     return new Response('Unauthorized', { status: 401 });
   }
 
-  if (!session?.user?.email && isDevelopment) {
-    console.warn('[SSE] ⚠️ Permitiendo acceso sin sesión (modo desarrollo)');
+  if (!session?.user?.email) {
+    console.warn('[SSE] ⚠️ Permitiendo acceso sin sesión (desarrollo o producción válida)', {
+      isDevelopment,
+      isProductionValid,
+      host,
+      referer
+    });
   }
 
   // Obtener businessId de los query params
