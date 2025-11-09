@@ -35,10 +35,35 @@ export function emitReservationEvent(businessId: number, event: any) {
   console.log(`[SSE] Evento emitido a ${emittedCount} conexiones`);
 }
 
+// Handler para OPTIONS (CORS preflight)
+export async function OPTIONS(request: NextRequest) {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': request.headers.get('origin') || '*',
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
+}
+
 export async function GET(request: NextRequest) {
   // Verificar autenticación
   const session = await getServerSession(authOptions);
+  
+  console.log('[SSE] Verificando autenticación:', {
+    hasSession: !!session,
+    email: session?.user?.email,
+    headers: {
+      cookie: request.headers.get('cookie')?.substring(0, 50) + '...',
+      origin: request.headers.get('origin'),
+      referer: request.headers.get('referer'),
+    }
+  });
+
   if (!session?.user?.email) {
+    console.error('[SSE] ❌ No hay sesión válida');
     return new Response('Unauthorized', { status: 401 });
   }
 
@@ -47,10 +72,11 @@ export async function GET(request: NextRequest) {
   const businessId = searchParams.get('businessId');
 
   if (!businessId) {
+    console.error('[SSE] ❌ businessId no proporcionado');
     return new Response('businessId required', { status: 400 });
   }
 
-  console.log('[SSE] Nueva conexión para business:', businessId, 'usuario:', session.user.email);
+  console.log('[SSE] ✅ Nueva conexión para business:', businessId, 'usuario:', session.user.email);
 
   // Crear un ReadableStream para SSE
   const stream = new ReadableStream({
@@ -102,13 +128,17 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  // Retornar response con headers SSE
+  // Retornar response con headers SSE y CORS
   return new Response(stream, {
     headers: {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache, no-transform',
       'Connection': 'keep-alive',
       'X-Accel-Buffering': 'no', // Para Nginx
+      'Access-Control-Allow-Origin': request.headers.get('origin') || '*',
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     },
   });
 }

@@ -41,7 +41,7 @@ export function useServerSentEvents({
   // Función para conectar SSE
   const connect = useCallback(() => {
     // ✅ SEGURIDAD: Solo conectar si estamos en la ruta de reservas
-    if (typeof window !== 'undefined' && !window.location.pathname.includes('/reservas')) {
+    if (typeof globalThis.window !== 'undefined' && !globalThis.window.location.pathname.includes('/reservas')) {
       if (REALTIME_CONFIG.debug) {
         console.log('[SSE] Conexión bloqueada: No estamos en ruta de reservas');
       }
@@ -76,52 +76,127 @@ export function useServerSentEvents({
         console.log('[SSE] Conectando a:', url, 'intento:', reconnectAttemptsRef.current + 1);
       }
 
-      const eventSource = new EventSource(url);
-      eventSourceRef.current = eventSource;
+      // Usar fetch con credentials en lugar de EventSource nativo
+      // Esto asegura que las cookies de sesión se envíen correctamente
+      fetch(url, {
+        method: 'GET',
+        credentials: 'include', // ⚡ Crucial: Incluir cookies de sesión
+        headers: {
+          'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+        },
+      }).then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-      // Evento: Conexión abierta
-      eventSource.onopen = () => {
+        if (!response.body) {
+          throw new Error('No response body');
+        }
+
         setStatus('connected');
         setError(null);
-        reconnectAttemptsRef.current = 0; // Reset contador de intentos
+        reconnectAttemptsRef.current = 0;
         
         if (REALTIME_CONFIG.debug) {
           console.log('[SSE] ✅ Conectado exitosamente');
         }
-      };
 
-      // Evento: Mensaje recibido
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data) as SSEEvent<any>;
+        // Leer el stream
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        // Guardar referencia para poder cerrar
+        const streamController = {
+          close: () => {
+            reader.cancel();
+          }
+        };
+        eventSourceRef.current = streamController as any;
+
+        while (true) {
+          const { done, value } = await reader.read();
           
-          if (REALTIME_CONFIG.debug && data.type !== 'heartbeat') {
-            console.log('[SSE] 📨 Evento recibido:', data.type, data);
+          if (done) {
+            if (REALTIME_CONFIG.debug) {
+              console.log('[SSE] Stream cerrado por servidor');
+            }
+            break;
           }
 
-          // Callback del evento
-          if (onEvent) {
-            onEvent(data);
+          // Decodificar chunk
+          buffer += decoder.decode(value, { stream: true });
+          
+          // Procesar mensajes completos (terminan en \n\n)
+          const messages = buffer.split('\n\n');
+          buffer = messages.pop() || ''; // Guardar el último fragmento incompleto
+
+          for (const message of messages) {
+            if (!message.trim()) continue;
+            
+            // Parsear líneas del mensaje SSE
+            const lines = message.split('\n');
+            let eventData = '';
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                eventData = line.substring(6);
+                break;
+              }
+            }
+
+            if (eventData) {
+              try {
+                const data = JSON.parse(eventData) as SSEEvent<any>;
+                
+                if (REALTIME_CONFIG.debug && data.type !== 'heartbeat') {
+                  console.log('[SSE] 📨 Evento recibido:', data.type, data);
+                }
+
+                // Callback del evento
+                if (onEvent) {
+                  onEvent(data);
+                }
+              } catch (parseError) {
+                console.error('[SSE] Error parseando evento:', parseError);
+              }
+            }
           }
-        } catch (parseError) {
-          console.error('[SSE] Error parseando evento:', parseError);
         }
-      };
 
-      // Evento: Error de conexión
-      eventSource.onerror = (errorEvent) => {
-        console.error('[SSE] ❌ Error de conexión:', errorEvent);
+        // Stream terminado
+        if (!isIntentionalDisconnectRef.current) {
+          setStatus('error');
+          setError('Conexión cerrada por servidor');
+          
+          // Intentar reconexión
+          const maxAttempts = REALTIME_CONFIG.sse.reconnection.maxAttempts;
+          
+          if (reconnectAttemptsRef.current < maxAttempts) {
+            const delay = getReconnectDelay();
+            reconnectAttemptsRef.current += 1;
+            
+            setStatus('reconnecting');
+            
+            if (REALTIME_CONFIG.debug) {
+              console.log(`[SSE] 🔄 Reconectando en ${delay}ms (intento ${reconnectAttemptsRef.current}/${maxAttempts})`);
+            }
+
+            reconnectTimeoutRef.current = setTimeout(() => {
+              connect();
+            }, delay);
+          }
+        }
+
+      }).catch((error) => {
+        console.error('[SSE] ❌ Error de conexión:', error);
         
         setStatus('error');
-        setError('Error de conexión SSE');
+        setError(error.message || 'Error de conexión SSE');
         
-        // Cerrar la conexión actual
-        eventSource.close();
-        eventSourceRef.current = null;
-
-        // Callback de error
         if (onError) {
-          onError(errorEvent);
+          onError(error);
         }
 
         // Intentar reconexión automática si no fue desconexión intencional
@@ -150,7 +225,7 @@ export function useServerSentEvents({
             }
           }
         }
-      };
+      });
 
     } catch (err) {
       console.error('[SSE] Error al crear EventSource:', err);
