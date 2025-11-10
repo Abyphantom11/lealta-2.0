@@ -1,8 +1,8 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
+import { useSession, signIn } from 'next-auth/react';
 import { usePaddle } from '@/hooks/usePaddle';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Check, 
   Zap, 
@@ -11,9 +11,13 @@ import {
   Users, 
   Calendar,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  X,
+  Mail,
+  Lock,
+  Building2,
+  CreditCard
 } from 'lucide-react';
-import Link from 'next/link';
 import { useState } from 'react';
 
 interface PricingClientProps {
@@ -24,40 +28,155 @@ export default function PricingClient({ initialSession }: PricingClientProps) {
   const { data: session } = useSession();
   const { createCheckout, isLoading: paddleLoading, error: paddleError } = usePaddle();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [modalMode, setModalMode] = useState<'signup' | 'login'>('signup');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    name: '',
+    businessName: '',
+  });
   
   // Usar la sesión del cliente si está disponible, sino la inicial del servidor
   const currentSession = session || initialSession;
 
-  // Función para manejar la suscripción con Paddle
+  // Función para abrir modal de registro/login
   const handleStartTrial = async () => {
     if (!currentSession?.user?.email) {
-      // Redirigir a login si no está autenticado
-      window.location.href = '/login?redirect=/pricing';
+      // Abrir modal para registro o login
+      setShowModal(true);
+      setModalMode('signup');
       return;
     }
 
-    // Si Paddle no está configurado, mostrar mensaje
+    // Si ya está logueado, abrir checkout directo
+    openPaddleCheckout();
+  };
+
+  // Crear cuenta nueva
+  const handleSignup = async (payNow: boolean) => {
+    setIsProcessing(true);
+
+    try {
+      // Crear cuenta en el backend
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          name: formData.name,
+          businessName: formData.businessName,
+          trial: !payNow, // 14 días gratis si no paga ahora
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Error al crear cuenta');
+      }
+
+      // Loguear automáticamente
+      const result = await signIn('credentials', {
+        email: formData.email,
+        password: formData.password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        throw new Error('Error al iniciar sesión');
+      }
+
+      // Si quiere pagar ahora, abrir Paddle con los datos del formulario
+      if (payNow) {
+        // Esperar un momento para que la sesión se actualice
+        setTimeout(() => {
+          openPaddleCheckout(data.businessId, formData.email, formData.name);
+        }, 1000);
+      } else {
+        // Redirigir al dashboard con trial activado
+        setTimeout(() => {
+          globalThis.location.href = `/${data.businessId}/admin`;
+        }, 500);
+      }
+
+    } catch (error) {
+      console.error('Error en signup:', error);
+      alert(error instanceof Error ? error.message : 'Error al crear cuenta');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Login de usuario existente
+  const handleLogin = async () => {
+    setIsProcessing(true);
+
+    try {
+      const result = await signIn('credentials', {
+        email: formData.email,
+        password: formData.password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        throw new Error('Email o contraseña incorrectos');
+      }
+
+      // Cerrar modal y abrir checkout
+      setShowModal(false);
+      
+      // Esperar un momento para que la sesión se actualice
+      setTimeout(() => {
+        openPaddleCheckout();
+      }, 500);
+
+    } catch (error) {
+      console.error('Error en login:', error);
+      alert(error instanceof Error ? error.message : 'Error al iniciar sesión');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Abrir Paddle Checkout
+  const openPaddleCheckout = async (businessId?: string, email?: string, name?: string) => {
     if (paddleError) {
       alert('⚠️ Paddle aún no está configurado.\n\nPara activar los pagos, sigue la guía: PADDLE_TESTING_GUIDE.md');
       return;
     }
 
+    // Obtener email y nombre del usuario actual o de los parámetros
+    const customerEmail = email || currentSession?.user?.email || formData.email;
+    const customerName = name || currentSession?.user?.name || formData.name;
+    const targetBusinessId = businessId || currentSession?.user?.businessId;
+
+    if (!customerEmail) {
+      alert('Error: Email requerido para procesar el pago');
+      return;
+    }
+
     try {
-      setIsProcessing(true);
-      
+      console.log('🎯 Abriendo checkout con:', {
+        customerEmail,
+        customerName,
+        businessId: targetBusinessId,
+      });
+
       await createCheckout({
         priceId: process.env.NEXT_PUBLIC_PADDLE_PLAN_ENTERPRISE_ID || 'pri_lealta_enterprise_plan',
-        businessId: currentSession.user.businessId || 'temp_business_id',
-        customerEmail: currentSession.user.email,
-        customerName: currentSession.user.name || '',
-        successUrl: `${window.location.origin}/billing/success?plan=ENTERPRISE`,
-        cancelUrl: `${window.location.origin}/billing/cancel`,
+        businessId: targetBusinessId || 'temp_business_id',
+        customerEmail: customerEmail,
+        customerName: customerName || 'Usuario',
+        successUrl: `${globalThis.location.origin}/billing/success?plan=ENTERPRISE`,
+        cancelUrl: `${globalThis.location.origin}/pricing`,
       });
+      
+      setShowModal(false);
     } catch (error) {
       console.error('Error iniciando suscripción:', error);
       alert('Error al procesar el pago. Inténtalo de nuevo.');
-    } finally {
-      setIsProcessing(false);
     }
   };
 
@@ -169,9 +288,15 @@ export default function PricingClient({ initialSession }: PricingClientProps) {
               {!currentSession && (
                 <p className="text-gray-400 text-sm mt-3">
                   ¿Ya tienes cuenta?{' '}
-                  <Link href="/login?redirect=/pricing" className="text-purple-400 hover:text-purple-300">
+                  <button 
+                    onClick={() => {
+                      setShowModal(true);
+                      setModalMode('login');
+                    }}
+                    className="text-purple-400 hover:text-purple-300 underline"
+                  >
                     Inicia sesión aquí
-                  </Link>
+                  </button>
                 </p>
               )}
             </div>
@@ -326,6 +451,166 @@ export default function PricingClient({ initialSession }: PricingClientProps) {
           </div>
         </motion.div>
       </div>
+
+      {/* Modal de Registro/Login */}
+      <AnimatePresence>
+        {showModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-gradient-to-br from-slate-900 to-purple-900 rounded-2xl p-8 max-w-md w-full border border-purple-500/30 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold">
+                  {modalMode === 'signup' ? '🚀 Crear Cuenta' : '🔐 Iniciar Sesión'}
+                </h2>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Formulario */}
+              <div className="space-y-4">
+                {modalMode === 'signup' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        <Building2 className="w-4 h-4 inline mr-2" />
+                        Nombre del Negocio
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.businessName}
+                        onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
+                        placeholder="Restaurante El Sabor"
+                        className="w-full px-4 py-3 bg-slate-800/50 border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none transition-colors"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        <Users className="w-4 h-4 inline mr-2" />
+                        Tu Nombre
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="Juan Pérez"
+                        className="w-full px-4 py-3 bg-slate-800/50 border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none transition-colors"
+                        required
+                      />
+                    </div>
+                  </>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <Mail className="w-4 h-4 inline mr-2" />
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="tu@email.com"
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none transition-colors"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <Lock className="w-4 h-4 inline mr-2" />
+                    Contraseña
+                  </label>
+                  <input
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder="••••••••"
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none transition-colors"
+                    required
+                  />
+                </div>
+
+                {/* Botones de acción */}
+                {modalMode === 'signup' ? (
+                  <div className="space-y-3 pt-4">
+                    <button
+                      onClick={() => handleSignup(false)}
+                      disabled={isProcessing || !formData.email || !formData.password || !formData.name || !formData.businessName}
+                      className="w-full px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      🎉 Comenzar con 14 Días Gratis
+                    </button>
+
+                    <button
+                      onClick={() => handleSignup(true)}
+                      disabled={isProcessing || !formData.email || !formData.password || !formData.name || !formData.businessName}
+                      className="w-full px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      <CreditCard className="w-5 h-5" />
+                      Pagar Ahora ($250/mes)
+                    </button>
+
+                    <p className="text-center text-sm text-gray-400 mt-4">
+                      ¿Ya tienes cuenta?{' '}
+                      <button
+                        onClick={() => setModalMode('login')}
+                        className="text-purple-400 hover:text-purple-300 underline"
+                      >
+                        Inicia sesión
+                      </button>
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 pt-4">
+                    <button
+                      onClick={handleLogin}
+                      disabled={isProcessing || !formData.email || !formData.password}
+                      className="w-full px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isProcessing ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Iniciando...
+                        </div>
+                      ) : (
+                        'Iniciar Sesión'
+                      )}
+                    </button>
+
+                    <p className="text-center text-sm text-gray-400 mt-4">
+                      ¿No tienes cuenta?{' '}
+                      <button
+                        onClick={() => setModalMode('signup')}
+                        className="text-purple-400 hover:text-purple-300 underline"
+                      >
+                        Crear cuenta
+                      </button>
+                    </p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

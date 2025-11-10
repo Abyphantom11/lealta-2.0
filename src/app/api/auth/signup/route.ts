@@ -8,6 +8,18 @@ import { logger } from '@/utils/production-logger';
 // Forzar renderizado dinámico para esta ruta que usa headers
 export const dynamic = 'force-dynamic';
 
+// Helper para generar subdomain a partir del nombre del negocio
+function generateSubdomain(businessName: string): string {
+  return businessName
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remover acentos
+    .replace(/[^a-z0-9]+/g, '-') // Reemplazar espacios y caracteres especiales con guiones
+    .replace(/^-+|-+$/g, '') // Remover guiones al inicio y final
+    .substring(0, 30) // Limitar a 30 caracteres
+    + '-' + Math.random().toString(36).substring(2, 6); // Agregar sufijo aleatorio
+}
+
 const signupSchema = z.object({
   // Datos de la empresa
   businessName: z
@@ -19,10 +31,12 @@ const signupSchema = z.object({
     .regex(
       /^[a-z0-9-]+$/,
       'Subdominio solo puede contener letras, números y guiones'
-    ),
+    )
+    .optional(), // Opcional para el flujo simplificado
   contactEmail: z
     .string()
-    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Email de contacto inválido'),
+    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Email de contacto inválido')
+    .optional(), // Opcional para el flujo simplificado
   contactPhone: z
     .string()
     .regex(/^[0-9+\-() ]*$/, 'El teléfono solo puede contener números y símbolos +, -, (, )')
@@ -33,13 +47,22 @@ const signupSchema = z.object({
   // Datos del SuperAdmin
   adminName: z
     .string()
-    .min(2, 'Nombre del admin debe tener al menos 2 caracteres'),
+    .min(2, 'Nombre del admin debe tener al menos 2 caracteres')
+    .optional(), // Opcional
+  name: z.string().min(2, 'Nombre debe tener al menos 2 caracteres').optional(), // Alias para adminName
   adminEmail: z
     .string()
-    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Email del admin inválido'),
+    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Email del admin inválido')
+    .optional(),
+  email: z.string().email('Email inválido').optional(), // Alias para adminEmail
   adminPassword: z
     .string()
-    .min(6, 'Contraseña debe tener al menos 6 caracteres'),
+    .min(6, 'Contraseña debe tener al menos 6 caracteres')
+    .optional(),
+  password: z.string().min(6, 'Contraseña debe tener al menos 6 caracteres').optional(), // Alias
+
+  // Control de trial
+  trial: z.boolean().optional(), // Si es true, activa 14 días gratis
 
   // Verificación de email (opcional para el flujo completo)
   emailVerified: z.boolean().optional(),
@@ -51,13 +74,28 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = signupSchema.parse(body);
 
+    // Normalizar datos (soportar ambos formatos: adminEmail/email, adminName/name, etc.)
+    const adminEmail = validatedData.adminEmail || validatedData.email;
+    const adminName = validatedData.adminName || validatedData.name;
+    const adminPassword = validatedData.adminPassword || validatedData.password;
+    const businessName = validatedData.businessName;
+    const subdomain = validatedData.subdomain || generateSubdomain(businessName);
+
+    // Validar que tengamos los campos necesarios
+    if (!adminEmail || !adminName || !adminPassword) {
+      return NextResponse.json(
+        { error: 'Email, nombre y contraseña son requeridos' },
+        { status: 400 }
+      );
+    }
+
     // Verificar email si se requiere verificación
     if (validatedData.emailVerified && validatedData.verificationId) {
       const verification = await prisma.emailVerification.findUnique({
         where: { id: validatedData.verificationId },
       });
 
-      if (!verification || !verification.verified || verification.email !== validatedData.adminEmail) {
+      if (!verification || !verification.verified || verification.email !== adminEmail) {
         return NextResponse.json(
           { error: 'Email no verificado. Por favor verifica tu email primero.' },
           { status: 400 }
@@ -67,7 +105,7 @@ export async function POST(request: NextRequest) {
 
     // Verificar si el subdominio ya existe
     const existingBusiness = await prisma.business.findUnique({
-      where: { subdomain: validatedData.subdomain },
+      where: { subdomain },
     });
 
     if (existingBusiness) {
@@ -79,7 +117,7 @@ export async function POST(request: NextRequest) {
 
     // Verificar si el email del admin ya existe en alguna empresa
     const existingAdmin = await prisma.user.findFirst({
-      where: { email: validatedData.adminEmail },
+      where: { email: adminEmail },
     });
 
     if (existingAdmin) {
@@ -91,32 +129,36 @@ export async function POST(request: NextRequest) {
 
     // Crear empresa y SuperAdmin en una transacción
     const result = await prisma.$transaction(async (tx) => {
-      // Crear Business con trial de 14 días
-      const trialEndsAt = new Date();
-      trialEndsAt.setDate(trialEndsAt.getDate() + 14); // 14 días desde ahora
+      // Determinar si activar trial (14 días gratis)
+      const shouldActivateTrial = validatedData.trial === true;
+      const trialEndsAt = shouldActivateTrial ? (() => {
+        const date = new Date();
+        date.setDate(date.getDate() + 14);
+        return date;
+      })() : null;
       
       const business = await tx.business.create({
         data: {
-          name: validatedData.businessName,
-          slug: validatedData.subdomain,
-          subdomain: validatedData.subdomain,
+          name: businessName,
+          slug: subdomain,
+          subdomain: subdomain,
           subscriptionPlan: 'BASIC', // Plan inicial
-          subscriptionStatus: 'trialing', // Estado: en periodo de prueba
-          trialEndsAt: trialEndsAt, // Fecha de expiración del trial
+          subscriptionStatus: shouldActivateTrial ? 'trialing' : 'inactive',
+          trialEndsAt: trialEndsAt,
           isActive: true,
         },
       });
 
       // Hash de la contraseña
-      const passwordHash = await hash(validatedData.adminPassword, 12);
+      const passwordHash = await hash(adminPassword, 12);
 
       // Crear SuperAdmin
       const superAdmin = await tx.user.create({
         data: {
           businessId: business.id,
-          email: validatedData.adminEmail,
+          email: adminEmail,
           passwordHash,
-          name: validatedData.adminName,
+          name: adminName,
           role: 'SUPERADMIN',
           isActive: true,
         },
@@ -126,7 +168,7 @@ export async function POST(request: NextRequest) {
       await tx.location.create({
         data: {
           businessId: business.id,
-          name: `${validatedData.businessName} - Principal`,
+          name: `${businessName} - Principal`,
         },
       });
 
@@ -188,6 +230,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Negocio y administrador creados exitosamente',
+      businessId: result.business.id, // Para usarlo en el frontend
       business: {
         id: result.business.id,
         name: result.business.name,
@@ -198,6 +241,7 @@ export async function POST(request: NextRequest) {
         name: result.superAdmin.name,
         email: result.superAdmin.email,
       },
+      trial: validatedData.trial === true, // Indicar si tiene trial activo
     });
   } catch (error) {
     logger.error('❌ Signup error:', error);
