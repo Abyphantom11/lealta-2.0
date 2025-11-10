@@ -73,36 +73,37 @@ export function usePaddle(): UsePaddleReturn {
     initPaddle();
   }, []);
 
-  // Crear checkout
+  // Crear checkout con Paddle Overlay (muestra formulario inline)
   const createCheckout = async (options: CheckoutOptions) => {
     if (!paddle) {
       throw new Error('Paddle no está inicializado');
     }
 
     try {
-      console.log('🛒 Creando checkout con opciones:', options);
+      console.log('🛒 Creando checkout con Paddle Overlay:', options);
 
-      // Llamar a nuestra API para crear el checkout
-      const response = await fetch('/api/billing/checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      // Usar Paddle Overlay directamente (muestra el formulario de pago)
+      paddle.Checkout.open({
+        items: [{
+          priceId: options.priceId,
+          quantity: 1,
+        }],
+        customer: {
+          email: options.customerEmail,
         },
-        body: JSON.stringify(options),
+        customData: {
+          businessId: options.businessId,
+          source: 'lealta-dashboard',
+        },
+        settings: {
+          displayMode: 'overlay', // Muestra como modal/overlay
+          theme: 'light',
+          locale: 'es', // Español
+          successUrl: options.successUrl || `${window.location.origin}/billing/success?businessId=${options.businessId}`,
+        },
       });
 
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Error creando checkout');
-      }
-
-      // Redirect to Paddle checkout URL
-      if (data.checkoutUrl && data.checkoutUrl !== '#') {
-        globalThis.location?.assign(data.checkoutUrl);
-      } else {
-        throw new Error('URL de checkout inválida');
-      }
+      console.log('✅ Checkout overlay abierto exitosamente');
 
     } catch (err) {
       console.error('❌ Error creando checkout:', err);
