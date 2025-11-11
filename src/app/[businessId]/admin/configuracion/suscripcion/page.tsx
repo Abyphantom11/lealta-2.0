@@ -9,6 +9,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import { usePaddle } from '@/hooks/usePaddle';
+import { PADDLE_PRICE_ID_ENTERPRISE } from '@/lib/paddle';
 import { 
   CheckCircle, 
   AlertTriangle, 
@@ -180,14 +181,9 @@ export default function SuscripcionPage() {
       return;
     }
 
-    // Verificar variables de entorno
-    const priceId = process.env.NEXT_PUBLIC_PADDLE_PLAN_ENTERPRISE_ID;
+    // Usar Price ID desde configuración
+    const priceId = PADDLE_PRICE_ID_ENTERPRISE;
     console.log('Price ID:', priceId);
-    
-    if (!priceId || priceId === 'pri_lealta_enterprise') {
-      alert('⚠️ Paddle aún no está configurado.\n\nPara activar los pagos:\n1. Configura NEXT_PUBLIC_PADDLE_PLAN_ENTERPRISE_ID en .env.local\n2. Reinicia el servidor (npm run dev)\n\nVer: CONFIGURAR_PADDLE_RAPIDO.md');
-      return;
-    }
 
     setIsProcessing(true);
     try {

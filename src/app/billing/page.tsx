@@ -15,6 +15,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { usePaddle } from '@/hooks/usePaddle';
+import { PADDLE_PRICE_ID_ENTERPRISE } from '@/lib/paddle';
 import { 
   CreditCard, 
   CheckCircle, 
@@ -85,7 +86,7 @@ export default function BillingPage() {
     setIsProcessing(true);
     try {
       await createCheckout({
-        priceId: process.env.NEXT_PUBLIC_PADDLE_PLAN_ENTERPRISE_ID || 'pri_lealta_enterprise',
+        priceId: PADDLE_PRICE_ID_ENTERPRISE,
         businessId: session.user.businessId || '',
         customerEmail: session.user.email || '',
         customerName: session.user.name || '',

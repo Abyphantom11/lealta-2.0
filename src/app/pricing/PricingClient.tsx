@@ -2,6 +2,7 @@
 
 import { useSession, signIn } from 'next-auth/react';
 import { usePaddle } from '@/hooks/usePaddle';
+import { PADDLE_PRICE_ID_ENTERPRISE } from '@/lib/paddle';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Check, 
@@ -176,7 +177,7 @@ export default function PricingClient({ initialSession }: PricingClientProps) {
       });
 
       await createCheckout({
-        priceId: process.env.NEXT_PUBLIC_PADDLE_PLAN_ENTERPRISE_ID || 'pri_lealta_enterprise_plan',
+        priceId: PADDLE_PRICE_ID_ENTERPRISE,
         businessId: targetBusinessId || 'temp_business_id',
         customerEmail: customerEmail,
         customerName: customerName || 'Usuario',
