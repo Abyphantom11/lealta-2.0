@@ -72,7 +72,7 @@ export const paddleConfig = {
 
 // ===== PRICE IDs =====
 // Price ID del Plan Enterprise (disponible en cliente y servidor)
-export const PADDLE_PRICE_ID_ENTERPRISE = 'pri_01k9d95qvht02dqzvkw0h5876p';
+export const PADDLE_PRICE_ID_ENTERPRISE = process.env.NEXT_PUBLIC_PADDLE_PLAN_ENTERPRISE_ID || 'pri_01k9rf1r9jv9aa3fsjnzf34zkp';
 
 // Planes de suscripción disponibles
 export const PADDLE_PLANS = {
