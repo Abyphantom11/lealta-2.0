@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Paddle - Diagnóstico</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 { color: #333; }
+        .status { 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { 
+            background: #ccc; 
+            cursor: not-allowed; 
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+        .info { 
+            background: #e7f3ff; 
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🧪 Test de Paddle - Diagnóstico</h1>
+        <div id="status"></div>
+        <div id="details"></div>
+        <div id="actions"></div>
+    </div>
+
+    <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+    <script>
+        const statusDiv = document.getElementById('status');
+        const detailsDiv = document.getElementById('details');
+        const actionsDiv = document.getElementById('actions');
+
+        // Configuración (reemplaza con tus valores)
+        const PADDLE_TOKEN = 'test_e7baca7d5de4072f974fbe36dce';
+        const PRICE_ID = 'pri_01k9rf1r9jv9aa3fsjnzf34zkp';
+
+        async function runDiagnostics() {
+            let results = [];
+
+            // 1. Verificar si Paddle.js está cargado
+            results.push({
+                test: 'Paddle.js Script',
+                status: typeof Paddle !== 'undefined' ? 'success' : 'error',
+                message: typeof Paddle !== 'undefined' 
+                    ? '✅ Paddle.js cargado correctamente' 
+                    : '❌ Paddle.js no se pudo cargar (bloqueado por AdBlock?)'
+            });
+
+            if (typeof Paddle === 'undefined') {
+                displayResults(results);
+                showAdBlockWarning();
+                return;
+            }
+
+            // 2. Inicializar Paddle
+            try {
+                await Paddle.Initialize({
+                    environment: 'sandbox',
+                    token: PADDLE_TOKEN,
+                    eventCallback: (event) => {
+                        console.log('📡 Evento Paddle:', event);
+                        logEvent(event);
+                    }
+                });
+
+                results.push({
+                    test: 'Inicialización de Paddle',
+                    status: 'success',
+                    message: '✅ Paddle inicializado correctamente'
+                });
+
+            } catch (error) {
+                results.push({
+                    test: 'Inicialización de Paddle',
+                    status: 'error',
+                    message: `❌ Error: ${error.message}`
+                });
+            }
+
+            // 3. Verificar Price ID
+            results.push({
+                test: 'Price ID configurado',
+                status: PRICE_ID ? 'success' : 'error',
+                message: PRICE_ID 
+                    ? `✅ Price ID: ${PRICE_ID}` 
+                    : '❌ Price ID no configurado'
+            });
+
+            displayResults(results);
+            
+            // Si todo OK, mostrar botón de prueba
+            if (results.every(r => r.status === 'success')) {
+                showCheckoutButton();
+            }
+        }
+
+        function displayResults(results) {
+            statusDiv.innerHTML = results.map(r => 
+                `<div class="status ${r.status}">${r.message}</div>`
+            ).join('');
+        }
+
+        function showAdBlockWarning() {
+            detailsDiv.innerHTML = `
+                <div class="info">
+                    <h3>⚠️ Bloqueador de Anuncios Detectado</h3>
+                    <p><strong>Paddle está siendo bloqueado por una extensión del navegador.</strong></p>
+                    <p>Para probar Paddle, necesitas:</p>
+                    <ol>
+                        <li><strong>Desactivar tu bloqueador de anuncios</strong> para este sitio</li>
+                        <li>O <strong>agregar una excepción</strong> para los dominios de Paddle:
+                            <ul>
+                                <li><code>*.paddle.com</code></li>
+                                <li><code>cdn.paddle.com</code></li>
+                                <li><code>sandbox-checkout-service.paddle.com</code></li>
+                            </ul>
+                        </li>
+                    </ol>
+                    <p><strong>Bloqueadores comunes:</strong></p>
+                    <ul>
+                        <li>uBlock Origin</li>
+                        <li>AdBlock / AdBlock Plus</li>
+                        <li>Privacy Badger</li>
+                        <li>Brave Shield</li>
+                    </ul>
+                </div>
+            `;
+
+            actionsDiv.innerHTML = `
+                <button onclick="window.location.reload()">🔄 Reintentar</button>
+            `;
+        }
+
+        function showCheckoutButton() {
+            actionsDiv.innerHTML = `
+                <h3>✅ Todo listo para probar</h3>
+                <button onclick="openCheckout()">🛒 Abrir Checkout de Prueba</button>
+                <div id="events" style="margin-top: 20px;"></div>
+            `;
+        }
+
+        function openCheckout() {
+            console.log('🛒 Abriendo checkout...');
+            
+            Paddle.Checkout.open({
+                items: [{
+                    priceId: PRICE_ID,
+                    quantity: 1
+                }],
+                customer: {
+                    email: 'test@example.com'
+                },
+                customData: {
+                    businessId: 'test_business',
+                    source: 'test-page'
+                }
+            });
+        }
+
+        function logEvent(event) {
+            const eventsDiv = document.getElementById('events');
+            if (eventsDiv) {
+                const eventEl = document.createElement('div');
+                eventEl.className = 'status success';
+                eventEl.textContent = `📡 ${event.name || event.type}`;
+                eventsDiv.appendChild(eventEl);
+            }
+        }
+
+        // Ejecutar diagnósticos al cargar
+        window.addEventListener('load', () => {
+            setTimeout(runDiagnostics, 500);
+        });
+    </script>
+</body>
+</html>
