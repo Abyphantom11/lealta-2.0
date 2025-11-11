@@ -129,13 +129,9 @@ export async function POST(request: NextRequest) {
 
     // Crear empresa y SuperAdmin en una transacción
     const result = await prisma.$transaction(async (tx) => {
-      // Determinar si activar trial (14 días gratis)
-      const shouldActivateTrial = validatedData.trial === true;
-      const trialEndsAt = shouldActivateTrial ? (() => {
-        const date = new Date();
-        date.setDate(date.getDate() + 14);
-        return date;
-      })() : null;
+      // ✅ TRIAL AUTOMÁTICO: Todos los nuevos usuarios tienen 14 días gratis
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + 14);
       
       const business = await tx.business.create({
         data: {
@@ -143,8 +139,8 @@ export async function POST(request: NextRequest) {
           slug: subdomain,
           subdomain: subdomain,
           subscriptionPlan: 'BASIC', // Plan inicial
-          subscriptionStatus: shouldActivateTrial ? 'trialing' : 'inactive',
-          trialEndsAt: trialEndsAt,
+          subscriptionStatus: 'trialing', // ✅ Siempre en trial al registrarse
+          trialEndsAt: trialEndsAt, // ✅ 14 días desde hoy
           isActive: true,
         },
       });
