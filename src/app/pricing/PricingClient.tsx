@@ -143,7 +143,18 @@ export default function PricingClient({ initialSession }: PricingClientProps) {
   // Abrir Paddle Checkout
   const openPaddleCheckout = async (businessId?: string, email?: string, name?: string) => {
     if (paddleError) {
-      alert('⚠️ Paddle aún no está configurado.\n\nPara activar los pagos, sigue la guía: PADDLE_TESTING_GUIDE.md');
+      // Mensaje específico según el tipo de error
+      if (paddleError.includes('BLOQUEADO')) {
+        alert('🚫 BLOQUEADOR DE ANUNCIOS DETECTADO\n\n' +
+              'Tu extensión de navegador está bloqueando Paddle.\n\n' +
+              '✅ SOLUCIÓN:\n' +
+              '1. Desactiva tu bloqueador de anuncios (uBlock, AdBlock, etc.)\n' +
+              '2. O agrega una excepción para: *.paddle.com\n' +
+              '3. Recarga la página\n\n' +
+              'Para diagnosticar: Abre /test-paddle.html');
+      } else {
+        alert('⚠️ Error con Paddle:\n\n' + paddleError + '\n\nPara activar los pagos, sigue la guía: PADDLE_TESTING_GUIDE.md');
+      }
       return;
     }
 

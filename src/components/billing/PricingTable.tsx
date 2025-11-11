@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Star, Zap, Crown } from 'lucide-react';
 import { usePaddle, usePaddlePlans } from '@/hooks/usePaddle';
+import PaddlePaymentButton from './PaddlePaymentButton';
 
 /**
  * 💳 COMPONENTE: PricingTable
@@ -36,43 +37,9 @@ export default function PricingTable({
   customerName,
   onPlanSelected 
 }: PricingTableProps) {
-  const { paddle, createCheckout, isLoading: paddleLoading } = usePaddle();
+  // Ya no necesitamos el hook usePaddle - usamos Payment Links directo
   const { plans } = usePaddlePlans();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
-
-  const handleSelectPlan = async (planId: string, planKey: string) => {
-    if (!businessId || !customerEmail) {
-      alert('Por favor, inicia sesión para continuar');
-      return;
-    }
-
-    if (!paddle || paddleLoading) {
-      alert('Cargando sistema de pagos...');
-      return;
-    }
-
-    try {
-      setLoadingPlan(planKey);
-      
-      await createCheckout({
-        priceId: planId,
-        businessId,
-        customerEmail,
-        customerName,
-        successUrl: `${globalThis.location?.origin || 'http://localhost:3001'}/billing/success?plan=${planKey}`,
-        cancelUrl: `${globalThis.location?.origin || 'http://localhost:3001'}/billing/cancel`,
-      });
-
-      // Callback opcional
-      onPlanSelected?.(planId);
-
-    } catch (error) {
-      console.error('Error al seleccionar plan:', error);
-      alert('Error al procesar el pago. Inténtalo de nuevo.');
-    } finally {
-      setLoadingPlan(null);
-    }
-  };
 
   return (
     <div className="py-12 bg-gradient-to-br from-gray-900 via-gray-800 to-black">
@@ -158,12 +125,13 @@ export default function PricingTable({
                   ))}
                 </ul>
 
-                {/* CTA Button */}
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleSelectPlan(plan.id, key)}
-                  disabled={isLoading || paddleLoading}
+                {/* CTA Button - Payment Link directo (evita 403) */}
+                <PaddlePaymentButton
+                  priceId={plan.id}
+                  businessId={businessId}
+                  customerEmail={customerEmail}
+                  customerName={customerName}
+                  buttonText={isLoading ? 'Procesando...' : 'Seleccionar Plan'}
                   className={`
                     w-full py-3 px-6 rounded-lg font-semibold text-white
                     transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
@@ -172,16 +140,7 @@ export default function PricingTable({
                       : 'bg-gray-700 hover:bg-gray-600'
                     }
                   `}
-                >
-                  {isLoading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                      Procesando...
-                    </div>
-                  ) : (
-                    'Seleccionar Plan'
-                  )}
-                </motion.button>
+                />
 
                 {/* Additional Info */}
                 <p className="text-gray-500 text-sm mt-4">

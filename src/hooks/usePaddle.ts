@@ -15,6 +15,7 @@ interface UsePaddleReturn {
   isLoading: boolean;
   error: string | null;
   createCheckout: (options: CheckoutOptions) => Promise<void>;
+  createCheckoutWithLink: (options: CheckoutOptions) => Promise<void>; // ← Método alternativo
   openSubscriptionPortal: (subscriptionId: string) => Promise<void>;
 }
 
@@ -49,6 +50,14 @@ export function usePaddle(): UsePaddleReturn {
           return;
         }
         
+        // Verificar si Paddle está bloqueado por AdBlock
+        if (typeof window !== 'undefined' && !window.Paddle && !initializePaddle) {
+          console.error('❌ Paddle bloqueado por extensión del navegador');
+          setError('BLOQUEADO: Desactiva tu bloqueador de anuncios para usar Paddle. Dominios: *.paddle.com');
+          setIsLoading(false);
+          return;
+        }
+        
         const paddleInstance = await initializePaddle({
           environment: paddleConfig.environment as any,
           token: paddleConfig.token,
@@ -58,13 +67,24 @@ export function usePaddle(): UsePaddleReturn {
         if (paddleInstance) {
           setPaddle(paddleInstance);
           console.log('✅ Paddle inicializado correctamente');
+          console.log('🌍 Entorno:', paddleConfig.environment);
+          console.log('🔑 Token:', paddleConfig.token.substring(0, 10) + '...');
         } else {
           throw new Error('No se pudo inicializar Paddle');
         }
 
       } catch (err) {
         console.error('❌ Error inicializando Paddle:', err);
-        setError(err instanceof Error ? err.message : 'Error desconocido');
+        const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+        
+        // Detectar errores comunes
+        if (errorMessage.includes('blocked') || errorMessage.includes('ERR_BLOCKED_BY_CLIENT')) {
+          setError('BLOQUEADO: Tu bloqueador de anuncios está bloqueando Paddle. Desactívalo para este sitio.');
+        } else if (errorMessage.includes('401') || errorMessage.includes('403')) {
+          setError('ERROR DE AUTENTICACIÓN: Verifica tu Client Token de Paddle.');
+        } else {
+          setError(errorMessage);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -81,32 +101,96 @@ export function usePaddle(): UsePaddleReturn {
 
     try {
       console.log('🛒 Creando checkout con Paddle Overlay:', options);
+      console.log('📦 Usando Price ID:', options.priceId);
 
-      // Usar Paddle Overlay directamente (muestra el formulario de pago)
-      paddle.Checkout.open({
+      // Preparar los datos del checkout - SIMPLIFICADO para evitar errores 400
+      const checkoutData: any = {
         items: [{
           priceId: options.priceId,
           quantity: 1,
-        }],
-        customer: {
+        }]
+      };
+
+      // Solo agregar customer si tenemos email válido
+      if (options.customerEmail && options.customerEmail.includes('@')) {
+        checkoutData.customer = {
           email: options.customerEmail,
-        },
-        customData: {
-          businessId: options.businessId,
-          source: 'lealta-dashboard',
-        },
-        settings: {
-          displayMode: 'overlay', // Muestra como modal/overlay
-          theme: 'light',
-          locale: 'es', // Español
-          successUrl: options.successUrl || `${window.location.origin}/billing/success?businessId=${options.businessId}`,
-        },
-      });
+        };
+        
+        // Agregar nombre solo si está presente
+        if (options.customerName) {
+          checkoutData.customer.name = options.customerName;
+        }
+      }
+
+      // Custom data simplificado - solo lo esencial
+      if (options.businessId) {
+        checkoutData.customData = {
+          business_id: options.businessId, // Usar snake_case
+        };
+      }
+
+      // Settings opcionales
+      checkoutData.settings = {
+        displayMode: 'overlay',
+        theme: 'light',
+        locale: 'es',
+      };
+
+      // Solo agregar URLs si están presentes
+      if (options.successUrl) {
+        checkoutData.settings.successUrl = options.successUrl;
+      }
+
+      console.log('📤 Datos del checkout:', JSON.stringify(checkoutData, null, 2));
+
+      // Usar Paddle Overlay directamente (muestra el formulario de pago)
+      paddle.Checkout.open(checkoutData);
 
       console.log('✅ Checkout overlay abierto exitosamente');
 
     } catch (err) {
       console.error('❌ Error creando checkout:', err);
+      
+      // Log detallado del error
+      if (err instanceof Error) {
+        console.error('Error message:', err.message);
+        console.error('Error stack:', err.stack);
+      }
+      
+      throw err;
+    }
+  };
+
+  // 🔗 ALTERNATIVA: Crear checkout con Payment Link (evita 403)
+  const createCheckoutWithLink = async (options: CheckoutOptions) => {
+    try {
+      console.log('🔗 Creando checkout con Payment Link (alternativa al 403)');
+
+      // Generar payment link desde backend
+      const response = await fetch('/api/billing/payment-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          priceId: options.priceId,
+          businessId: options.businessId,
+          customerEmail: options.customerEmail,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success || !data.paymentUrl) {
+        throw new Error('No se pudo generar el payment link');
+      }
+
+      console.log('✅ Payment link generado:', data.paymentUrl);
+
+      // Redirigir al usuario al checkout de Paddle
+      globalThis.location.href = data.paymentUrl;
+
+    } catch (err) {
+      console.error('❌ Error creando checkout con link:', err);
       throw err;
     }
   };
@@ -120,10 +204,22 @@ export function usePaddle(): UsePaddleReturn {
     try {
       console.log('🎯 Abriendo portal de suscripción:', subscriptionId);
       
-      // En un caso real, necesitarías obtener la URL del portal desde tu backend
-      const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL}/billing/portal?subscription=${subscriptionId}`;
+      // Obtener URL del portal desde nuestro backend
+      const response = await fetch(`/api/billing/portal?subscriptionId=${subscriptionId}`);
+      const data = await response.json();
+
+      if (!data.success || !data.portalUrls) {
+        throw new Error('No se pudo obtener la URL del portal');
+      }
+
+      // Abrir URL del portal de gestión
+      const portalUrl = data.portalUrls.updatePaymentMethod || data.portalUrls.cancel;
       
-      window.open(portalUrl, '_blank');
+      if (portalUrl) {
+        globalThis.open(portalUrl, '_blank');
+      } else {
+        throw new Error('URL del portal no disponible');
+      }
 
     } catch (err) {
       console.error('❌ Error abriendo portal:', err);
@@ -136,6 +232,7 @@ export function usePaddle(): UsePaddleReturn {
     isLoading,
     error,
     createCheckout,
+    createCheckoutWithLink, // ← Método alternativo
     openSubscriptionPortal,
   };
 }
