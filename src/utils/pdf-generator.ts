@@ -277,10 +277,10 @@ export function generateReservationReport(
   doc.text('Analisis por Estado', 20, yPosition);
   yPosition += 8;
 
+  // ✅ Solo mostrar estados finales (sin PENDING/CONFIRMED)
   const estadosData = [
-    ['Pendientes', data.metricas.porEstado.pending.toString()],
-    ['Confirmadas', data.metricas.porEstado.confirmed.toString()],
     ['Checked-In', data.metricas.porEstado.checkedIn.toString()],
+    ['No Show', data.metricas.porEstado.noShow?.toString() || '0'],
     ['Completadas', data.metricas.porEstado.completed.toString()],
     ['Canceladas', data.metricas.porEstado.cancelled.toString()],
   ];
