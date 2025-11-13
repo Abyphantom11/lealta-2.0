@@ -10,6 +10,12 @@
       "maxDuration": 10
     }
   },
+  "crons": [
+    {
+      "path": "/api/cron/auto-close-days",
+      "schedule": "0 9 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",

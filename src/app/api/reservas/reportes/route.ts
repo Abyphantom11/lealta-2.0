@@ -48,12 +48,16 @@ export async function GET(request: NextRequest) {
     console.log(`   Período: ${fechaInicio.toISOString()} - ${fechaFin.toISOString()}`);
 
     // Query principal: todas las reservas del período
+    // ✅ EXCLUIR PENDING Y CONFIRMED: Solo estados finales (CHECKED_IN, NO_SHOW, CANCELLED, COMPLETED)
     const reservations = await prisma.reservation.findMany({
       where: {
         businessId,
         reservedAt: {
           gte: fechaInicio,
           lt: fechaFin, // lt (less than) en lugar de lte para excluir el primer día del siguiente mes
+        },
+        status: {
+          notIn: ['PENDING', 'CONFIRMED'], // ❌ No incluir reservas pendientes/confirmadas en reportes
         },
       },
       include: {
@@ -90,7 +94,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    console.log(`📈 Total reservas encontradas: ${reservations.length}`);
+    console.log(`📈 Total reservas encontradas: ${reservations.length} (excluye PENDING/CONFIRMED - solo estados finales)`);
 
     // ==========================================
     // NUEVA SECCIÓN: DATOS SIN RESERVA
@@ -232,13 +236,13 @@ export async function GET(request: NextRequest) {
       totalReservas > 0 ? ((conComprobante / totalReservas) * 100).toFixed(1) : '0';
 
     // ==========================================
-    // 4. ANÁLISIS POR ESTADO
+    // 4. ANÁLISIS POR ESTADO (SOLO ESTADOS FINALES)
     // ==========================================
-    // Estados del enum: PENDING, CONFIRMED, CHECKED_IN, COMPLETED, CANCELLED
+    // ✅ Solo incluir estados finales: CHECKED_IN, NO_SHOW, COMPLETED, CANCELLED
+    // ❌ PENDING y CONFIRMED no aparecen en reportes (deben cerrarse primero)
     const porEstado = {
-      pending: reservations.filter((r) => r.status === 'PENDING').length,
-      confirmed: reservations.filter((r) => r.status === 'CONFIRMED').length,
       checkedIn: reservations.filter((r) => r.status === 'CHECKED_IN').length,
+      noShow: reservations.filter((r) => r.status === 'NO_SHOW').length,
       completed: reservations.filter((r) => r.status === 'COMPLETED').length,
       cancelled: reservations.filter((r) => r.status === 'CANCELLED').length,
     };
@@ -366,18 +370,28 @@ export async function GET(request: NextRequest) {
       .map(([fecha, cantidad]) => ({ fecha, cantidad }));
 
     // Top 5 clientes con más reservas
+    // ✅ FIX: Excluir "Cliente Express" y usar customerName (nombre real) como identificador
     const reservasPorCliente = reservations.reduce((acc, r) => {
-      if (r.Cliente) {
-        const key = r.Cliente.id;
-        if (!acc[key]) {
-          acc[key] = {
-            id: r.Cliente.id,
-            nombre: r.Cliente.nombre,
-            cantidad: 0,
-          };
-        }
-        acc[key].cantidad++;
+      // Determinar el nombre real del cliente
+      const nombreReal = r.customerName || r.Cliente?.nombre;
+      
+      // ❌ Excluir si es "Cliente Express" sin customerName
+      if (!nombreReal || nombreReal === 'Cliente Express') {
+        return acc;
       }
+
+      // Usar el nombre real como clave para agrupar (múltiples reservas de "María Rodriguez")
+      const key = nombreReal;
+      
+      if (!acc[key]) {
+        acc[key] = {
+          id: r.Cliente?.id || key, // ID del cliente o el nombre como fallback
+          nombre: nombreReal,
+          cantidad: 0,
+        };
+      }
+      acc[key].cantidad++;
+      
       return acc;
     }, {} as Record<string, { id: string; nombre: string; cantidad: number }>);
 
@@ -386,12 +400,23 @@ export async function GET(request: NextRequest) {
       .slice(0, 5);
 
     // Top 5 horarios más populares
+    // ✅ FIX: Usar formatearHoraMilitar para manejar correctamente la zona horaria
+    const { formatearHoraMilitar } = await import('@/lib/timezone-utils');
+    
     const reservasPorHorario = reservations.reduce((acc, r) => {
-      const horario = new Date(r.reservedAt).toLocaleTimeString('es-ES', {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-      acc[horario] = (acc[horario] || 0) + 1;
+      try {
+        const horario = formatearHoraMilitar(r.reservedAt);
+        acc[horario] = (acc[horario] || 0) + 1;
+      } catch (error) {
+        console.warn('⚠️ Error formateando horario:', error);
+        // Fallback: intentar con toLocaleTimeString si falla
+        const horario = new Date(r.reservedAt).toLocaleTimeString('es-ES', {
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'America/Mexico_City' // 🇲🇽 Tu zona horaria
+        });
+        acc[horario] = (acc[horario] || 0) + 1;
+      }
       return acc;
     }, {} as Record<string, number>);
 
