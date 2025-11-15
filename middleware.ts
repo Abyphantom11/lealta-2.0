@@ -8,6 +8,30 @@ export async function middleware(request: NextRequest) {
   const host = request.headers.get('host') || '';
   const referer = request.headers.get('referer') || '';
   
+  // 🔒 MODO MANTENIMIENTO - Bloquear todos los logins
+  if (process.env.MAINTENANCE_MODE === 'true') {
+    // Permitir solo páginas públicas y logout
+    const allowedPaths = ['/api/health', '/maintenance', '/'];
+    
+    if (!allowedPaths.some(path => pathname.startsWith(path))) {
+      console.log('🔒 [MAINTENANCE] Bloqueando acceso:', pathname);
+      
+      // Si es una página HTML, mostrar mensaje
+      if (!pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          { error: 'Sistema en mantenimiento. Intenta más tarde.' },
+          { status: 503 }
+        );
+      }
+      
+      // Si es API, retornar 503
+      return NextResponse.json(
+        { error: 'Sistema en mantenimiento' },
+        { status: 503 }
+      );
+    }
+  }
+  
   // 🔄 CLOUDFLARE QR INTERCEPTOR - Para QR específico que va a morir
   // Interceptar la URL exacta de Cloudflare: loud-entity-fluid-trade.trycloudflare.com/r/ig4gRl
   if (host.includes('loud-entity-fluid-trade.trycloudflare.com') || 
