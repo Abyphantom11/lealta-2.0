@@ -1,8 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 
-// 🔒 MAINTENANCE MODE - Bloquear base de datos
+// 🔒 Verificar servicio disponible
 if (process.env.MAINTENANCE_MODE === 'true') {
-  throw new Error('Sistema en mantenimiento - Base de datos deshabilitada temporalmente');
+  throw new Error('Servicio temporalmente no disponible');
 }
 
 // Type for PrismaClient instance
