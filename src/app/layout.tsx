@@ -45,8 +45,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // 🔒 Verificar modo de servicio no disponible
-  if (process.env.MAINTENANCE_MODE === 'true') {
+  // 🔒 SERVICIO TEMPORALMENTE DESHABILITADO - HARDCODED
+  const isServiceDisabled = true; // Cambiar a false para reactivar
+  
+  if (isServiceDisabled) {
     return (
       <html lang="es">
         <head>

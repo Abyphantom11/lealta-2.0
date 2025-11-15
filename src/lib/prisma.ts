@@ -1,7 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 
-// 🔒 Verificar servicio disponible
-if (process.env.MAINTENANCE_MODE === 'true') {
+// 🔒 SERVICIO DESHABILITADO - HARDCODED
+const SERVICE_DISABLED = true; // Cambiar a false para reactivar
+
+if (SERVICE_DISABLED) {
   throw new Error('Servicio temporalmente no disponible');
 }
 
