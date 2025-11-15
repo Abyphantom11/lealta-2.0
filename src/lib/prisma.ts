@@ -1,5 +1,10 @@
 import { PrismaClient } from '@prisma/client';
 
+// 🔒 MAINTENANCE MODE - Bloquear base de datos
+if (process.env.MAINTENANCE_MODE === 'true') {
+  throw new Error('Sistema en mantenimiento - Base de datos deshabilitada temporalmente');
+}
+
 // Type for PrismaClient instance
 type PrismaClientInstance = InstanceType<typeof PrismaClient>;
 
