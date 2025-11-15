@@ -1,12 +1,5 @@
 import { PrismaClient } from '@prisma/client';
 
-// 🔒 SERVICIO DESHABILITADO - HARDCODED
-const SERVICE_DISABLED = true; // Cambiar a false para reactivar
-
-if (SERVICE_DISABLED) {
-  throw new Error('Servicio temporalmente no disponible');
-}
-
 // Type for PrismaClient instance
 type PrismaClientInstance = InstanceType<typeof PrismaClient>;
 
