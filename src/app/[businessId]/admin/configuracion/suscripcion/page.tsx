@@ -28,6 +28,7 @@ interface SubscriptionStatus {
   daysRemaining: number | null;
   trialEndsAt: Date | null;
   subscriptionStatus: string | null;
+  subscriptionId?: string | null;
   needsPayment: boolean;
   message: string;
   isLegacyUser: boolean;
@@ -38,7 +39,7 @@ export default function SuscripcionPage() {
   const searchParams = useSearchParams();
   const businessId = params.businessId as string;
   const { data: session, status: sessionStatus } = useSession();
-  const { createCheckout, isLoading: paddleLoading } = usePaddle();
+  const { createCheckout, openSubscriptionPortal, isLoading: paddleLoading } = usePaddle();
   
   const [subscriptionData, setSubscriptionData] = useState<SubscriptionStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -205,6 +206,21 @@ export default function SuscripcionPage() {
       alert(`Error al iniciar el proceso de pago:\n\n${error instanceof Error ? error.message : 'Error desconocido'}\n\nRevisa la consola (F12) para más detalles.`);
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  // Manejar apertura del portal de gestión
+  const handleManageSubscription = async () => {
+    if (!subscriptionData?.subscriptionId) {
+      alert('No hay subscription ID disponible');
+      return;
+    }
+
+    try {
+      await openSubscriptionPortal(subscriptionData.subscriptionId);
+    } catch (error) {
+      console.error('Error opening subscription portal:', error);
+      alert('Error al abrir el portal de gestión. Por favor intenta de nuevo.');
     }
   };
 
@@ -446,29 +462,27 @@ export default function SuscripcionPage() {
         )}
 
         {/* Portal de Facturación de Paddle */}
-        {subscriptionData?.status === 'active' && (
+        {subscriptionData?.status === 'active' && subscriptionData?.subscriptionId && (
           <div className="md:col-span-2 bg-white border border-gray-200 rounded-xl p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <Receipt className="w-6 h-6 text-gray-600" />
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">
-                    Facturas y Métodos de Pago
+                    Gestionar Suscripción
                   </h3>
                   <p className="text-sm text-gray-600">
-                    Gestiona tu información de pago en el portal de Paddle
+                    Actualiza método de pago, ve facturas o cancela tu suscripción
                   </p>
                 </div>
               </div>
-              <a
-                href="https://vendors.paddle.com/customers"
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                onClick={handleManageSubscription}
                 className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white transition-colors text-sm font-medium"
               >
                 Abrir Portal
                 <ExternalLink className="w-4 h-4" />
-              </a>
+              </button>
             </div>
           </div>
         )}

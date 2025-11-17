@@ -796,10 +796,14 @@ const ReservationTableComponent = ({
         <div className="hidden lg:block px-4 pb-4">
           {/* Contenedor con altura fija para mantener diseño consistente */}
           <div 
-            className={`flex-1 ${filteredReservas.length > 10 ? 'overflow-auto' : 'overflow-hidden'} rounded-lg border border-gray-200 bg-white`} 
+            className="flex-1 overflow-auto rounded-lg border border-gray-200 bg-white"
             style={{ 
               minHeight: '480px', // Altura fija para al menos ~10 filas (48px cada una)
-              maxHeight: '480px'
+              maxHeight: '480px',
+              overscrollBehaviorY: 'contain', // Evita propagación de scroll fuera del contenedor
+              willChange: 'scroll-position',   // Optimiza rendering del scroll
+              isolation: 'isolate',            // Crea nuevo contexto de stacking para evitar conflictos
+              WebkitOverflowScrolling: 'touch' // Mejora scroll en móviles
             }}
           >
             <Table>

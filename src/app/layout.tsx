@@ -6,6 +6,7 @@ import ServiceWorkerRegistration from '../components/ServiceWorkerRegistration';
 import { PWAProvider } from '../providers/PWAProvider';
 import { QueryProvider } from '../providers/QueryProvider';
 import { AuthProvider } from '../providers/AuthProvider';
+import MaintenanceScreen from '@/components/MaintenanceScreen';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -45,6 +46,22 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // 🔒 SERVICIO TEMPORALMENTE DESHABILITADO - HARDCODED
+  const isServiceDisabled = true; // Cambiar a false para reactivar
+  
+  if (isServiceDisabled) {
+    return (
+      <html lang="es">
+        <head>
+          <meta name="theme-color" content="#0f172a" />
+        </head>
+        <body className={inter.className}>
+          <MaintenanceScreen />
+        </body>
+      </html>
+    );
+  }
+  
   return (
     <html lang="es">
       <head>
