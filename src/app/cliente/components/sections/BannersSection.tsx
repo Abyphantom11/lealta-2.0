@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Bell, X } from 'lucide-react';
 import { browserNotifications } from '@/services/browserNotifications';
 import { useAutoRefreshPortalConfig } from '@/hooks/useAutoRefreshPortalConfig';
+import { detectAndCleanGhostBanners } from '@/utils/banner-cache-cleaner';
 
 interface Banner {
   id: string;
@@ -22,7 +23,7 @@ interface BannersProps {
 
 export default function BannersSection({ businessId }: BannersProps) {
   // 🔄 Auto-refresh hook para sincronización admin → cliente
-  const { getBanners, isLoading } = useAutoRefreshPortalConfig({
+  const { getBanners, isLoading, config } = useAutoRefreshPortalConfig({
     businessId,
     refreshInterval: 10000, // 10 segundos para banners
     enabled: true
@@ -35,10 +36,34 @@ export default function BannersSection({ businessId }: BannersProps) {
   useEffect(() => {
     const loadBanners = () => {
       try {
+        // 🔥 NO CARGAR BANNERS HASTA QUE LA CONFIG INICIAL ESTÉ LISTA
+        if (isLoading && !config) {
+          console.log('⏳ BannersSection: Esperando configuración inicial...');
+          return;
+        }
+
         const allBanners = getBanners();
         const activeBanners = allBanners.filter(
           (banner: Banner) => banner.activo && banner.imagenUrl && banner.imagenUrl.trim() !== ''
         );
+        
+        // 🚨 DETECTAR Y LIMPIAR BANNERS FANTASMA
+        const hasGhostBanners = detectAndCleanGhostBanners(activeBanners, businessId);
+        
+        if (hasGhostBanners) {
+          console.log('🚨 Banners fantasma detectados y cache limpiado. Los banners se ocultarán.');
+          // Si detectamos banners fantasma, no los mostramos hasta el próximo refresh
+          setBanners([]);
+          return;
+        }
+        
+        console.log('🔍 BannersSection: Actualizando banners:', {
+          totalBanners: allBanners.length,
+          activeBanners: activeBanners.length,
+          isLoading,
+          hasConfig: !!config
+        });
+        
         setBanners(activeBanners);
       } catch (error) {
         console.error('❌ [BannersSection] Error cargando banners:', error);
@@ -52,7 +77,7 @@ export default function BannersSection({ businessId }: BannersProps) {
     const interval = setInterval(loadBanners, 60000);
     
     return () => clearInterval(interval);
-  }, [getBanners]);  // Estados para UI
+  }, [getBanners, isLoading, config, businessId]);  // Agregar businessId a las dependencias  // Estados para UI
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(() => {
     // Verificar localStorage para persistir la decisión del usuario
     if (typeof window !== 'undefined') {

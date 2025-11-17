@@ -262,9 +262,24 @@ export const useAutoRefreshPortalConfig = (options: UseAutoRefreshOptions = {}) 
   }, [config]);
 
   const getBanners = useCallback(() => {
+    // 🔥 PREVENIR DATOS OBSOLETOS: No retornar nada si está cargando inicialmente
+    if (isLoading && !config) {
+      console.log('🔄 getBanners: Esperando carga inicial, retornando array vacío');
+      return [];
+    }
+    
     const banners = config?.banners || [];
-    return banners.filter((b: any) => b.activo !== false) || [];
-  }, [config]);
+    const activeBanners = banners.filter((b: any) => b.activo !== false) || [];
+    
+    console.log('🔍 getBanners:', {
+      totalBanners: banners.length,
+      activeBanners: activeBanners.length,
+      isLoading,
+      hasConfig: !!config
+    });
+    
+    return activeBanners;
+  }, [config, isLoading]);
 
   const getBannersForBusinessDay = useCallback(async () => {
     debugLog('🔍 [getBannersForBusinessDay] Iniciando función...');

@@ -184,37 +184,39 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '', busin
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
 
+  // Función para cargar clientes
+  const loadClientes = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      console.log('🔍 ClientesContent: Fetching clientes...');
+      
+      // ✅ SIMPLIFICADO: La API usa session.businessId automáticamente
+      // No necesitamos pasar businessId como parámetro
+      const response = await fetch('/api/cliente/lista', { 
+        credentials: 'include', // ✅ CRÍTICO: Incluir cookies de sesión
+        cache: 'no-store', // ✅ No cachear para obtener datos frescos
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('✅ Clientes cargados:', data.clientes.length);
+        setClientes(data.clientes);
+        setFilteredClientes(data.clientes);
+      } else {
+        console.error('❌ CLIENTES: Error en respuesta:', data.error);
+      }
+    } catch (error) {
+      console.error('❌ CLIENTES: Error cargando clientes:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   // Cargar clientes al montar el componente
   useEffect(() => {
-    const fetchClientes = async () => {
-      try {
-        console.log('🔍 ClientesContent: Fetching clientes...');
-        
-        // ✅ SIMPLIFICADO: La API usa session.businessId automáticamente
-        // No necesitamos pasar businessId como parámetro
-        const response = await fetch('/api/cliente/lista', { 
-          credentials: 'include', // ✅ CRÍTICO: Incluir cookies de sesión
-          cache: 'no-store', // ✅ No cachear para obtener datos frescos
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-          console.log('✅ Clientes cargados:', data.clientes.length);
-          setClientes(data.clientes);
-          setFilteredClientes(data.clientes);
-        } else {
-          console.error('❌ CLIENTES: Error en respuesta:', data.error);
-        }
-      } catch (error) {
-        console.error('❌ CLIENTES: Error cargando clientes:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchClientes();
-  }, []); // ✅ Sin dependencias - solo cargar una vez al montar
+    loadClientes();
+  }, [loadClientes]);
 
   // Cargar historial de canjes cuando se active esa pestaña
   useEffect(() => {
@@ -273,14 +275,20 @@ const ClientesContent: React.FC<ClientesContentProps> = ({ className = '', busin
   }, []);
 
   // Función para actualizar un cliente después de editar
-  const handleClienteUpdated = useCallback((clienteActualizado: Cliente) => {
+  const handleClienteUpdated = useCallback((clienteActualizado?: Cliente) => {
+    // Si no se proporciona el cliente actualizado, recargar la lista
+    if (!clienteActualizado) {
+      loadClientes();
+      return;
+    }
+    
     setClientes(prev =>
       prev.map(c => (c.id === clienteActualizado.id ? clienteActualizado : c))
     );
     setFilteredClientes(prev =>
       prev.map(c => (c.id === clienteActualizado.id ? clienteActualizado : c))
     );
-  }, []);
+  }, [loadClientes]);
 
   // Función para filtrar clientes localmente
   const filterClientsLocally = useCallback(

@@ -6,6 +6,8 @@ import { compare } from 'bcryptjs';
 
 // Detectar si estamos en desarrollo (Cloudflare Tunnel/localhost)
 const isDevelopment = process.env.NODE_ENV === 'development';
+// Detectar si la URL usa HTTPS
+const isSecure = process.env.NEXTAUTH_URL?.startsWith('https://') ?? false;
 
 export const authOptions: NextAuthOptions = {
   session: { 
@@ -18,34 +20,34 @@ export const authOptions: NextAuthOptions = {
   },
   cookies: {
     sessionToken: {
-      name: `${isDevelopment ? '__Secure-' : ''}next-auth.session-token`,
+      name: `${isSecure ? '__Secure-' : ''}next-auth.session-token`,
       options: {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        // En desarrollo con Cloudflare Tunnel, usar secure siempre
-        secure: true, // Siempre true para ambos ambientes
+        // Secure solo si la URL es HTTPS
+        secure: isSecure,
         maxAge: 30 * 24 * 60 * 60, // 30 días
         domain: isDevelopment ? undefined : process.env.NEXTAUTH_COOKIE_DOMAIN,
       }
     },
     callbackUrl: {
-      name: `${isDevelopment ? '__Secure-' : ''}next-auth.callback-url`,
+      name: `${isSecure ? '__Secure-' : ''}next-auth.callback-url`,
       options: {
         httpOnly: false,
         sameSite: 'lax',
         path: '/',
-        secure: true,
+        secure: isSecure,
         domain: isDevelopment ? undefined : process.env.NEXTAUTH_COOKIE_DOMAIN,
       }
     },
     csrfToken: {
-      name: `${isDevelopment ? '__Host-' : ''}next-auth.csrf-token`,
+      name: `${isSecure && !isDevelopment ? '__Host-' : ''}next-auth.csrf-token`,
       options: {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: true,
+        secure: isSecure,
         domain: isDevelopment ? undefined : process.env.NEXTAUTH_COOKIE_DOMAIN,
       }
     },
@@ -90,25 +92,33 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
+        token.id = user.id;
         token.role = (user as any).role;
         token.businessId = (user as any).businessId;
-        console.log('🔐 JWT: Token actualizado con:', { role: token.role, businessId: token.businessId });
+        console.log('🔐 JWT: Token actualizado con:', { 
+          id: token.id,
+          role: token.role, 
+          businessId: token.businessId 
+        });
       }
       return token;
     },
     async session({ session, token }) {
       console.log('🔐 SESSION: Construyendo sesión con token:', { 
         hasToken: !!token,
+        tokenId: token?.sub,
         role: token?.role,
         businessId: token?.businessId 
       });
       
-      if (token?.role) {
+      if (token) {
+        (session.user as any).id = token.sub; // sub es el ID del usuario en el JWT
         (session.user as any).role = token.role;
         (session.user as any).businessId = token.businessId;
       }
       
       console.log('🔐 SESSION: Sesión final:', {
+        userId: (session.user as any).id,
         userEmail: session.user?.email,
         userRole: (session.user as any).role,
         userBusinessId: (session.user as any).businessId

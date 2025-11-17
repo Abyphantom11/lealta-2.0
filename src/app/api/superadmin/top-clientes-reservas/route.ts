@@ -46,9 +46,33 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Obtener todas las reservas con clientes
+      // ✅ FILTRAR POR MES ACTUAL (igual que el módulo de reservas)
+      // Obtener mes y año actual
+      const now = new Date();
+      const añoActual = now.getFullYear();
+      const mesActual = now.getMonth() + 1; // getMonth() retorna 0-11
+      
+      // Rango del mes actual (UTC para consistencia)
+      const fechaInicio = new Date(Date.UTC(añoActual, mesActual - 1, 1, 0, 0, 0, 0));
+      const fechaFin = new Date(Date.UTC(añoActual, mesActual, 1, 0, 0, 0, 0));
+
+      console.log('📅 Filtrando reservas del mes actual:', {
+        mes: mesActual,
+        año: añoActual,
+        fechaInicio: fechaInicio.toISOString(),
+        fechaFin: fechaFin.toISOString()
+      });
+
+      // Obtener reservas del mes actual con HostTracking
+      // Ya NO requerimos Cliente porque usaremos customerName
       const reservas = await prisma.reservation.findMany({
-        where: businessId ? { businessId } : {},
+        where: {
+          ...(businessId && { businessId }),
+          reservedAt: {
+            gte: fechaInicio,
+            lt: fechaFin
+          }
+        },
         include: {
           Cliente: {
             select: {
@@ -57,50 +81,59 @@ export async function GET(request: NextRequest) {
               cedula: true,
             },
           },
+          HostTracking: {
+            select: {
+              guestCount: true, // Número real de personas que asistieron
+            },
+          },
         },
       });
 
-      // Agrupar por cliente y calcular métricas
+      // ✅ CORRECCIÓN: Agrupar por customerName (nombre real de la reserva)
+      // No por Cliente.id, ya que "Cliente Express" es un registro genérico
       const clientesMap = new Map<string, {
         id: string;
         nombre: string;
         cedula: string;
         totalReservas: number;
-        totalInvitados: number;
-        asistencias: number;
+        totalAsistentes: number;
+        reservasConAsistencia: number;
         ultimaReserva: Date;
       }>();
 
       reservas.forEach(reserva => {
-        // Si la reserva tiene cliente asociado
-        if (reserva.Cliente) {
-          const clienteId = reserva.Cliente.id;
-          
-          if (!clientesMap.has(clienteId)) {
-            clientesMap.set(clienteId, {
-              id: reserva.Cliente.id,
-              nombre: reserva.Cliente.nombre,
-              cedula: reserva.Cliente.cedula,
-              totalReservas: 0,
-              totalInvitados: 0,
-              asistencias: 0,
-              ultimaReserva: reserva.reservedAt,
-            });
-          }
+        // Usar customerName como identificador único (nombre real de quien reservó)
+        const customerName = reserva.customerName || 'Sin nombre';
+        
+        if (!clientesMap.has(customerName)) {
+          clientesMap.set(customerName, {
+            id: customerName, // Usar customerName como ID único
+            nombre: customerName,
+            cedula: reserva.Cliente?.cedula || '',
+            totalReservas: 0,
+            totalAsistentes: 0,
+            reservasConAsistencia: 0,
+            ultimaReserva: reserva.reservedAt,
+          });
+        }
 
-          const cliente = clientesMap.get(clienteId)!;
-          cliente.totalReservas++;
-          cliente.totalInvitados += reserva.guestCount;
+        const cliente = clientesMap.get(customerName)!;
+        cliente.totalReservas++;
+        
+        // ✅ ALINEADO CON MÓDULO DE RESERVAS: Solo contar asistencia REAL
+        // Solo reservas CHECKED_IN con HostTracking.guestCount > 0 (personas que realmente asistieron)
+        if (reserva.status === 'CHECKED_IN') {
+          const asistentesReales = reserva.HostTracking?.guestCount || 0;
           
-          // Contar asistencias (reservas completadas o confirmadas)
-          if (reserva.status === 'COMPLETED' || reserva.status === 'CONFIRMED') {
-            cliente.asistencias++;
+          if (asistentesReales > 0) {
+            cliente.totalAsistentes += asistentesReales;
+            cliente.reservasConAsistencia++;
           }
+        }
 
-          // Actualizar última reserva
-          if (reserva.reservedAt > cliente.ultimaReserva) {
-            cliente.ultimaReserva = reserva.reservedAt;
-          }
+        // Actualizar última reserva
+        if (reserva.reservedAt > cliente.ultimaReserva) {
+          cliente.ultimaReserva = reserva.reservedAt;
         }
       });
 
@@ -110,10 +143,10 @@ export async function GET(request: NextRequest) {
       // Ordenar según el criterio
       switch (sortBy) {
         case 'invitados':
-          clientes.sort((a, b) => b.totalInvitados - a.totalInvitados);
+          clientes.sort((a, b) => b.totalAsistentes - a.totalAsistentes);
           break;
         case 'asistencias':
-          clientes.sort((a, b) => b.asistencias - a.asistencias);
+          clientes.sort((a, b) => b.reservasConAsistencia - a.reservasConAsistencia);
           break;
         case 'reservas':
           clientes.sort((a, b) => b.totalReservas - a.totalReservas);
