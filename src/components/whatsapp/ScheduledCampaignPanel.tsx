@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useBusinessContext } from '@/contexts/BusinessContext';
+import { useOptionalBusinessContext } from '@/contexts/BusinessContext';
 import { 
   Play, 
   Pause, 
@@ -41,8 +41,11 @@ interface CampaignProgress {
 }
 
 export default function ScheduledCampaignPanel() {
-  // Obtener businessId del contexto de sesión
-  const { businessId, businessName, isLoading: contextLoading } = useBusinessContext();
+  // Obtener businessId del contexto de sesión (opcional, no lanza error)
+  const businessContext = useOptionalBusinessContext();
+  const businessId = businessContext?.businessId || null;
+  const businessName = businessContext?.businessName || null;
+  const contextLoading = businessContext?.isLoading || false;
   
   // Estados de configuración
   const [totalClientes, setTotalClientes] = useState<number>(150);
@@ -214,14 +217,19 @@ export default function ScheduledCampaignPanel() {
     );
   }
 
-  // Si no hay businessId en la sesión
+  // Si no hay businessId en la sesión (fuera del contexto de un negocio)
   if (!businessId) {
     return (
-      <Card className="bg-slate-800/90 border-red-500/30">
+      <Card className="bg-slate-800/90 border-amber-500/30">
         <CardContent className="py-8 text-center">
-          <AlertCircle className="h-8 w-8 mx-auto text-red-400" />
-          <p className="text-red-300 mt-2">Error: No se pudo obtener el contexto del negocio</p>
-          <p className="text-slate-400 text-sm">Verifica que hayas iniciado sesión correctamente</p>
+          <AlertCircle className="h-8 w-8 mx-auto text-amber-400" />
+          <p className="text-amber-300 mt-2">Campañas programadas no disponibles</p>
+          <p className="text-slate-400 text-sm">
+            Esta función solo está disponible dentro del panel de un negocio específico.
+          </p>
+          <p className="text-slate-500 text-xs mt-2">
+            Accede desde: /[tu-negocio]/superadmin
+          </p>
         </CardContent>
       </Card>
     );

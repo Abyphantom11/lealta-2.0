@@ -99,3 +99,12 @@ export function useBusinessContext(): BusinessContextType {
   }
   return context;
 }
+
+/**
+ * Hook opcional que no lanza error si no hay BusinessProvider
+ * Útil para componentes que pueden estar fuera del contexto
+ */
+export function useOptionalBusinessContext(): BusinessContextType | null {
+  const context = useContext(BusinessContext);
+  return context ?? null;
+}
