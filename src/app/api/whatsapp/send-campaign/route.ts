@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       businessId: effectiveBusinessId
     };
 
-    // 1. VERIFICAR RATE LIMITS
+    // 1. OBTENER CLIENTES
     const clientes = await obtenerClientesParaCampana(filtrosCompletos);
     
     if (clientes.length === 0) {
@@ -90,27 +90,6 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       );
-    }
-
-    // 🆕 En modo simulación, saltar verificación de rate limits
-    if (!simulationMode) {
-      const rateLimitCheck = await checkRateLimit(effectiveBusinessId, clientes.length);
-      
-      if (!rateLimitCheck.canSend) {
-        return NextResponse.json({
-          error: 'Límite de envío excedido',
-          details: {
-            dailyUsed: rateLimitCheck.dailyUsed,
-            dailyLimit: rateLimitCheck.dailyLimit,
-            monthlyUsed: rateLimitCheck.monthlyUsed,
-            monthlyLimit: rateLimitCheck.monthlyLimit,
-            tier: rateLimitCheck.tier,
-            waitTime: rateLimitCheck.waitTime
-          }
-        }, { status: 429 });
-      }
-    } else {
-      console.log('🔬 Modo simulación: saltando verificación de rate limits');
     }
 
     // 2. FILTRAR OPT-OUTS
@@ -133,6 +112,38 @@ export async function POST(request: NextRequest) {
       return !optedOutSet.has(phoneNormalized);
     });
 
+    // 🆕 3. FILTRAR COOLDOWN 24 HORAS - Evitar spam
+    const hace24Horas = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const mensajesRecientes = await prisma.whatsAppMessage.findMany({
+      where: {
+        businessId: effectiveBusinessId,
+        sentAt: {
+          gte: hace24Horas
+        },
+        status: {
+          in: ['SENT', 'DELIVERED', 'READ']
+        }
+      },
+      select: {
+        phoneNumber: true
+      }
+    });
+
+    const cooldownSet = new Set(
+      mensajesRecientes.map(m => m.phoneNumber.replace(/\D/g, ''))
+    );
+
+    const clientesAntesDelCooldown = clientesFiltrados.length;
+    clientesFiltrados = clientesFiltrados.filter(cliente => {
+      const phoneNormalized = cliente.telefono.replace(/\D/g, '');
+      return !cooldownSet.has(phoneNormalized);
+    });
+
+    const excluidosPorCooldown = clientesAntesDelCooldown - clientesFiltrados.length;
+    if (excluidosPorCooldown > 0) {
+      console.log(`⏰ ${excluidosPorCooldown} números excluidos por cooldown de 24 horas`);
+    }
+
     // 🆕 Filtrar por números específicos del frontend (prioridad)
     if (phoneNumbers && Array.isArray(phoneNumbers) && phoneNumbers.length > 0) {
       const phoneNumbersSet = new Set(
@@ -151,6 +162,29 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`📞 ${simulationMode ? '🔬 SIMULACIÓN:' : ''} Procesando ${clientesFiltrados.length} clientes`);
+
+    // 5. VERIFICAR RATE LIMITS (después de todo el filtrado)
+    if (!simulationMode) {
+      const rateLimitCheck = await checkRateLimit(effectiveBusinessId, clientesFiltrados.length);
+      
+      if (!rateLimitCheck.canSend) {
+        return NextResponse.json({
+          error: 'Límite de envío excedido',
+          details: {
+            dailyUsed: rateLimitCheck.dailyUsed,
+            dailyLimit: rateLimitCheck.dailyLimit,
+            monthlyUsed: rateLimitCheck.monthlyUsed,
+            monthlyLimit: rateLimitCheck.monthlyLimit,
+            tier: rateLimitCheck.tier,
+            waitTime: rateLimitCheck.waitTime,
+            intentando: clientesFiltrados.length
+          }
+        }, { status: 429 });
+      }
+      console.log(`✅ Rate limit OK: ${rateLimitCheck.dailyUsed}/${rateLimitCheck.dailyLimit} diarios, ${rateLimitCheck.monthlyUsed}/${rateLimitCheck.monthlyLimit} mensuales`);
+    } else {
+      console.log('🔬 Modo simulación: saltando verificación de rate limits');
+    }
 
     // 🆕 MODO SIMULACIÓN - Retornar sin enviar mensajes reales
     if (simulationMode) {
@@ -186,11 +220,16 @@ export async function POST(request: NextRequest) {
           telefono: c.telefono.replace(/(\d{3})(\d{3})(\d{4})/, '$1****$3'), // Ocultar parte del número
           puntos: c.puntos
         })),
-        totalDestinatarios: clientesFiltrados.length
+        totalDestinatarios: clientesFiltrados.length,
+        exclusiones: {
+          optOuts: optedOutNumbers.length,
+          cooldown24h: excluidosPorCooldown,
+          total: optedOutNumbers.length + excluidosPorCooldown
+        }
       });
     }
 
-    // 3. CREAR CAMPAÑA EN BD
+    // 4. CREAR CAMPAÑA EN BD
     const campana = await prisma.whatsAppCampaign.create({
       data: {
         businessId: effectiveBusinessId,

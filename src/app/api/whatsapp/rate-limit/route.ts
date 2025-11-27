@@ -88,8 +88,8 @@ export async function checkRateLimit(businessId: string, messageCount: number = 
       businessId,
       date: today,
       tier: 'TIER_1', // Por defecto
-      dailyLimit: 1000,
-      monthlyLimit: 1000,
+      dailyLimit: 5000,    // Ajustado para producción
+      monthlyLimit: 50000, // Ajustado para producción
       messagesCount: 0,
       conversationsCount: 0
     }
@@ -180,9 +180,9 @@ async function determineTier(businessId: string, monthlyUsage: number): Promise<
 // Obtener límites por tier
 function getTierLimits(tier: string) {
   const limits = {
-    TIER_1: { dailyLimit: 1000, monthlyLimit: 1000 },
-    TIER_2: { dailyLimit: 10000, monthlyLimit: 10000 },
-    TIER_3: { dailyLimit: 100000, monthlyLimit: 100000 }
+    TIER_1: { dailyLimit: 5000, monthlyLimit: 50000 },   // Ajustado para producción
+    TIER_2: { dailyLimit: 10000, monthlyLimit: 100000 },
+    TIER_3: { dailyLimit: 100000, monthlyLimit: 1000000 }
   }
   
   return limits[tier as keyof typeof limits] || limits.TIER_1

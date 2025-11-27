@@ -1361,6 +1361,29 @@ function WhatsAppPanelContent() {
                     </div>
                   </div>
 
+                  {/* 🆕 Información de exclusiones */}
+                  {simulationResult.exclusiones && (simulationResult.exclusiones.optOuts > 0 || simulationResult.exclusiones.cooldown24h > 0) && (
+                    <div className="p-4 bg-amber-500/10 rounded-lg border border-amber-500/30">
+                      <div className="text-sm font-medium text-amber-300 mb-2 flex items-center gap-2">
+                        ⚠️ Números excluidos del envío:
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        {simulationResult.exclusiones.optOuts > 0 && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-red-400">🚫</span>
+                            <span className="text-slate-300">{simulationResult.exclusiones.optOuts} opt-outs (cancelaron suscripción)</span>
+                          </div>
+                        )}
+                        {simulationResult.exclusiones.cooldown24h > 0 && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-yellow-400">⏰</span>
+                            <span className="text-slate-300">{simulationResult.exclusiones.cooldown24h} en cooldown (ya recibieron mensaje hoy)</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Muestra de números que recibirían el mensaje */}
                   {simulationResult.sample_numbers && simulationResult.sample_numbers.length > 0 && (
                     <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
