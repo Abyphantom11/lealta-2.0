@@ -1,0 +1,54 @@
+{
+  "twilio": {
+    "sandbox": {
+      "numerosMaximos": 10,
+      "rateLimitSegundo": 1,
+      "aptoPara": "desarrollo/pruebas"
+    },
+    "whatsappBusiness": {
+      "nivel1": {
+        "conversacionesMes": 1000,
+        "mensajesDia": 33,
+        "rateLimitSegundo": "1-10",
+        "duracion": "primeros 7 días"
+      },
+      "nivel2": {
+        "conversacionesMes": 10000,
+        "mensajesDia": 333,
+        "rateLimitSegundo": "15-40",
+        "duracion": "después 7-30 días"
+      },
+      "nivel3": {
+        "conversacionesMes": "100,000+",
+        "mensajesDia": "3,333+",
+        "rateLimitSegundo": "80+",
+        "duracion": "después 30 días + historial"
+      }
+    }
+  },
+  "costos": {
+    "templateMessage": 0.055,
+    "moneda": "USD",
+    "ventana24h": "gratuita después del template"
+  },
+  "escenarios": {
+    "conservador": {
+      "clientesMes": 1000,
+      "costo": 55,
+      "descripcion": "Nivel 1 - primeras semanas"
+    },
+    "optimo": {
+      "clientesMes": 2881,
+      "costoMin": 158,
+      "costoMax": 475,
+      "descripcion": "Nivel 2+ - después de historial"
+    }
+  },
+  "restricciones": [
+    "Solo templates pre-aprobados por WhatsApp",
+    "Políticas anti-spam estrictas",
+    "Clientes pueden reportar/bloquear fácilmente",
+    "Rate limits obligatorios",
+    "Suspensión automática por violaciones"
+  ]
+}

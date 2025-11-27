@@ -1,0 +1,37 @@
+{
+  "limitaciones": {
+    "fase1": {
+      "maxMensajes": 1000,
+      "duracion": "2 semanas",
+      "recomendadoDiario": "30-40",
+      "costo": 55
+    },
+    "fase2": {
+      "maxMensajes": 10000,
+      "duracion": "mes 2-3",
+      "recomendadoDiario": "100-200",
+      "costo": "158-475"
+    },
+    "fase3": {
+      "maxMensajes": "100,000+",
+      "duracion": "mes 3+",
+      "recomendadoDiario": "300-500",
+      "todosTusClientes": 2881
+    }
+  },
+  "estrategiaInicio": {
+    "dia1": 20,
+    "dia3": 30,
+    "dia5": 40,
+    "dia7": 50,
+    "semana2": "100/semana",
+    "mes2": "200-300/semana",
+    "mes3": "todos los 2,881"
+  },
+  "kpis": {
+    "entrega": ">95%",
+    "respuesta": ">5-10%",
+    "optOut": "<2%",
+    "costosProyectados": "$158-475/mes"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "totalExtraidos": 2762,
+  "validosParaImportar": 2762,
+  "businessId": "cmgh621rd0012lb0aixrzpvrw",
+  "fechaGeneracion": "2025-11-21T20:24:09.077Z",
+  "comando": "npx prisma db execute --file ./importar-osado-clientes.sql --schema ./prisma/schema.prisma"
+}

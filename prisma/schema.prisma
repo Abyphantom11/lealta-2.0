@@ -67,6 +67,27 @@ model Business {
   ReservationService    ReservationService[]
   User                  User[]
   Visita                Visita[]
+
+    // WhatsApp Business Relations
+  WhatsAppTemplate      WhatsAppTemplate[]
+  WhatsAppOptOut        WhatsAppOptOut[]
+  WhatsAppRateLimit     WhatsAppRateLimit[]
+  WhatsAppCampaign      WhatsAppCampaign[]
+  WhatsAppMessage       WhatsAppMessage[]
+  WhatsAppWebhook       WhatsAppWebhook[]
+  
+  // WhatsApp Subaccounts & Queue System
+  WhatsAppAccount       WhatsAppAccount[]
+  WhatsAppQueue         WhatsAppQueue[]
+  WhatsAppWorkerStatus  WhatsAppWorkerStatus[]
+  
+  // WhatsApp Analytics
+  WhatsAppAnalytics     WhatsAppAnalytics[]
+  WhatsAppCampaignAnalytics WhatsAppCampaignAnalytics[]
+  WhatsAppClientAnalytics WhatsAppClientAnalytics[]
+  WhatsAppSegment       WhatsAppSegment[]
+  WhatsAppABTest        WhatsAppABTest[]
+  WhatsAppInsight       WhatsAppInsight[]
 }
 
 model BusinessGoals {
@@ -138,6 +159,12 @@ model Cliente {
   TarjetaLealtad   TarjetaLealtad?
   VisitLog         VisitLog[]
   Visita           Visita[]
+
+  // WhatsApp Relations  
+  WhatsAppOptOut  WhatsAppOptOut[]
+  WhatsAppMessage WhatsAppMessage[]
+  WhatsAppQueueJob WhatsAppQueueJob[]
+  WhatsAppClientAnalytics WhatsAppClientAnalytics?
 
   @@unique([businessId, cedula])
 }
@@ -216,7 +243,7 @@ model EmailVerification {
   expiresAt    DateTime
   verifiedAt   DateTime?
   createdAt    DateTime  @default(now())
-  updatedAt    DateTime @updatedAt
+  updatedAt    DateTime  @updatedAt
   metadata     Json?
 
   @@unique([email, code, type])
@@ -287,7 +314,7 @@ model HostTracking {
   guestCount      Int
   isActive        Boolean        @default(true)
   createdAt       DateTime       @default(now())
-  updatedAt       DateTime @updatedAt
+  updatedAt       DateTime       @updatedAt
   GuestConsumo    GuestConsumo[]
   Business        Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
   Cliente         Cliente        @relation(fields: [clienteId], references: [id], onDelete: Cascade)
@@ -342,7 +369,7 @@ model MenuProduct {
   imagenUrl     String?
   opciones      Json?
   createdAt     DateTime     @default(now())
-  updatedAt     DateTime @updatedAt
+  updatedAt     DateTime     @updatedAt
   MenuCategory  MenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@unique([categoryId, nombre])
@@ -417,7 +444,7 @@ model PortalPromocion {
   active      Boolean   @default(true)
   orden       Int       @default(0)
   createdAt   DateTime  @default(now())
-  updatedAt   DateTime @updatedAt
+  updatedAt   DateTime  @updatedAt
   Business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([active])
@@ -474,7 +501,7 @@ model Promotor {
   email       String?
   activo      Boolean       @default(true)
   createdAt   DateTime      @default(now())
-  updatedAt   DateTime @updatedAt
+  updatedAt   DateTime      @updatedAt
   createdBy   String?
   Business    Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
   Reservation Reservation[]
@@ -526,7 +553,7 @@ model Reservation {
   source             String              @default("manual")
   metadata           Json?
   createdAt          DateTime            @default(now())
-  updatedAt          DateTime @updatedAt
+  updatedAt          DateTime            @updatedAt
   promotorId         String?             @default("whatsapp-default")
   tableNumber        String?
   HostTracking       HostTracking?
@@ -558,7 +585,7 @@ model ReservationQRCode {
   lastScannedAt DateTime?
   metadata      Json?
   createdAt     DateTime     @default(now())
-  updatedAt     DateTime @updatedAt
+  updatedAt     DateTime     @updatedAt
   reservationId String
   Reservation   Reservation  @relation(fields: [reservationId], references: [id], onDelete: Cascade)
 
@@ -581,7 +608,7 @@ model ReservationService {
   metadata        Json?
   sortOrder       Int               @default(0)
   createdAt       DateTime          @default(now())
-  updatedAt       DateTime @updatedAt
+  updatedAt       DateTime          @updatedAt
   Reservation     Reservation[]
   Business        Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
   ReservationSlot ReservationSlot[]
@@ -605,7 +632,7 @@ model ReservationSlot {
   isRecurring        Boolean            @default(false)
   recurringId        String?
   createdAt          DateTime           @default(now())
-  updatedAt          DateTime @updatedAt
+  updatedAt          DateTime           @updatedAt
   Reservation        Reservation[]
   ReservationService ReservationService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
@@ -662,7 +689,7 @@ model User {
   sessionToken   String?
   sessionExpires DateTime?
   createdAt      DateTime         @default(now())
-  updatedAt      DateTime @updatedAt
+  updatedAt      DateTime         @updatedAt
   Consumo        Consumo[]
   HistorialCanje HistorialCanje[]
   business       Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
@@ -772,4 +799,607 @@ enum SubscriptionPlan {
   BASIC
   PRO
   ENTERPRISE
+}
+
+// ========================================
+// 📱 WHATSAPP BUSINESS COMPLIANCE SYSTEM
+// ========================================
+
+model WhatsAppTemplate {
+  id                 String    @id @default(cuid())
+  businessId         String
+  name               String
+  category           String // MARKETING, UTILITY, AUTHENTICATION
+  language           String    @default("es")
+  status             String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  content            Json // Template structure with header, body, footer, buttons
+  whatsappTemplateId String? // Official WhatsApp template ID after approval
+  submittedAt        DateTime  @default(now())
+  approvedAt         DateTime?
+  rejectedAt         DateTime?
+  rejectionReason    String?
+
+  Business         Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  WhatsAppCampaign WhatsAppCampaign[]
+  WhatsAppMessage  WhatsAppMessage[]
+  WhatsAppQueue    WhatsAppQueue[]
+
+  @@index([businessId, status])
+  @@index([whatsappTemplateId])
+}
+
+model WhatsAppOptOut {
+  id          String    @id @default(cuid())
+  clienteId   String?
+  businessId  String
+  phoneNumber String // Normalized format +593XXXXXXXXX
+  method      String // STOP_KEYWORD, MANUAL, REPORTED, BLOCK
+  optedOutAt  DateTime  @default(now())
+  optedBackIn Boolean   @default(false)
+  optedBackAt DateTime?
+
+  Cliente  Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  Business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([phoneNumber, businessId])
+  @@index([phoneNumber])
+  @@index([businessId])
+}
+
+model WhatsAppRateLimit {
+  id                 String    @id @default(cuid())
+  businessId         String
+  date               String // YYYY-MM-DD format
+  tier               String    @default("TIER_1") // TIER_1, TIER_2, TIER_3
+  dailyLimit         Int       @default(1000)
+  monthlyLimit       Int       @default(1000)
+  messagesCount      Int       @default(0)
+  conversationsCount Int       @default(0)
+  lastMessageAt      DateTime?
+
+  Business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, date])
+  @@index([businessId])
+}
+
+model WhatsAppCampaign {
+  id            String    @id @default(cuid())
+  businessId    String
+  name          String
+  templateId    String?
+  customMessage String?
+  variables     Json? // Template variables
+  filters       Json // Audience filters
+  status        String    @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED
+  priority      String    @default("MEDIUM") // LOW, MEDIUM, HIGH
+  scheduledAt   DateTime  @default(now())
+  startedAt     DateTime?
+  completedAt   DateTime?
+
+  // Metrics
+  totalTargeted  Int @default(0)
+  totalSent      Int @default(0)
+  totalDelivered Int @default(0)
+  totalRead      Int @default(0)
+  totalReplied   Int @default(0)
+  totalFailed    Int @default(0)
+  totalOptedOut  Int @default(0)
+
+  // Cost tracking
+  estimatedCost Float? @default(0)
+  actualCost    Float? @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  Business         Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  WhatsAppTemplate WhatsAppTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  WhatsAppMessage  WhatsAppMessage[]
+
+  @@index([businessId, status])
+  @@index([scheduledAt])
+}
+
+model WhatsAppMessage {
+  id            String  @id @default(cuid())
+  campaignId    String?
+  businessId    String
+  accountId     String? // WhatsApp account used for sending
+  clienteId     String?
+  phoneNumber   String // Normalized +593XXXXXXXXX
+  templateId    String?
+  customMessage String?
+  variables     Json?
+
+  // Status tracking
+  status      String @default("PENDING") // PENDING, SENDING, SENT, DELIVERED, READ, FAILED, CANCELLED
+  priority    String @default("MEDIUM")
+  attempts    Int    @default(0)
+  maxAttempts Int    @default(3)
+
+  // Twilio integration
+  twilioSid    String? // Twilio message SID
+  twilioStatus String? // Twilio status
+  twilioError  String? // Twilio error message
+
+  // Timestamps
+  scheduledAt   DateTime  @default(now())
+  sentAt        DateTime?
+  deliveredAt   DateTime?
+  readAt        DateTime?
+  failedAt      DateTime?
+  lastAttemptAt DateTime?
+
+  // Cost
+  cost Float? @default(0.055) // USD per message
+
+  // Response tracking
+  hasResponse  Boolean   @default(false)
+  responseText String?
+  responseAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  Business         Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  Cliente          Cliente?          @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  WhatsAppCampaign WhatsAppCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  WhatsAppTemplate WhatsAppTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  WhatsAppAccount  WhatsAppAccount?  @relation("AccountMessages", fields: [accountId], references: [id], onDelete: SetNull)
+  QueueJob         WhatsAppQueueJob?
+
+  @@index([businessId, status])
+  @@index([phoneNumber])
+  @@index([campaignId])
+  @@index([scheduledAt])
+  @@index([sentAt])
+}
+
+model WhatsAppWebhook {
+  id           String    @id @default(cuid())
+  twilioSid    String    @unique
+  businessId   String?
+  messageId    String? // Reference to WhatsAppMessage
+  webhookType  String // status, message, error
+  status       String? // delivered, read, failed, etc.
+  errorCode    String?
+  errorMessage String?
+  rawPayload   Json // Complete webhook payload
+  processed    Boolean   @default(false)
+  processedAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  Business Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+
+  @@index([twilioSid])
+  @@index([messageId])
+  @@index([businessId])
+  @@index([processed])
+  @@index([createdAt])
+}
+
+// ========================================
+// 📱 WHATSAPP SUBACCOUNTS & QUEUE SYSTEM
+// ========================================
+
+model WhatsAppAccount {
+  id                    String   @id @default(cuid())
+  businessId            String
+  name                  String   // "Número Principal", "Soporte", etc.
+  phoneNumber           String   @unique // +593XXXXXXXXX
+  twilioAccountSid      String?
+  twilioSubaccountSid   String?  // Twilio subaccount
+  twilioAuthToken       String?
+  whatsappBusinessId    String?  // Meta Business ID
+  wabaAccessToken       String?  // WABA access token
+  status                String   @default("PENDING") // PENDING, ACTIVE, SUSPENDED, EXPIRED
+  
+  // Configuration
+  isDefault             Boolean  @default(false)
+  isPrimary             Boolean  @default(false)
+  maxDailyMessages      Int      @default(1000)
+  maxConcurrentMessages Int      @default(10)
+  
+  // Verification status
+  verificationStatus    String   @default("UNVERIFIED") // UNVERIFIED, PENDING, VERIFIED
+  verifiedAt            DateTime?
+  
+  // Templates and compliance
+  templatesApproved     Int      @default(0)
+  qualityRating         String?  @default("UNKNOWN") // GREEN, YELLOW, RED, UNKNOWN
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  Business              Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  
+  // Relations for queue system
+  WhatsAppQueue         WhatsAppQueue[]
+  WhatsAppMessage       WhatsAppMessage[] @relation("AccountMessages")
+  
+  @@index([businessId])
+  @@index([phoneNumber])
+  @@index([status])
+  @@index([isPrimary])
+}
+
+model WhatsAppQueue {
+  id                String   @id @default(cuid())
+  businessId        String
+  accountId         String   // WhatsApp account to use
+  name              String   // "Promociones Viernes", "Bienvenida Nuevos"
+  description       String?
+  
+  // Queue configuration
+  priority          Int      @default(5) // 1-10 (10 = highest)
+  maxRetries        Int      @default(3)
+  retryDelayMinutes Int      @default(5)
+  batchSize         Int      @default(50)
+  rateLimitPerHour  Int      @default(100)
+  
+  // Scheduling
+  scheduledAt       DateTime?
+  startTime         String?  // "09:00" - Hour to start sending
+  endTime           String?  // "18:00" - Hour to stop sending
+  timezone          String   @default("America/Guayaquil")
+  
+  // Status
+  status            String   @default("DRAFT") // DRAFT, SCHEDULED, PROCESSING, PAUSED, COMPLETED, FAILED
+  startedAt         DateTime?
+  completedAt       DateTime?
+  pausedAt          DateTime?
+  
+  // Progress tracking
+  totalMessages     Int      @default(0)
+  sentMessages      Int      @default(0)
+  failedMessages    Int      @default(0)
+  pendingMessages   Int      @default(0)
+  
+  // Template and content
+  templateId        String?
+  customMessage     String?
+  variables         Json?
+  
+  // Target audience
+  audienceFilters   Json     // Filtros para seleccionar audiencia
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  Business          Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  WhatsAppAccount   WhatsAppAccount    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  WhatsAppTemplate  WhatsAppTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  QueueJobs         WhatsAppQueueJob[]
+  
+  @@index([businessId])
+  @@index([accountId])
+  @@index([status])
+  @@index([priority])
+  @@index([scheduledAt])
+}
+
+model WhatsAppQueueJob {
+  id                String   @id @default(cuid())
+  queueId           String
+  messageId         String?  // Reference to WhatsAppMessage when processed
+  
+  // Job data
+  targetPhone       String   // +593XXXXXXXXX
+  targetClientId    String?
+  messageContent    String
+  variables         Json?
+  
+  // Job status
+  status            String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED, RETRYING
+  priority          Int      @default(5)
+  attempts          Int      @default(0)
+  maxAttempts       Int      @default(3)
+  
+  // Scheduling
+  scheduledAt       DateTime @default(now())
+  processAt         DateTime @default(now()) // When to process this job
+  
+  // Execution tracking
+  startedAt         DateTime?
+  completedAt       DateTime?
+  failedAt          DateTime?
+  lastAttemptAt     DateTime?
+  nextAttemptAt     DateTime?
+  
+  // Error handling
+  lastError         String?
+  errorCount        Int      @default(0)
+  
+  // Result tracking
+  twilioSid         String?  // Twilio message SID when sent
+  deliveryStatus    String?  // Message delivery status
+  cost              Float?   @default(0.055)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  Queue             WhatsAppQueue    @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  Cliente           Cliente?         @relation(fields: [targetClientId], references: [id], onDelete: SetNull)
+  Message           WhatsAppMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  @@unique([messageId]) // Asegurar relación uno-a-uno con mensaje
+  
+  @@index([queueId])
+  @@index([status])
+  @@index([processAt])
+  @@index([priority])
+  @@index([targetPhone])
+  @@index([scheduledAt])
+}
+
+model WhatsAppWorkerStatus {
+  id                String   @id @default(cuid())
+  workerName        String   @unique // "worker-1", "worker-2", etc.
+  businessId        String?  // Optional: worker assigned to specific business
+  
+  // Worker state
+  status            String   @default("IDLE") // IDLE, BUSY, OFFLINE, ERROR
+  currentQueueId    String?
+  currentJobId      String?
+  
+  // Performance metrics
+  jobsProcessed     Int      @default(0)
+  jobsSuccessful    Int      @default(0)
+  jobsFailed        Int      @default(0)
+  averageJobTime    Int      @default(0) // milliseconds
+  
+  // Health monitoring
+  lastHeartbeat     DateTime @default(now())
+  lastJobAt         DateTime?
+  errorCount        Int      @default(0)
+  lastError         String?
+  
+  // Resource usage
+  memoryUsage       Float?   // MB
+  cpuUsage          Float?   // %
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  Business          Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  
+  @@index([status])
+  @@index([businessId])
+  @@index([lastHeartbeat])
+}
+
+// ========================================
+// 📊 WHATSAPP ANALYTICS & REPORTING
+// ========================================
+
+model WhatsAppAnalytics {
+  id                    String   @id @default(cuid())
+  businessId            String
+  date                  String   @unique // YYYY-MM-DD
+  
+  // Daily metrics
+  totalMessagesReceived Int      @default(0)
+  totalMessagesSent     Int      @default(0)
+  totalDelivered        Int      @default(0)
+  totalFailed           Int      @default(0)
+  totalReplied          Int      @default(0)
+  
+  // Engagement metrics
+  deliveryRate          Float    @default(0)    // %
+  failureRate           Float    @default(0)    // %
+  responseRate          Float    @default(0)    // %
+  
+  // Business metrics
+  totalClients          Int      @default(0)
+  newClients            Int      @default(0)
+  activeClients         Int      @default(0)
+  optedOutClients       Int      @default(0)
+  
+  // Financial metrics
+  totalCost             Float    @default(0)    // USD
+  averageCostPerMessage Float?   @default(0.055)
+  
+  // Queue metrics
+  totalQueuesProcessed  Int      @default(0)
+  queuesCompleted       Int      @default(0)
+  queuesFailed          Int      @default(0)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  Business              Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  
+  @@index([businessId])
+  @@index([date])
+}
+
+model WhatsAppCampaignAnalytics {
+  id                    String   @id @default(cuid())
+  campaignId            String   @unique
+  businessId            String
+  
+  // Campaign info
+  name                  String
+  startDate             DateTime
+  endDate               DateTime?
+  
+  // Performance metrics
+  totalTargeted         Int      @default(0)
+  totalSent             Int      @default(0)
+  totalDelivered        Int      @default(0)
+  totalRead             Int      @default(0)
+  totalReplied          Int      @default(0)
+  totalFailed           Int      @default(0)
+  totalOptedOut         Int      @default(0)
+  
+  // Rates
+  deliveryRate          Float    @default(0)    // %
+  readRate              Float    @default(0)    // %
+  responseRate          Float    @default(0)    // %
+  optOutRate            Float    @default(0)    // %
+  
+  // Financial
+  estimatedCost         Float?   @default(0)
+  actualCost            Float?   @default(0)
+  costPerLead           Float?   @default(0)
+  
+  // Attribution
+  conversions           Int      @default(0)
+  revenue               Float?   @default(0)
+  roi                   Float?   @default(0)    // %
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  Business              Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  
+  @@index([businessId])
+  @@index([campaignId])
+  @@index([startDate])
+}
+
+model WhatsAppClientAnalytics {
+  id                    String   @id @default(cuid())
+  clienteId             String   @unique
+  businessId            String
+  
+  // Client info
+  phoneNumber           String
+  
+  // Engagement
+  totalMessagesReceived Int      @default(0)
+  totalMessagesSent     Int      @default(0)
+  totalReplies          Int      @default(0)
+  lastMessageDate       DateTime?
+  
+  // Behavior
+  responseRate          Float    @default(0)    // % de mensajes con respuesta
+  averageResponseTime   Int?     // minutos
+  engagementScore       Int      @default(0)    // 0-100
+  
+  // Preferences
+  preferredHour         Int?     // 0-23
+  preferredDayOfWeek    Int?     // 0-6 (0 = Sunday)
+  
+  // Conversion
+  conversions           Int      @default(0)
+  revenue               Float?   @default(0)
+  
+  // Status
+  isActive              Boolean  @default(true)
+  isOptedOut            Boolean  @default(false)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  Business              Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  Cliente               Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  
+  @@index([businessId])
+  @@index([clienteId])
+  @@index([engagementScore])
+  @@index([isOptedOut])
+}
+
+model WhatsAppSegment {
+  id                    String   @id @default(cuid())
+  businessId            String
+  name                  String
+  description           String?
+  
+  // Segment criteria
+  criteria              Json     // Filtros para segmentar audiencia
+  
+  // Segment stats
+  clientCount           Int      @default(0)
+  
+  // Targeting
+  isActive              Boolean  @default(true)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  Business              Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  
+  @@index([businessId])
+  @@index([isActive])
+}
+
+model WhatsAppABTest {
+  id                    String   @id @default(cuid())
+  businessId            String
+  name                  String
+  description           String?
+  
+  // Test configuration
+  variantA_name         String
+  variantA_message      String
+  variantB_name         String
+  variantB_message      String
+  
+  // Test status
+  status                String   @default("DRAFT") // DRAFT, RUNNING, PAUSED, COMPLETED
+  startDate             DateTime?
+  endDate               DateTime?
+  
+  // Test results
+  variantA_sent         Int      @default(0)
+  variantA_delivered    Int      @default(0)
+  variantA_read         Int      @default(0)
+  variantA_replied      Int      @default(0)
+  variantA_conversions  Int      @default(0)
+  
+  variantB_sent         Int      @default(0)
+  variantB_delivered    Int      @default(0)
+  variantB_read         Int      @default(0)
+  variantB_replied      Int      @default(0)
+  variantB_conversions  Int      @default(0)
+  
+  // Winner
+  winner                String?  // "A" o "B"
+  winningConfidence     Float?   // % (0-100)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  Business              Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  
+  @@index([businessId])
+  @@index([status])
+}
+
+model WhatsAppInsight {
+  id                    String   @id @default(cuid())
+  businessId            String
+  
+  // Insight metadata
+  title                 String
+  description           String
+  type                  String   // ALERT, RECOMMENDATION, TREND, OPPORTUNITY
+  priority              String   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  
+  // Insight data
+  data                  Json     // Datos del insight
+  metric                String?  // Métrica asociada
+  value                 String?  // Valor o cambio
+  
+  // Actions
+  actionRecommended     String?
+  actionUrl             String?
+  
+  // Status
+  isRead                Boolean  @default(false)
+  isActioned            Boolean  @default(false)
+  
+  createdAt             DateTime @default(now())
+  dismissedAt           DateTime?
+  
+  Business              Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  
+  @@index([businessId])
+  @@index([type])
+  @@index([priority])
+  @@index([isRead])
 }

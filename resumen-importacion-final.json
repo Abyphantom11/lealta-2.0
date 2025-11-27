@@ -1,0 +1,18 @@
+{
+  "totalExtraidos": 2762,
+  "validosParaImportar": 2762,
+  "businessId": "cmgh621rd0012lb0aixrzpvrw",
+  "businessName": "Love Me Sky",
+  "fechaGeneracion": "2025-11-21T20:25:15.644Z",
+  "comando": "npx prisma db execute --file ./importar-clientes-osado-final.sql --schema ./prisma/schema.prisma",
+  "modeloUsado": "Cliente",
+  "camposImportados": [
+    "id",
+    "businessId",
+    "cedula",
+    "nombre",
+    "correo",
+    "telefono",
+    "registeredAt"
+  ]
+}

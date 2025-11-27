@@ -1,0 +1,58 @@
+{
+  "fases": {
+    "fase1": {
+      "duracion": "Semanas 1-2",
+      "limite": 1000,
+      "clientesPorDia": "50-200",
+      "costo": 55,
+      "enfoque": "Testing y warmup"
+    },
+    "fase2": {
+      "duracion": "Mes 2+",
+      "limite": 10000,
+      "clientesPorDia": "100-300",
+      "costo": "158-475",
+      "enfoque": "Campañas completas"
+    }
+  },
+  "segmentacion": {
+    "vip": {
+      "cantidad": 114,
+      "origen": "Love Me originales",
+      "prioridad": "Alta",
+      "template": "Bienvenida exclusiva"
+    },
+    "osadoPremium": {
+      "cantidad": 500,
+      "criterio": "Datos completos + engagement",
+      "prioridad": "Media-Alta",
+      "template": "Presentación Love Me Sky"
+    },
+    "osadoStandard": {
+      "cantidad": 2267,
+      "criterio": "Resto de base Osado",
+      "prioridad": "Media",
+      "template": "Invitación general"
+    }
+  },
+  "timing": {
+    "optimos": [
+      "9:00-11:00 AM",
+      "2:00-4:00 PM",
+      "7:00-9:00 PM"
+    ],
+    "evitar": [
+      "12:00-7:00 AM",
+      "12:00-2:00 PM",
+      "10:00-12:00 PM"
+    ],
+    "batchSize": "10-200 mensajes/minuto según nivel"
+  },
+  "monitoreo": [
+    "Rate de entrega",
+    "Respuestas/engagement",
+    "Opt-outs/bloqueos",
+    "Costos acumulados",
+    "Límites Twilio"
+  ]
+}

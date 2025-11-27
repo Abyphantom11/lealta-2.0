@@ -23,6 +23,7 @@ import {
   User,
   Edit3,
   Scan,
+  MessageCircle,
 } from 'lucide-react';
 import DateRangePicker from '../../components/DateRangePicker';
 import AdvancedMetrics from '../../components/AdvancedMetrics';
@@ -31,6 +32,8 @@ import ProductosTendenciasChart from '../../components/ProductosTendenciasChart'
 import GoalsConfigurator from '../../components/GoalsConfigurator';
 import TopClientesReservas from '../../components/TopClientesReservas';
 import HostTrackingPanel from '../../components/admin/HostTrackingPanel';
+import WhatsAppPanel from '../../components/whatsapp/WhatsAppPanel';
+import ScheduledCampaignPanel from '../../components/whatsapp/ScheduledCampaignPanel';
 
 // ========================================
 // 🎨 SECCIÓN: ESTILOS CSS Y CONFIGURACIÓN (23-50)
@@ -186,7 +189,7 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
   const { user, loading, logout, isAuthenticated } =
     useRequireAuth('SUPERADMIN');
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'analytics' | 'users' | 'historial'
+    'overview' | 'analytics' | 'users' | 'historial' | 'whatsapp'
   >('overview');
 
   // Estados para datos reales
@@ -876,6 +879,7 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
     { id: 'analytics', label: 'Analytics', icon: TrendingUp },
     { id: 'users', label: 'Usuarios', icon: Users },
     { id: 'historial', label: 'Historial Clientes', icon: Eye },
+    { id: 'whatsapp', label: 'WhatsApp', icon: MessageCircle },
   ];
 
 // ========================================
@@ -2075,6 +2079,34 @@ export default function SuperAdminPage({ businessId }: SuperAdminDashboardProps 
               <ProductosTendenciasChart />
             </div>
 
+          </motion.div>
+        )}
+
+        {/* WhatsApp Tab */}
+        {activeTab === 'whatsapp' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-8"
+          >
+            <div className="bg-gray-900/60 backdrop-blur-sm rounded-2xl p-6 border border-gray-800/50 shadow-2xl">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                  <MessageCircle className="w-8 h-8 text-green-400" />
+                  Sistema de Mensajería WhatsApp
+                </h2>
+                <div className="px-3 py-1.5 bg-green-500/10 text-green-400 rounded-lg border border-green-500/20 backdrop-blur-sm">
+                  <span className="text-sm font-medium">Twilio Integrado</span>
+                </div>
+              </div>
+              
+              <WhatsAppPanel />
+              
+              {/* Campañas Programadas */}
+              <div className="mt-8 pt-8 border-t border-gray-700">
+                <ScheduledCampaignPanel />
+              </div>
+            </div>
           </motion.div>
         )}
       </div>
