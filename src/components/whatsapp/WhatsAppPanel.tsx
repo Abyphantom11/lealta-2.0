@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -66,6 +66,21 @@ function WhatsAppPanelContent() {
   // 🆕 Estado para modal de confirmación
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
+  // 🆕 Estados para control de lotes y progreso
+  const [batchSize, setBatchSize] = useState<number>(10);
+  const [delayMinutes, setDelayMinutes] = useState<number>(5);
+  const [maxMessages, setMaxMessages] = useState<number>(100); // Cantidad máxima de mensajes a enviar
+  const [simulationMode, setSimulationMode] = useState<boolean>(true); // 🆕 Modo simulación por defecto
+  const [simulationResult, setSimulationResult] = useState<any>(null); // 🆕 Resultado de simulación
+  const [campaignProgress, setCampaignProgress] = useState<{
+    isRunning: boolean;
+    currentBatch: number;
+    totalBatches: number;
+    sent: number;
+    failed: number;
+    total: number;
+  } | null>(null);
+
   // Estados para mensaje individual
   const [individualPhone, setIndividualPhone] = useState<string>('');
   const [selectedApprovedTemplate, setSelectedApprovedTemplate] = useState<string>('');
@@ -82,6 +97,22 @@ function WhatsAppPanelContent() {
   }>>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [templatesError, setTemplatesError] = useState<string | null>(null);
+
+  // 🆕 Cálculos memoizados para evitar re-renders costosos
+  const effectiveMaxMessages = useMemo(() => 
+    Math.min(maxMessages, previewNumbers.length), 
+    [maxMessages, previewNumbers.length]
+  );
+  
+  const totalBatches = useMemo(() => 
+    Math.ceil(effectiveMaxMessages / batchSize), 
+    [effectiveMaxMessages, batchSize]
+  );
+  
+  const estimatedTime = useMemo(() => 
+    totalBatches * delayMinutes, 
+    [totalBatches, delayMinutes]
+  );
 
   // Cargar templates aprobados desde Twilio al montar
   useEffect(() => {
@@ -332,6 +363,42 @@ function WhatsAppPanelContent() {
   const sendCampaign = async () => {
     setCampaignLoading(true);
     setCampaignResult(null);
+    setShowConfirmModal(false); // Cerrar modal inmediatamente
+    
+    // Limitar a maxMessages
+    const numbersToSend = previewNumbers.slice(0, maxMessages);
+    const totalBatches = Math.ceil(numbersToSend.length / batchSize);
+    const delayMs = delayMinutes * 60 * 1000;
+    
+    // Inicializar progreso
+    setCampaignProgress({
+      isRunning: true,
+      currentBatch: 0,
+      totalBatches,
+      sent: 0,
+      failed: 0,
+      total: numbersToSend.length
+    });
+
+    // 🆕 Simulador de progreso visual mientras espera respuesta del servidor
+    let progressInterval: NodeJS.Timeout | null = null;
+    if (!simulationMode) {
+      const msPerBatch = delayMs + (batchSize * 500); // delay + tiempo de envío estimado
+      let currentBatch = 0;
+      
+      progressInterval = setInterval(() => {
+        currentBatch++;
+        if (currentBatch <= totalBatches) {
+          const estimatedSent = Math.min(currentBatch * batchSize, numbersToSend.length);
+          setCampaignProgress(prev => prev ? {
+            ...prev,
+            currentBatch,
+            sent: Math.floor(estimatedSent * 0.95), // 95% éxito estimado
+            failed: Math.floor(estimatedSent * 0.05)
+          } : null);
+        }
+      }, msPerBatch);
+    }
 
     try {
       // 🆕 Priorizar template aprobado por Meta
@@ -341,11 +408,15 @@ function WhatsAppPanelContent() {
         customMessage: !selectedCampaignTemplate && !selectedTemplate ? customMessage : undefined,
         variables,
         filtros: filters,
-        batchSize: 10,           // 10 mensajes por lote
-        delayBetweenBatches: 3000 // 3 segundos entre lotes
+        // 🆕 Enviar solo los números limitados
+        phoneNumbers: numbersToSend,
+        maxMessages: numbersToSend.length,
+        batchSize: batchSize,
+        delayBetweenBatches: delayMinutes * 60 * 1000, // Convertir minutos a ms
+        simulationMode: simulationMode // 🆕 Modo simulación
       };
 
-      console.log('📤 Enviando campaña con payload:', payload);
+      console.log(`📤 ${simulationMode ? '🔬 SIMULACIÓN:' : ''} Enviando campaña con payload:`, payload);
 
       const response = await fetch('/api/whatsapp/send-campaign', {
         method: 'POST',
@@ -355,20 +426,49 @@ function WhatsAppPanelContent() {
         body: JSON.stringify(payload)
       });
 
+      // 🆕 Limpiar intervalo de progreso simulado
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
+
       const data = await response.json();
 
       if (data.success) {
         setCampaignResult(data.resultados);
-        setShowConfirmModal(false);
-        toast.success(
-          '¡Campaña enviada!', 
-          `${data.resultados.exitosos}/${data.resultados.total} mensajes enviados exitosamente (${data.resultados.tasa_exito}%)`
-        );
+        // Actualizar progreso con datos reales del servidor
+        setCampaignProgress(prev => prev ? { 
+          ...prev, 
+          isRunning: false, 
+          currentBatch: totalBatches,
+          sent: data.resultados.exitosos, 
+          failed: data.resultados.fallidos 
+        } : null);
+        
+        // 🆕 Guardar resultado de simulación si aplica
+        if (data.simulationMode) {
+          setSimulationResult(data);
+          toast.success(
+            '🔬 Simulación completada', 
+            `${data.resultados.exitosos}/${data.resultados.total} mensajes simulados (${data.resultados.tasa_exito}% éxito estimado)`
+          );
+        } else {
+          setSimulationResult(null);
+          toast.success(
+            '¡Campaña enviada!', 
+            `${data.resultados.exitosos}/${data.resultados.total} mensajes enviados exitosamente (${data.resultados.tasa_exito}%)`
+          );
+        }
       } else {
+        setCampaignProgress(null);
         toast.error('Error en campaña', data.error || 'No se pudo enviar la campaña');
       }
     } catch (error) {
+      // 🆕 Limpiar intervalo en caso de error
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
       console.error('Error enviando campaña:', error);
+      setCampaignProgress(null);
       toast.error('Error de conexión', 'No se pudo conectar con el servidor');
     } finally {
       setCampaignLoading(false);
@@ -993,6 +1093,41 @@ function WhatsAppPanelContent() {
 
                 {/* Botón de envío mejorado */}
                 <div className="mt-6 space-y-4">
+                  {/* 🆕 Toggle de Modo Simulación - VISIBLE AL INICIO */}
+                  <div className={`p-4 rounded-lg border-2 transition-all ${
+                    simulationMode 
+                      ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-500/50' 
+                      : 'bg-slate-800/50 border-slate-600/30'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{simulationMode ? '🔬' : '🚀'}</span>
+                        <div>
+                          <div className={`text-sm font-bold ${simulationMode ? 'text-yellow-300' : 'text-emerald-300'}`}>
+                            {simulationMode ? 'MODO SIMULACIÓN' : 'MODO REAL'}
+                          </div>
+                          <div className="text-xs text-slate-400">
+                            {simulationMode 
+                              ? 'Los mensajes NO se enviarán - Solo prueba' 
+                              : '⚠️ Los mensajes SÍ serán enviados'}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setSimulationMode(!simulationMode)}
+                        className={`relative w-16 h-8 rounded-full transition-all duration-300 ${
+                          simulationMode 
+                            ? 'bg-yellow-500 shadow-lg shadow-yellow-500/30' 
+                            : 'bg-emerald-600 shadow-lg shadow-emerald-500/30'
+                        }`}
+                      >
+                        <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform duration-300 shadow-md ${
+                          simulationMode ? 'translate-x-9' : 'translate-x-1'
+                        }`} />
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="p-4 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30 rounded-lg">
                     <div className="text-sm font-medium text-purple-300 mb-2">
                       🚀 Resumen de la campaña
@@ -1005,32 +1140,150 @@ function WhatsAppPanelContent() {
                         'Filtros combinados'
                       }</div>
                       <div>💬 Mensaje: {
+                        selectedCampaignTemplate ? `✅ Template aprobado "${approvedTemplates.find(t => t.sid === selectedCampaignTemplate)?.name}"` :
                         selectedTemplate ? `Template "${getSelectedTemplate()?.name}"` : 
                         customMessage ? 'Mensaje personalizado' : 'Sin mensaje configurado'
                       }</div>
-                      <div>📊 Estado: {
-                        (selectedTemplate || customMessage) ? 
-                        '✅ Listo para enviar' : 
-                        '⚠️ Falta configurar mensaje'
-                      }</div>
+                      <div>📊 Destinatarios: <span className="text-emerald-400 font-bold">{effectiveMaxMessages}</span> de {previewNumbers.length} números disponibles</div>
                     </div>
                   </div>
 
+                  {/* 🆕 Configuración de Lotes */}
+                  <div className="p-4 bg-slate-800/50 border border-slate-600/30 rounded-lg">
+                    <div className="text-sm font-medium text-emerald-300 mb-3 flex items-center gap-2">
+                      ⚙️ Configuración de Envío por Lotes
+                    </div>
+                    
+                    {/* Cantidad de mensajes a enviar */}
+                    <div className="mb-4">
+                      <Label className="text-xs text-slate-400 mb-1 block">📱 Cantidad de mensajes a enviar</Label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="range"
+                          min="10"
+                          max={Math.max(previewNumbers.length, 10)}
+                          value={Math.min(maxMessages, previewNumbers.length)}
+                          onChange={(e) => setMaxMessages(parseInt(e.target.value))}
+                          className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                        />
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="1"
+                            max={previewNumbers.length}
+                            value={Math.min(maxMessages, previewNumbers.length)}
+                            onChange={(e) => setMaxMessages(Math.min(parseInt(e.target.value) || 1, previewNumbers.length))}
+                            className="w-20 bg-slate-700/50 border border-slate-600 text-white text-center rounded px-2 py-1 text-sm"
+                          />
+                          <span className="text-xs text-slate-400">/ {previewNumbers.length}</span>
+                        </div>
+                      </div>
+                      <div className="mt-1 text-xs text-emerald-400">
+                        Enviarás a {effectiveMaxMessages} de {previewNumbers.length} disponibles
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-xs text-slate-400 mb-1 block">Mensajes por lote</Label>
+                        <Select value={batchSize.toString()} onValueChange={(v) => setBatchSize(parseInt(v))}>
+                          <SelectTrigger className="bg-slate-700/50 border-slate-600 text-white h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="5">5 mensajes</SelectItem>
+                            <SelectItem value="10">10 mensajes</SelectItem>
+                            <SelectItem value="15">15 mensajes</SelectItem>
+                            <SelectItem value="20">20 mensajes</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-slate-400 mb-1 block">Delay entre lotes</Label>
+                        <Select value={delayMinutes.toString()} onValueChange={(v) => setDelayMinutes(parseInt(v))}>
+                          <SelectTrigger className="bg-slate-700/50 border-slate-600 text-white h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">1 minuto</SelectItem>
+                            <SelectItem value="3">3 minutos</SelectItem>
+                            <SelectItem value="5">5 minutos</SelectItem>
+                            <SelectItem value="10">10 minutos</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="mt-2 text-xs text-slate-400">
+                      ⏱️ Tiempo estimado: {estimatedTime} minutos 
+                      ({totalBatches} lotes)
+                    </div>
+                  </div>
+
+                  {/* 🆕 Barra de Progreso Mejorada */}
+                  {campaignProgress && campaignProgress.isRunning && (
+                    <div className="p-4 bg-gradient-to-r from-emerald-500/10 to-green-500/10 border border-emerald-500/30 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-emerald-300 flex items-center gap-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-400"></div>
+                          {simulationMode ? '🔬 Simulando...' : '📤 Enviando mensajes...'}
+                        </span>
+                        <span className="text-sm text-white font-mono">
+                          Lote {campaignProgress.currentBatch}/{campaignProgress.totalBatches}
+                        </span>
+                      </div>
+                      <div className="h-4 bg-slate-700 rounded-full overflow-hidden mb-3 shadow-inner">
+                        <div 
+                          className="h-full bg-gradient-to-r from-emerald-500 via-green-400 to-emerald-500 transition-all duration-500 animate-pulse"
+                          style={{ width: `${Math.max(5, Math.round((campaignProgress.currentBatch) / campaignProgress.totalBatches * 100))}%` }}
+                        />
+                      </div>
+                      <div className="grid grid-cols-4 gap-2 text-xs">
+                        <div className="text-center p-2 bg-slate-800/50 rounded">
+                          <div className="text-green-400 font-bold">{campaignProgress.sent}</div>
+                          <div className="text-slate-400">✅ Enviados</div>
+                        </div>
+                        <div className="text-center p-2 bg-slate-800/50 rounded">
+                          <div className="text-red-400 font-bold">{campaignProgress.failed}</div>
+                          <div className="text-slate-400">❌ Fallidos</div>
+                        </div>
+                        <div className="text-center p-2 bg-slate-800/50 rounded">
+                          <div className="text-blue-400 font-bold">{campaignProgress.total}</div>
+                          <div className="text-slate-400">📊 Total</div>
+                        </div>
+                        <div className="text-center p-2 bg-slate-800/50 rounded">
+                          <div className="text-yellow-400 font-bold">
+                            ~{Math.max(0, (campaignProgress.totalBatches - campaignProgress.currentBatch) * delayMinutes)} min
+                          </div>
+                          <div className="text-slate-400">⏱️ Restante</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <Button
                     onClick={handleSendCampaignClick}
-                    disabled={campaignLoading || (!selectedTemplate && !customMessage)}
-                    className="w-full h-12 text-base font-medium bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
+                    disabled={campaignLoading || (!selectedCampaignTemplate && !selectedTemplate && !customMessage) || (campaignProgress?.isRunning)}
+                    className={`w-full h-12 text-base font-medium ${
+                      simulationMode 
+                        ? 'bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700' 
+                        : 'bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700'
+                    }`}
                     size="lg"
                   >
-                    {campaignLoading ? (
+                    {campaignLoading || campaignProgress?.isRunning ? (
                       <div className="flex items-center gap-2">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Enviando campaña...
+                        {simulationMode ? 'Simulando...' : 'Enviando campaña...'}
+                      </div>
+                    ) : simulationMode ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🔬</span>
+                        Simular Campaña ({effectiveMaxMessages} mensajes)
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
                         <Send className="h-5 w-5" />
-                        Enviar Campaña WhatsApp
+                        Enviar Campaña ({effectiveMaxMessages} mensajes)
                       </div>
                     )}
                   </Button>
@@ -1067,6 +1320,95 @@ function WhatsAppPanelContent() {
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {/* 🆕 Resultados de Simulación */}
+          {simulationResult && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <Card className="mt-6 border-yellow-500/50 bg-gradient-to-br from-yellow-500/5 to-orange-500/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-3 text-yellow-300">
+                    <span className="text-2xl">🔬</span>
+                    Resultados de Simulación
+                    <span className="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded-full ml-2">
+                      Modo Prueba
+                    </span>
+                  </CardTitle>
+                  <p className="text-sm text-slate-400">
+                    Vista previa de lo que sucedería al enviar la campaña real
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="text-center p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+                      <div className="text-2xl font-bold text-blue-400">{simulationResult.resultados?.total || 0}</div>
+                      <div className="text-sm text-slate-400">Total simulados</div>
+                    </div>
+                    <div className="text-center p-3 bg-slate-800/50 rounded-lg border border-green-500/30">
+                      <div className="text-2xl font-bold text-green-400">{simulationResult.resultados?.exitosos || 0}</div>
+                      <div className="text-sm text-slate-400">Exitosos (estimado)</div>
+                    </div>
+                    <div className="text-center p-3 bg-slate-800/50 rounded-lg border border-red-500/30">
+                      <div className="text-2xl font-bold text-red-400">{simulationResult.resultados?.fallidos || 0}</div>
+                      <div className="text-sm text-slate-400">Fallidos (estimado)</div>
+                    </div>
+                    <div className="text-center p-3 bg-slate-800/50 rounded-lg border border-purple-500/30">
+                      <div className="text-2xl font-bold text-purple-400">{simulationResult.resultados?.tasa_exito || 0}%</div>
+                      <div className="text-sm text-slate-400">Tasa de éxito</div>
+                    </div>
+                  </div>
+
+                  {/* Muestra de números que recibirían el mensaje */}
+                  {simulationResult.sample_numbers && simulationResult.sample_numbers.length > 0 && (
+                    <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                      <div className="text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
+                        📱 Muestra de números que recibirían el mensaje:
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {simulationResult.sample_numbers.map((number: string, index: number) => (
+                          <span 
+                            key={index}
+                            className="px-2 py-1 bg-slate-700/50 border border-slate-600 rounded text-xs font-mono text-slate-300"
+                          >
+                            {number}
+                          </span>
+                        ))}
+                        {simulationResult.resultados?.total > 10 && (
+                          <span className="px-2 py-1 text-slate-400 text-xs">
+                            ... y {simulationResult.resultados.total - 10} más
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => setSimulationResult(null)}
+                      className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700"
+                    >
+                      Cerrar simulación
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setSimulationResult(null);
+                        setSimulationMode(false);
+                        // Ejecutar campaña real
+                        handleSendCampaignClick();
+                      }}
+                      className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                    >
+                      <Send className="h-4 w-4 mr-2" />
+                      Enviar Campaña Real
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
           )}
         </TabsContent>
 
@@ -1251,10 +1593,12 @@ function WhatsAppPanelContent() {
         onConfirm={sendCampaign}
         isLoading={campaignLoading}
         campaignData={{
-          recipientCount: previewNumbers.length,
-          templateName: getSelectedTemplate()?.name,
+          recipientCount: effectiveMaxMessages,
+          templateName: selectedCampaignTemplate 
+            ? `✅ ${approvedTemplates.find(t => t.sid === selectedCampaignTemplate)?.name || 'Template Aprobado'}` 
+            : getSelectedTemplate()?.name,
           customMessage: customMessage || undefined,
-          previewNumbers: previewNumbers,
+          previewNumbers: previewNumbers.slice(0, effectiveMaxMessages),
           filters: filters,
         }}
       />

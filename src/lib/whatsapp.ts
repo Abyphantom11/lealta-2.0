@@ -27,11 +27,19 @@ export interface ApprovedTemplate {
 
 export const APPROVED_TEMPLATES: ApprovedTemplate[] = [
   {
+    id: 'osado',
+    sid: 'HXe8048f08ee616486f64e7830d788cbdc',
+    name: '🔥 Osado - Promoción Principal',
+    description: 'Alitas Benditas ahora es OSADO - Promo 12+6 gratis',
+    variables: [],
+    previewText: '🔥 OSADO YA ESTÁ ABIERTO - Compra 12 alitas y recibe 6 GRATIS'
+  },
+  {
     id: 'estamos_abiertos',
     sid: 'HX2e1e6f8cea11d2c18c1761ac48c0ca29',
     name: '🏪 Estamos Abiertos',
     description: 'Notificación de que el restaurante está abierto',
-    variables: [], // Sin variables por ahora
+    variables: [],
     previewText: '¡Osado Ya Está Abierto! Te esperamos con lo mejor de nuestra carta. 🍗🔥'
   },
   // Agregar más templates aprobados aquí cuando Meta los apruebe
@@ -334,10 +342,13 @@ export async function obtenerClientesParaCampana(filtros: {
 
   console.log('🗄️ WHERE final:', JSON.stringify(where, null, 2));
 
-  // Solo incluir clientes con teléfono válido
-  where.telefono = {
-    not: null
-  };
+  // Solo incluir clientes con teléfono válido ecuatoriano
+  // Filtrar por números que empiecen con formatos válidos
+  where.OR = [
+    { telefono: { startsWith: '09' } },   // Formato local: 09XXXXXXXX
+    { telefono: { startsWith: '593' } },  // Formato internacional sin +
+    { telefono: { startsWith: '+593' } }  // Formato internacional con +
+  ];
 
   const clientes = await prisma.cliente.findMany({
     where,

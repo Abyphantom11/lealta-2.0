@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, createContext, useContext, useCallback, ReactNode } from 'react';
+import { useState, useEffect, createContext, useContext, useCallback, ReactNode, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 
@@ -71,65 +71,68 @@ const styles = {
   },
 };
 
-// Componente individual de Toast
-function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: () => void }) {
-  const style = styles[toast.type];
-  const Icon = icons[toast.type];
+// Componente individual de Toast con forwardRef para AnimatePresence
+const ToastItem = forwardRef<HTMLDivElement, { toast: Toast; onRemove: () => void }>(
+  function ToastItem({ toast, onRemove }, ref) {
+    const style = styles[toast.type];
+    const Icon = icons[toast.type];
 
-  useEffect(() => {
-    if (toast.duration !== 0) {
-      const timer = setTimeout(onRemove, toast.duration || 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [toast.duration, onRemove]);
+    useEffect(() => {
+      if (toast.duration !== 0) {
+        const timer = setTimeout(onRemove, toast.duration || 5000);
+        return () => clearTimeout(timer);
+      }
+    }, [toast.duration, onRemove]);
 
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: -20, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, x: 100, scale: 0.95 }}
-      className={`
-        relative flex items-start gap-3 p-4 rounded-xl border backdrop-blur-md shadow-2xl
-        ${style.bg} ${style.border}
-        min-w-[320px] max-w-[420px]
-      `}
-    >
-      <div className={`flex-shrink-0 ${style.icon}`}>
-        <Icon className="w-5 h-5" />
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <p className={`font-semibold text-sm ${style.title}`}>
-          {toast.title}
-        </p>
-        {toast.message && (
-          <p className="text-slate-300 text-sm mt-1 leading-relaxed">
-            {toast.message}
-          </p>
-        )}
-        {toast.action && (
-          <button
-            onClick={() => {
-              toast.action?.onClick();
-              onRemove();
-            }}
-            className="mt-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
-          >
-            {toast.action.label}
-          </button>
-        )}
-      </div>
-
-      <button
-        onClick={onRemove}
-        className="flex-shrink-0 text-slate-400 hover:text-slate-200 transition-colors"
+    return (
+      <motion.div
+        ref={ref}
+        layout
+        initial={{ opacity: 0, y: -20, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, x: 100, scale: 0.95 }}
+        className={`
+          relative flex items-start gap-3 p-4 rounded-xl border backdrop-blur-md shadow-2xl
+          ${style.bg} ${style.border}
+          min-w-[320px] max-w-[420px]
+        `}
       >
-        <X className="w-4 h-4" />
-      </button>
-    </motion.div>
-  );
-}
+        <div className={`flex-shrink-0 ${style.icon}`}>
+          <Icon className="w-5 h-5" />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <p className={`font-semibold text-sm ${style.title}`}>
+            {toast.title}
+          </p>
+          {toast.message && (
+            <p className="text-slate-300 text-sm mt-1 leading-relaxed">
+              {toast.message}
+            </p>
+          )}
+          {toast.action && (
+            <button
+              onClick={() => {
+                toast.action?.onClick();
+                onRemove();
+              }}
+              className="mt-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              {toast.action.label}
+            </button>
+          )}
+        </div>
+
+        <button
+          onClick={onRemove}
+          className="flex-shrink-0 text-slate-400 hover:text-slate-200 transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </motion.div>
+    );
+  }
+);
 
 // Provider del contexto de Toast
 export function ToastProvider({ children }: { children: ReactNode }) {

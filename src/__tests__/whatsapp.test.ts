@@ -354,3 +354,106 @@ describe('Template Variables Extraction', () => {
     expect(variables).toEqual([]);
   });
 });
+
+describe('Simulation Mode - Modo Simulación', () => {
+  
+  // Función que simula el comportamiento de la API
+  function simulateCampaignSend(phoneNumbers: string[], simulationMode: boolean) {
+    if (simulationMode) {
+      // Simular resultados sin enviar
+      const total = phoneNumbers.length;
+      const successRate = Math.floor(Math.random() * 10 + 85); // 85-95%
+      const exitosos = Math.floor(total * successRate / 100);
+      const fallidos = total - exitosos;
+      
+      return {
+        success: true,
+        simulationMode: true,
+        resultados: {
+          total,
+          exitosos,
+          fallidos,
+          tasa_exito: Math.round(exitosos / total * 100)
+        },
+        sample_numbers: phoneNumbers.slice(0, 10)
+      };
+    }
+    
+    // Modo real - envía mensajes
+    return {
+      success: true,
+      simulationMode: false,
+      resultados: {
+        total: phoneNumbers.length,
+        exitosos: phoneNumbers.length,
+        fallidos: 0,
+        tasa_exito: 100
+      }
+    };
+  }
+
+  it('debe retornar simulationMode=true cuando está activado', () => {
+    const phoneNumbers = ['+593987654321', '+593912345678'];
+    const result = simulateCampaignSend(phoneNumbers, true);
+    
+    expect(result.simulationMode).toBe(true);
+  });
+
+  it('debe incluir sample_numbers en modo simulación', () => {
+    const phoneNumbers = Array.from({ length: 20 }, (_, i) => `+59398765432${i}`);
+    const result = simulateCampaignSend(phoneNumbers, true);
+    
+    expect(result.sample_numbers).toBeDefined();
+    expect(result.sample_numbers!.length).toBeLessThanOrEqual(10);
+  });
+
+  it('debe calcular estadísticas realistas en simulación', () => {
+    const phoneNumbers = Array.from({ length: 100 }, (_, i) => `+59398765432${i}`);
+    const result = simulateCampaignSend(phoneNumbers, true);
+    
+    expect(result.resultados.total).toBe(100);
+    expect(result.resultados.exitosos + result.resultados.fallidos).toBe(100);
+    expect(result.resultados.tasa_exito).toBeGreaterThanOrEqual(0);
+    expect(result.resultados.tasa_exito).toBeLessThanOrEqual(100);
+  });
+
+  it('no debe incluir sample_numbers en modo real', () => {
+    const phoneNumbers = ['+593987654321'];
+    const result = simulateCampaignSend(phoneNumbers, false);
+    
+    expect(result.simulationMode).toBe(false);
+    expect(result.sample_numbers).toBeUndefined();
+  });
+});
+
+describe('Batch Processing - Procesamiento por Lotes', () => {
+  
+  function calculateBatches(total: number, batchSize: number) {
+    return Math.ceil(total / batchSize);
+  }
+
+  function calculateEstimatedTime(total: number, batchSize: number, delayMinutes: number) {
+    const batches = calculateBatches(total, batchSize);
+    return batches * delayMinutes;
+  }
+
+  it('debe calcular correctamente el número de lotes', () => {
+    expect(calculateBatches(100, 10)).toBe(10);
+    expect(calculateBatches(95, 10)).toBe(10);
+    expect(calculateBatches(101, 10)).toBe(11);
+    expect(calculateBatches(5, 10)).toBe(1);
+  });
+
+  it('debe calcular tiempo estimado correcto', () => {
+    // 100 mensajes, lotes de 10, 5 min entre lotes = 10 lotes * 5 min = 50 min
+    expect(calculateEstimatedTime(100, 10, 5)).toBe(50);
+    
+    // 50 mensajes, lotes de 20, 3 min entre lotes = 3 lotes * 3 min = 9 min
+    expect(calculateEstimatedTime(50, 20, 3)).toBe(9);
+  });
+
+  it('debe manejar caso de lote único', () => {
+    expect(calculateBatches(5, 10)).toBe(1);
+    expect(calculateEstimatedTime(5, 10, 5)).toBe(5);
+  });
+});

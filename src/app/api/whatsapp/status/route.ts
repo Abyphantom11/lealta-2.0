@@ -5,18 +5,12 @@ import { authOptions } from '@/lib/auth';
 /**
  * 📊 GET /api/whatsapp/status
  * Verificar estado de configuración de WhatsApp
+ * No requiere autenticación estricta - permite verificar estado básico
  */
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user) {
-      return NextResponse.json(
-        { error: 'No autorizado' },
-        { status: 401 }
-      );
-    }
-
     // Verificar variables de entorno de Twilio
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -25,6 +19,18 @@ export async function GET() {
     const isConfigured = !!(accountSid && authToken);
     const isSandbox = whatsappNumber?.includes('14155238886'); // Número sandbox de Twilio
     const isDemoMode = !isConfigured;
+
+    // Si no hay sesión, retornar estado básico sin detalles sensibles
+    if (!session?.user) {
+      return NextResponse.json({
+        success: true,
+        isConfigured,
+        isDemoMode,
+        message: isDemoMode 
+          ? 'WhatsApp en modo demo' 
+          : 'WhatsApp configurado'
+      });
+    }
 
     // Información de configuración (sin exponer tokens completos)
     const configInfo = {

@@ -19,14 +19,21 @@ import { checkRateLimit, recordMessageUsage } from '@/app/api/whatsapp/rate-limi
  */
 export async function POST(request: NextRequest) {
   try {
+    console.log('📤 [send-campaign] Iniciando petición...');
+    
     // Verificar autenticación (solo admin, staff, superadmin)
     const authResult = await requireAuth(request, {
       allowedRoles: ['admin', 'staff', 'superadmin']
     });
     
     if (!authResult.success) {
+      console.log('❌ [send-campaign] Auth fallida');
       return authResult.response;
     }
+    
+    // Obtener businessId de la sesión autenticada
+    const sessionBusinessId = authResult.session.businessId;
+    console.log('✅ [send-campaign] Auth exitosa, businessId:', sessionBusinessId);
 
     const body = await request.json();
     const {
@@ -36,9 +43,14 @@ export async function POST(request: NextRequest) {
       variables = {},
       filtros = {},
       businessId,
+      phoneNumbers,     // 🆕 Lista específica de números a enviar
       batchSize = 10,         // 🆕 Tamaño del lote
-      delayBetweenBatches = 3000  // 🆕 Delay entre lotes en ms
+      delayBetweenBatches = 3000,  // 🆕 Delay entre lotes en ms
+      maxMessages,      // 🆕 Límite de mensajes a enviar
+      simulationMode = false  // 🆕 Modo simulación - no envía mensajes reales
     } = body;
+
+    console.log(`📊 Parámetros recibidos: maxMessages=${maxMessages}, phoneNumbers=${phoneNumbers?.length || 0}, simulationMode=${simulationMode}`);
 
     // Validaciones - Priorizar contentSid
     if (!contentSid && !templateId && !customMessage) {
@@ -51,10 +63,20 @@ export async function POST(request: NextRequest) {
     const useApprovedTemplate = !!contentSid;
     console.log(`🚀 Iniciando campaña WhatsApp ${useApprovedTemplate ? '(Template Aprobado)' : '(Legacy)'}...`);
 
+    // Usar businessId de la sesión si no se proporciona en el request
+    const effectiveBusinessId = businessId || filtros.businessId || sessionBusinessId;
+    
+    if (!effectiveBusinessId) {
+      return NextResponse.json(
+        { error: 'No se pudo determinar el businessId' },
+        { status: 400 }
+      );
+    }
+
     // Obtener clientes según filtros
     const filtrosCompletos = {
       ...filtros,
-      businessId: businessId || filtros.businessId
+      businessId: effectiveBusinessId
     };
 
     // 1. VERIFICAR RATE LIMITS
@@ -70,26 +92,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const rateLimitCheck = await checkRateLimit(businessId || filtros.businessId, clientes.length);
-    
-    if (!rateLimitCheck.canSend) {
-      return NextResponse.json({
-        error: 'Límite de envío excedido',
-        details: {
-          dailyUsed: rateLimitCheck.dailyUsed,
-          dailyLimit: rateLimitCheck.dailyLimit,
-          monthlyUsed: rateLimitCheck.monthlyUsed,
-          monthlyLimit: rateLimitCheck.monthlyLimit,
-          tier: rateLimitCheck.tier,
-          waitTime: rateLimitCheck.waitTime
-        }
-      }, { status: 429 });
+    // 🆕 En modo simulación, saltar verificación de rate limits
+    if (!simulationMode) {
+      const rateLimitCheck = await checkRateLimit(effectiveBusinessId, clientes.length);
+      
+      if (!rateLimitCheck.canSend) {
+        return NextResponse.json({
+          error: 'Límite de envío excedido',
+          details: {
+            dailyUsed: rateLimitCheck.dailyUsed,
+            dailyLimit: rateLimitCheck.dailyLimit,
+            monthlyUsed: rateLimitCheck.monthlyUsed,
+            monthlyLimit: rateLimitCheck.monthlyLimit,
+            tier: rateLimitCheck.tier,
+            waitTime: rateLimitCheck.waitTime
+          }
+        }, { status: 429 });
+      }
+    } else {
+      console.log('🔬 Modo simulación: saltando verificación de rate limits');
     }
 
     // 2. FILTRAR OPT-OUTS
     const optedOutNumbers = await prisma.whatsAppOptOut.findMany({
       where: {
-        businessId: businessId || filtros.businessId,
+        businessId: effectiveBusinessId,
         optedBackIn: false
       },
       select: {
@@ -101,17 +128,72 @@ export async function POST(request: NextRequest) {
       optedOutNumbers.map(opt => opt.phoneNumber.replace(/\D/g, ''))
     );
 
-    const clientesFiltrados = clientes.filter(cliente => {
+    let clientesFiltrados = clientes.filter(cliente => {
       const phoneNormalized = cliente.telefono.replace(/\D/g, '');
       return !optedOutSet.has(phoneNormalized);
     });
 
-    console.log(`📞 Enviando a ${clientesFiltrados.length} clientes (${clientes.length - clientesFiltrados.length} opt-outs excluidos)...`);
+    // 🆕 Filtrar por números específicos del frontend (prioridad)
+    if (phoneNumbers && Array.isArray(phoneNumbers) && phoneNumbers.length > 0) {
+      const phoneNumbersSet = new Set(
+        phoneNumbers.map((phone: string) => phone.replace(/\D/g, ''))
+      );
+      clientesFiltrados = clientesFiltrados.filter(cliente => {
+        const phoneNormalized = cliente.telefono.replace(/\D/g, '');
+        return phoneNumbersSet.has(phoneNormalized);
+      });
+      console.log(`� Filtrado por ${phoneNumbers.length} números específicos del frontend, resultado: ${clientesFiltrados.length} clientes`);
+    }
+    // 🆕 Aplicar límite de mensajes si está configurado (fallback)
+    else if (maxMessages && maxMessages > 0 && maxMessages < clientesFiltrados.length) {
+      clientesFiltrados = clientesFiltrados.slice(0, maxMessages);
+      console.log(`🔢 Limitando a ${maxMessages} mensajes (de ${clientes.length} disponibles)`);
+    }
+
+    console.log(`📞 ${simulationMode ? '🔬 SIMULACIÓN:' : ''} Procesando ${clientesFiltrados.length} clientes`);
+
+    // 🆕 MODO SIMULACIÓN - Retornar sin enviar mensajes reales
+    if (simulationMode) {
+      console.log('🔬 Modo simulación activo - No se enviarán mensajes reales');
+      
+      // Simular el proceso con un delay pequeño
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Simular resultados realistas (95% éxito típico)
+      const simulatedSuccessRate = 0.95;
+      const simulatedSuccessful = Math.floor(clientesFiltrados.length * simulatedSuccessRate);
+      const simulatedFailed = clientesFiltrados.length - simulatedSuccessful;
+      
+      return NextResponse.json({
+        success: true,
+        simulationMode: true,
+        message: '🔬 SIMULACIÓN COMPLETADA - No se enviaron mensajes reales',
+        resultados: {
+          total: clientesFiltrados.length,
+          exitosos: simulatedSuccessful,
+          fallidos: simulatedFailed,
+          tasa_exito: Math.round(simulatedSuccessRate * 100)
+        },
+        detalles: {
+          template: contentSid || templateId || 'Mensaje personalizado',
+          batchSize,
+          delayBetweenBatches,
+          tiempoEstimado: `${Math.ceil(clientesFiltrados.length / batchSize) * (delayBetweenBatches / 60000)} minutos`,
+          costoEstimado: `$${(clientesFiltrados.length * 0.055).toFixed(2)}`
+        },
+        destinatarios: clientesFiltrados.slice(0, 20).map(c => ({
+          nombre: c.nombre,
+          telefono: c.telefono.replace(/(\d{3})(\d{3})(\d{4})/, '$1****$3'), // Ocultar parte del número
+          puntos: c.puntos
+        })),
+        totalDestinatarios: clientesFiltrados.length
+      });
+    }
 
     // 3. CREAR CAMPAÑA EN BD
     const campana = await prisma.whatsAppCampaign.create({
       data: {
-        businessId: businessId || filtros.businessId,
+        businessId: effectiveBusinessId,
         name: `Campaña ${new Date().toLocaleDateString()}`,
         templateId: contentSid || templateId || null,
         customMessage: customMessage || null,
@@ -212,7 +294,7 @@ export async function POST(request: NextRequest) {
       return prisma.whatsAppMessage.create({
         data: {
           campaignId: campana.id,
-          businessId: businessId || filtros.businessId,
+          businessId: effectiveBusinessId,
           clienteId: cliente.id,
           phoneNumber: formattedPhone,
           templateId: contentSid || templateId || null,
@@ -238,7 +320,7 @@ export async function POST(request: NextRequest) {
           actualCost: resultado.successful * 0.055
         }
       }),
-      recordMessageUsage(businessId || filtros.businessId, resultado.successful, 0)
+      recordMessageUsage(effectiveBusinessId, resultado.successful, 0)
     ]);
 
     console.log('✅ Campaña completada:', {
