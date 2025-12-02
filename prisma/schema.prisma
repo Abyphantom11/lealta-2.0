@@ -88,6 +88,9 @@ model Business {
   WhatsAppSegment       WhatsAppSegment[]
   WhatsAppABTest        WhatsAppABTest[]
   WhatsAppInsight       WhatsAppInsight[]
+  
+  // Events & Guest Lists
+  Event                 Event[]
 }
 
 model BusinessGoals {
@@ -159,6 +162,7 @@ model Cliente {
   TarjetaLealtad   TarjetaLealtad?
   VisitLog         VisitLog[]
   Visita           Visita[]
+  EventGuest       EventGuest[]
 
   // WhatsApp Relations  
   WhatsAppOptOut  WhatsAppOptOut[]
@@ -1402,4 +1406,117 @@ model WhatsAppInsight {
   @@index([type])
   @@index([priority])
   @@index([isRead])
+}
+
+// ========================================
+// 🎉 EVENT GUEST LIST SYSTEM
+// ========================================
+
+model Event {
+  id                String        @id @default(cuid())
+  businessId        String
+  
+  // Event details
+  name              String
+  description       String?
+  slug              String        @unique  // URL-friendly unique identifier
+  
+  // Date & Time
+  eventDate         DateTime
+  startTime         String        // "21:00"
+  endTime           String?       // "04:00" (optional)
+  
+  // Capacity
+  maxCapacity       Int           // Maximum attendees
+  currentCount      Int           @default(0)
+  
+  // Customization
+  imageUrl          String?       // Event banner/poster image
+  primaryColor      String?       @default("#6366f1") // Brand color for QR
+  
+  // Registration settings
+  requirePhone      Boolean       @default(true)
+  requireEmail      Boolean       @default(false)
+  customFields      Json?         // Additional custom fields [{name, type, required}]
+  
+  // Status
+  status            EventStatus   @default(DRAFT)
+  isPublic          Boolean       @default(true)
+  
+  // Analytics
+  totalViews        Int           @default(0)
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  // Relations
+  Business          Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  EventGuest        EventGuest[]
+  
+  @@index([businessId])
+  @@index([slug])
+  @@index([eventDate])
+  @@index([status])
+}
+
+model EventGuest {
+  id                String        @id @default(cuid())
+  eventId           String
+  
+  // Guest info
+  name              String
+  cedula            String?       // ID number for linking with Cliente
+  phone             String?
+  email             String?
+  guestCount        Int           @default(1) // Number of people in this registration
+  
+  // Link to Cliente (optional - if guest is also a registered client)
+  clienteId         String?
+  
+  // QR Code
+  qrToken           String        @unique
+  qrData            String        // Encoded data for the QR
+  
+  // Custom fields responses
+  customData        Json?
+  
+  // Check-in status
+  status            GuestStatus   @default(REGISTERED)
+  checkedInAt       DateTime?
+  checkedInBy       String?       // User ID who scanned
+  
+  // Metadata
+  source            String        @default("public_link") // public_link, manual, import
+  notes             String?
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  // Relations
+  Event             Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  Cliente           Cliente?      @relation(fields: [clienteId], references: [id])
+  
+  @@unique([eventId, cedula]) // One registration per cedula per event
+  @@index([eventId])
+  @@index([qrToken])
+  @@index([status])
+  @@index([phone])
+  @@index([cedula])
+  @@index([clienteId])
+}
+
+enum EventStatus {
+  DRAFT        // Not yet published
+  ACTIVE       // Registration open
+  CLOSED       // Registration closed but event not started
+  IN_PROGRESS  // Event happening now
+  COMPLETED    // Event finished
+  CANCELLED    // Event cancelled
+}
+
+enum GuestStatus {
+  REGISTERED   // Registered but not checked in
+  CHECKED_IN   // Checked in at the event
+  CANCELLED    // Registration cancelled
+  NO_SHOW      // Did not attend
 }

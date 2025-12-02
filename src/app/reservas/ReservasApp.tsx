@@ -24,6 +24,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { SinReservaTable } from './components/SinReservaTable';
 import { SinReservaCounter } from './components/SinReservaCounter';
 import { SinReserva } from './types/sin-reserva';
+import EventsManagement from './components/EventsManagement';
 
 // Importar estilos
 import './globals.css';
@@ -190,8 +191,8 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
     }
   }, [reservas, showEditModal, selectedReservaForEdit]);
   
-  // Estados para sin reserva
-  const [showSinReserva, setShowSinReserva] = useState(false); // Toggle entre reservas y sin reserva
+  // Estados para sin reserva y eventos
+  const [activeTab, setActiveTab] = useState<'reservas' | 'sinReserva' | 'eventos'>('reservas');
   const [sinReservas, setSinReservas] = useState<SinReserva[]>([]);
   const [loadingSinReservas, setLoadingSinReservas] = useState(false);
 
@@ -658,13 +659,13 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
             {/* Dashboard Stats */}
             <DashboardStats stats={currentStats} />
 
-            {/* Toggle Reservas / Sin Reserva - Centrado */}
+            {/* Toggle Reservas / Sin Reserva / Eventos - Centrado */}
             <div className="bg-white rounded-lg shadow-sm p-4 flex items-center justify-center">
-              <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
                 <button
-                  onClick={() => setShowSinReserva(false)}
-                  className={`px-6 py-2.5 rounded-md font-medium transition-all ${
-                    showSinReserva === false
+                  onClick={() => setActiveTab('reservas')}
+                  className={`px-4 py-2.5 rounded-md font-medium transition-all ${
+                    activeTab === 'reservas'
                       ? 'bg-white text-blue-600 shadow-sm'
                       : 'text-gray-600 hover:text-gray-800'
                   }`}
@@ -672,20 +673,30 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
                   📋 Reservas
                 </button>
                 <button
-                  onClick={() => setShowSinReserva(true)}
-                  className={`px-6 py-2.5 rounded-md font-medium transition-all ${
-                    showSinReserva
+                  onClick={() => setActiveTab('sinReserva')}
+                  className={`px-4 py-2.5 rounded-md font-medium transition-all ${
+                    activeTab === 'sinReserva'
                       ? 'bg-white text-blue-600 shadow-sm'
                       : 'text-gray-600 hover:text-gray-800'
                   }`}
                 >
                   👥 Sin Reserva
                 </button>
+                <button
+                  onClick={() => setActiveTab('eventos')}
+                  className={`px-4 py-2.5 rounded-md font-medium transition-all ${
+                    activeTab === 'eventos'
+                      ? 'bg-white text-indigo-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  🎉 Lista Invitados
+                </button>
               </div>
             </div>
 
-            {/* Tabla de reservas O Sin Reserva */}
-            {showSinReserva === false ? (
+            {/* Contenido según tab activo */}
+            {activeTab === 'reservas' && (
               <ReservationTable
                 businessId={businessId}
                 reservas={reservasFiltradas}
@@ -705,7 +716,9 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
                 onPersonasChange={handlePersonasChange}
                 onNameChange={handleNameChange}
               />
-            ) : (
+            )}
+            
+            {activeTab === 'sinReserva' && (
               <div className="bg-white rounded-lg shadow-sm p-6">
                 {loadingSinReservas ? (
                   <div className="text-center py-12 text-gray-500">
@@ -719,6 +732,10 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
                   />
                 )}
               </div>
+            )}
+            
+            {activeTab === 'eventos' && businessId && (
+              <EventsManagement businessId={businessId} />
             )}
           </div>
         )}

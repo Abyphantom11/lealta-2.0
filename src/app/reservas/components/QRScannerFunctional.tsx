@@ -42,6 +42,15 @@ interface QRData {
   hora: string;
 }
 
+// Estructura del QR de evento
+interface EventQRData {
+  type: 'EVENT_GUEST';
+  eventId: string;
+  guestToken: string;
+  cedula: string;
+  timestamp: number;
+}
+
 interface ReservaDetectada {
   reservaId: string;
   token: string; // Agregar token para usar en incrementos
@@ -53,6 +62,16 @@ interface ReservaDetectada {
   total: number;
   actual: number;
   exceso: number;
+}
+
+// Estructura para invitado de evento detectado
+interface EventGuestDetectado {
+  qrToken: string;
+  name: string;
+  guestCount: number;
+  eventName: string;
+  alreadyCheckedIn: boolean;
+  checkedInAt?: string;
 }
 
 export function QRScannerFunctional({ onScan, onError }: Readonly<QRScannerFunctionalProps>) {
@@ -71,6 +90,10 @@ export function QRScannerFunctional({ onScan, onError }: Readonly<QRScannerFunct
   const [showDialog, setShowDialog] = useState(false);
   const [reservaDetectada, setReservaDetectada] = useState<ReservaDetectada | null>(null);
   const [incrementoTemporal, setIncrementoTemporal] = useState(1);
+  
+  // Estados para el dialog de evento
+  const [showEventDialog, setShowEventDialog] = useState(false);
+  const [eventGuestDetectado, setEventGuestDetectado] = useState<EventGuestDetectado | null>(null);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -106,7 +129,7 @@ export function QRScannerFunctional({ onScan, onError }: Readonly<QRScannerFunct
   // Función para escanear QR en el frame actual - OPTIMIZADA
   const scanQRCode = useCallback(() => {
     // Verificaciones de seguridad
-    if (!videoRef.current || !canvasRef.current || isProcessing || showDialog) {
+    if (!videoRef.current || !canvasRef.current || isProcessing || showDialog || showEventDialog) {
       return;
     }
 
@@ -160,27 +183,106 @@ export function QRScannerFunctional({ onScan, onError }: Readonly<QRScannerFunct
               scanIntervalRef.current = null;
             }
             
-            console.log("📱 QR detectado, parseando datos...");
+            console.log("📱 QR detectado, parseando datos...", qrDataString);
             
             // Parsear el QR que viene en formato JSON del QRGenerator
-            let qrData: QRData;
+            let qrData: QRData | EventQRData | null = null;
+            let isPlainToken = false;
+            
             try {
               qrData = JSON.parse(qrDataString);
               console.log("✅ QR parseado correctamente:", qrData);
-            } catch (parseError) {
-              console.error("❌ Error al parsear QR:", parseError);
-              setError("Código QR inválido o corrupto");
+            } catch {
+              // Not JSON - might be a plain token (event guest QR)
+              console.log("ℹ️ QR no es JSON, probando como token directo...");
+              isPlainToken = true;
+            }
+            
+            // ✨ Check if it's a plain token (likely event guest QR)
+            if (isPlainToken) {
+              console.log("🎟️ Probando como token de evento:", qrDataString);
+              
+              // Get guest info first (without checking in)
+              try {
+                const infoResponse = await fetch(`/api/events/guest-info?qrToken=${qrDataString}`);
+                const infoData = await infoResponse.json();
+                
+                if (!infoData.success) {
+                  // Not an event QR, show error
+                  setError("Código QR inválido o corrupto");
+                  setIsProcessing(false);
+                  return;
+                }
+                
+                // Show confirmation dialog
+                setEventGuestDetectado({
+                  qrToken: qrDataString,
+                  name: infoData.guest.name,
+                  guestCount: infoData.guest.guestCount || 1,
+                  eventName: infoData.event.name,
+                  alreadyCheckedIn: infoData.guest.status === 'CHECKED_IN',
+                  checkedInAt: infoData.guest.checkedInAt
+                });
+                setShowEventDialog(true);
+                
+              } catch (eventError) {
+                console.error("❌ Error al procesar token:", eventError);
+                setError("Código QR inválido o corrupto");
+              }
+              
               setIsProcessing(false);
               return;
             }
             
+            // ✨ Check if it's an EVENT GUEST QR (JSON format)
+            if (qrData && 'type' in qrData && qrData.type === 'EVENT_GUEST') {
+              console.log("🎟️ QR de evento detectado:", qrData);
+              
+              // Call the event check-in API
+              try {
+                const eventResponse = await fetch('/api/events/checkin', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ qrToken: (qrData as EventQRData).guestToken })
+                });
+                
+                const eventData = await eventResponse.json();
+                
+                if (eventData.alreadyCheckedIn) {
+                  setSuccess(`⚠️ ${eventData.guest?.name} ya registró entrada (${new Date(eventData.guest?.checkedInAt).toLocaleTimeString('es-EC')})`);
+                } else if (eventData.success) {
+                  setSuccess(`✅ ${eventData.message}`);
+                } else {
+                  setError(eventData.error || 'Error al registrar entrada');
+                }
+                
+                // Resume scanning after 3 seconds
+                setTimeout(() => {
+                  if (isScanning && scanIntervalRef.current === null) {
+                    scanIntervalRef.current = setInterval(scanQRCode, 100);
+                  }
+                }, 3000);
+                
+              } catch (eventError) {
+                console.error("❌ Error al procesar QR de evento:", eventError);
+                setError("Error al procesar entrada de evento");
+              }
+              
+              setIsProcessing(false);
+              return;
+            }
+            
+            // Regular reservation QR processing
             // Validar que tenga los campos requeridos
-            if (!qrData.reservaId || !qrData.token) {
+            if (!qrData || !('reservaId' in qrData) || !qrData.reservaId || !('token' in qrData) || !qrData.token) {
               console.error("❌ QR no tiene campos requeridos");
               setError("Código QR inválido: faltan datos requeridos");
               setIsProcessing(false);
               return;
             }
+            
+            // Cast to QRData since we've validated it's a reservation QR
+            const reservaQRData = qrData as QRData;
             
             // Obtener información completa de la reserva desde la API
             const result = await getQRInfo(qrDataString);
@@ -188,12 +290,12 @@ export function QRScannerFunctional({ onScan, onError }: Readonly<QRScannerFunct
             if (result.success && result.reservaId) {
               // Configurar la reserva detectada con datos del QR y de la API
               const reservaInfo: ReservaDetectada = {
-                reservaId: qrData.reservaId,
-                token: qrData.token,
-                cliente: qrData.cliente || result.cliente?.nombre || 'Cliente',
+                reservaId: reservaQRData.reservaId,
+                token: reservaQRData.token,
+                cliente: reservaQRData.cliente || result.cliente?.nombre || 'Cliente',
                 telefono: result.cliente?.telefono || '',
-                fecha: qrData.fecha || result.reserva?.fecha || '',
-                hora: qrData.hora || result.reserva?.hora || '',
+                fecha: reservaQRData.fecha || result.reserva?.fecha || '',
+                hora: reservaQRData.hora || result.reserva?.hora || '',
                 servicio: result.reserva?.servicio || '',
                 total: result.maxAsistencia || 1,
                 actual: result.incrementCount || 0,
@@ -228,7 +330,8 @@ export function QRScannerFunctional({ onScan, onError }: Readonly<QRScannerFunct
         console.warn("⚠️ Error en scanQRCode:", scanError);
       }
     }
-  }, [isProcessing, showDialog, getQRInfo, onScan, onError]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isProcessing, showDialog, showEventDialog, getQRInfo, onScan, onError, isScanning]);
 
 
 
@@ -299,6 +402,58 @@ export function QRScannerFunctional({ onScan, onError }: Readonly<QRScannerFunct
     setShowDialog(false);
     setReservaDetectada(null);
     setIncrementoTemporal(1);
+    
+    // Reiniciar escaneo inmediatamente
+    setTimeout(() => {
+      if (isScanning && scanIntervalRef.current === null) {
+        scanIntervalRef.current = setInterval(scanQRCode, 100);
+      }
+    }, 500);
+  }, [isScanning, scanQRCode]);
+
+  // Función para confirmar check-in de evento
+  const confirmarEventCheckIn = useCallback(async () => {
+    if (!eventGuestDetectado) return;
+    
+    try {
+      setIsProcessing(true);
+      
+      const response = await fetch('/api/events/checkin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ qrToken: eventGuestDetectado.qrToken })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setSuccess(`✅ Bienvenido ${eventGuestDetectado.name}!`);
+      } else {
+        setError(data.error || 'Error al registrar entrada');
+      }
+      
+      setShowEventDialog(false);
+      setEventGuestDetectado(null);
+      
+      // Reiniciar escaneo después de 3 segundos
+      setTimeout(() => {
+        if (isScanning && scanIntervalRef.current === null) {
+          scanIntervalRef.current = setInterval(scanQRCode, 100);
+        }
+      }, 3000);
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Error al confirmar entrada";
+      setError(errorMessage);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [eventGuestDetectado, isScanning, scanQRCode]);
+
+  // Función para cancelar check-in de evento
+  const cancelarEventCheckIn = useCallback(() => {
+    setShowEventDialog(false);
+    setEventGuestDetectado(null);
     
     // Reiniciar escaneo inmediatamente
     setTimeout(() => {
@@ -834,7 +989,73 @@ export function QRScannerFunctional({ onScan, onError }: Readonly<QRScannerFunct
         </DialogContent>
       </Dialog>
 
-
+      {/* Dialog de check-in de evento */}
+      <Dialog open={showEventDialog} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-purple-700">
+              🎟️ Entrada de Evento
+            </DialogTitle>
+          </DialogHeader>
+          
+          {eventGuestDetectado && (
+            <div className="space-y-4">
+              {/* Info del invitado */}
+              <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg text-center">
+                <p className="text-sm text-purple-600 mb-1">Invitado</p>
+                <h3 className="text-2xl font-bold text-purple-800">{eventGuestDetectado.name}</h3>
+                <p className="text-purple-600 mt-1">{eventGuestDetectado.eventName}</p>
+              </div>
+              
+              {/* Estado */}
+              {eventGuestDetectado.alreadyCheckedIn ? (
+                <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg text-center">
+                  <p className="text-yellow-800 font-medium">⚠️ Ya registró entrada</p>
+                  <p className="text-yellow-700 text-sm">
+                    {eventGuestDetectado.checkedInAt && 
+                      `a las ${new Date(eventGuestDetectado.checkedInAt).toLocaleTimeString('es-EC')}`
+                    }
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-green-50 border border-green-200 p-3 rounded-lg text-center">
+                  <p className="text-green-800 font-medium">✓ Entrada válida</p>
+                  <p className="text-green-700 text-sm">
+                    {eventGuestDetectado.guestCount} persona{eventGuestDetectado.guestCount > 1 ? 's' : ''}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <DialogFooter className="flex gap-2 mt-4">
+            <Button
+              variant="outline"
+              onClick={cancelarEventCheckIn}
+              disabled={isProcessing}
+            >
+              Cancelar
+            </Button>
+            {eventGuestDetectado && !eventGuestDetectado.alreadyCheckedIn && (
+              <Button
+                onClick={confirmarEventCheckIn}
+                disabled={isProcessing}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                {isProcessing ? "Registrando..." : "✓ Confirmar Entrada"}
+              </Button>
+            )}
+            {eventGuestDetectado?.alreadyCheckedIn && (
+              <Button
+                onClick={cancelarEventCheckIn}
+                className="bg-gray-600 hover:bg-gray-700"
+              >
+                Cerrar
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Mensajes de estado */}
       {error && (

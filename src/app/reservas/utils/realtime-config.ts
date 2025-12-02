@@ -8,8 +8,11 @@
 
 export const REALTIME_CONFIG = {
   // 📡 Server-Sent Events Configuration
+  // ⚠️ DESACTIVADO: Vercel tiene límite de 10s para funciones serverless
+  // Las conexiones SSE causan timeouts constantes y alto uso de CPU
+  // Se usa polling como alternativa más eficiente en Vercel
   sse: {
-    enabled: true, // ✅ Activar/desactivar SSE globalmente
+    enabled: false, // ❌ Desactivado - Vercel no soporta conexiones largas
     endpoint: '/api/reservas/events', // 🔗 Endpoint SSE
     heartbeatInterval: 30000, // Heartbeat cada 30 segundos para mantener conexión
     reconnection: {

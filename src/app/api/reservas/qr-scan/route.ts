@@ -18,6 +18,11 @@ interface ParsedQRResult {
   token: string | undefined;
 }
 
+interface EventQRResult {
+  type: 'EVENT_GUEST';
+  qrToken: string;
+}
+
 interface TimeValidationResult {
   isValid: boolean;
   message?: string;
@@ -26,7 +31,29 @@ interface TimeValidationResult {
 export const dynamic = 'force-dynamic';
 
 // Función auxiliar: Parsear el código QR
-async function parseQRCode(qrCode: string): Promise<ParsedQRResult | NextResponse> {
+async function parseQRCode(qrCode: string): Promise<ParsedQRResult | EventQRResult | NextResponse> {
+  // Check if it's a simple event guest token (not JSON, not reservation ID)
+  // Event tokens are typically 12-character nanoid strings
+  if (!qrCode.startsWith('res-') && !qrCode.startsWith('cmg') && !qrCode.startsWith('{')) {
+    // Could be an event guest token - check if it exists
+    console.log('🎟️ Checking if this is an event guest token:', qrCode);
+    
+    const eventGuest = await prisma.eventGuest.findUnique({
+      where: { qrToken: qrCode }
+    });
+    
+    if (eventGuest) {
+      console.log('✅ Found event guest:', eventGuest.name);
+      return {
+        type: 'EVENT_GUEST',
+        qrToken: qrCode
+      } as EventQRResult;
+    }
+    
+    // Not an event token, continue with other checks
+    console.log('ℹ️ Not an event token, trying other formats...');
+  }
+  
   if (qrCode.startsWith('res-') || qrCode.startsWith('cmg')) {
     console.log('📝 Detectado ID simple de reserva');
     const reservaId = qrCode.replace('res-', '');
@@ -390,6 +417,67 @@ export async function POST(request: NextRequest) {
     const parseResult = await parseQRCode(qrCode);
     if (parseResult instanceof NextResponse) {
       return parseResult; // Error en el parsing
+    }
+
+    // 🎟️ Handle Event Guest QR
+    if ('type' in parseResult && parseResult.type === 'EVENT_GUEST') {
+      console.log('🎟️ Processing event guest check-in:', parseResult.qrToken);
+      
+      // Call the event check-in logic
+      const eventGuest = await prisma.eventGuest.findUnique({
+        where: { qrToken: parseResult.qrToken },
+        include: { Event: true }
+      });
+
+      if (!eventGuest) {
+        return NextResponse.json(
+          { success: false, message: 'Entrada de evento no válida' },
+          { status: 404 }
+        );
+      }
+
+      // Check if already checked in
+      if (eventGuest.status === 'CHECKED_IN') {
+        return NextResponse.json({
+          success: true,
+          type: 'EVENT_GUEST',
+          alreadyCheckedIn: true,
+          guest: {
+            id: eventGuest.id,
+            name: eventGuest.name,
+            checkedInAt: eventGuest.checkedInAt
+          },
+          event: {
+            name: eventGuest.Event.name
+          },
+          message: `${eventGuest.name} ya registró entrada`
+        });
+      }
+
+      // Perform check-in
+      const updatedGuest = await prisma.eventGuest.update({
+        where: { id: eventGuest.id },
+        data: {
+          status: 'CHECKED_IN',
+          checkedInAt: new Date(),
+          checkedInBy: 'scanner'
+        }
+      });
+
+      return NextResponse.json({
+        success: true,
+        type: 'EVENT_GUEST',
+        guest: {
+          id: updatedGuest.id,
+          name: updatedGuest.name,
+          guestCount: updatedGuest.guestCount,
+          checkedInAt: updatedGuest.checkedInAt
+        },
+        event: {
+          name: eventGuest.Event.name
+        },
+        message: `✅ Bienvenido ${updatedGuest.name}!`
+      });
     }
 
     const { reservaId, token } = parseResult;
