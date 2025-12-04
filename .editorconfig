@@ -1,0 +1,42 @@
+# EditorConfig - Configuración de encoding y formato para todo el proyecto
+# https://editorconfig.org
+
+root = true
+
+# Configuración global para todos los archivos
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# Archivos TypeScript/JavaScript
+[*.{ts,tsx,js,jsx,mjs,cjs}]
+indent_size = 2
+
+# Archivos JSON
+[*.json]
+indent_size = 2
+
+# Archivos YAML
+[*.{yml,yaml}]
+indent_size = 2
+
+# Archivos Markdown - no eliminar espacios al final (pueden ser saltos de línea)
+[*.md]
+trim_trailing_whitespace = false
+
+# Archivos de configuración
+[*.{env,env.*}]
+insert_final_newline = false
+
+# Makefiles requieren tabs
+[Makefile]
+indent_style = tab
+
+# Archivos de bloqueo - no modificar
+[{package-lock.json,yarn.lock,pnpm-lock.yaml}]
+indent_size = 2
+insert_final_newline = false

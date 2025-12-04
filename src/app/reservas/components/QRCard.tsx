@@ -67,16 +67,20 @@ export default function QRCard({
                      cardDesign.backgroundColor.includes('#1a1a1a') || 
                      cardDesign.backgroundColor.includes('#2d2d2d');
   
-  // ­ƒÄâ Detectar tema Halloween
+  // 🎃 Detectar tema Halloween
   const isHalloween = cardDesign.borderColor === '#FF6B1A' && 
                       cardDesign.headerColor === '#FF8C00';
+  
+  // 🎄 Detectar tema Navidad
+  const isChristmas = cardDesign.borderColor === '#C41E3A' && 
+                      cardDesign.headerColor === '#FFD700';
 
   return (
     <div className="flex flex-col items-center gap-4">
       {/* Tarjeta */}
       <div
         data-qr-card
-        className={`relative ${shadowClass} ${isHalloween ? 'overflow-visible' : 'overflow-hidden'}`}
+        className={`relative ${shadowClass} ${(isHalloween || isChristmas) ? 'overflow-visible' : 'overflow-hidden'}`}
         style={{
           background: isGradient ? cardDesign.backgroundColor : undefined,
           backgroundColor: !isGradient ? cardDesign.backgroundColor : undefined,
@@ -87,10 +91,10 @@ export default function QRCard({
           padding: `${cardDesign.padding}px`,
           maxWidth: '400px',
           width: '100%',
-          boxShadow: isHalloween ? `0 0 30px ${cardDesign.borderColor}40, 0 0 60px ${cardDesign.borderColor}20` : undefined,
+          boxShadow: (isHalloween || isChristmas) ? `0 0 30px ${cardDesign.borderColor}40, 0 0 60px ${cardDesign.borderColor}20` : undefined,
         }}
       >
-        {/* ­ƒÄâ Decoraciones de Halloween - EST├üTICAS para renderizado */}
+        {/* 🎃 Decoraciones de Halloween - ESTÁTICAS para renderizado */}
         {isHalloween && (
           <>
             {/* Calabazas en esquinas superiores */}
@@ -98,13 +102,13 @@ export default function QRCard({
               className="absolute top-2 left-2 select-none pointer-events-none"
               style={{ fontSize: '32px', lineHeight: 1 }}
             >
-              ­ƒÄâ
+              🎃
             </div>
             <div 
               className="absolute top-2 right-2 select-none pointer-events-none"
               style={{ fontSize: '32px', lineHeight: 1 }}
             >
-              ­ƒÄâ
+              🎃
             </div>
             
             {/* Murciélagos laterales */}
@@ -112,13 +116,13 @@ export default function QRCard({
               className="absolute select-none pointer-events-none opacity-50"
               style={{ top: '25%', left: '8px', fontSize: '20px', lineHeight: 1 }}
             >
-              ­ƒªç
+              🦇
             </div>
             <div 
               className="absolute select-none pointer-events-none opacity-50"
               style={{ top: '35%', right: '8px', fontSize: '20px', lineHeight: 1 }}
             >
-              ­ƒªç
+              🦇
             </div>
             
             {/* Fantasma inferior */}
@@ -126,7 +130,7 @@ export default function QRCard({
               className="absolute bottom-3 right-3 select-none pointer-events-none opacity-60"
               style={{ fontSize: '24px', lineHeight: 1 }}
             >
-              ­ƒæ╗
+              👻
             </div>
             
             {/* Luna en la parte superior central */}
@@ -134,10 +138,10 @@ export default function QRCard({
               className="absolute select-none pointer-events-none opacity-40"
               style={{ top: '10px', left: '50%', transform: 'translateX(-50%)', fontSize: '28px', lineHeight: 1 }}
             >
-              ­ƒîÖ
+              🌙
             </div>
             
-            {/* Telara├▒as SVG en esquinas */}
+            {/* Telarañas SVG en esquinas */}
             <svg 
               className="absolute top-0 left-0 opacity-30 pointer-events-none" 
               width="60" 
@@ -171,7 +175,7 @@ export default function QRCard({
               <circle cx="27" cy="27" r="2.5" fill="#9ca3af"/>
             </svg>
             
-            {/* Efecto de brillo naranja sutil - ser├í visible en captura */}
+            {/* Efecto de brillo naranja sutil - será visible en captura */}
             <div 
               className="absolute inset-0 pointer-events-none"
               style={{
@@ -184,19 +188,124 @@ export default function QRCard({
               className="absolute select-none pointer-events-none opacity-50"
               style={{ top: '15%', left: '15%', fontSize: '14px', lineHeight: 1 }}
             >
-              Ô¡É
+              ⭐
             </div>
             <div 
               className="absolute select-none pointer-events-none opacity-50"
               style={{ top: '20%', right: '15%', fontSize: '12px', lineHeight: 1 }}
             >
-              Ô¡É
+              ⭐
+            </div>
+          </>
+        )}
+
+        {/* 🎄 Decoraciones de Navidad - ESTÁTICAS para renderizado */}
+        {isChristmas && (
+          <>
+            {/* Árbol de navidad en esquina superior izquierda */}
+            <div 
+              className="absolute top-2 left-2 select-none pointer-events-none"
+              style={{ fontSize: '28px', lineHeight: 1 }}
+            >
+              🎄
+            </div>
+            
+            {/* Estrella dorada en esquina superior derecha */}
+            <div 
+              className="absolute top-2 right-2 select-none pointer-events-none"
+              style={{ fontSize: '28px', lineHeight: 1 }}
+            >
+              ⭐
+            </div>
+            
+            {/* Copos de nieve laterales */}
+            <div 
+              className="absolute select-none pointer-events-none opacity-60"
+              style={{ top: '20%', left: '8px', fontSize: '18px', lineHeight: 1 }}
+            >
+              ❄️
+            </div>
+            <div 
+              className="absolute select-none pointer-events-none opacity-60"
+              style={{ top: '30%', right: '8px', fontSize: '16px', lineHeight: 1 }}
+            >
+              ❄️
+            </div>
+            <div 
+              className="absolute select-none pointer-events-none opacity-40"
+              style={{ top: '45%', left: '6px', fontSize: '14px', lineHeight: 1 }}
+            >
+              ❄️
+            </div>
+            
+            {/* Regalos en esquinas inferiores */}
+            <div 
+              className="absolute bottom-3 left-3 select-none pointer-events-none"
+              style={{ fontSize: '22px', lineHeight: 1 }}
+            >
+              🎁
+            </div>
+            <div 
+              className="absolute bottom-3 right-3 select-none pointer-events-none"
+              style={{ fontSize: '22px', lineHeight: 1 }}
+            >
+              🎅
+            </div>
+            
+            {/* Campanas decorativas */}
+            <div 
+              className="absolute select-none pointer-events-none opacity-50"
+              style={{ top: '10px', left: '50%', transform: 'translateX(-50%)', fontSize: '24px', lineHeight: 1 }}
+            >
+              🔔
+            </div>
+            
+            {/* Bastones de caramelo laterales */}
+            <div 
+              className="absolute select-none pointer-events-none opacity-60"
+              style={{ bottom: '25%', left: '6px', fontSize: '16px', lineHeight: 1 }}
+            >
+              🍬
+            </div>
+            <div 
+              className="absolute select-none pointer-events-none opacity-60"
+              style={{ bottom: '35%', right: '6px', fontSize: '16px', lineHeight: 1 }}
+            >
+              🍬
+            </div>
+            
+            {/* Efecto de brillo navideño rojo/dorado sutil */}
+            <div 
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: 'radial-gradient(circle at 30% 20%, rgba(255, 215, 0, 0.08) 0%, transparent 40%), radial-gradient(circle at 70% 80%, rgba(196, 30, 58, 0.06) 0%, transparent 40%)',
+              }}
+            />
+            
+            {/* Estrellas decorativas adicionales */}
+            <div 
+              className="absolute select-none pointer-events-none opacity-40"
+              style={{ top: '15%', left: '20%', fontSize: '12px', lineHeight: 1 }}
+            >
+              ✨
+            </div>
+            <div 
+              className="absolute select-none pointer-events-none opacity-40"
+              style={{ top: '12%', right: '20%', fontSize: '10px', lineHeight: 1 }}
+            >
+              ✨
+            </div>
+            <div 
+              className="absolute select-none pointer-events-none opacity-30"
+              style={{ bottom: '15%', left: '45%', fontSize: '10px', lineHeight: 1 }}
+            >
+              ✨
             </div>
           </>
         )}
 
         {/* Efecto de brillo sutil para tarjetas mate (Black Card) */}
-        {isDarkCard && !isHalloween && (
+        {isDarkCard && !isHalloween && !isChristmas && (
           <>
             <div 
               className="absolute inset-0 pointer-events-none"
@@ -220,20 +329,26 @@ export default function QRCard({
             className="text-2xl font-bold mb-1"
             style={{ 
               color: cardDesign.headerColor,
-              textShadow: isDarkCard || isHalloween ? '0 2px 10px rgba(0,0,0,0.5)' : 'none',
+              textShadow: isDarkCard || isHalloween || isChristmas ? '0 2px 10px rgba(0,0,0,0.5)' : 'none',
               ...(isHalloween && {
                 // Sombra naranja estática que sí se renderiza en imagen
                 textShadow: `0 0 15px ${cardDesign.headerColor}99, 0 2px 10px rgba(0,0,0,0.5)`,
+              }),
+              ...(isChristmas && {
+                // Sombra dorada navideña
+                textShadow: `0 0 20px ${cardDesign.headerColor}99, 0 2px 10px rgba(0,0,0,0.5)`,
               })
             }}
           >
-            {isHalloween ? '­ƒÄâ ' : ''}{businessName}{isHalloween ? ' ­ƒÄâ' : ''}
+            {isHalloween ? '🎃 ' : ''}{businessName}{isHalloween ? ' 🎃' : ''}
           </h2>
           <div
             className="text-xs tracking-wider uppercase"
             style={{ color: cardDesign.textColor }}
           >
-            {isHalloween ? '­ƒæ╗ Reserva Confirmada ­ƒæ╗' : 'Reserva Confirmada'}
+            {isHalloween && '👻 Reserva Confirmada 👻'}
+            {isChristmas && '🎅 Reserva Confirmada 🎅'}
+            {!isHalloween && !isChristmas && 'Reserva Confirmada'}
           </div>
         </div>
 
@@ -250,7 +365,7 @@ export default function QRCard({
           </div>
         </div>
 
-        {/* QR Code - Centrado con m├ís espacio */}
+        {/* QR Code - Centrado con más espacio */}
         <div className="flex justify-center mb-6 bg-white p-6 rounded-lg relative z-10 mx-2" style={{
           boxShadow: isDarkCard ? '0 4px 20px rgba(0,0,0,0.4)' : 'none'
         }}>

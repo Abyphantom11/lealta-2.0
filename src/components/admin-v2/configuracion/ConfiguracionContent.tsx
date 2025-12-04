@@ -72,7 +72,7 @@ const CARD_TEMPLATES = {
   },
   halloween: {
     name: '🎃 Halloween',
-    description: 'Especial Halloween 2024',
+    description: 'Especial Halloween',
     style: {
       backgroundColor: 'linear-gradient(135deg, #1a0a0f 0%, #2d1b1f 25%, #4a1f2d 50%, #2d1b1f 75%, #1a0a0f 100%)',
       borderColor: '#FF6B1A',
@@ -83,6 +83,21 @@ const CARD_TEMPLATES = {
       shadowSize: 'xl' as const,
       headerColor: '#FF8C00',
       textColor: '#a855f7',
+    } as CardDesign,
+  },
+  christmas: {
+    name: '🎄 Navidad',
+    description: 'Especial Navidad',
+    style: {
+      backgroundColor: 'linear-gradient(135deg, #0f1a0f 0%, #1a2e1a 25%, #2d4a2d 50%, #1a2e1a 75%, #0f1a0f 100%)',
+      borderColor: '#C41E3A',
+      borderWidth: 3,
+      borderRadius: 24,
+      padding: 40,
+      shadowColor: '#C41E3A',
+      shadowSize: 'xl' as const,
+      headerColor: '#FFD700',
+      textColor: '#98FB98',
     } as CardDesign,
   },
 };
