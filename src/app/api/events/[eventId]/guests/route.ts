@@ -61,7 +61,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       cedula, 
       clienteId,
       customData, 
-      source 
+      source,
+      referralCode // Promoter affiliate code
     } = body;
 
     // Get event and validate
@@ -191,6 +192,25 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       timestamp: Date.now()
     });
 
+    // Find promotor by referral code if provided
+    let promotorId: string | null = null;
+    if (referralCode) {
+      const promotor = await prisma.promotor.findFirst({
+        where: {
+          businessId: event.businessId,
+          nombre: referralCode, // Using nombre as the referral code for now
+          activo: true
+        }
+      });
+      
+      if (promotor) {
+        promotorId = promotor.id;
+        console.log('✅ Promotor match found:', promotor.nombre, 'for code:', referralCode);
+      } else {
+        console.log('⚠️ No promotor found for referral code:', referralCode);
+      }
+    }
+
     // Create guest registration
     const guest = await prisma.eventGuest.create({
       data: {
@@ -201,6 +221,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         email: email || null,
         guestCount: 1, // Always 1 - individual tickets
         clienteId: finalClienteId,
+        promotorId: promotorId, // Link to promoter if found
+        referralCode: referralCode || null, // Store the code for analytics
         qrToken,
         qrData,
         customData,

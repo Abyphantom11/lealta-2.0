@@ -70,6 +70,21 @@ export default function EventRegistrationPage({ slug }: Readonly<Props>) {
   const [qrToken, setQrToken] = useState<string | null>(null);
   const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
   const [guestName, setGuestName] = useState('');
+  
+  // Promoter referral tracking
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+
+  // Capture referral code from URL on mount
+  useEffect(() => {
+    if (typeof globalThis.window !== 'undefined') {
+      const params = new URLSearchParams(globalThis.window.location.search);
+      const ref = params.get('ref');
+      if (ref) {
+        setReferralCode(ref);
+        console.log('📊 Referral code captured:', ref);
+      }
+    }
+  }, []);
 
   // Load event data
   useEffect(() => {
@@ -194,7 +209,8 @@ export default function EventRegistrationPage({ slug }: Readonly<Props>) {
           name: data.nombre,
           phone: data.telefono,
           email: data.correo,
-          guestCount: 1 // Always 1, individual tickets
+          guestCount: 1, // Always 1, individual tickets
+          referralCode: referralCode // Pass promoter referral code
         })
       });
 

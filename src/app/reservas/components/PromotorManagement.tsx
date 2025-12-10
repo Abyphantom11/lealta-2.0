@@ -9,7 +9,8 @@ import {
   Edit2, 
   Trash2, 
   TrendingUp,
-  X
+  X,
+  Copy
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -192,6 +193,41 @@ export function PromotorManagement({ businessId, onClose }: Readonly<PromotorMan
     setPromotorToDelete(null);
   };
 
+  const copyAffiliateLink = async (promotor: Promotor) => {
+    // Get events for this business to suggest the first active one
+    try {
+      const eventsResponse = await fetch(`/api/events?businessId=${businessId}&status=ACTIVE`);
+      if (eventsResponse.ok) {
+        const eventsData = await eventsResponse.json();
+        const events = eventsData.events || [];
+        
+        if (events.length > 0) {
+          // Use the first active event
+          const firstEvent = events[0];
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || globalThis.window.location.origin;
+          const affiliateLink = `${baseUrl}/evento/${firstEvent.slug}?ref=${encodeURIComponent(promotor.nombre)}`;
+          
+          await navigator.clipboard.writeText(affiliateLink);
+          toast.success('🔗 Link copiado', {
+            description: `Link de afiliado para "${promotor.nombre}" copiado al portapapeles`
+          });
+        } else {
+          // No active events, just copy a generic format
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || globalThis.window.location.origin;
+          const affiliateLink = `${baseUrl}/evento/[SLUG-EVENTO]?ref=${encodeURIComponent(promotor.nombre)}`;
+          
+          await navigator.clipboard.writeText(affiliateLink);
+          toast.info('📋 Formato copiado', {
+            description: 'Reemplaza [SLUG-EVENTO] con el slug de tu evento'
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error copying link:', error);
+      toast.error('❌ Error al copiar link');
+    }
+  };
+
   const openEditModal = (promotor: Promotor) => {
     setSelectedPromotor(promotor);
     setNombre(promotor.nombre);
@@ -317,6 +353,13 @@ export function PromotorManagement({ businessId, onClose }: Readonly<PromotorMan
                               title="Eliminar"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                            <button 
+                              onClick={() => copyAffiliateLink(promotor)} 
+                              className="p-1.5 hover:bg-green-50 rounded text-green-600 transition-colors"
+                              title="Copiar link de afiliado"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
                             </button>
                           </div>
                         </div>

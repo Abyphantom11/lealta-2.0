@@ -16,10 +16,12 @@ import {
   Copy,
   UserCheck,
   ExternalLink,
-  Search
+  Search,
+  Share2
 } from 'lucide-react';
 import EventFormModal from './EventFormModal';
 import EventGuestList from './EventGuestList';
+import PromoterLinkGenerator from './PromoterLinkGenerator';
 
 interface Event {
   id: string;
@@ -64,6 +66,8 @@ export default function EventsManagement({ businessId }: EventsManagementProps) 
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [showPromoterLinks, setShowPromoterLinks] = useState(false);
+  const [selectedEventForLinks, setSelectedEventForLinks] = useState<Event | null>(null);
 
   // Load events
   const loadEvents = async () => {
@@ -280,6 +284,16 @@ export default function EventsManagement({ businessId }: EventsManagementProps) 
                           <Copy className="w-4 h-4" /> Copiar link
                         </button>
                         <button
+                          onClick={() => {
+                            setSelectedEventForLinks(event);
+                            setShowPromoterLinks(true);
+                            setActiveMenu(null);
+                          }}
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-indigo-600"
+                        >
+                          <Share2 className="w-4 h-4" /> Links de Promotores
+                        </button>
+                        <button
                           onClick={() => window.open(event.registrationUrl, '_blank')}
                           className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
                         >
@@ -386,6 +400,19 @@ export default function EventsManagement({ businessId }: EventsManagementProps) 
             setShowForm(false);
             setEditingEvent(null);
             loadEvents();
+          }}
+        />
+      )}
+
+      {/* Promoter Links Generator Modal */}
+      {showPromoterLinks && selectedEventForLinks && (
+        <PromoterLinkGenerator
+          eventSlug={selectedEventForLinks.slug}
+          eventName={selectedEventForLinks.name}
+          businessId={businessId}
+          onClose={() => {
+            setShowPromoterLinks(false);
+            setSelectedEventForLinks(null);
           }}
         />
       )}

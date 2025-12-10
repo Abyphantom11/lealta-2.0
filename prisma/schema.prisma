@@ -509,6 +509,7 @@ model Promotor {
   createdBy   String?
   Business    Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
   Reservation Reservation[]
+  EventGuests EventGuest[]  @relation("EventGuestPromotor")
 
   @@unique([businessId, nombre])
   @@index([activo])
@@ -1473,6 +1474,10 @@ model EventGuest {
   // Link to Cliente (optional - if guest is also a registered client)
   clienteId         String?
   
+  // Promoter tracking (affiliate link attribution)
+  promotorId        String?
+  referralCode      String?       // The ref code used (for analytics)
+  
   // QR Code
   qrToken           String        @unique
   qrData            String        // Encoded data for the QR
@@ -1495,6 +1500,7 @@ model EventGuest {
   // Relations
   Event             Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
   Cliente           Cliente?      @relation(fields: [clienteId], references: [id])
+  Promotor          Promotor?     @relation("EventGuestPromotor", fields: [promotorId], references: [id])
   
   @@unique([eventId, cedula]) // One registration per cedula per event
   @@index([eventId])
@@ -1503,6 +1509,7 @@ model EventGuest {
   @@index([phone])
   @@index([cedula])
   @@index([clienteId])
+  @@index([promotorId])
 }
 
 enum EventStatus {
