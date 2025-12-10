@@ -115,17 +115,24 @@ export default function EventRegistrationPage({ slug }: Readonly<Props>) {
     if (qrToken && event) {
       const generateQR = async () => {
         try {
+          console.log('🎨 Generando QR para evento...');
+          console.log('   Token:', qrToken);
+          console.log('   Longitud:', qrToken.length);
+          console.log('   Color:', event.primaryColor);
+          
           const qrUrl = await QRCode.toDataURL(qrToken, {
-            width: 300,
-            margin: 2,
+            width: 400, // Aumentar tamaño para mejor lectura
+            margin: 4, // Aumentar margen
+            errorCorrectionLevel: 'H', // Alto nivel de corrección de errores
             color: {
               dark: event.primaryColor || '#000000',
               light: '#ffffff'
             }
           });
           setQrImageUrl(qrUrl);
+          console.log('✅ QR generado exitosamente');
         } catch (err) {
-          console.error('Error generating QR:', err);
+          console.error('❌ Error generating QR:', err);
         }
       };
       generateQR();

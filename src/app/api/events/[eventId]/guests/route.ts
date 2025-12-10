@@ -29,6 +29,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             cedula: true,
             puntos: true
           }
+        },
+        Promotor: {
+          select: {
+            id: true,
+            nombre: true
+          }
         }
       }
     });

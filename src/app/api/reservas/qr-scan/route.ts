@@ -436,12 +436,35 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Check if already checked in
-      if (eventGuest.status === 'CHECKED_IN') {
+      // If action is 'info', just return the guest information without checking in
+      if (action === 'info') {
         return NextResponse.json({
           success: true,
           type: 'EVENT_GUEST',
+          alreadyCheckedIn: eventGuest.status === 'CHECKED_IN',
+          guest: {
+            id: eventGuest.id,
+            name: eventGuest.name,
+            guestCount: eventGuest.guestCount,
+            status: eventGuest.status,
+            checkedInAt: eventGuest.checkedInAt
+          },
+          event: {
+            name: eventGuest.Event.name
+          },
+          message: eventGuest.status === 'CHECKED_IN' 
+            ? `⚠️ Código ya canjeado - ${eventGuest.name} ya registró entrada`
+            : `${eventGuest.name} - Listo para check-in`
+        });
+      }
+
+      // Check if already checked in (for actual check-in action)
+      if (eventGuest.status === 'CHECKED_IN') {
+        return NextResponse.json({
+          success: false,
+          type: 'EVENT_GUEST',
           alreadyCheckedIn: true,
+          canjeado: true,
           guest: {
             id: eventGuest.id,
             name: eventGuest.name,
@@ -450,7 +473,7 @@ export async function POST(request: NextRequest) {
           event: {
             name: eventGuest.Event.name
           },
-          message: `${eventGuest.name} ya registró entrada`
+          message: `⚠️ Código ya canjeado - ${eventGuest.name} ya registró entrada el ${eventGuest.checkedInAt?.toLocaleString('es-EC')}`
         });
       }
 

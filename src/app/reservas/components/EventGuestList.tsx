@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
+import PromoterReportModal from './PromoterReportModal';
 import {
   ArrowLeft,
   Users,
@@ -20,7 +21,8 @@ import {
   XCircle,
   AlertCircle,
   RefreshCw,
-  Copy
+  Copy,
+  TrendingUp
 } from 'lucide-react';
 
 interface Event {
@@ -44,6 +46,11 @@ interface Guest {
   checkedInAt?: string;
   checkedInBy?: string;
   createdAt: string;
+  Promotor?: {
+    id: string;
+    nombre: string;
+  };
+  referralCode?: string;
 }
 
 interface Stats {
@@ -73,6 +80,7 @@ export default function EventGuestList({ event, onBack }: Readonly<EventGuestLis
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [showPromoterReport, setShowPromoterReport] = useState(false);
 
   // Load guests
   const loadGuests = useCallback(async () => {
@@ -156,7 +164,7 @@ export default function EventGuestList({ event, onBack }: Readonly<EventGuestLis
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `invitados-${event.name.replace(/\s+/g, '-')}.csv`;
+    a.download = `invitados-${event.name.split(/\s+/).join('-')}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success('Lista exportada');
@@ -199,6 +207,13 @@ export default function EventGuestList({ event, onBack }: Readonly<EventGuestLis
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowPromoterReport(true)}
+            className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            <TrendingUp className="w-4 h-4" />
+            <span>Reporte Promotores</span>
+          </button>
           <button
             onClick={loadGuests}
             className="p-2 border rounded-lg hover:bg-gray-50"
@@ -363,6 +378,9 @@ export default function EventGuestList({ event, onBack }: Readonly<EventGuestLis
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Contacto
                   </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Promotor
+                  </th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
                     Personas
                   </th>
@@ -404,6 +422,18 @@ export default function EventGuestList({ event, onBack }: Readonly<EventGuestLis
                             </div>
                           )}
                         </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {guest.Promotor ? (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 bg-purple-500 rounded-full" />
+                            <span className="text-sm font-medium text-purple-700">
+                              {guest.Promotor.nombre}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">Directo</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span className="inline-flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full font-medium text-gray-700">
@@ -484,6 +514,15 @@ export default function EventGuestList({ event, onBack }: Readonly<EventGuestLis
           className="fixed inset-0 z-0 cursor-default bg-transparent border-0"
           onClick={() => setActiveMenu(null)}
           aria-label="Cerrar menú"
+        />
+      )}
+
+      {/* Promoter Report Modal */}
+      {showPromoterReport && (
+        <PromoterReportModal
+          eventId={event.id}
+          eventName={event.name}
+          onClose={() => setShowPromoterReport(false)}
         />
       )}
     </div>

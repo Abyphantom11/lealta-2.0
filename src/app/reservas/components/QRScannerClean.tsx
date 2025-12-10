@@ -30,6 +30,34 @@ interface ReservaDetectada {
   exceso: number;
 }
 
+interface QRScanResult {
+  success: boolean;
+  type?: 'EVENT_GUEST' | 'RESERVATION';
+  message?: string;
+  alreadyCheckedIn?: boolean;
+  canjeado?: boolean;
+  reservaId?: string;
+  token?: string;
+  guestCount?: number;
+  guest?: {
+    name: string;
+    phone?: string;
+  };
+  cliente?: {
+    nombre?: string;
+    name?: string;
+    telefono?: string;
+    phone?: string;
+  };
+  reserva?: {
+    fecha: string;
+    hora: string;
+    servicio: string;
+  };
+  maxAsistencia?: number;
+  incrementCount?: number;
+}
+
 export function QRScannerClean({ onScan, onError, registrarAsistencia, businessId }: Readonly<QRScannerCleanProps>) {
   const isClient = useIsClient();
   
@@ -45,6 +73,10 @@ export function QRScannerClean({ onScan, onError, registrarAsistencia, businessI
   const [reservaDetectada, setReservaDetectada] = useState<ReservaDetectada | null>(null);
   const [incrementoExtra, setIncrementoExtra] = useState(0); // ✅ Personas adicionales además del escaneo inicial
   
+  // Estados para eventos
+  const [showEventDialog, setShowEventDialog] = useState(false);
+  const [eventGuest, setEventGuest] = useState<{name: string; guestCount: number; qrToken: string} | null>(null);
+  
   // Referencias
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -56,7 +88,7 @@ export function QRScannerClean({ onScan, onError, registrarAsistencia, businessI
   isScanningRef.current = isScanning;
 
   // Función para obtener información del QR sin incrementar
-  const getQRInfo = useCallback(async (qrData: string) => {
+  const getQRInfo = useCallback(async (qrData: string): Promise<QRScanResult> => {
     // DEBUG: Log de los datos QR que está leyendo el scanner
     console.log('🔍 QRScanner DEBUG - Datos leídos del QR:', qrData);
     
@@ -109,6 +141,14 @@ export function QRScannerClean({ onScan, onError, registrarAsistencia, businessI
       const code = jsQR(imageData.data, imageData.width, imageData.height);
       
       if (code) {
+        console.log('🎯 ========== QR DETECTADO ==========');
+        console.log('📊 Datos completos del QR:', code);
+        console.log('📝 Contenido (data):', code.data);
+        console.log('📏 Longitud:', code.data?.length || 0);
+        console.log('🔤 Tipo:', typeof code.data);
+        console.log('📍 Ubicación:', code.location);
+        console.log('=====================================');
+        
         // Detener el escaneo inmediatamente
         if (scanIntervalRef.current) {
           clearInterval(scanIntervalRef.current);
@@ -128,6 +168,31 @@ export function QRScannerClean({ onScan, onError, registrarAsistencia, businessI
             
             const result = await getQRInfo(code.data);
             
+            // Handle EVENT GUEST QR
+            if (result.type === 'EVENT_GUEST') {
+              console.log('🎟️ Evento detectado:', result);
+              
+              if (result.alreadyCheckedIn || result.canjeado) {
+                // Código ya canjeado
+                setError(`⚠️ ${result.message || 'Código ya canjeado'}`);
+                setTimeout(() => {
+                  setError('');
+                  scanIntervalRef.current ??= setInterval(scanQRCode, 200);
+                }, 3000);
+              } else {
+                // Mostrar modal profesional de bienvenida
+                setEventGuest({
+                  name: result.guest?.name || 'Invitado',
+                  guestCount: result.guestCount || 1,
+                  qrToken: code.data
+                });
+                setShowEventDialog(true);
+              }
+              
+              return;
+            }
+            
+            // Handle RESERVATION QR
             if (result.success && result.reservaId) {
               const reservaInfo: ReservaDetectada = {
                 reservaId: result.reservaId,
@@ -589,6 +654,82 @@ export function QRScannerClean({ onScan, onError, registrarAsistencia, businessI
               }}
             >
               {isProcessing ? "Procesando..." : "Confirmar Asistencia"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Event Guest Check-in Dialog */}
+      <Dialog open={showEventDialog} onOpenChange={() => {}}>
+        <DialogContent 
+          className="sm:max-w-md"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3 text-2xl">
+              <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-8 h-8 text-white" />
+              </div>
+              <span className="text-green-700">¡Ticket Canjeado!</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-6 space-y-4">
+            <div className="text-center space-y-2">
+              <p className="text-3xl font-bold text-gray-900">
+                {eventGuest?.name}
+              </p>
+              <p className="text-lg text-gray-600">
+                ¡Bienvenido! 🎉
+              </p>
+              {eventGuest && eventGuest.guestCount > 1 && (
+                <p className="text-sm text-gray-500 mt-2">
+                  {eventGuest.guestCount} personas
+                </p>
+              )}
+            </div>
+            
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
+              <p className="text-center text-green-800 font-medium">
+                ✓ Entrada registrada exitosamente
+              </p>
+            </div>
+          </div>
+          
+          <DialogFooter className="sm:justify-center">
+            <Button
+              onClick={async () => {
+                if (!eventGuest) return;
+                
+                try {
+                  // Hacer el check-in
+                  const res = await fetch('/api/events/checkin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ qrToken: eventGuest.qrToken })
+                  });
+                  
+                  if (!res.ok) {
+                    const data = await res.json();
+                    setError(data.error || 'Error al registrar entrada');
+                  }
+                } catch {
+                  setError('Error al registrar entrada');
+                }
+                
+                setShowEventDialog(false);
+                setEventGuest(null);
+                setIsProcessing(false);
+                
+                // Reiniciar escaneo
+                setTimeout(() => {
+                  scanIntervalRef.current = setInterval(scanQRCode, 200);
+                }, 1000);
+              }}
+              className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-medium px-8 py-6 text-lg"
+            >
+              Continuar Escaneando
             </Button>
           </DialogFooter>
         </DialogContent>

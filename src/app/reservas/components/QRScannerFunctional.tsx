@@ -183,7 +183,12 @@ export function QRScannerFunctional({ onScan, onError }: Readonly<QRScannerFunct
               scanIntervalRef.current = null;
             }
             
-            console.log("📱 QR detectado, parseando datos...", qrDataString);
+            console.log("========================================");
+            console.log("📱 QR DETECTADO");
+            console.log("Contenido:", qrDataString);
+            console.log("Longitud:", qrDataString.length);
+            console.log("Tipo:", typeof qrDataString);
+            console.log("========================================");
             
             // Parsear el QR que viene en formato JSON del QRGenerator
             let qrData: QRData | EventQRData | null = null;
@@ -200,19 +205,28 @@ export function QRScannerFunctional({ onScan, onError }: Readonly<QRScannerFunct
             
             // ✨ Check if it's a plain token (likely event guest QR)
             if (isPlainToken) {
+              console.log("🎟️ Detectado token simple (probable evento)");
               console.log("🎟️ Probando como token de evento:", qrDataString);
+              console.log("🎟️ Llamando a /api/events/guest-info...");
               
               // Get guest info first (without checking in)
               try {
                 const infoResponse = await fetch(`/api/events/guest-info?qrToken=${qrDataString}`);
+                console.log("📡 Respuesta status:", infoResponse.status);
                 const infoData = await infoResponse.json();
+                console.log("📊 Respuesta data:", infoData);
                 
                 if (!infoData.success) {
                   // Not an event QR, show error
+                  console.log("❌ No es un QR de evento válido");
                   setError("Código QR inválido o corrupto");
                   setIsProcessing(false);
                   return;
                 }
+                
+                console.log("✅ QR de evento detectado exitosamente!");
+                console.log("👤 Invitado:", infoData.guest.name);
+                console.log("🎉 Evento:", infoData.event.name);
                 
                 // Show confirmation dialog
                 setEventGuestDetectado({
