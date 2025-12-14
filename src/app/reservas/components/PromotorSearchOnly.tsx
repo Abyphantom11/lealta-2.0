@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Users, Check, Search } from "lucide-react";
+import { Users, Check, Search, X } from "lucide-react";
 
 interface Promotor {
   id: string;
@@ -116,6 +116,18 @@ export function PromotorSearchOnly({
     setShowDropdown(true);
   };
 
+  // 🆕 Función para limpiar el promotor seleccionado
+  const handleClear = () => {
+    setSelectedPromotor(null);
+    setSearchTerm("");
+    setShowDropdown(false);
+    onSelect("", ""); // Notificar al padre que se limpió
+    // Enfocar el input después de limpiar
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
+  };
+
   return (
     <div className="space-y-2 relative" ref={dropdownRef}>
       <Label htmlFor="promotor-search" className="text-sm font-medium text-gray-800">
@@ -131,14 +143,24 @@ export function PromotorSearchOnly({
           onChange={handleInputChange}
           onFocus={handleInputFocus}
           placeholder={placeholder}
-          className="min-h-[44px] text-gray-900 placeholder:text-gray-500 pr-10"
+          className="min-h-[44px] text-gray-900 placeholder:text-gray-500 pr-20"
           required={required}
           disabled={isLoading}
         />
         
-        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
           {selectedPromotor ? (
-            <Check className="h-5 w-5 text-green-600" />
+            <>
+              <Check className="h-5 w-5 text-green-600" />
+              <button
+                type="button"
+                onClick={handleClear}
+                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                title="Cambiar promotor"
+              >
+                <X className="h-4 w-4 text-gray-500 hover:text-red-500" />
+              </button>
+            </>
           ) : (
             <Search className="h-5 w-5 text-gray-400" />
           )}

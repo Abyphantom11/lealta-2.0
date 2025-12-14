@@ -5,7 +5,6 @@ import { useServerSentEvents } from './useServerSentEvents';
 import { REALTIME_CONFIG } from '../utils/realtime-config';
 import { reservasQueryKeys } from '../../../providers/QueryProvider';
 import type { SSEEvent, ConnectionStatus } from '../types/realtime';
-import type { Reserva } from '../types/reservation';
 
 interface UseRealtimeSyncOptions {
   businessId: number | string;
@@ -40,15 +39,12 @@ export function useRealtimeSync({
       console.log('[Realtime] QR escaneado:', { reservationId, scanCount, isFirstScan });
     }
 
-    // 🔄 IMPORTANTE: Invalidar usando la query key correcta
+    // 🔄 IMPORTANTE: Refetch activo para actualizar el UI
     if (autoUpdateCache) {
-      // Invalidar todas las listas de reservas para este business
-      queryClient.invalidateQueries({
-        queryKey: reservasQueryKeys.lists()
-      });
-      // También invalidar los stats
-      queryClient.invalidateQueries({
-        queryKey: reservasQueryKeys.stats(String(businessId))
+      // Refetch todas las queries activas de reservas
+      queryClient.refetchQueries({
+        queryKey: reservasQueryKeys.lists(),
+        type: 'active'
       });
     }
 
@@ -70,7 +66,7 @@ export function useRealtimeSync({
         icon: '📱'
       });
     }
-  }, [businessId, autoUpdateCache, showToasts, queryClient]);
+  }, [autoUpdateCache, showToasts, queryClient]);
 
   // 📊 Handler: Asistencia Actualizada
   const handleAsistenciaUpdated = useCallback((event: SSEEvent<any>) => {
@@ -80,15 +76,11 @@ export function useRealtimeSync({
       console.log('[Realtime] Asistencia actualizada:', { reservaId, asistenciaActual, increment });
     }
 
-    // 🔄 IMPORTANTE: Invalidar usando la query key correcta
+    // 🔄 IMPORTANTE: Refetch activo para actualizar el UI
     if (autoUpdateCache) {
-      // Invalidar todas las listas de reservas para este business
-      queryClient.invalidateQueries({
-        queryKey: reservasQueryKeys.lists()
-      });
-      // También invalidar los stats
-      queryClient.invalidateQueries({
-        queryKey: reservasQueryKeys.stats(String(businessId))
+      queryClient.refetchQueries({
+        queryKey: reservasQueryKeys.lists(),
+        type: 'active'
       });
     }
 
@@ -106,31 +98,32 @@ export function useRealtimeSync({
         icon: '✅'
       });
     }
-  }, [businessId, autoUpdateCache, showToasts, queryClient]);
+  }, [autoUpdateCache, showToasts, queryClient]);
 
   // 🎫 Handler: Reserva Creada
   const handleReservationCreated = useCallback((event: SSEEvent<any>) => {
-    const { reservationId, customerName } = event.data || event;
+    const { reservationId, customerName, guestCount } = event.data || event;
 
     if (REALTIME_CONFIG.debug) {
       console.log('[Realtime] Nueva reserva:', { reservationId, customerName });
     }
 
-    // Invalidar query para refetch
+    // 🚀 REFETCH ACTIVO: Forzar actualización del UI
     if (autoUpdateCache) {
-      queryClient.invalidateQueries({
-        queryKey: ['reservas', businessId]
+      queryClient.refetchQueries({
+        queryKey: reservasQueryKeys.lists(),
+        type: 'active'
       });
     }
 
     // Mostrar toast
     if (showToasts) {
-      toast.success(`Nueva reserva: ${customerName}`, {
+      toast.success(`Nueva reserva: ${customerName} (${guestCount || 1} personas)`, {
         duration: 4000,
         icon: '🎫'
       });
     }
-  }, [businessId, autoUpdateCache, showToasts, queryClient]);
+  }, [autoUpdateCache, showToasts, queryClient]);
 
   // ✏️ Handler: Reserva Actualizada
   const handleReservationUpdated = useCallback((event: SSEEvent<any>) => {
@@ -140,10 +133,11 @@ export function useRealtimeSync({
       console.log('[Realtime] Reserva actualizada:', reservationId);
     }
 
-    // Invalidar query para refetch
+    // 🚀 REFETCH ACTIVO: Forzar actualización del UI
     if (autoUpdateCache) {
-      queryClient.invalidateQueries({
-        queryKey: ['reservas', businessId]
+      queryClient.refetchQueries({
+        queryKey: reservasQueryKeys.lists(),
+        type: 'active'
       });
     }
 
@@ -160,7 +154,7 @@ export function useRealtimeSync({
         duration: 2000
       });
     }
-  }, [businessId, autoUpdateCache, showToasts, queryClient]);
+  }, [autoUpdateCache, showToasts, queryClient]);
 
   // ❌ Handler: Reserva Eliminada
   const handleReservationDeleted = useCallback((event: SSEEvent<any>) => {
@@ -170,19 +164,12 @@ export function useRealtimeSync({
       console.log('[Realtime] Reserva eliminada:', reservationId);
     }
 
-    // Actualizar caché removiendo la reserva
+    // 🚀 REFETCH ACTIVO: Forzar actualización del UI
     if (autoUpdateCache) {
-      queryClient.setQueryData(
-        ['reservas', businessId],
-        (oldData: any) => {
-          if (!oldData?.reservas) return oldData;
-
-          return {
-            ...oldData,
-            reservas: oldData.reservas.filter((reserva: Reserva) => reserva.id !== reservationId)
-          };
-        }
-      );
+      queryClient.refetchQueries({
+        queryKey: reservasQueryKeys.lists(),
+        type: 'active'
+      });
     }
 
     // Mostrar toast
@@ -192,7 +179,7 @@ export function useRealtimeSync({
         icon: '❌'
       });
     }
-  }, [businessId, autoUpdateCache, showToasts, queryClient]);
+  }, [autoUpdateCache, showToasts, queryClient]);
 
   // 🔄 Handler: Estado Cambiado
   const handleStatusChanged = useCallback((event: SSEEvent<any>) => {
@@ -202,28 +189,12 @@ export function useRealtimeSync({
       console.log('[Realtime] Estado cambiado:', { reservationId, newStatus });
     }
 
-    // Actualizar caché
+    // 🚀 REFETCH ACTIVO: Forzar actualización del UI
     if (autoUpdateCache) {
-      queryClient.setQueryData(
-        ['reservas', businessId],
-        (oldData: any) => {
-          if (!oldData?.reservas) return oldData;
-
-          return {
-            ...oldData,
-            reservas: oldData.reservas.map((reserva: Reserva) => {
-              if (reserva.id === reservationId) {
-                return {
-                  ...reserva,
-                  estado: newStatus,
-                  fechaModificacion: new Date().toISOString()
-                };
-              }
-              return reserva;
-            })
-          };
-        }
-      );
+      queryClient.refetchQueries({
+        queryKey: reservasQueryKeys.lists(),
+        type: 'active'
+      });
     }
 
     // Emitir evento custom
@@ -232,7 +203,7 @@ export function useRealtimeSync({
         detail: { reservationId, newStatus }
       }));
     }
-  }, [businessId, autoUpdateCache, queryClient]);
+  }, [autoUpdateCache, queryClient]);
 
   // 🎯 Handler principal para eventos SSE
   const handleEvent = useCallback((event: SSEEvent<any>) => {

@@ -135,9 +135,9 @@ const reservasAPI = {
       fechaEnviada: reservaData.fecha
     });
     
-    // 🚀 TIMEOUT: 5 segundos máximo
+    // 🚀 TIMEOUT: 10 segundos máximo (aumentado para Vercel Edge)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     
     try {
       const response = await fetch(url, {
@@ -272,13 +272,13 @@ export function useReservasOptimized({
         : reservasAPI.fetchReservas(businessId);
     },
     enabled: enabled,
-    staleTime: 60000, // 1 minuto - datos considerados fresh
-    gcTime: 10 * 60 * 1000, // 10 minutos en caché
-    refetchOnWindowFocus: true,
-    refetchOnMount: false, // ❌ NO refetch al montar - usar caché
-    // 🧠 POLLING SIMPLIFICADO (como en bd16e02 que funcionaba)
-    refetchInterval: 30000, // 30 segundos - polling constante
-    refetchIntervalInBackground: false, // ❌ NO polling en background
+    staleTime: 30000, // 🚀 30 segundos - datos considerados fresh
+    gcTime: 5 * 60 * 1000, // 5 minutos en caché
+    refetchOnWindowFocus: false, // ❌ NO refetch al volver a la ventana
+    refetchOnMount: true, // ✅ SI refetch al montar para tener datos frescos
+    // 🧠 POLLING CADA 60 SEGUNDOS como backup (SSE es principal)
+    refetchInterval: 60000, // 60 segundos - polling de respaldo
+    refetchIntervalInBackground: false,
   });
 
   // Seleccionar la query activa
@@ -347,33 +347,63 @@ export function useReservasOptimized({
       
       return { previousReservas, tempId };
     },
-    onSuccess: async (newReserva, _variables, context) => {
-      // 🔥 ESTRATEGIA MEJORADA: Agregar la reserva real al cache directamente
-      if (newReserva) {
-        queryClient.setQueryData(
-          reservasQueryKeys.list(businessId || 'default', includeStats),
-          (old: any) => {
-            if (!old?.reservas) return old;
-            
-            // Remover la temporal si existe
-            const reservasSinTemporal = context?.tempId 
-              ? old.reservas.filter((r: any) => r.id !== context.tempId)
-              : old.reservas;
-            
-            // Agregar la reserva real al principio (más reciente primero)
-            return {
-              ...old,
-              reservas: [newReserva, ...reservasSinTemporal]
-            };
-          }
-        );
-      }
+    onSuccess: async (responseData, _variables, context) => {
+      // 🔥 ESTRATEGIA CORREGIDA: Actualizar cache + forzar re-render
+      const newReserva = responseData?.reserva || responseData;
       
-      // 🚀 Invalidar y refetch inmediatamente
-      await queryClient.invalidateQueries({ 
-        queryKey: reservasQueryKeys.list(businessId || 'default', includeStats),
-        refetchType: 'active' // Refetch inmediatamente si hay observers activos
+      console.log('✅ [CREATE] onSuccess - Procesando respuesta:', {
+        tieneReserva: !!newReserva,
+        reservaId: newReserva?.id,
+        tempId: context?.tempId
       });
+      
+      if (newReserva?.id) {
+        const queryKey = reservasQueryKeys.list(businessId || 'default', { includeStats });
+        
+        // 1. Actualizar cache manualmente
+        queryClient.setQueryData(queryKey, (old: any) => {
+          if (!old?.reservas) {
+            console.warn('⚠️ [CREATE] Cache vacío, creando estructura inicial');
+            return { reservas: [newReserva], stats: old?.stats };
+          }
+          
+          // Remover la temporal si existe
+          const reservasSinTemporal = context?.tempId 
+            ? old.reservas.filter((r: any) => r.id !== context.tempId)
+            : old.reservas;
+          
+          // Verificar que no esté duplicada
+          const yaExiste = reservasSinTemporal.some((r: any) => r.id === newReserva.id);
+          if (yaExiste) {
+            console.log('⚠️ [CREATE] Reserva ya existe en cache, no duplicar');
+            return old;
+          }
+          
+          console.log('✅ [CREATE] Agregando reserva real al cache:', newReserva.id);
+          
+          // Agregar la reserva real al principio (más reciente primero)
+          return {
+            ...old,
+            reservas: [newReserva, ...reservasSinTemporal]
+          };
+        });
+        
+        // 2. 🔥 FORZAR que React Query notifique a los suscriptores
+        // Esto es CRÍTICO para que el componente se re-renderice
+        await queryClient.refetchQueries({ 
+          queryKey,
+          type: 'active',
+          exact: true 
+        });
+        
+        console.log('✅ [CREATE] Cache actualizado y refetch completado');
+      } else {
+        console.error('❌ [CREATE] No se recibió reserva válida del servidor');
+        // Forzar refetch completo como fallback
+        await queryClient.invalidateQueries({ 
+          queryKey: reservasQueryKeys.lists() 
+        });
+      }
       
       toast.success('✓ Reserva creada exitosamente');
     },
@@ -437,26 +467,23 @@ export function useReservasOptimized({
       
       return { previousReservas, id };
     },
-    onSuccess: async (payload) => {
-      const data = payload?.data;
-      const structuralFields = new Set(['fecha', 'hora', 'estado', 'businessId']);
-      const requiresFullInvalidation = data && Object.keys(data).some(key => structuralFields.has(key));
+    onSuccess: async (payload, variables) => {
+      const data = payload?.data || variables?.data;
+      const queryKey = reservasQueryKeys.list(businessId || 'default', { includeStats });
+      
+      console.log('✅ [UPDATE] onSuccess - Sincronizando cache:', {
+        reservaId: variables?.id,
+        cambios: Object.keys(data || {})
+      });
+      
+      // 🔥 SIEMPRE refetch activo para asegurar que el UI se actualice
+      await queryClient.refetchQueries({ 
+        queryKey,
+        type: 'active',
+        exact: true 
+      });
        
-       if (requiresFullInvalidation) {
-         console.log('📅 [UPDATE] Cambio estructural detectado:', Object.keys(data || {}));
-         // 🚀 NO ESPERAR: Invalidar en background
-         invalidateReservasCache('all').catch(err => 
-           console.error('Error al invalidar cache:', err)
-         );
-       } else {
-         console.log('🔄 [UPDATE] Cambio simple:', Object.keys(data || {}));
-         // 🚀 NO ESPERAR: Invalidar en background
-         invalidateReservasCache('standard').catch(err => 
-           console.error('Error al invalidar cache:', err)
-         );
-       }
-       
-       toast.success('✓ Reserva actualizada exitosamente');
+      toast.success('✓ Reserva actualizada');
     },
     onError: (error, _variables, context) => {
       console.error('❌ [UPDATE] Error al actualizar', error);
@@ -519,12 +546,19 @@ export function useReservasOptimized({
       
       return { previousReservas, id };
     },
-    onSuccess: async () => {
-      // 🚀 NO ESPERAR: Invalidar en background
-      invalidateReservasCache('all').catch(err => 
-        console.error('Error al invalidar cache:', err)
-      );
-      toast.success('✓ Reserva eliminada exitosamente');
+    onSuccess: async (_data, id) => {
+      const queryKey = reservasQueryKeys.list(businessId || 'default', { includeStats });
+      
+      console.log('✅ [DELETE] onSuccess - Reserva eliminada:', id);
+      
+      // 🔥 Refetch para asegurar que el UI se actualice
+      await queryClient.refetchQueries({ 
+        queryKey,
+        type: 'active',
+        exact: true 
+      });
+      
+      toast.success('✓ Reserva eliminada');
     },
     onError: (error, _id, context) => {
       console.error('❌ [DELETE] Error al eliminar', error);
@@ -597,10 +631,10 @@ export function useReservasOptimized({
       
       return { previousReservas, reservaId };
     },
-    onSuccess: async (data, variables, context) => {
+    onSuccess: async (data, _variables, context) => {
       console.log('✅ [ASISTENCIA] Respuesta del servidor:', data);
       
-      // � ACTUALIZAR CON VALOR REAL DEL SERVIDOR (no solo optimista)
+      // 🚀 ACTUALIZAR CON VALOR REAL DEL SERVIDOR (no solo optimista)
       const reservaId = context?.reservaId;
       if (reservaId && data.incrementCount !== undefined) {
         queryClient.setQueryData(
@@ -621,11 +655,14 @@ export function useReservasOptimized({
         console.log('🎯 [ASISTENCIA] Actualizado con valor real del servidor:', data.incrementCount);
       }
       
-      // 🚀 Invalidar cache para refrescar TODAS las vistas
-      await invalidateReservasCache('all');
-      console.log('✅ [ASISTENCIA] Cache invalidado completamente');
+      // 🚀 OPTIMIZACIÓN: Invalidar en background (no bloquear UI)
+      setTimeout(() => {
+        invalidateReservasCache('all').catch(err => 
+          console.error('Error al invalidar cache:', err)
+        );
+      }, 500);
       
-      toast.success('✓ Asistencia registrada correctamente');
+      toast.success('✓ Asistencia registrada');
     },
     onError: (error, _variables, context) => {
       console.error('❌ [ASISTENCIA] Error al registrar', error);
