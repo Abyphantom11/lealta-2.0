@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { format, addMonths, subMonths, startOfMonth, isSameMonth, isSameDay, addDays } from "date-fns";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { format, addMonths, subMonths, addYears, subYears, startOfMonth, isSameMonth, isSameDay, addDays } from "date-fns";
 import { es, type Locale } from "date-fns/locale";
 import { cn } from "./utils";
 import { Button } from "./button";
@@ -61,6 +61,16 @@ export function CustomCalendar({
     setCurrentMonth(addMonths(currentMonth, 1));
   };
 
+  // Función para ir al año anterior
+  const prevYear = () => {
+    setCurrentMonth(subYears(currentMonth, 1));
+  };
+
+  // Función para ir al año siguiente
+  const nextYear = () => {
+    setCurrentMonth(addYears(currentMonth, 1));
+  };
+
   return (
     <div className={cn(
       "w-full p-3 bg-white",
@@ -68,8 +78,29 @@ export function CustomCalendar({
       "min-w-[280px] max-w-[320px]",
       className
     )}>
-      {/* Encabezado del calendario - Compacto */}
-      <div className="flex items-center justify-between mb-3">
+      {/* Encabezado del calendario - Compacto con navegación de años */}
+      <div className="flex items-center justify-between mb-3 gap-1">
+        {/* Año anterior */}
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className={cn(
+            "shrink-0 hover:bg-gray-100 border-gray-200",
+            className?.includes('mobile-calendar-fullscreen') ? "h-9 w-9" :
+            className?.includes('mobile-calendar') ? "h-8 w-8" : "h-8 w-8"
+          )}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            prevYear();
+          }}
+          title="Año anterior"
+        >
+          <ChevronsLeft className="h-4 w-4 text-gray-700" />
+        </Button>
+
+        {/* Mes anterior */}
         <Button
           type="button"
           variant="outline"
@@ -99,9 +130,12 @@ export function CustomCalendar({
             e.stopPropagation();
             prevMonth();
           }}
+          title="Mes anterior"
         >
           <ChevronLeft className="h-4 w-4 text-gray-700" />
         </Button>
+
+        {/* Mes y año actual */}
         <div className={cn(
           "font-semibold text-center flex-1 px-2 capitalize text-gray-900",
           className?.includes('mobile-calendar-fullscreen') ? "text-lg" :
@@ -109,6 +143,8 @@ export function CustomCalendar({
         )}>
           {format(currentMonth, 'MMMM yyyy', { locale })}
         </div>
+
+        {/* Mes siguiente */}
         <Button
           type="button"
           variant="outline"
@@ -138,8 +174,29 @@ export function CustomCalendar({
             e.stopPropagation();
             nextMonth();
           }}
+          title="Mes siguiente"
         >
           <ChevronRight className="h-4 w-4 text-gray-700" />
+        </Button>
+
+        {/* Año siguiente */}
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className={cn(
+            "shrink-0 hover:bg-gray-100 border-gray-200",
+            className?.includes('mobile-calendar-fullscreen') ? "h-9 w-9" :
+            className?.includes('mobile-calendar') ? "h-8 w-8" : "h-8 w-8"
+          )}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            nextYear();
+          }}
+          title="Año siguiente"
+        >
+          <ChevronsRight className="h-4 w-4 text-gray-700" />
         </Button>
       </div>
 

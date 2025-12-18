@@ -548,6 +548,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ✅ Validar que la fecha de reserva no sea más de 1 año en el futuro
+    const fechaReserva = new Date(data.fecha);
+    const unAñoFuturo = new Date();
+    unAñoFuturo.setFullYear(unAñoFuturo.getFullYear() + 1);
+
+    if (fechaReserva > unAñoFuturo) {
+      const maxFecha = unAñoFuturo.toISOString().split('T')[0];
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `La fecha de reserva no puede ser más de 1 año en el futuro. Fecha máxima permitida: ${maxFecha}` 
+        },
+        { status: 400 }
+      );
+    }
+
+    // ✅ Validar que la fecha no sea demasiado antigua (más de 1 mes atrás)
+    const unMesAtras = new Date();
+    unMesAtras.setMonth(unMesAtras.getMonth() - 1);
+
+    if (fechaReserva < unMesAtras) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'La fecha de reserva no puede ser más de 1 mes en el pasado' 
+        },
+        { status: 400 }
+      );
+    }
+
     // 1. Crear o buscar el cliente
     let cliente;
     

@@ -467,6 +467,24 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
     
     try {
       // 🌍 FIX: Usar función utilitaria para formatear fecha sin UTC
+      // ✅ Validar que la fecha no sea más de 1 año en el futuro
+      const unAñoFuturo = new Date();
+      unAñoFuturo.setFullYear(unAñoFuturo.getFullYear() + 1);
+
+      if (nuevaFecha > unAñoFuturo) {
+        toast.error('La fecha no puede ser más de 1 año en el futuro');
+        throw new Error('Fecha fuera de rango permitido');
+      }
+
+      // ✅ Validar que la fecha no sea más de 1 mes en el pasado
+      const unMesAtras = new Date();
+      unMesAtras.setMonth(unMesAtras.getMonth() - 1);
+
+      if (nuevaFecha < unMesAtras) {
+        toast.error('La fecha no puede ser más de 1 mes en el pasado');
+        throw new Error('Fecha fuera de rango permitido');
+      }
+
       const fechaFormateada = formatDateLocal(nuevaFecha);
       
       console.log('🔄 SIMPLIFICADO - Cambiando fecha (TIMEZONE AWARE):', {
