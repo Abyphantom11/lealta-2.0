@@ -3,6 +3,8 @@
 import { useState, useEffect, Suspense } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { PantallaBloqueo } from '../reservas/components/PantallaBloqueo';
+import { RESERVAS_BLOQUEADO, MENSAJE_BLOQUEO, SUBMENSAJE_BLOQUEO } from '../reservas/config/bloqueo';
 
 function LoginContent() {
   const [formData, setFormData] = useState({
@@ -70,6 +72,11 @@ function LoginContent() {
       }
     }
   }, [searchParams]);
+
+  // 🔒 Verificar si el sistema está bloqueado (después de TODOS los hooks)
+  if (RESERVAS_BLOQUEADO) {
+    return <PantallaBloqueo mensaje={MENSAJE_BLOQUEO} submensaje={SUBMENSAJE_BLOQUEO} />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

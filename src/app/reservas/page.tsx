@@ -4,6 +4,8 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ReservasApp from './ReservasApp';
 import { saveSessionBackup, getSessionBackup, clearSessionBackup } from '@/utils/session-persistence';
+import { PantallaBloqueo } from './components/PantallaBloqueo';
+import { RESERVAS_BLOQUEADO, MENSAJE_BLOQUEO, SUBMENSAJE_BLOQUEO } from './config/bloqueo';
 
 // Forzar renderizado dinámico para evitar prerendering
 export const dynamic = 'force-dynamic';
@@ -21,7 +23,7 @@ function ReservasPageContent() {
     const checkSessionAndRedirect = async () => {
       try {
         // 1. Verificar si hay businessId en los parámetros de búsqueda
-        const businessIdParam = searchParams.get('businessId');
+        const businessIdParam = searchParams?.get('businessId');
         if (businessIdParam) {
           console.log('✅ BusinessId desde URL params:', businessIdParam);
           setBusinessId(businessIdParam);
@@ -92,6 +94,11 @@ function ReservasPageContent() {
     checkSessionAndRedirect();
   }, [router, searchParams]);
 
+  // ⛔ VERIFICAR BLOQUEO - RETORNAR PANTALLA DE BLOQUEO SI ESTÁ ACTIVO
+  if (RESERVAS_BLOQUEADO) {
+    return <PantallaBloqueo mensaje={MENSAJE_BLOQUEO} submensaje={SUBMENSAJE_BLOQUEO} />;
+  }
+
   // Mostrar loading mientras resuelve la redirección
   if (isLoading) {
     return (
@@ -102,6 +109,11 @@ function ReservasPageContent() {
         </div>
       </div>
     );
+  }
+
+  // 🔒 Verificar si el módulo está bloqueado
+  if (RESERVAS_BLOQUEADO) {
+    return <PantallaBloqueo mensaje={MENSAJE_BLOQUEO} submensaje={SUBMENSAJE_BLOQUEO} />;
   }
 
   // Mostrar la aplicación de reservas
