@@ -6,6 +6,8 @@ import { useRequireAuth } from '../../../hooks/useAuth';
 import PWALayout from '../../../components/layouts/PWALayout';
 import ReservasApp from '../../reservas/ReservasApp';
 import { saveSessionBackup, clearSessionBackup } from '@/utils/session-persistence';
+import { PantallaBloqueo } from '../../reservas/components/PantallaBloqueo';
+import { RESERVAS_BLOQUEADO, MENSAJE_BLOQUEO, SUBMENSAJE_BLOQUEO } from '../../reservas/config/bloqueo';
 
 /**
  * Página dinámica del módulo de reservas
@@ -66,6 +68,11 @@ export default function BusinessReservasPage() {
       setIsLoading(false);
     }
   }, [businessSlug, authLoading]);
+
+  // 🔒 Verificar si el sistema está bloqueado (después de TODOS los hooks)
+  if (RESERVAS_BLOQUEADO) {
+    return <PantallaBloqueo mensaje={MENSAJE_BLOQUEO} submensaje={SUBMENSAJE_BLOQUEO} />;
+  }
 
   // Loading state (tanto para auth como para validación de business)
   if (authLoading || isLoading) {
