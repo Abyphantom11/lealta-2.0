@@ -100,6 +100,21 @@ const CARD_TEMPLATES = {
       textColor: '#98FB98',
     } as CardDesign,
   },
+  newYear2025: {
+    name: '🎆 Fin de Año 2025',
+    description: 'Celebración Año Nuevo',
+    style: {
+      backgroundColor: 'linear-gradient(135deg, #0c0c1e 0%, #1a1a3e 25%, #2d2d5e 50%, #1a1a3e 75%, #0c0c1e 100%)',
+      borderColor: '#FFD700',
+      borderWidth: 3,
+      borderRadius: 24,
+      padding: 40,
+      shadowColor: '#FFD700',
+      shadowSize: 'xl' as const,
+      headerColor: '#FFD700',
+      textColor: '#C0C0C0',
+    } as CardDesign,
+  },
 };
 
 interface ConfiguracionContentProps {

@@ -1,11 +1,8 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { motion } from '../../components/motion';
-import { Mail, Lock, Eye, EyeOff, UserPlus, Sparkles, ArrowRight } from 'lucide-react';
-import Link from 'next/link';
+import { Eye, EyeOff } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import AuthHeader from '../../components/ui/AuthHeader';
 
 function LoginContent() {
   const [formData, setFormData] = useState({
@@ -29,18 +26,11 @@ function LoginContent() {
         if (response.ok) {
           const userData = await response.json();
           
-          // Determinar la ruta de redirección basada en el rol
+          // 🎯 TODOS los usuarios van directo a RESERVAS (sin importar rol)
           const businessSlug = userData.user.business?.slug || userData.user.business?.subdomain;
           
           if (businessSlug) {
-            const roleRedirect: Record<string, string> = {
-              SUPERADMIN: `/${businessSlug}/superadmin`,
-              ADMIN: `/${businessSlug}/admin`,
-              STAFF: `/${businessSlug}/staff`,
-            };
-            
-            const redirectUrl = roleRedirect[userData.user.role] || `/${businessSlug}/admin`;
-            router.push(redirectUrl);
+            router.push(`/${businessSlug}/reservas`);
             return;
           }
         }
@@ -56,8 +46,8 @@ function LoginContent() {
 
   useEffect(() => {
     // Verificar errores en los parámetros de URL
-    const urlError = searchParams.get('error');
-    const message = searchParams.get('message');
+    const urlError = searchParams?.get('error');
+    const message = searchParams?.get('message');
 
     if (urlError && message) {
       setError(message);
@@ -100,7 +90,7 @@ function LoginContent() {
       const data = await response.json();
 
       if (response.ok) {
-        // Redirect based on role with business context
+        // 🎯 TODOS los usuarios van directo a RESERVAS (sin importar rol)
         const businessSlug = data.businessSlug || data.user?.business?.slug;
         
         if (!businessSlug) {
@@ -109,13 +99,8 @@ function LoginContent() {
           return;
         }
 
-        const roleRedirect: Record<string, string> = {
-          SUPERADMIN: `/${businessSlug}/superadmin`,
-          ADMIN: `/${businessSlug}/admin`,
-          STAFF: `/${businessSlug}/staff`,
-        };
-
-        window.location.href = roleRedirect[data.role] || `/${businessSlug}/staff`;
+        // 🚀 Redirección única: TODOS a /reservas
+        window.location.href = `/${businessSlug}/reservas`;
       } else {
         setError(data.error || 'Credenciales inválidas');
       }
@@ -130,78 +115,50 @@ function LoginContent() {
   // Mostrar loading mientras se verifica la sesión existente
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center"
-        >
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400">Verificando sesión...</p>
-        </motion.div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Verificando sesión...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black">
-      {/* PWA Download Button - desactivado, usando el del AuthHeader */}
-      {/* <PWADownloadButton /> */}
-      
-      {/* Header con navegación optimizada */}
-      <AuthHeader showBackButton={true} />
-
+    <div className="min-h-screen bg-gray-50">
       {/* Contenido principal */}
-      <div className="flex items-center justify-center p-4 pt-0">
-        {/* Background Elements */}
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl" />
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
-        </div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="relative w-full max-w-md"
-        >
-          {/* Header del formulario - con degradado azul-morado */}
+      <div className="flex items-center justify-center p-4 min-h-screen">
+        <div className="w-full max-w-md">
+          {/* Logo y título */}
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-white mb-2">
-              Accede a tu cuenta
-            </h1>
-            <div className="text-3xl font-bold bg-gradient-to-r from-blue-500 via-purple-500 to-blue-600 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
               lealta
-            </div>
+            </h1>
+            <p className="text-gray-600">
+              Accede a tu cuenta
+            </p>
           </div>
 
         {/* Login Form */}
-        <motion.form
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
+        <form
           onSubmit={handleSubmit}
-          className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-8 space-y-6 shadow-2xl"
+          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-4"
         >
           {error && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm text-center"
-            >
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-600 text-sm">
               {error}
-            </motion.div>
+            </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <Mail className="w-4 h-4 inline mr-2" />
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Correo Electrónico
             </label>
             <input
               type="email"
               required
               data-testid="email-input"
-              className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               placeholder="admin@lealta.com"
               value={formData.email}
               onChange={e =>
@@ -211,8 +168,7 @@ function LoginContent() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <Lock className="w-4 h-4 inline mr-2" />
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Contraseña
             </label>
             <div className="relative">
@@ -220,7 +176,7 @@ function LoginContent() {
                 type={showPassword ? 'text' : 'password'}
                 required
                 data-testid="password-input"
-                className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 pr-12"
+                className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-12"
                 placeholder="••••••••"
                 value={formData.password}
                 onChange={e =>
@@ -230,7 +186,7 @@ function LoginContent() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
               >
                 {showPassword ? (
                   <EyeOff className="w-5 h-5" />
@@ -241,13 +197,11 @@ function LoginContent() {
             </div>
           </div>
 
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+          <button
             type="submit"
             disabled={isLoading}
             data-testid="login-button"
-            className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
+            className="w-full px-6 py-3 bg-black hover:bg-gray-800 text-white font-medium rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center"
           >
             {isLoading ? (
               <div className="flex items-center justify-center space-x-2">
@@ -255,32 +209,11 @@ function LoginContent() {
                 <span>Iniciando sesión...</span>
               </div>
             ) : (
-              <>
-                <Sparkles className="w-5 h-5 mr-2" />
-                Iniciar Sesión
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </>
+              'Iniciar Sesión'
             )}
-          </motion.button>
-        </motion.form>
-
-        {/* Register Link */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="mt-6 text-center"
-        >
-          <p className="text-gray-400 mb-4">¿No tienes una cuenta?</p>
-          <Link
-            href="/signup"
-            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-          >
-            <UserPlus className="w-5 h-5 mr-2" />
-            Registrar Negocio
-          </Link>
-        </motion.div>
-        </motion.div>
+          </button>
+        </form>
+        </div>
       </div>
     </div>
   );
@@ -289,10 +222,10 @@ function LoginContent() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-800 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
-          <p className="text-white">Cargando...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-300 border-t-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando...</p>
         </div>
       </div>
     }>

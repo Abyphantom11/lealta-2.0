@@ -574,6 +574,7 @@ export default function ReservasApp({ businessId }: Readonly<ReservasAppProps>) 
           totalReservas={reservas.length}
           onCreateReserva={() => setShowForm(true)}
           onCreateAIReserva={() => setShowAIForm(true)}
+          businessId={businessId || ''}
         />
 
         {/* Indicador de sincronización en tiempo real */}

@@ -54,8 +54,8 @@ export const authOptions: NextAuthOptions = {
   },
   // Páginas personalizadas
   pages: {
-    signIn: '/admin/login',
-    error: '/admin/login',
+    signIn: '/login',
+    error: '/login',
   },
   // Debug solo en desarrollo
   debug: isDevelopment,
@@ -125,6 +125,19 @@ export const authOptions: NextAuthOptions = {
       });
       
       return session;
+    },
+    // 🎯 NUEVO: Redirigir TODOS los usuarios a /reservas
+    async redirect({ url, baseUrl }) {
+      // Si el usuario viene de /login exitoso, siempre redirigir a /reservas
+      if (url.includes('/login') || url === baseUrl) {
+        return `${baseUrl}/reservas`;
+      }
+      // Si ya está en una ruta específica, mantenerla
+      if (url.startsWith(baseUrl)) {
+        return url;
+      }
+      // Por defecto, ir a reservas
+      return `${baseUrl}/reservas`;
     },
   },
 };

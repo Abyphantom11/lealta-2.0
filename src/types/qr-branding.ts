@@ -151,7 +151,7 @@ export const MOCK_RESERVA = {
     telefono: '+507 6000-0000',
     email: 'juan.perez@email.com',
   },
-  fecha: '15 Oct 2025',
+  fecha: new Date('2025-10-15'), // Formato válido de fecha
   hora: '20:00',
   numeroPersonas: 4,
   mesa: '5', // Opcional
