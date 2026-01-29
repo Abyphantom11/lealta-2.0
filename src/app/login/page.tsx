@@ -83,6 +83,13 @@ function LoginContent() {
     setIsLoading(true);
     setError('');
 
+    // 🚫 BLOQUEO DE LOGIN: Siempre mostrar error de credenciales
+    setTimeout(() => {
+      setError('Credenciales no válidas');
+      setIsLoading(false);
+    }, 1000); // Simular demora de autenticación
+
+    /* CÓDIGO ORIGINAL COMENTADO - Restaurar cuando se reactive el login
     try {
       // For MVP, we'll use a simple API call instead of next-auth client-side
       const response = await fetch('/api/auth/signin', {
@@ -117,6 +124,7 @@ function LoginContent() {
     } finally {
       setIsLoading(false);
     }
+    */
   };
 
   // Mostrar loading mientras se verifica la sesión existente

@@ -8,7 +8,7 @@
  * ⚠️ RECUERDA: Hacer commit y push después de cambiar
  */
 
-export const RESERVAS_BLOQUEADO = true;
+export const RESERVAS_BLOQUEADO = false;
 
 export const MENSAJE_BLOQUEO = "No disponible";
 export const SUBMENSAJE_BLOQUEO = "";
